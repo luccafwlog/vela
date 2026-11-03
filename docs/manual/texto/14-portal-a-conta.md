@@ -70,7 +70,7 @@ O convite vai para o **e-mail de recuperação**, o endereço da pessoa que o Cl
 3. Clique em **Enviar convite para …** (ou **Reenviar convite para …**).
 4. Na janela **Autorizar e-mail de recuperação**, confirme que o endereço pertence à pessoa autorizada pelo Cliente e clique em **Enviar convite**.
 
-Com "Convite aceito pelo provedor de e-mail.", a conta passa a **Ativação pendente**. O Cliente recebe o e-mail do convite, com o botão **Ativar acesso**. O link vale por 48 horas e uma vez só; cada reenvio invalida o link anterior.
+Com "Convite aceito pelo provedor de e-mail.", a conta passa a **Ativação pendente**. O Cliente recebe o e-mail do convite, com o botão **Ativar acesso** e o tutorial completo do Portal em PDF anexo. O link vale por 48 horas e uma vez só; cada reenvio invalida o link anterior.
 
 No exemplo, a MAQUINAS HORIZONTE LTDA espera o Portal na Revisão. O convite vai para importacao@maquinas-horizonte.example, o contato principal dela.
 

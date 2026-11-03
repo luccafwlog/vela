@@ -537,3 +537,7 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     cenário), `precos-do-porto` (21.7), `demurrage-containers` (9.5),
     `pix-recebidos` (24.4, com dois Pix fictícios no cenário), `restituicao`
     (24.6) e a `tela-tv` já existente em 5.7.
+- **Tutorial em PDF no convite do Portal** (pedido de 2026-11-03; Edge, sem
+  migration): o e-mail de convite e o de reenvio levam em anexo o tutorial
+  completo do Portal (Tutorial_Portal_Fwlog.pdf) e a linha "Em anexo está o
+  tutorial completo do Portal." (POR-039, POR-040; 14.3).

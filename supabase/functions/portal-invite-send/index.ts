@@ -2,6 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
 import { generateToken, hashToken } from '../_shared/portalToken.ts'
 import { inviteTemplate, resendTemplate } from '../_shared/portalEmailTemplates.ts'
 import { sendPortalEmail } from '../_shared/portalEmail.ts'
+import { PORTAL_INVITE_ATTACHMENTS } from '../_shared/portalInviteAttachments.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { canonicalPortalOrigin, canonicalPortalUrl, portalSupportEmail } from '../_shared/portalUrls.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
@@ -47,7 +48,7 @@ if (typeof Deno !== 'undefined') Deno.serve(instrumentEdgeHandler('portal-invite
   const supportEmail = portalSupportEmail()
   const templateInput = { companyName: customer?.name ?? 'sua empresa', cnpjMasked: maskCnpj(customer?.cnpj_cpf ?? ''), activationUrl, portalUrl, supportEmail }
   const template = resend ? resendTemplate(templateInput) : inviteTemplate(templateInput)
-  const sent = await sendPortalEmail({ admin, kind: resend ? 'reenvio' : 'convite', to: email, subject: template.subject, html: template.html, text: template.text, idempotencyKey: `convite:${invite.id}`, accountId: account.id, inviteId: invite.id })
+  const sent = await sendPortalEmail({ admin, kind: resend ? 'reenvio' : 'convite', to: email, subject: template.subject, html: template.html, text: template.text, attachments: PORTAL_INVITE_ATTACHMENTS, idempotencyKey: `convite:${invite.id}`, accountId: account.id, inviteId: invite.id })
   // `recovery_email_status` (299) descreve o endereço, não a conta: gravar um
   // endereço novo aqui sem zerar o sinal deixaria o console acusando de quebrado
   // um endereço que nunca foi testado -- e o operador não teria como limpá-lo,
