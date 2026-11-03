@@ -36,6 +36,16 @@ por `esm.sh`/`npm:` não tinham aviso na base OSV (adendo da auditoria).
    outras ficam fora e têm erros de tipo antigos (`PortalDb`, `EdgeRuntime`);
    corrigi-los faz parte desta rodada.
 
+**Andamento (2026-11-03).** O ponto 2 está respondido: a integração do
+Supabase confere o `supabase/functions/deno.lock` no empacotamento e recusou o
+deploy quando o esm.sh serviu outro build do `tslib` (log da branch staging,
+`workflow_run_logs`). Todas as funções passaram a importar o `supabase-js` por
+`npm:@supabase/supabase-js@2.117.2`; nenhum import vem mais do esm.sh, e o lock
+das funções cobre todas elas
+([serviços externos § Edge Functions](../operations/servicos-externos.md#edge-functions)).
+Faltam o import map único (ponto 1, nome lógico por dependência) e o `deno
+check` de todas as funções no CI (ponto 3).
+
 **Pronto quando** toda função resolve dependências pelo import map e pelo
 lock, o CI confere todas com `--frozen`, e o manual de
 [serviços externos](../operations/servicos-externos.md) diz como a publicação

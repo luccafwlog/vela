@@ -5,7 +5,7 @@
 // 219, quando uma cobrança fica pendente): só a fila. A fila roda com a vez única do runner;
 // sem ela, a execução não chama o Itaú para cobranças (prazos e recebimentos seguem).
 // Diagnóstico (Fase 1): token, create_test (até R$ 1,00), get, update_test, cancel, list_pix.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.117.2";
+import { createClient } from "npm:@supabase/supabase-js@2.117.2";
 import { validCleanupAuthorization as validBearer } from "../_shared/ceUnlockCleanupAuth.ts";
 import {
   type ChargeQueue, createItauPixClient, ItauPixError, itauPixConfigFromEnv, pollItauPixReceipts, processItauPixQueue,

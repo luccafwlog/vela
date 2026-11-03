@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
+import { createClient } from 'npm:@supabase/supabase-js@2.117.2'
 import { corsHeaders } from '../_shared/cors.ts'
 import { openAlertOnce } from '../_shared/portalAlerts.ts'
 import { confirmLoginFailure, confirmLoginSuccess, requestIp, reserveLoginAttempt, voidLoginAttempt } from '../_shared/portalLoginRateLimit.ts'

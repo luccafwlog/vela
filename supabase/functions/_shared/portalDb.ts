@@ -1,7 +1,7 @@
 // Tipos estruturais mínimos do cliente Supabase usados pelos helpers do Portal.
 //
 // Os helpers ficam fora do `index.ts` de cada Edge Function porque o teste
-// precisa importá-los, e `index.ts` importa `createClient` por URL (esm.sh),
+// precisa importá-los, e `index.ts` importa `createClient` pelo npm (`npm:@supabase/supabase-js`),
 // que o Vitest não resolve. Este arquivo não importa nada: só descreve a forma
 // do que os helpers chamam, para que um duplo de teste possa satisfazê-la.
 

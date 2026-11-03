@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { PORTAL_INVITE_ATTACHMENTS } from '../../../supabase/functions/_shared/portalInviteAttachments.ts'
 import { inviteTemplate, resendTemplate } from '../../../supabase/functions/_shared/portalEmailTemplates.ts'
 
-// portalEmail.ts importa o cliente Supabase do esm.sh e usa Deno: fica fora do
+// portalEmail.ts importa o cliente Supabase pelo npm (`npm:`) e usa Deno: fica fora do
 // typecheck do app e entra por import dinâmico (como em portalEmailSend.test.ts).
 type SendPortalEmail = (input: Record<string, unknown>) => Promise<{ ok: boolean; suppressed: boolean }>
 const portalEmailPath = '../../../supabase/functions/_shared/portalEmail.ts'

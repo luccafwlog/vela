@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
+import { createClient } from 'npm:@supabase/supabase-js@2.117.2'
 import { withCors } from '../_shared/cors.ts'
 import { matchesExtension, matchesMagicBytes } from '../_shared/fileSignature.ts'
 import { BODY_TOO_LARGE, readBoundedMultipart } from '../_shared/boundedMultipart.ts'

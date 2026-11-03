@@ -6,6 +6,15 @@
 
 ## 2026-11
 
+- **Edge Functions sem esm.sh (2026-11-03):** o empacotamento do Supabase recusava o deploy das funções da
+  `staging` ("failed to bundle function: exit status 10") porque o esm.sh passou a servir outro build de
+  `tslib@2.8.1` e o hash não batia com o `supabase/functions/deno.lock`. Todas as funções importam o `supabase-js`
+  por `npm:@supabase/supabase-js@2.117.2`, e os dois `deno.lock` foram gerados de novo, só com pacotes npm; o das
+  funções cobre todas elas ([serviços externos § Edge Functions](operations/servicos-externos.md#edge-functions)).
+- **Desbloqueio de CE do veículo LCL isento só com o B/L original e "Isentas" no Portal (2026-11-03, migration
+  `575`, [ADR 0118](adr/0118-desbloqueio-do-veiculo-lcl-so-com-o-bl-original.md)):** o veículo LCL com Taxas Locais
+  isentas não precisa de solicitação, termo nem procuração; a entrega do B/L original o deixa apto para a ZPT, com
+  as quatro colunas "Sim". A aba B/Ls do Portal mostra "Isentas" no B/L isento sem fatura visível.
 - **Produção com dados reais (2026-11-03; decisão do dono):** o Vela e o Portal Fwlog estão em produção com
   clientes reais. A afirmação "Data status" do `AGENTS.md` passa a dizer o oposto da de 2026-09-18: nenhuma linha de
   produção é fixture. `npm run migrations:check` exige, a partir da migration `575`, a linha `Plano de preservação:`

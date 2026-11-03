@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-// Import dinâmico por caminho não literal: portalEmail.ts importa o cliente Supabase do esm.sh
+// Import dinâmico por caminho não literal: portalEmail.ts importa o cliente Supabase pelo npm (`npm:`)
 // e usa Deno, então fica fora do typecheck do app; o Vitest carrega o módulo em tempo de execução.
 type SendPortalEmail = (input: Record<string, unknown>) => Promise<{ ok: boolean; suppressed: boolean }>
 const portalEmailPath = '../../../supabase/functions/_shared/portalEmail.ts'

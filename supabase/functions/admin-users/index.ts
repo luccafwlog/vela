@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.117.2'
+import { createClient } from 'npm:@supabase/supabase-js@2.117.2'
 import { corsHeaders } from '../_shared/cors.ts'
 
 import { decideDevCredentialChange, decideInternalTarget } from '../_shared/internalUserTarget.ts'
