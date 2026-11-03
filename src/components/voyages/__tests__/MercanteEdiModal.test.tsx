@@ -104,7 +104,7 @@ describe('Gerar EDI Mercante (Rotas e Manifestos)', () => {
     expect(screen.getByText(/Arquivo parcial: complete os itens/)).toBeTruthy()
     const completar = screen.getByRole('region', { name: 'A completar' }).textContent ?? ''
     expect(completar).toContain('Sem data de emissão do B/L.')
-    expect(completar).toContain('tabela 71')
+    expect(completar).toContain('Sem valor do frete marítimo')
     expect(screen.queryByRole('region', { name: 'Impedimentos' })).toBeNull()
     expect((screen.getByRole('button', { name: 'Baixar arquivo' }) as HTMLButtonElement).disabled).toBe(false)
   })

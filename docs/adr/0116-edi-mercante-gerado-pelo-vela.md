@@ -81,7 +81,8 @@ ordem e o tamanho dos NCM e a limpeza do texto livre.
    falta não impede: sai em branco e a prévia o lista em **A completar**, por
    B/L e campo, para a equipe preencher antes de enviar. Só a rota sem B/L de
    carga solta impede. O código do tipo de embalagem (tabela 71 do Siscomex)
-   não existe no Vela e sai sempre em branco. A rota CNTR/BB gera, portanto,
+   é `41` para todo item, como o sistema externo faz (decisão do dono de
+   2026-11-03). A rota CNTR/BB gera, portanto,
    dois arquivos: o de contêiner e o parcial de carga solta.
 
 ## Consequências

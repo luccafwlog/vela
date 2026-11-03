@@ -52,6 +52,14 @@ export const MERCANTE_CONTAINER_TYPE: Readonly<Record<string, string>> = {
   '40EW': '89P0',
 }
 
+/**
+ * Código do tipo de embalagem (tabela 71 do Siscomex) do item de carga solta.
+ * Decisão do dono (2026-11-03): `41` para todo item, como o sistema externo faz.
+ * ponytail: um código só; se a operação precisar distinguir, vira de→para da
+ * unidade do item (`PACKAGES`, `UNITS`…) para a tabela 71.
+ */
+export const MERCANTE_BREAKBULK_PACKAGE_CODE = '41'
+
 /** Código do componente do frete no Mercante, pela categoria da linha do B/L. */
 export const MERCANTE_FREIGHT_COMPONENT: Readonly<Record<string, string>> = {
   THD: '017',

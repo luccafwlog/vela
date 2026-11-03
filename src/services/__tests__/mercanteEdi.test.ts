@@ -288,7 +288,7 @@ describe('buildMercanteBreakbulkEdi (arquivo parcial)', () => {
     expect(field(cargaSolta, 1, 7)).toBe('I520001')
     expect(field(cargaSolta, 8, 19)).toBe('000043800000')
     expect(field(cargaSolta, 24, 34)).toBe(' '.repeat(11))
-    expect(field(cargaSolta, 45, 46)).toBe('  ') // tabela 71: a completar
+    expect(field(cargaSolta, 45, 46)).toBe('41') // tabela 71: 41 para todo item (decisão do dono)
     expect(field(cargaSolta, 47, 53)).toBe('0000002')
     expect(field(cargaSolta, 339, 393).trim()).toBe('SANY')
     expect(field(cargaSolta, 394, 448).trim()).toBe('SANY HYDRAULIC EXCAVATOR SY215')
@@ -307,8 +307,8 @@ describe('buildMercanteBreakbulkEdi (arquivo parcial)', () => {
       'Sem data de emissão do B/L.',
       expect.stringContaining('Sem valor do frete marítimo'),
       expect.stringContaining('Type of Movement'),
-      'Código do tipo de embalagem (tabela 71 do Siscomex) para "UNITS".',
     ]))
+    expect(completar.some((message) => message.includes('embalagem'))).toBe(false)
   })
 
   it('B/L misto leva contêiner, item de carga solta e veículo no mesmo C5', () => {

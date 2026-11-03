@@ -1181,18 +1181,17 @@ ao Mercante continua fora do Vela. **Código:**
   Vela tem (o bloco das partes ou, no Manifesto BB e no B/L avulso, o nome
   curto; CNPJ; descrição; NCM; cubagem de contêiner + carga solta) e um I5 por
   item: tipo 1 para o contêiner do B/L misto, tipo 2 para cada item de carga
-  solta (`bl_breakbulk_items`: peso, quantidade, marca = marcas do item,
+  solta (`bl_breakbulk_items`: peso, tipo de embalagem `41` da tabela 71 do
+  Siscomex para todo item, decisão do dono, quantidade, marca = marcas do item,
   contramarca = descrição do item, cubagem) e tipo 4 para cada veículo fora de
   contêiner (`vehicles`: peso, chassi, marca, modelo como contramarca). Terminal
   do M5: o da frente de carga solta do POD. O que falta (data de emissão,
-  frete, Type of Movement, terminal, código do tipo de embalagem da tabela 71
-  do Siscomex, que o Vela não tem…) sai em branco e aparece em **A completar**,
+  frete, Type of Movement, terminal…) sai em branco e aparece em **A completar**,
   por B/L e campo; nada disso impede o download. Só a rota sem B/L de carga
   solta impede. A rota CNTR/BB gera os dois arquivos.
 - **Nome do arquivo.** `FWL_MERCANTE_<AAAAMMDDHHMM>_<sigla>.TXT`, com a sigla
   das iniciais do navio e o número da viagem (GREEN GUANGZHOU V.6 → `GG6`).
-- **Fora desta fase.** Registro da geração no Histórico, retificação e o
-  de→para da unidade de embalagem para a tabela 71 do Siscomex.
+- **Fora desta fase.** Registro da geração no Histórico e retificação.
 
 ### Baplie: marcas, SOC/COC e divergências
 

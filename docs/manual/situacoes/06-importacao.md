@@ -448,8 +448,8 @@ Administrativo: excluir, cancelar e reativar B/L (BLR-015, BLR-102).
 #### S6.37 — O EDI de carga solta saiu com campos em branco
 
 - **O que o sistema faz:** baixa o arquivo parcial e lista em **A completar**
-  o que ficou em branco, por B/L e campo (data de emissão, frete, código do
-  tipo de embalagem…).
+  o que ficou em branco, por B/L e campo (data de emissão, frete, Type of
+  Movement…).
 - **Por quê:** o Manifesto BB e o B/L avulso não trazem todos os dados do
   manifesto; o Vela adianta o que tem.
 - **O que você faz:** complete os campos listados antes de enviar o arquivo

@@ -12,6 +12,7 @@ import { COMPANY } from '../config/company'
 import { isValidCnpj } from '../lib/cnpj'
 import {
   BRAZILIAN_PORT_UF,
+  MERCANTE_BREAKBULK_PACKAGE_CODE,
   MERCANTE_CONTAINER_TYPE,
   MERCANTE_CURRENCY,
   MERCANTE_FREIGHT_COMPONENT,
@@ -504,10 +505,8 @@ function itemNcm(record: string[], ncm: string[]) {
 }
 
 /**
- * Item de carga solta (tipo 2). O código do tipo de embalagem (tabela 71 do
- * Siscomex) não existe no Vela: sai em branco para a equipe completar.
- * ponytail: sem de→para da unidade (`PACKAGES`, `UNITS`…) para a tabela 71; com
- * a tabela em mãos, entra em `mercanteEdiTables.ts` como os tipos de contêiner.
+ * Item de carga solta (tipo 2). O tipo de embalagem é sempre o código fixo da
+ * tabela 71 (`MERCANTE_BREAKBULK_PACKAGE_CODE`, decisão do dono).
  */
 function buildBreakbulkItem(ctx: Ctx, bl: MercanteEdiBl, item: MercanteEdiBreakbulkItem, sequence: number, ncm: string[]): string {
   const ref = `${bl.id} · item ${sequence}`
@@ -515,7 +514,6 @@ function buildBreakbulkItem(ctx: Ctx, bl: MercanteEdiBl, item: MercanteEdiBreakb
   const marks = cleanMercanteText(item.marks, 'description')
   const counterMarks = cleanMercanteText(item.description, 'description')
   if (item.grossKg === null || item.grossKg === undefined) block(ctx, ref, 'Item de carga solta sem peso bruto.')
-  block(ctx, ref, `Código do tipo de embalagem (tabela 71 do Siscomex)${item.unit ? ` para "${item.unit}"` : ''}.`)
   if (!item.quantity) block(ctx, ref, 'Item de carga solta sem quantidade.')
   if (!marks) block(ctx, ref, 'Item de carga solta sem marca.')
   if (!counterMarks) block(ctx, ref, 'Item de carga solta sem contramarca (descrição do item).')
@@ -524,6 +522,7 @@ function buildBreakbulkItem(ctx: Ctx, bl: MercanteEdiBl, item: MercanteEdiBreakb
   put(record, 3, '2', 1) // tipo do item: carga solta
   put(record, 4, digits(sequence, 4), 4)
   put(record, 8, amount(ctx, ref, 'Peso bruto', item.grossKg, 12, 3), 12)
+  put(record, 45, MERCANTE_BREAKBULK_PACKAGE_CODE, 2)
   if (item.quantity) put(record, 47, amount(ctx, ref, 'Quantidade', item.quantity, 7, 0), 7)
   put(record, 339, marks, MARK_LENGTH)
   put(record, 394, counterMarks, MARK_LENGTH)
