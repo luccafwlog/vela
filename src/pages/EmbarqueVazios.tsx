@@ -453,7 +453,7 @@ function EmbarquesLista({
             ) : (
               <EmptyState
                 title="Nenhum embarque de vazios"
-                description="Crie o embarque da escala em Novo embarque, escolhendo a viagem, o porto e o terminal."
+                description="Crie o embarque da escala em Novo embarque, escolhendo a viagem e o porto; o terminal é o da frente Vazios EXP da escala ou o que você escolher na janela."
               />
             )
           ) : (

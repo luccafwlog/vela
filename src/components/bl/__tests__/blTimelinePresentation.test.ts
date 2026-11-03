@@ -134,6 +134,10 @@ describe('Histórico do B/L: o que a importação muda (migration 404, F-23)', (
     // Dispensa da Demurrage (waive_demurrage_box / revoke_demurrage_box_waiver).
     expect(describeTimelineEvent(ev('bl', 'demurrage_dispensa', null, 'TCLU1234567'))).toBe('Container TCLU1234567 · cobrança de Demurrage dispensada')
     expect(describeTimelineEvent(ev('bl', 'demurrage_dispensa', 'TCLU1234567', null))).toBe('Container TCLU1234567 · dispensa da Demurrage desfeita')
+    // Gatilho da troca de Cliente (565): ids dos Clientes, nunca uma dispensa nova nem o id na tela.
+    const followed = describeTimelineEvent(ev('bl', 'demurrage_dispensa', '12', '34'))
+    expect(followed).toBe('Dispensa da Demurrage acompanhou a troca de Cliente do B/L')
+    expect(followed).not.toMatch(/12|34/)
     expect(describeTimelineEvent(ev('bl', 'campo_interno_novo', 'a', 'b'))).toBe('Dado do B/L: a → b')
     expect(describeTimelineEvent(ev('charge_calculation', 'manual_delete', 'charge_item_id=7 | qty=1', null))).toBe('Cobrança manual excluída')
     // Migration 491: a alteração à mão aparece com a mesma frase do Histórico das taxas.

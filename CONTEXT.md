@@ -1068,16 +1068,18 @@ conta como coberto e sai das divisões e da emissão. Distinta do desconto, que
 - **Ver também:** Correndo, A emitir, Esperando, Travado
 → Regra: [Demurrage § Estado e dados](docs/modules/demurrage.md#estado-e-dados)
 
-**Rateio do container**
+**Rateio da Demurrage entre Clientes**
 Divisão em partes iguais da Demurrage de um container que está em B/Ls de
 Clientes diferentes na mesma Viagem: cada Cliente calcula o container pela
-própria condição e paga 1/n ("1/2 do container" com dois Clientes). Se o número
-de Clientes muda depois da emissão, vale a regra das datas alteradas.
-- **Evitar:** "caixa" para o container e "Rateio da caixa" (desde 2026-11-01
-  a equipe só fala em container, migration `565`; Caixa de Comunicação é outro
-  conceito); "container compartilhado" para Clientes diferentes (o grupo de
-  Demurrage é do mesmo Cliente)
-- **Ver também:** Invoice de Demurrage
+própria condição e paga 1/n (a tela mostra "1/2 do container" com dois
+Clientes). Se o número de Clientes muda depois da emissão, vale a regra das
+datas alteradas.
+- **Evitar:** "Rateio da caixa" e "caixa" para o container (desde 2026-11-01 a
+  equipe só fala em container, migration `565`; Caixa de Comunicação é outro
+  conceito); "rateio do container", que é o das Taxas Locais entre B/Ls do
+  mesmo Cliente (Container compartilhado); "container compartilhado" para
+  Clientes diferentes (o grupo de Demurrage é do mesmo Cliente)
+- **Ver também:** Invoice de Demurrage, Container compartilhado
 → Regra: [Demurrage § Grupo de Demurrage e cobrança por caixa](docs/modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-caixa)
 
 **Acordo de Demurrage do Cliente**
