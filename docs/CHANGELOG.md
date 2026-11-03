@@ -6,6 +6,14 @@
 
 ## 2026-11
 
+- **Revisão da release de 2026-11-03 (PR 1191, migration `578`):** o envio de um rascunho antigo recusa o veículo
+  LCL com Taxas Locais isentas, como a criação do rascunho já fazia; antes, o envio tornava a solicitação o caminho
+  do B/L, e o B/L já enviado direto à ZPT voltava a "Não exportado", apto para nova exportação.
+  `npm run migrations:check` passa a reconhecer, a partir da `575`, `UPDATE` com alias (`UPDATE public.bls AS b
+  SET`), `ONLY`, outro schema e nome entre aspas, que antes passavam sem plano de preservação.
+- **VIP coberto pelo anual também no rascunho (2026-11-03, migration `579`; decisão do dono):** em Andamento dos
+  B/Ls, o B/L em rascunho VIP mostra termo e procuração "coberto pelo anual VIP", como o B/L sem solicitação (`576`),
+  em vez de "pendente" até o envio. O rascunho comum segue os documentos anexados a ele.
 - **Edge Functions sem esm.sh (2026-11-03):** o empacotamento do Supabase recusava o deploy das funções da
   `staging` ("failed to bundle function: exit status 10") porque o esm.sh passou a servir outro build de
   `tslib@2.8.1` e o hash não batia com o `supabase/functions/deno.lock`. Todas as funções importam o `supabase-js`

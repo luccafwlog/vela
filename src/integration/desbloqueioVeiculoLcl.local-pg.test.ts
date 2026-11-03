@@ -128,6 +128,35 @@ local('desbloqueio CE — veículo LCL isento só com o B/L original (migration 
     expect(listed).not.toHaveProperty('export_state')
   })
 
+  it('rascunho antigo não leva o B/L que virou veículo LCL isento, e o envio direto à ZPT continua valendo (578)', () => {
+    // Rascunho criado quando o B/L ainda não era dispensado (Movement To CY); o
+    // Movement To muda para LCL, o desk entrega e exporta direto, e o Cliente
+    // tenta enviar o rascunho antigo com termo e procuração anexados.
+    const out = `BEGIN; ${blFixture({ movement: 'CY', vehicle: true })}
+      ${asClient}
+      CREATE TEMP TABLE draft_578 ON COMMIT DROP AS
+        SELECT public.portal_ce_unlock_command('draft',jsonb_build_object('bl_ids',jsonb_build_array('CE575-A'),'request_key',gen_random_uuid())) AS j;
+      RESET ROLE;
+      SET LOCAL session_replication_role=replica;
+      UPDATE public.bls SET movement_to='CFS/LCL' WHERE id='CE575-A';
+      SET LOCAL session_replication_role=origin;
+      ${asAdmin}
+      SELECT ${delivery(0)}; SELECT ${exportZpt};
+      RESET ROLE;
+      INSERT INTO public.ce_unlock_documents(customer_id,request_id,type,source,status,storage_path,file_name,size_bytes,hash,uploaded_by)
+        SELECT ${customer},(j->>'id')::uuid,t,'request','uploaded','ce575/'||t,t||'.pdf',10,'hash-'||t,'${client}' FROM draft_578, unnest(array['termo','procuracao']) t;`
+    const msg = error(`${out}
+      ${asClient}
+      SELECT public.portal_ce_unlock_command('submit',jsonb_build_object('request_id',j->>'id','expected_version',(j->>'version')::bigint,'request_key',gen_random_uuid())) FROM draft_578;
+      ROLLBACK;`)
+    expect(msg).toContain('não precisa de solicitação')
+    expect(msg).toContain('Cancele este rascunho')
+    const after = last(sql(`${out}
+      SELECT ce_unlock_private.item('CE575-A');
+      ROLLBACK;`))
+    expect(after).toMatchObject({ direct: true, export_state: 'exported', sent_to_zpt: true })
+  })
+
   it.each([
     ['isenção à mão em FCL', { movement: 'CY/CY', vehicle: true }],
     ['isento sem veículo', { movement: 'CFS/LCL', vehicle: false }],

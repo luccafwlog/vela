@@ -28,7 +28,7 @@ import { blReturnSummary, localChargesView, type PortalFlatContainer } from '../
 import type { QueueRow } from './portalProvisioning'
 import { portalProvisioningExportRow } from '../lib/portalProvisioningViewModel'
 import type { CeUnlockItem } from '../types/ceUnlock'
-import { ceStateLabel, ceUnlockZptText } from '../lib/ceUnlockLabels'
+import { ceStateLabel, ceUnlockZptText, ceVipAnnualCovered } from '../lib/ceUnlockLabels'
 import { ceUnlockDeadline, formatCeUnlockDeadline } from './ceUnlockSla'
 import { blTotalCbm, blTotalWeightKg, cargoModeLabel, isBreakbulkCargoMode } from '../lib/cargoMode'
 import { describeChargeAdjustments } from '../lib/chargeAdjustmentSummary'
@@ -400,9 +400,9 @@ export async function exportDemurrageScreenWorkbook(sheetName: string, fileSlug:
 export async function exportCeUnlockWorkbook(rows: CeUnlockItem[]) {
   const XLSX = await import('@e965/xlsx')
   const met = (ok: boolean) => (ok ? 'Atendido' : 'Pendente')
-  // Sem solicitação, o VIP coberto pelos anuais (migration 576) aparece como tal, não "Atendido".
+  // Sem solicitação ou em rascunho VIP, o VIP coberto pelos anuais (migrations 576 e 579) aparece como tal, não "Atendido".
   const doc = (row: CeUnlockItem, ok: boolean) =>
-    !row.request_id && row.vip_covered && ok ? 'Coberto pelo anual VIP' : met(ok)
+    ceVipAnnualCovered(row) && ok ? 'Coberto pelo anual VIP' : met(ok)
   const exportRows = rows.map((row) => ({
     'B/L': row.bl_id,
     'CE Mercante': row.ce_mercante ?? '',

@@ -43,8 +43,8 @@ export type CeUnlockItem = {
    */
   vip_covered?: boolean;
   /**
-   * Atendidos pela solicitação; sem solicitação, verdadeiros só para o VIP com
-   * `vip_covered` (migration 576), sem deixar o B/L apto para a ZPT.
+   * Atendidos pela solicitação; sem solicitação ou em rascunho VIP, verdadeiros só
+   * para o VIP com `vip_covered` (migrations 576 e 579), sem deixar o B/L apto para a ZPT.
    */
   termo: boolean;
   procuracao: boolean;

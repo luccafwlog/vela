@@ -113,6 +113,16 @@ it('VIP sem solicitação com os anuais cobrindo: termo e procuração cobertos 
   expect(screen.getByRole('img', { name: 'Procuração BL-VIP: coberto pelo anual VIP' })).toBeTruthy()
   expect(screen.getByRole('img', { name: 'Termo de devolução BL-VIP-FALTA: pendente' })).toBeTruthy()
 })
+it('VIP em rascunho VIP também aparece coberto pelo anual; enviado, atendido (migration 579)', () => {
+  state.extra = [
+    { bl_id: 'BL-VIP-RASC', vip: true, vip_covered: true, termo: true, procuracao: true, request_id: 'r-1', protocol: 'DCE-1', state: 'draft', source: 'vip_annual' },
+    { bl_id: 'BL-VIP-ENV', vip: true, vip_covered: true, termo: true, procuracao: true, request_id: 'r-2', protocol: 'DCE-2', state: 'submitted', source: 'vip_annual' },
+  ]
+  mount()
+  expect(screen.getByRole('img', { name: 'Termo de devolução BL-VIP-RASC: coberto pelo anual VIP' })).toBeTruthy()
+  expect(screen.getByRole('img', { name: 'Procuração BL-VIP-RASC: coberto pelo anual VIP' })).toBeTruthy()
+  expect(screen.getByRole('img', { name: 'Termo de devolução BL-VIP-ENV: atendido' })).toBeTruthy()
+})
 
 it('histórico do B/L abre com quando, o que aconteceu e quem, mesmo sem solicitação (migration 577)', async () => {
   mount()

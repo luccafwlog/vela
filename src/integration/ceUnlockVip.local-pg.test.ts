@@ -135,6 +135,26 @@ local('desbloqueio CE — matriz VIP, anual, expurgo e lotes', () => {
     expect(pending('termo')).toContain('CE700-A1')
   })
 
+  it('579: o rascunho VIP mostra termo e procuração cobertos pelo anual; o rascunho comum segue pedindo os dele', () => {
+    const y = Y()
+    // Rascunho comum, criado sem VIP: depois de o Cliente virar VIP coberto, o
+    // envio ainda vai pedir termo e procuração anexados, então seguem pendentes.
+    annual(A, 'termo', y); annual(A, 'procuracao', y)
+    const common = command('draft', { bl_ids: ['CE700-A1'], request_key: key() }, clientA)
+    expect(common.source).toBe('request')
+    setVip(A, true)
+    expect(item('CE700-A1')).toMatchObject({ state: 'draft', source: 'request', vip_covered: true, termo: false, procuracao: false })
+    // Rascunho VIP: cobertos como no B/L sem solicitação, sem ficar apto nem contar prazo.
+    deliver('CE700-A1')
+    const draft = command('draft', { bl_ids: ['CE700-A1'], request_key: key() }, clientA)
+    expect(draft.source).toBe('vip_annual')
+    expect(item('CE700-A1')).toMatchObject({ state: 'draft', source: 'vip_annual', vip_covered: true, termo: true, procuracao: true, can_export: false, sla_started_at: null })
+    expect(view(draft.id).state).toBe('draft')
+    // Perdido o VIP, o rascunho VIP volta a pendente.
+    setVip(A, false)
+    expect(item('CE700-A1')).toMatchObject({ state: 'draft', termo: false, procuracao: false })
+  })
+
   it('577: busca com espaço e "&", filtros de requisito atendido e VIP, e histórico do B/L sem solicitação', () => {
     const list = (filters: object) => (JSON.parse(sql(`SELECT public.ce_unlock_read('bls',jsonb_build_object('filters','${JSON.stringify(filters)}'::jsonb,'page',1));`, admin)) as { items: Array<{ bl_id: string }> })
       .items.map((i) => i.bl_id).filter((b) => b.startsWith('CE700-')).sort()
