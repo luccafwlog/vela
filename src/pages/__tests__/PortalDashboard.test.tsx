@@ -125,11 +125,12 @@ describe('PortalDashboard (Painel)', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /Desbloqueio de CE em aberto/ }).textContent).toContain('3 solicitações'))
     expect(screen.getByText('1 pede correção')).toBeTruthy()
 
-    // Consultas: os seis atalhos da Central de Informações, no lugar do cartão.
+    // Consultas: os sete atalhos da Central de Informações (o Tutorial desde 2026-11-03).
     const consultas = screen.getByRole('navigation', { name: 'Seções de Informações' })
     expect(within(consultas).getAllByRole('link').map((link) => link.getAttribute('href'))).toEqual([
       '/portal/informacoes/taxas', '/portal/informacoes/devolucao', '/portal/informacoes/demurrage',
       '/portal/informacoes/agentes', '/portal/informacoes/atendimento', '/portal/informacoes/tracking',
+      '/portal/informacoes/tutorial',
     ])
     // O bloco do Portal tem nome próprio e não leva à tela interna de Chegadas e Saídas.
     expect(screen.getByRole('heading', { name: 'Chegadas e saídas' })).toBeTruthy()

@@ -466,10 +466,17 @@ function LocalChargesCells({ row }: { row: PortalOperationBL }) {
 
 function ReturnCell({ row }: { row: PortalOperationBL }) {
   if (row.containers.length === 0) return <NoValue label="Sem containers" />
-  const { returnable, returned, awaiting } = blReturnSummary(row)
-  if (returnable === 0) return <>SOC (sem devolução)</>
+  const { returnable, returned, awaiting, awaitingDischarge } = blReturnSummary(row)
+  // Container ainda no navio não conta como sem devolução (2026-11-03).
+  const discharge = awaitingDischarge > 0 ? `${awaitingDischarge} sem descarga` : null
+  if (returnable === 0) return <>{discharge ?? 'SOC (sem devolução)'}</>
   const text = `${returned} de ${returnable} ${returnable === 1 ? 'devolvido' : 'devolvidos'}`
-  return awaiting > 0 ? <StatusText tone="warning">{text}</StatusText> : <>{text}</>
+  return (
+    <>
+      {awaiting > 0 ? <StatusText tone="warning">{text}</StatusText> : text}
+      {discharge ? ` · ${discharge}` : null}
+    </>
+  )
 }
 
 /**

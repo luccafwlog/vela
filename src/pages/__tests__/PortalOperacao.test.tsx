@@ -356,6 +356,25 @@ describe('PortalOperacao (BLs e Containers)', () => {
     }
   })
 
+  it('container ainda não descarregado não conta como sem devolução (2026-11-03)', () => {
+    // O print do dono: um B/L com o único container ainda no navio aparecia em
+    // "Com container sem devolução" e como "0 de 1 devolvido" em âmbar.
+    const freeTime = rows[5].containers[0]
+    const before = { ...freeTime }
+    Object.assign(freeTime, { discharge_date: null, usage_days: null, demurrage_days: null, status: 'sem_descarga' })
+    try {
+      renderOperacao()
+      const cards = screen.getByRole('group', { name: 'Filtrar B/Ls por devolução' })
+      expect(within(cards).getByRole('button', { name: /Com container sem devolução\s*1/ })).toBeTruthy()
+      expect(within(cards).getByRole('button', { name: /Tudo devolvido\s*2/ })).toBeTruthy()
+      const onBoard = blRow('BL006')
+      expect(within(onBoard).getByText('1 sem descarga').closest('.app-status-text')).toBeNull()
+      expect(within(onBoard).queryByText(/devolvido/)).toBeNull()
+    } finally {
+      Object.assign(freeTime, before)
+    }
+  })
+
   it('filtra pelos cartões da aba BLs no lugar da contagem "B/L(s) encontrado(s)"', async () => {
     const user = userEvent.setup()
     renderOperacao()

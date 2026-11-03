@@ -543,6 +543,11 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   migration): o e-mail de convite e o de reenvio levam em anexo o tutorial
   completo do Portal (Tutorial_Portal_Fwlog.pdf) e a linha "Em anexo está o
   tutorial completo do Portal." (POR-039, POR-040; 14.3).
+- **Portal, pedido do dono de 2026-11-03** (tela, sem migration): container
+  ainda não descarregado não conta como sem devolução no Painel nem em B/Ls e
+  containers, e a coluna **Devolução** mostra "N sem descarga" à parte (15.4;
+  POR-068, POR-081); **Informações** ganha a seção **Tutorial**, com o mesmo
+  PDF do convite (15.3; POR-084).
 - **Decisões do dono de 2026-11-03, depois da revisão** (migration `574` e telas):
   - Revisão: salvar sem mudar dado o B/L faturado com a carga alterada é
     recusado; com mudança, grava e o B/L segue Pendente até a fatura ser
