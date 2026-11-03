@@ -190,7 +190,7 @@ e-mail pelo atendimento (130).
 | `Há um PIX desta fatura recebido pelo banco; aguarde a baixa antes de desfazer.` | Cliente tenta **Refazer consolidada** depois de o Itaú ter recebido o Pix, antes da baixa. | Ap. B |
 | `Histórico de eventos de email é append-only.` | Proteção do registro de processamento dos avisos do provedor; nenhuma tela altera esse registro. | Fora |
 | `Informe portos brasileiros pelo código LOCODE.` | Central de Informações no Vela: porto de depósito ou de agente fora do padrão BR + 3 caracteres. | Ap. B |
-| `Inspecao do Portal requer usuario interno ativo.` | Abrir o Modo Inspeção com usuário inativo ou sessão revogada. | Ap. B |
+| `Inspeção do Portal requer usuário interno ativo.` | Abrir o Modo Inspeção com usuário inativo ou sessão revogada. | Ap. B |
 | `Lease do evento não pertence ao worker ou expirou.` | Rotina interna da fila de avisos do provedor; não chega a uma pessoa. | Fora |
 | `lease_seconds deve estar entre 30 e 3600.` | Rotina interna da fila de avisos do provedor; não chega a uma pessoa. | Fora |
 | `limit deve estar entre 1 e 100.` | Rotina interna da fila de avisos do provedor; não chega a uma pessoa. | Fora |
@@ -210,7 +210,7 @@ e-mail pelo atendimento (130).
 | `Seleção contém B/L que não pode entrar na consolidada. Atualize a lista.` | Cliente consolida com B/L que deixou de poder entrar (pago, já consolidado, sem CE, sem fatura visível) ou que não é dele. | Ap. B |
 | `Sem permissão para alterar informações.` | Gravar na Central de Informações com usuário inativo ou sem sessão interna. | Ap. B |
 | `Sem permissão para consultar informações.` | Abrir a Central de Informações do Vela com usuário inativo. | Ap. B |
-| `Sessao do portal invalida ou expirada.` | Sessão do Portal sem conta ativa ou anterior a uma revogação; o Portal volta ao login (a tela costuma mostrar "Sua sessão expirou. Entre novamente para continuar."). | Ap. B |
+| `Sessão do portal inválida ou expirada.` | Sessão do Portal sem conta ativa ou anterior a uma revogação; o Portal volta ao login (a tela costuma mostrar "Sua sessão expirou. Entre novamente para continuar."). | Ap. B |
 | `Somente o Administrativo concede a liberação de faturamento sem Portal.` | Outro setor tenta conceder a Liberação (a tela só mostra o botão ao Administrativo). | Ap. B |
 | `Somente o Administrativo revoga a liberação de faturamento sem Portal.` | Outro setor tenta revogar a Liberação. | Ap. B |
 | `status de conclusão inválido.` | Rotina interna da fila de avisos do provedor; não chega a uma pessoa. | Fora |

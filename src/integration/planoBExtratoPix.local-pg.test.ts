@@ -109,7 +109,7 @@ describeLocal('242 — plano B do extrato acha Invoice de Demurrage e avulsa pel
       .toBe('DEM-A242-0002')
     // Outra fatura que não aceita o TXID é recusada.
     expect(asAdmin(`SELECT public.link_pix_reconciliation_candidate(${EXCEPTION_ID}, 'demurrage', NULL, ${DEM_ID})`).error)
-      .toMatch(/Candidata nao corresponde/)
+      .toMatch(/Candidata não corresponde/)
   })
 
   it('a baixa por TXID acha a avulsa cobrada pelo QR Itaú', () => {

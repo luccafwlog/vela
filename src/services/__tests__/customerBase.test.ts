@@ -66,7 +66,7 @@ describe('customerBase import', () => {
 
   it('recusa do banco em um Cliente: nada gravado, recusa listada', async () => {
     mockRpc.mockResolvedValue({
-      data: { ok: false, errors: [{ cnpj: '11222333000181', code: '22023', message: 'E-mail invalido para o cliente 11222333000181: x' }] },
+      data: { ok: false, errors: [{ cnpj: '11222333000181', code: '22023', message: 'E-mail inválido para o cliente 11222333000181: x' }] },
       error: null,
     })
     const base = { trade_name: null, address: null, city: null, state: null, zip: null }
@@ -78,7 +78,7 @@ describe('customerBase import', () => {
 
     expect(result.ok).toBe(false)
     expect(result.imported).toBe(0)
-    expect(result.errors).toEqual([{ cnpj_cpf: '11222333000181', message: 'E-mail invalido para o cliente 11222333000181: x' }])
+    expect(result.errors).toEqual([{ cnpj_cpf: '11222333000181', message: 'E-mail inválido para o cliente 11222333000181: x' }])
   })
 })
 

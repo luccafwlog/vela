@@ -604,7 +604,7 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
     // A emissão pelo CE devolve o motivo: o irmão nomeado e o container.
     const attempt = JSON.parse(localPsql(`SELECT public.auto_bill_bl_after_ce_mercante('A203-J2', '${actorId}'::uuid);`)) as { status: string; message?: string }
     expect(attempt.status).not.toBe('invoiced')
-    expect(attempt.message).toMatch(/O B\/L irmao A203-J1 .*ADCU2030071.*reemitida/)
+    expect(attempt.message).toMatch(/O B\/L irmão A203-J1 .*ADCU2030071.*reemitida/)
   })
 
   // --- Correção da migration 191 (C2): irmão com fatura paga ------------------

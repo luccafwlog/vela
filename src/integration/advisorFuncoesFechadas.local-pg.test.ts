@@ -233,15 +233,15 @@ describeSchedule('337 — programação de navios só para sessão interna ativa
 
   it('conta authenticated sem perfil interno nem conta do Portal é recusada', () => {
     const semConta = asRole('authenticated', SCHEDULE, NO_PROFILE)
-    expect(semConta.error).toMatch(/Sessao do portal invalida ou expirada/)
+    expect(semConta.error).toMatch(/Sessão do portal inválida ou expirada/)
     expect(semConta.output).toBe('')
     const semSessao = asRole('authenticated', SCHEDULE)
-    expect(semSessao.error).toMatch(/Sessao do portal invalida ou expirada/)
+    expect(semSessao.error).toMatch(/Sessão do portal inválida ou expirada/)
   })
 
   it('usuário interno inativo e credencial do Portal revogada são recusados', () => {
-    expect(asRole('authenticated', SCHEDULE, INTERNAL_INACTIVE).error).toMatch(/Sessao do portal invalida ou expirada/)
-    expect(asRole('authenticated', SCHEDULE, PORTAL_REVOKED).error).toMatch(/Sessao do portal invalida ou expirada/)
+    expect(asRole('authenticated', SCHEDULE, INTERNAL_INACTIVE).error).toMatch(/Sessão do portal inválida ou expirada/)
+    expect(asRole('authenticated', SCHEDULE, PORTAL_REVOKED).error).toMatch(/Sessão do portal inválida ou expirada/)
   })
 
   it('sessão interna ativa e sessão do Portal leem a mesma programação', () => {

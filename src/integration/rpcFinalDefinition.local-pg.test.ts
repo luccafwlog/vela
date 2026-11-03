@@ -63,7 +63,7 @@ describeLocal('contrato SQL das definições finais das RPCs de omissão', () =>
     expect(definition).toContain('perform 1 from public.voyages where id = p_voyage_id for update')
     expect(definition).toContain('exception when unique_violation')
     expect(definition).toContain("v_constraint = 'voyage_omissions_voyage_id_omitted_pod_key'")
-    expect(definition).toContain("raise exception 'a escala da viagem % ja foi omitida para o pod %.'")
+    expect(definition).toContain("raise exception 'a escala da viagem % já foi omitida para o pod %.'")
     expect(definition).not.toContain('on conflict (voyage_id, omitted_pod) do update')
     expect(migration308).toContain('onward_vessel_name = excluded.onward_vessel_name')
     expect(migration308).toContain('onward_carrier = excluded.onward_carrier')

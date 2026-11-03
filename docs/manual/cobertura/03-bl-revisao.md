@@ -180,7 +180,7 @@ existem na tela; as demais são as mensagens do sistema, copiadas sem mudança.
 | `O manifesto do B/L % não traz o Cliente (razão social e CNPJ).` | Nunca chega a uma pessoa: **Vincular este cliente** só aparece com o Cliente declarado no manifesto. | Fora |
 | `app_settings é configuração única do sistema; não pode ser apagada (%).` | Nunca chega a uma pessoa: guarda técnica contra apagar a configuração única do sistema; nenhuma tela apaga essa configuração. | Fora |
 | `Assinatura do arquivo inválida: escolha o arquivo de novo.` | Ao gravar uma importação de B/L, Manifesto BB ou B/L avulso, ou ao conferir "Arquivo já importado", quando a assinatura calculada no navegador veio fora do formato. Escolha o arquivo de novo. | Ap. B |
-| `Ator inativo para faturamento automatico.` | Como motivo no Alerta de faturamento automático ou de passo bloqueado, quando o faturamento pelo CE roda em nome de alguém que deixou de estar ativo no meio do processo. | Ap. B |
+| `Ator inativo para faturamento automático.` | Como motivo no Alerta de faturamento automático ou de passo bloqueado, quando o faturamento pelo CE roda em nome de alguém que deixou de estar ativo no meio do processo. | Ap. B |
 | `B/L % cancelado é somente leitura: reative o B/L pela ficha para alterar containers ou veículos.` | Ao tentar incluir, alterar ou tirar container ou veículo de B/L cancelado (por exemplo, mover veículo ou editar datas em Containers). Reative o B/L pela ficha (Administrativo). | Ap. B |
 | `B/L % já faturado: o preço é o da fatura e não é refixado.` | Ao gravar o arquivo de B/L com o aceite de preço de hoje num B/L que ficou faturado depois da prévia. Refaça a prévia. | Ap. B |
 | `B/L % já foi faturado (situação financeira: %); a importação removeria carga solta. Estorne/refature antes de substituir o manifesto.` | Ao gravar o Manifesto BB ou o B/L avulso quando o arquivo tiraria toda a carga solta de um B/L faturado ou pago. Peça estorno ou refaturamento antes. | Ap. B |
@@ -204,10 +204,10 @@ existem na tela; as demais são as mensagens do sistema, copiadas sem mudança.
 | `Efeito % não encontrado.` | No Alerta "Efeito de importação bloqueado", ao Reprocessar um passo que não existe mais. Atualize a lista de Alertas. | Ap. B |
 | `Efeito sem iniciador validado.` | Como motivo no Alerta "Efeito de importação bloqueado" (na fila: "A gravação foi feita sem usuário identificado (script ou integração); o Reprocessar roda o passo em seu nome."), quando a gravação que deixou o passo, como o CE gravado por uma integração, não veio de uma pessoa logada. Use **Reprocessar**: o passo passa a rodar em seu nome (migration `570`). | Ap. B |
 | `effect_kind não suportado: %.` | Como motivo no Alerta "Efeito de importação bloqueado", quando o passo é de um tipo que o processador não conhece. Avise o Administrativo. | Ap. B |
-| `Emissao automatica nao retornou invoice para o B/L %.` | Como motivo no Alerta de faturamento automático ou de passo bloqueado, quando a emissão terminou sem gerar fatura. Confira o B/L em Taxas Locais. | Ap. B |
+| `Emissão automática não retornou invoice para o B/L %.` | Como motivo no Alerta de faturamento automático ou de passo bloqueado, quando a emissão terminou sem gerar fatura. Confira o B/L em Taxas Locais. | Ap. B |
 | `Estado final inválido.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
 | `Executor server-only.` | Nunca chega a uma pessoa: as funções do processador pós-importação (e de outras rotinas do servidor) só rodam pelo próprio sistema. | Fora |
-| `Faturamento automatico sem ator validado.` | Como motivo no Alerta de faturamento automático ou de passo bloqueado, quando não há conta para rodar o faturamento. | Ap. B |
+| `Faturamento automático sem ator validado.` | Como motivo no Alerta de faturamento automático ou de passo bloqueado, quando não há conta para rodar o faturamento. | Ap. B |
 | `Historico de efeitos e append-only.` | Nunca chega a uma pessoa: o histórico de tentativas do processamento pós-importação não pode ser alterado. | Fora |
 | `Identidade de conclusão incompleta.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
 | `Identidade de processamento incompleta.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
@@ -217,7 +217,7 @@ existem na tela; as demais são as mensagens do sistema, copiadas sem mudança.
 | `Informe o motivo do cancelamento.` | Ao cancelar B/L (ou Viagem) sem motivo. Informe o motivo. | Ap. B |
 | `Informe o motivo e quem revisou.` | Nunca chega a uma pessoa: ferramenta do sistema para revisar o acumulado da fila pós-importação. | Fora |
 | `Iniciador desativado e nenhuma conta de sistema ativa.` | Como motivo no Alerta "Efeito de importação bloqueado", quando quem iniciou foi desativado e não há conta de sistema nem Administrativo ativo. Avise o Administrativo. | Ap. B |
-| `Justificativa obrigatoria para retry.` | No Alerta "Efeito de importação bloqueado", ao Reprocessar sem justificativa ou com justificativa de mais de 500 caracteres. Escreva uma justificativa mais curta. | Ap. B |
+| `Justificativa obrigatória para retry.` | No Alerta "Efeito de importação bloqueado", ao Reprocessar sem justificativa ou com justificativa de mais de 500 caracteres. Escreva uma justificativa mais curta. | Ap. B |
 | `Lease do efeito expirou.` | Nunca chega a uma pessoa: o processador demorou demais num passo e outro o retoma. | Fora |
 | `Lease do efeito não pertence ao worker.` | Nunca chega a uma pessoa: guarda interna do processador pós-importação. | Fora |
 | `Lease invalido.` | Nunca chega a uma pessoa: guarda interna dos processadores do servidor. | Fora |

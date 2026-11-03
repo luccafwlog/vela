@@ -130,11 +130,11 @@ recibo (076 a 078), **como fazer uma restituição** e confirmar a devolução
 |---|---|---|
 | `A fatura não está aberta para receber este Pix.` | Pix recebidos → **Baixar nesta fatura**: a fatura escolhida deixou de estar aberta (foi paga, cancelada ou zerada) depois da lista. Nada foi gravado; procure de novo. | Ap. B |
 | `A Invoice de Demurrage não está aberta para receber este Pix.` | Pix recebidos → **Baixar nesta fatura** numa Invoice de Demurrage que já foi paga ou cancelada. Nada foi gravado. | Ap. B |
-| `Alocacao do receivable % excede o valor original (%).` | Registrar pagamento ou baixa pelo extrato que faria um B/L receber mais do que o valor original dele. Nada foi gravado; confira as baixas da fatura e chame o suporte. | Ap. B |
+| `Alocação do receivable % excede o valor original (%).` | Registrar pagamento ou baixa pelo extrato que faria um B/L receber mais do que o valor original dele. Nada foi gravado; confira as baixas da fatura e chame o suporte. | Ap. B |
 | `Autorização cancelada: inicie nova solicitação.` | **Repetir autorização** de uma restituição excepcional que alguém cancelou no meio. Recomece o pedido. | Ap. B |
 | `Autorização não está pendente ou foi gerada pela correção do B/L.` | **Cancelar autorização** de restituição que já foi devolvida, já foi cancelada ou não é excepcional. Recarregue o detalhe. | Ap. B |
 | `Cancelamento exige devolver todo o recebido ainda disponível.` | **Autorizar restituição** com finalidade **Cancelamento com devolução integral** e valor diferente do disponível. Informe exatamente o disponível (REC-086). | Ap. B |
-| `Candidata nao corresponde exatamente ao TXID persistido.` | Exceção do extrato → **Baixar nesta fatura** numa fatura que deixou de aceitar aquele identificador. Nada foi gravado. | Ap. B |
+| `Candidata não corresponde exatamente ao TXID persistido.` | Exceção do extrato → **Baixar nesta fatura** numa fatura que deixou de aceitar aquele identificador. Nada foi gravado. | Ap. B |
 | `Cobrança ativa exige copia e cola, revisão e criação no banco.` | Rotina do Itaú recebe resposta incompleta ao emitir um QR; fica no registro técnico e a cobrança segue na fila. Não chega a uma pessoa. | Fora |
 | `Cobrança Itaú inexistente.` | Rotina do Itaú registra resultado de cobrança que não existe; registro técnico. Não chega a uma pessoa. | Fora |
 | `Conciliacao de demurrage atualizou % de % faturas.` | Conferência interna do lote de Demurrage pelo extrato; cada linha é contada uma a uma, então não ocorre na prática. | Fora |
@@ -144,13 +144,13 @@ recibo (076 a 078), **como fazer uma restituição** e confirmar a devolução
 | `Usuário sem permissão para a conciliação de Pix.` | Ação de conciliar (ler extrato, Baixar nesta fatura, Encerrar exceção) por quem não é do Financeiro nem do Administrativo, ou com o setor mudado com a tela aberta. | Ap. B |
 | `Usuário sem permissão.` | Cancelar baixa de Invoice de Demurrage por quem não é do Administrativo, ou com a sessão revogada (na fatura de Taxas Locais a recusa vem antes, com "Sem permissão para cancelar baixa."). | Ap. B |
 | `Data do extrato nao parseada para %.` | A tela recusa antes a linha sem **Pago em** ("Data do pagamento não identificada no extrato para …"); esta conferência interna não chega a uma pessoa. | Fora |
-| `Demurrage % nao encontrada.` | Lote do extrato com Invoice de Demurrage que deixou de existir entre a leitura e a confirmação. Nenhuma baixa foi gravada; leia o extrato de novo. | Ap. B |
+| `Demurrage % não encontrada.` | Lote do extrato com Invoice de Demurrage que deixou de existir entre a leitura e a confirmação. Nenhuma baixa foi gravada; leia o extrato de novo. | Ap. B |
 | `Devolução confirmada é histórico financeiro e não pode ser apagada.` | Tentativa de apagar uma devolução confirmada, inclusive ao excluir a fatura dela. Não há como; regularize por atendimento. | Ap. B |
 | `Devolução confirmada não pode ser alterada.` | Qualquer mudança numa devolução já confirmada. Não há como; regularize por atendimento. | Ap. B |
 | `Devolução exige referência bancária, favorecido e data efetiva.` | Conferência interna da confirmação; a tela e a confirmação recusam antes com a mensagem própria. Não chega a uma pessoa. | Fora |
 | `Escolha a fatura que recebe o Pix.` | A tela sempre manda a fatura escolhida; conferência interna. | Fora |
-| `Esta baixa financia restituicao por correcao deste recebivel. Confira a restituicao antes de cancelar a baixa.` | **Cancelar baixa** de recebimento que sustenta restituição de correção do B/L. A baixa continua; trate a restituição antes. | Ap. B |
-| `Esta baixa financia restituicao. Confira a restituicao antes de cancelar a baixa.` | **Cancelar baixa** que deixaria as restituições não canceladas acima do recebido. A baixa continua. | Ap. B |
+| `Esta baixa financia restituição por correção deste recebível. Confira a restituição antes de cancelar a baixa.` | **Cancelar baixa** de recebimento que sustenta restituição de correção do B/L. A baixa continua; trate a restituição antes. | Ap. B |
+| `Esta baixa financia restituição. Confira a restituição antes de cancelar a baixa.` | **Cancelar baixa** que deixaria as restituições não canceladas acima do recebido. A baixa continua. | Ap. B |
 | `Esta baixa foi cancelada. Confira o extrato e inicie uma nova operação.` | **Tentar novamente** de uma baixa cuja tentativa já tinha dado certo e foi cancelada depois. Use **Encerrar tentativa após conferir** e registre de novo, se cabível. | Ap. B |
 | `Este Pix é de cobrança do Vela: a baixa é automática ou segue em Pendências.` | Proteção do banco: a aba Pix recebidos só oferece a baixa para Pix de fora do Vela, cuja situação gravada nunca muda; não chega a uma pessoa pela tela. | Fora |
 | `Este Pix já tem baixa na fatura %.` | Pix recebidos → **Baixar nesta fatura** em Pix que outra pessoa já baixou. Confira a fatura indicada. | Ap. B |
@@ -172,25 +172,25 @@ recibo (076 a 078), **como fazer uma restituição** e confirmar a devolução
 | `Informe referência bancária, favorecido e data da devolução efetiva.` | **Confirmar devolução realizada** com **Data da devolução** no futuro (ou texto curto). Confirme só depois de devolver. | Ap. B |
 | `Informe valor positivo com até duas casas decimais.` | **Registrar pagamento** com valor de três ou mais casas decimais. | Ap. B |
 | `Informe valor positivo e motivo da correcao.` | Função antiga de restituição por correção, sem acesso pela tela; não chega a uma pessoa. | Fora |
-| `Invoice % nao esta em estado pagavel (status=%).` | Baixa (manual ou extrato) em fatura de Taxas Locais que deixou de ser pagável (paga, coberta, cancelada) enquanto a tela estava aberta. | Ap. B |
-| `Invoice % nao possui saldo em aberto no ledger.` | Baixa em fatura de Taxas Locais sem saldo a receber. Confira o detalhe. | Ap. B |
+| `Invoice % não está em estado pagável (status=%).` | Baixa (manual ou extrato) em fatura de Taxas Locais que deixou de ser pagável (paga, coberta, cancelada) enquanto a tela estava aberta. | Ap. B |
+| `Invoice % não possui saldo em aberto no ledger.` | Baixa em fatura de Taxas Locais sem saldo a receber. Confira o detalhe. | Ap. B |
 | `Invoice % sem receivables ativos vinculados no ledger.` | Baixa em fatura de Taxas Locais cujos B/Ls já foram quitados por outro documento ou retirados. Confira as faturas do B/L. | Ap. B |
-| `Invoice cancelada nao aceita pagamento.` | Baixa pelo extrato de avulsa cancelada (aparece dentro de "Falha ao conciliar fatura local …"). | Ap. B |
-| `Invoice ja esta paga.` | Baixa pelo extrato de avulsa já paga (dentro de "Falha ao conciliar fatura local …"). | Ap. B |
+| `Invoice cancelada não aceita pagamento.` | Baixa pelo extrato de avulsa cancelada (aparece dentro de "Falha ao conciliar fatura local …"). | Ap. B |
+| `Invoice já está paga.` | Baixa pelo extrato de avulsa já paga (dentro de "Falha ao conciliar fatura local …"). | Ap. B |
 | `Linha de excecao PIX invalida.` | A tela só grava linhas válidas do extrato; conferência interna. | Fora |
 | `Linha sem TXID nao possui candidata segura para vinculo manual.` | A tela não oferece fatura para linha sem identificador; conferência interna. | Fora |
-| `Nenhuma baixa/settlement autoritativa corresponde a excecao PIX %.` | **Encerrar exceção** ou o encerramento depois da baixa, sem baixa pelo extrato do mesmo identificador e valor (REC-051). | Ap. B |
+| `Nenhuma baixa/settlement autoritativa corresponde à exceção PIX %.` | **Encerrar exceção** ou o encerramento depois da baixa, sem baixa pelo extrato do mesmo identificador e valor (REC-051). | Ap. B |
 | `O excedente desta baixa já foi devolvido ao Cliente: a baixa não pode ser cancelada.` | **Cancelar baixa** de recebimento cujo excedente já teve a devolução confirmada. | Ap. B |
 | `Origem de conciliacao PIX invalida: %.` | A tela só manda Taxas Locais ou Demurrage; conferência interna. | Fora |
 | `Origem de pagamento invalida.` | Conferência interna da baixa; a tela não escolhe a origem. | Fora |
 | `Origem de resolucao PIX invalida.` | A tela só manda Taxas Locais ou Demurrage; conferência interna. | Fora |
 | `Origem desconhecida: %.` | Filtro de origem inválido em Pix recebidos; a tela descarta valor inválido do endereço antes de consultar. | Fora |
 | `Origem inválida.` | A tela só manda avulsa ou Demurrage para restituição excepcional; conferência interna. | Fora |
-| `Pagamento % nao encontrado.` | **Cancelar baixa** de uma baixa que outro Administrativo acabou de cancelar. Recarregue o detalhe. | Ap. B |
+| `Pagamento % não encontrado.` | **Cancelar baixa** de uma baixa que outro Administrativo acabou de cancelar. Recarregue o detalhe. | Ap. B |
 | `Pagamento acima do saldo em aberto da invoice.` | Baixa pelo extrato de avulsa com valor maior que o saldo (dentro de "Falha ao conciliar fatura local …"). Baixe à mão no detalhe, que registra o excedente como restituição. | Ap. B |
 | `Pagamento não retornou identificador.` | Conferência interna da baixa manual; não chega a uma pessoa. | Fora |
 | `Pix Itaú não está em análise.` | **Marcar como tratado** de um Pix que já saiu da análise (outra pessoa tratou ou a baixa o tirou). Recarregue. | Ap. B |
-| `Pix ja baixado nesta fatura (mesmo TXID ou endToEndId): confira antes de baixar de novo.` | Motivo de Pix em análise: a fatura já tem a baixa deste Pix (extrato ou referência). Confira e trate. | Ap. B |
+| `Pix já baixado nesta fatura (mesmo TXID ou endToEndId): confira antes de baixar de novo.` | Motivo de Pix em análise: a fatura já tem a baixa deste Pix (extrato ou referência). Confira e trate. | Ap. B |
 | `Pix recebido não encontrado.` | Pix recebido inexistente; os Pix gravados nunca são apagados, então não ocorre pela tela. | Fora |
 | `Recebimento Itaú incompleto.` | A rotina do Itaú recebeu um Pix sem os dados mínimos; vira falha da consulta (REC-022), não mensagem de tela. | Fora |
 | `Receivable % nao encontrado.` | Conferência interna da distribuição da baixa; não chega a uma pessoa. | Fora |
@@ -209,16 +209,16 @@ recibo (076 a 078), **como fazer uma restituição** e confirmar a devolução
 | `Sem permissão para cancelar baixa.` | **Cancelar baixa** por quem não é do Administrativo (setor mudado com a tela aberta). | Ap. B |
 | `Sem permissão para conciliar Pix recebidos.` | Pix recebidos → sugestões ou **Baixar nesta fatura** por quem não é do Financeiro nem do Administrativo. | Ap. B |
 | `Sem permissão para confirmar devolução.` | Proteção interna; a confirmação recusa antes com "Sem permissão para confirmar restituição.". | Fora |
-| `Sem permissao para consultar os Pix recebidos.` | Aba Pix recebidos com usuário inativo ou sessão revogada. | Ap. B |
-| `Sem permissao para monitorar o Pix Itau.` | Aba Pendências (bloco Cobrança Pix Itaú) com usuário inativo ou sessão revogada. | Ap. B |
+| `Sem permissão para consultar os Pix recebidos.` | Aba Pix recebidos com usuário inativo ou sessão revogada. | Ap. B |
+| `Sem permissão para monitorar o Pix Itaú.` | Aba Pendências (bloco Cobrança Pix Itaú) com usuário inativo ou sessão revogada. | Ap. B |
 | `Sem permissão para registrar pagamento.` | **Registrar pagamento** por quem não é do Financeiro nem do Administrativo (setor mudado com a tela aberta); também motivo de Pix em análise de avulsa quando a conta de integração da baixa automática foi desativada ou mudou de setor (REC-093). | Ap. B |
 | `Sem permissao para registrar restituicao.` | Função antiga de restituição por correção, sem acesso pela tela; não chega a uma pessoa. | Fora |
-| `Sem permissao para tratar o Pix Itau.` | **Marcar como tratado** por quem não é do Financeiro nem do Administrativo. | Ap. B |
+| `Sem permissão para tratar o Pix Itaú.` | **Marcar como tratado** por quem não é do Financeiro nem do Administrativo. | Ap. B |
 | `Situação desconhecida: %.` | Filtro de situação inválido em Pix recebidos; a tela descarta valor inválido do endereço antes de consultar. | Fora |
 | `Solicitação reutilizada com outros dados.` | Proteção da repetição da autorização; a tela congela os campos, então não chega a uma pessoa. | Fora |
 | `Status de excecao PIX invalido.` | A tela sempre pede as exceções pendentes; conferência interna. | Fora |
 | `Tentativa reutilizada com dados diferentes.` | Proteção da repetição da baixa manual; a tela congela os campos, então não chega a uma pessoa. | Fora |
-| `TXID % ja foi conciliado.` | Baixa pelo extrato de um identificador que outra baixa acabou de conciliar (dentro de "Falha ao conciliar fatura local …"). Confira o histórico. | Ap. B |
+| `TXID % já foi conciliado.` | Baixa pelo extrato de um identificador que outra baixa acabou de conciliar (dentro de "Falha ao conciliar fatura local …"). Confira o histórico. | Ap. B |
 | `TXID informado nao corresponde exatamente ao TXID persistido na excecao.` | A tela manda o identificador da própria exceção; conferência interna. | Fora |
 | `Use a confirmação de devolução com referência bancária, favorecido e data.` | Caminho antigo de confirmar devolução, sem acesso pela tela desde a mudança de permissões; não chega a uma pessoa. | Fora |
 | `Usuário de baixa automática Itaú não configurado.` | Motivo de Pix em análise: falta a conta de integração da baixa automática (REC-093). Avise quem cuida da integração e baixe à mão. | Ap. B |

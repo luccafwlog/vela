@@ -115,8 +115,9 @@ export async function revertVoyageOmission(input: {
   if (error) throw error
 }
 
-// `revert_voyage_omission` (migration 251) recusa com "Nao e possivel reverter
-// a omissao: N B/L(s) afetado(s) estao em COD." (22023); só essa recusa ganha a
+// `revert_voyage_omission` (migration 251; texto com acento desde a 573) recusa
+// com "Não é possível reverter a omissão: N B/L(s) afetado(s) estão em COD."
+// (22023); o padrão aceita também o texto antigo. Só essa recusa ganha a
 // orientação de conferir os B/Ls em COD.
 export function isOmissionRevertBlockedByCod(error: unknown): boolean {
   return /\best[aã]o em COD\b/i.test(extractErrorText(error))

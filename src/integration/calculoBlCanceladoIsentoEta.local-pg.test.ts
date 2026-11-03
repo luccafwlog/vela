@@ -44,7 +44,7 @@ describeLocal('372 — cálculo de B/L cancelado, isento, reativado e ETA', () =
     w.cancelBl(id)
     expect(w.psql(`SELECT charge_status FROM public.bls WHERE id = '${id}'`)).toBe('not_calculated')
     const calc = w.as('administrativo', `SELECT public.calculate_bl_local_charges('${id}', '${w.actors.administrativo}'::uuid, true)`)
-    expect(calc.stderr).toMatch(/cancelado e somente leitura/)
+    expect(calc.stderr).toMatch(/cancelado é somente leitura/)
     const manual = w.as('administrativo', `SELECT public.add_manual_bl_charge('${id}', ${item}, 1, NULL, '${w.actors.administrativo}'::uuid)`)
     expect(manual.status).not.toBe(0)
     w.asOk('administrativo', `SELECT public.reactivate_bl('${id}', 'Cancelado por engano')`)

@@ -175,7 +175,7 @@ independente sobre a escala (143 e 144); Gerar EDI Mercante (146 e 147).
 | `A chegada em % já está registrada; corrija na escala, em Viagens.` | Confirmar chegada em Chegadas e Saídas numa escala que já tem ATA (outra pessoa registrou). | Ap. B |
 | `A data de chegada confirmada não pode ser futura.` | Confirmar chegada com data depois de hoje. | Ap. B |
 | `A data de saída confirmada não pode ser futura.` | Confirmar saída com data depois de hoje. | Ap. B |
-| `A escala da viagem % ja foi omitida para o POD %.` | Omitir de novo um porto com omissão valendo; aparece na janela de omitir. | Ap. B |
+| `A escala da viagem % já foi omitida para o POD %.` | Omitir de novo um porto com omissão valendo; aparece na janela de omitir. | Ap. B |
 | `A escala de % foi removida ou omitida.` | Confirmar chegada numa escala excluída ou omitida. | Ap. B |
 | `A justificativa da exceção de terminal é obrigatória.` | Salvar ou remover a exceção de terminal do B/L sem justificativa (a tela já impede). | Ap. B |
 | `A lista de navios mudou; recarregue antes de reordenar.` | Rotina antiga de reordenar navios, sem tela; nunca chega a uma pessoa. | Fora |
@@ -184,15 +184,15 @@ independente sobre a escala (143 e 144); Gerar EDI Mercante (146 e 147).
 | `A saída de % já está registrada; corrija em Viagens → Rotas e Manifestos.` | Confirmar saída num POL que já tem ATD. | Ap. B |
 | `A situação financeira do B/L % muda só pela emissão, baixa ou cancelamento da fatura.` | Escrita direta da situação financeira pela API; nenhuma tela faz isso. | Fora |
 | `A Viagem tem fatura viva ou baixa: %. Resolva cada B/L antes de cancelar a Viagem.` | Cancelar viagem com fatura viva, Invoice de Demurrage ou baixa num B/L. | Ap. B |
-| `ADR % nao corresponde a terminal atribuido na escala.` | Fechar o ADR de um terminal que perdeu as frentes; a tela mostra "Falha ao fechar o ADR. Tente novamente.". | Ap. B |
-| `ADR fechado: reabra antes de alterar a observacao.` | Salvar observação num ADR que outra pessoa fechou; a aba mostra o texto num aviso. | Ap. B |
+| `ADR % não corresponde a terminal atribuído na escala.` | Fechar o ADR de um terminal que perdeu as frentes; a tela mostra "Falha ao fechar o ADR. Tente novamente.". | Ap. B |
+| `ADR fechado: reabra antes de alterar a observação.` | Salvar observação num ADR que outra pessoa fechou; a aba mostra o texto num aviso. | Ap. B |
 | `ADR fechado: reabra antes de alterar o sign-off departamental.` | Assinar ou reabrir setor num ADR que outra pessoa fechou; a aba mostra o texto num aviso. | Ap. B |
 | `ADR fechado: reabra antes de alterar seus dados.` | Qualquer escrita em resolução ou assinatura de ADR fechado (rede do banco). | Ap. B |
 | `ADR fechado: reabra antes de alterar sign-offs.` | Resolver seção num ADR que outra pessoa fechou; a aba mostra o texto num aviso. | Ap. B |
 | `ADR fechado: reabra antes de alterar terminal.` | Salvar o terminal do ADR antigo por porto já fechado. | Ap. B |
-| `ADR ja fechado.` | Fechar um ADR que outra pessoa acabou de fechar; a tela mostra "Falha ao fechar o ADR. Tente novamente.". | Ap. B |
-| `ADR nao esta fechado.` | Reabrir um ADR que outra pessoa já reabriu. | Ap. B |
-| `Alterar uma decisao ja registrada exige justificativa.` | Trocar a resolução de uma seção sem justificativa (a tela já pede). | Ap. B |
+| `ADR já fechado.` | Fechar um ADR que outra pessoa acabou de fechar; a tela mostra "Falha ao fechar o ADR. Tente novamente.". | Ap. B |
+| `ADR não está fechado.` | Reabrir um ADR que outra pessoa já reabriu. | Ap. B |
+| `Alterar uma decisão já registrada exige justificativa.` | Trocar a resolução de uma seção sem justificativa (a tela já pede). | Ap. B |
 | `Apenas administradores podem alterar role ou active de um perfil.` | Não Administrativo tentando mudar setor ou situação de um usuário. | Ap. B |
 | `Atracação travada: %.` | Operações ou Administrativo removendo Atracação com B/L com CE, documento financeiro ou ADR fechado; a janela da escala mostra o motivo. | Ap. B |
 | `Câmbio (ROE) não configurado; não é possível calcular linhas em USD.` | Marcar ou reverter COD de B/L não faturado com taxa em dólar sem câmbio fixado; aparece no aviso da ficha do B/L. | Ap. B |
@@ -200,11 +200,11 @@ independente sobre a escala (143 e 144); Gerar EDI Mercante (146 e 147).
 | `Usuário sem permissão para reordenar navios.` | Rotina antiga de reordenar navios, sem tela; nunca chega a uma pessoa. | Fora |
 | `Data de saída inválida.` | Confirmar saída com data ilegível (o campo de data impede). | Ap. B |
 | `Data e hora de chegada inválidas.` | Confirmar chegada com data ou hora ilegível. | Ap. B |
-| `Departamento % tem secoes pendentes: resolva-as antes de assinar.` | Assinar um setor com seção Pendente (o botão já fica desabilitado). | Ap. B |
+| `Departamento % tem seções pendentes: resolva-as antes de assinar.` | Assinar um setor com seção Pendente (o botão já fica desabilitado). | Ap. B |
 | `Departamento invalido: %.` | Assinatura de setor inexistente pelo caminho antigo; a tela só oferece os três setores. | Fora |
 | `Departamento invalido.` | Assinatura de setor inexistente; a tela só oferece os três setores. | Fora |
 | `Escala % travada: %.` | Administrativo marcando escala como removida (Chegadas e Saídas, "Não escala") com CE, documento financeiro ou ADR fechado no porto, ou, desde 2026-10-29 (migration `513`), com âncora: "B/L vinculado à escala" (POD ou POL, também por apelido do porto), "ATA registrado", "ATD registrado", "escala Vinculada", "terminais salvos" ou, desde 2026-10-30 (migration `549`), "Embarque de vazios na escala". A tela lê as mesmas âncoras antes de gravar e tira só a data prevista nesses casos; a recusa fica para a gravação feita fora da tela. | Ap. B |
-| `Escala com frentes de operacao: atribua o terminal as frentes para abrir o ADR do terminal.` | Ação do ADR antigo numa escala que já tem frente de operação; a aba mostra antes "Nenhum terminal atribuído às frentes desta escala (TBC)…". | Ap. B |
+| `Escala com frentes de operação: atribua o terminal às frentes para abrir o ADR do terminal.` | Ação do ADR antigo numa escala que já tem frente de operação; a aba mostra antes "Nenhum terminal atribuído às frentes desta escala (TBC)…". | Ap. B |
 | `Estado informado para terminal sem frente atribuida.` | Gravação de Atracação para terminal sem frente; a tela não envia. | Fora |
 | `Estado invalido.` | Resolução de seção com valor fora de Pendente, Confirmado e Nada a declarar; a tela não envia. | Fora |
 | `Expectativa de exportacao desligada com frente declarada.` | Exportação desligada com Granito ou vazios marcados; a tela não envia essa combinação. | Fora |
@@ -221,19 +221,19 @@ independente sobre a escala (143 e 144); Gerar EDI Mercante (146 e 147).
 | `Informe a hora da chegada.` | Confirmar chegada sem hora (a tela já pede). | Ap. B |
 | `Informe o motivo da exclusão da escala.` | Excluir escala sem motivo (a janela já exige). | Ap. B |
 | `Informe o porto e se é saída ou chegada.` | Confirmação de data sem porto; a tela sempre envia. | Fora |
-| `Justificativa obrigatoria para alterar estado terminalizado existente.` | Mudar terminal, ATB, ATD, Restow ou exportação registrados sem justificativa (a janela já exige). | Ap. B |
+| `Justificativa obrigatória para alterar estado terminalizado existente.` | Mudar terminal, ATB, ATD, Restow ou exportação registrados sem justificativa (a janela já exige). | Ap. B |
 | `Linha sem navio ou viagem.` | Linha da planilha de programação sem navio ou VOY; a leitura já recusa a planilha antes. | Ap. B |
 | `LOCODE brasileiro inválido: %.` | Escala com código que não é LOCODE brasileiro (BR + 3 caracteres). | Ap. B |
 | `Marca de retirada da escala inválida: use true ou false.` | Marca de escala removida com valor diferente de sim ou não; nenhuma tela grava outro valor. | Fora |
 | `Marcar COD exige justificativa.` | Confirmar COD sem justificativa (a janela já exige). | Ap. B |
 | `Não é possível remover a declaração de exportação da escala %: existem operações de carga.` | Retirar a exportação (ou excluir a escala) com Granito importado ou Embarque de Vazios aberto no porto. | Ap. B |
-| `Nao e possivel reverter a omissao: % B/L(s) afetado(s) estao em COD.` | Reverter omissão com B/L em COD; a janela mostra a mensagem seguida de "Verifique se algum B/L está em COD.". | Ap. B |
-| `Nao foi encontrado snapshot da fatura do B/L %.` | Marcar COD de B/L faturado cuja fatura não é encontrada; caso de dado inconsistente, para o Financeiro. | Ap. B |
+| `Não é possível reverter a omissão: % B/L(s) afetado(s) estão em COD.` | Reverter omissão com B/L em COD; a janela mostra a mensagem seguida de "Verifique se algum B/L está em COD.". | Ap. B |
+| `Não foi encontrado snapshot da fatura do B/L %.` | Marcar COD de B/L faturado cuja fatura não é encontrada; caso de dado inconsistente, para o Financeiro. | Ap. B |
 | `Navio % ambíguo: mais de um cadastro. Corrija antes de importar.` | Planilha de programação (ou Nova Viagem) com nome de navio que tem dois cadastros. | Ap. B |
 | `Navio % com IMO conflitante (% vs %). Corrija antes de importar.` | Nome de navio já cadastrado com outro IMO (Nova Viagem, Chegadas e Saídas ou planilha). | Ap. B |
 | `Navio com IMO % ambíguo: mais de um cadastro. Corrija antes de importar.` | IMO que aparece em dois cadastros de navio. | Ap. B |
 | `Nem todos os navios foram reordenados.` | Rotina antiga de reordenar navios, sem tela; nunca chega a uma pessoa. | Fora |
-| `Nova expectativa de exportacao exige granito ou vazios.` | Declarar exportação sem Granito nem vazios (a tela já mostra "Uma nova declaração de exportação exige granito ou vazios."). | Ap. B |
+| `Nova expectativa de exportação exige granito ou vazios.` | Declarar exportação sem Granito nem vazios (a tela já mostra "Uma nova declaração de exportação exige granito ou vazios."). | Ap. B |
 | `O autor da exceção deve ser o usuário autenticado.` | Exceção de terminal gravada em nome de outro usuário; a tela usa sempre quem está logado. | Fora |
 | `O porto % não tem chegada programada nesta viagem.` | Confirmar chegada num porto sem ETA. | Ap. B |
 | `O porto % não tem saída programada nesta viagem.` | Confirmar saída num POL sem ETD. | Ap. B |
@@ -246,7 +246,7 @@ independente sobre a escala (143 e 144); Gerar EDI Mercante (146 e 147).
 | `permission denied` | Leitura do primeiro ETA brasileiro (e de funções do console do Portal) sem usuário interno ativo. Não aparece com este texto: a tela mostra "Sem permissão para esta ação.". | Ap. B |
 | `Planilha sem linhas.` | Planilha de programação sem nenhuma viagem; a leitura já avisa antes ("Nenhuma viagem na planilha…"). | Ap. B |
 | `POD omitido/descarga invalidos` | Omitir sem porto omitido ou de transbordo; a janela sempre envia os dois. | Fora |
-| `Porto brasileiro % nao encontrado.` | Fechar ADR de escala cujo porto não está no cadastro de portos; dado inconsistente. | Ap. B |
+| `Porto brasileiro % não encontrado.` | Fechar ADR de escala cujo porto não está no cadastro de portos; dado inconsistente. | Ap. B |
 | `Porto da escala não corresponde ao ports.id informado.` | Frente, Atracação ou estado da escala com porto que não bate com o cadastro; a tela preenche os dois juntos. | Fora |
 | `Porto da escala obrigatório.` | Excluir escala sem porto; a tela sempre envia. | Fora |
 | `Porto do ADR não corresponde ao ports.id informado.` | ADR por terminal com porto que não bate com o cadastro; o sistema preenche os dois juntos. | Fora |
@@ -256,13 +256,13 @@ independente sobre a escala (143 e 144); Gerar EDI Mercante (146 e 147).
 | `report_id deve referenciar ADR terminalizado do porto %.` | Fechamento de ADR que não é de terminal pelo caminho do terminal; a tela não envia. | Fora |
 | `report_id nao pertence a ADR terminalizado da escala %::%.` | Ação de ADR por terminal com escala trocada; a tela não envia. | Fora |
 | `report_id nao pertence a escala %::%.` | Fechamento de ADR com escala trocada; a tela não envia. | Fora |
-| `Reversao de omissao exige justificativa.` | Reverter omissão sem justificativa (o botão já fica desabilitado). | Ap. B |
+| `Reversão de omissão exige justificativa.` | Reverter omissão sem justificativa (o botão já fica desabilitado). | Ap. B |
 | `Reverter COD exige justificativa.` | Reverter COD sem justificativa (a janela já exige). | Ap. B |
 | `REVISAO_OBSOLETA: esperada %, atual %.` | Salvar a escala depois que outra pessoa a salvou. Não aparece com este texto: a janela mostra "A escala foi atualizada por outra pessoa. Seus dados foram preservados; recarregue a escala antes de salvar novamente.". | Ap. B |
 | `Revision esperada obrigatoria.` | Gravação de escala sem a versão lida; a tela sempre envia. | Fora |
 | `Secao invalida.` | Seção inexistente; a tela só oferece as seis. | Fora |
 | `Secao ou estado invalido.` | Seção ou resolução inexistente; a tela não envia. | Fora |
-| `Secao pertence ao departamento %.` | Resolver ou observar seção de outro setor (a tela esconde o controle); a aba mostra o texto num aviso. | Ap. B |
+| `Seção pertence ao departamento %.` | Resolver ou observar seção de outro setor (a tela esconde o controle); a aba mostra o texto num aviso. | Ap. B |
 | `Sem permissão para atualizar a programação.` | Importar programação sem usuário interno ativo. | Ap. B |
 | `Sem permissão.` | Ações e leituras do ADR, da omissão e dos detectores de alerta sem usuário interno ativo. | Ap. B |
 | `Sign-off pertence ao departamento %.` | Assinar setor que não é o seu (a tela esconde o botão); a aba mostra o texto num aviso. | Ap. B |
@@ -283,27 +283,27 @@ independente sobre a escala (143 e 144); Gerar EDI Mercante (146 e 147).
 | `Terminal do B/L só pode ser alterado pela exceção auditada.` | Mudança de terminal do B/L fora da exceção (rede do banco). | Ap. B |
 | `Terminal duplicado no estado da escala.` | Duas Atracações para o mesmo terminal; a tela não envia. | Fora |
 | `Terminal e porto devem ser informados juntos.` | Exceção de terminal com terminal sem porto ou porto sem terminal; a tela envia os dois. | Fora |
-| `Terminal inativo % nao pode receber nova atribuicao.` | Atribuir terminal desativado a uma frente (a lista já o mostra desabilitado). | Ap. B |
-| `Terminal inativo % nao pode receber novo estado.` | Criar Atracação para terminal desativado. | Ap. B |
+| `Terminal inativo % não pode receber nova atribuição.` | Atribuir terminal desativado a uma frente (a lista já o mostra desabilitado). | Ap. B |
+| `Terminal inativo % não pode receber novo estado.` | Criar Atracação para terminal desativado. | Ap. B |
 | `Terminal inválido para o POD do B/L.` | Exceção de terminal com terminal inativo ou de porto diferente do POD do B/L. | Ap. B |
-| `Terminal nao pertence ao porto % ou nao e terminal portuario.` | Atribuir à frente um Local de outro porto ou que é depot. | Ap. B |
-| `Terminal pertence ao departamento operacoes.` | Outro setor salvando o terminal do ADR antigo por porto. | Ap. B |
+| `Terminal não pertence ao porto % ou não é terminal portuário.` | Atribuir à frente um Local de outro porto ou que é depot. | Ap. B |
+| `Terminal pertence ao departamento operações.` | Outro setor salvando o terminal do ADR antigo por porto. | Ap. B |
 | `terminal_atd < terminal_atb para o terminal %.` | ATD da Atracação sem ATB ou anterior a ele (a janela já recusa com "Informe o ATB antes do ATD…"). | Ap. B |
 | `Transbordo do B/L % não encontrado` | Marcar ou reverter COD de B/L que não está naquela omissão; aparece no aviso da ficha do B/L. | Ap. B |
 | `Use cancel_voyage para cancelar a viagem e registrar o motivo na mesma transação.` | Tentativa de cancelar a Viagem pela edição; o formulário não oferece Cancelada. | Fora |
-| `Usuario ativo sem permissao para editar a escala.` | Salvar escala sem usuário interno ativo. | Ap. B |
+| `Usuário ativo sem permissão para editar a escala.` | Salvar escala sem usuário interno ativo. | Ap. B |
 | `Usuário sem permissão ativa para confirmar a data.` | Confirmar data efetiva sem usuário interno ativo. | Ap. B |
-| `Viagem % cancelada deve permanecer retida; use a rotina de recuperacao explicita.` | Exclusão de Viagem cancelada (rede do banco; a tela não oferece Excluir nela). | Ap. B |
+| `Viagem % cancelada deve permanecer retida; use a rotina de recuperação explícita.` | Exclusão de Viagem cancelada (rede do banco; a tela não oferece Excluir nela). | Ap. B |
 | `Viagem % cancelada: a programação dela não muda. Retire a linha da planilha.` | Planilha de programação com linha de Viagem cancelada (a prévia já marca Erro). | Ap. B |
 | `Viagem % cancelada: ADR somente leitura.` | Resolução, assinatura ou observação no ADR de Viagem cancelada. | Ap. B |
 | `Viagem % cancelada: escala somente leitura.` | Data de escala ou do POL em Viagem cancelada. | Ap. B |
 | `Viagem % cancelada: operação selada e somente leitura.` | Qualquer escrita em dado de Viagem cancelada (B/L, carga, escala, exportação, omissão, fatura…). | Ap. B |
-| `Viagem % nao encontrada.` | Cancelar Viagem que não existe mais. | Ap. B |
+| `Viagem % não encontrada.` | Cancelar Viagem que não existe mais. | Ap. B |
 | `Viagem % não está cancelada.` | Reativar Viagem que outra pessoa já reativou. | Ap. B |
-| `Viagem % nao pode ser excluida: ha dados vinculados em %.%.` | Exclusão de Viagem com dado ligado fora da lista do que vai junto (rede do banco). | Ap. B |
+| `Viagem % não pode ser excluída: há dados vinculados em %.%.` | Exclusão de Viagem com dado ligado fora da lista do que vai junto (rede do banco). | Ap. B |
 | `Viagem cancelada é somente leitura.` | Confirmar data efetiva em Viagem cancelada. | Ap. B |
-| `Viagem nao encontrada.` | Escala, ADR ou importação (Granito, Vazios) de Viagem que não existe mais. | Ap. B |
-| `Viagem não encontrada.` | Confirmar data efetiva de Viagem que não existe mais. | Ap. B |
+| `Viagem não encontrada.` | Confirmar data efetiva, escala, ADR ou importação (Vazios) de Viagem que não existe mais. | Ap. B |
+| `Viagem nao encontrada.` | Nunca chega a uma pessoa: o texto sem acento ficou só no corpo antigo da importação do Granito, cuja guarda o troca por "Viagem de destino não encontrada." (migration `573`). | Fora |
 | `Informe o motivo do cancelamento.` | Cancelar viagem sem motivo (o botão já fica desabilitado). | Ap. B |
 | `Informe o motivo da reativação.` | Reativar viagem sem motivo (a janela já exige). | Ap. B |
 | `Já existe a viagem NAVIO / NÚMERO. Abra a viagem existente em vez de cadastrar outra.` | Nova Viagem ou edição com navio e número já cadastrados (variação ", cancelada. Reative-a em Viagens…"). | Ap. B |
