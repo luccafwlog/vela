@@ -556,7 +556,8 @@ export async function exportPortalBlsWorkbook(rows: PortalOperationBL[]) {
     POD: row.pod ?? '',
     Containers: row.container_count,
     Devolvidos: row.containers_returned,
-    'Sem devolucao': row.container_count - row.containers_returned,
+    // Mesma regra da tela: sem SOC e sem container ainda não descarregado.
+    'Sem devolucao': blReturnSummary(row).awaiting,
     'Em demurrage': row.containers_in_demurrage,
     // Mesma conta da coluna Demurrage da tela (observação de 2026-11-01).
     'Devolvidos com demurrage': blReturnSummary(row).returnedWithDemurrage,

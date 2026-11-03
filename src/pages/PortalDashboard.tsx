@@ -29,6 +29,7 @@ const CONSULTAS = [
   { section: 'agentes', label: 'Agentes por porto' },
   { section: 'atendimento', label: 'Contato' },
   { section: 'tracking', label: 'Tracking' },
+  { section: 'tutorial', label: 'Tutorial do Portal' },
 ] as const
 
 export function PortalDashboard() {
