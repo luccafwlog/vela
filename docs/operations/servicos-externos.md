@@ -445,7 +445,7 @@ rodada ([Itaú](#itaú--api-pix-recebimentos), "Rodadas com 500 desde a v29").
 |---|---|---|
 | Plataforma (automáticos) | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `SUPABASE_JWKS`, `SUPABASE_PUBLISHABLE_KEYS`, `SUPABASE_SECRET_KEYS` | Supabase |
 | Portal | `PORTAL_URL` (valor esperado em produção: `https://portalfwlog.com.br`; como os e-mails montam os links a partir dele: [Portal do Cliente](../modules/portal-cliente.md#email-transacional)), `PORTAL_TECH_EMAIL_DOMAIN`, `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`, `PORTAL_PASSWORD_PEPPER` | — |
-| E-mail | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_BASE_URL` (obrigatório com a MillionSend), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `PORTAL_SUPPORT_EMAIL`, `COMMUNICATIONS_REPLY_TO`, `DEMURRAGE_REPLY_TO` | MillionSend (API compatível com a Resend) |
+| E-mail | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_BASE_URL` (obrigatório com a MillionSend), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `PORTAL_SUPPORT_EMAIL`, `COMMUNICATIONS_REPLY_TO`, `DEMURRAGE_REPLY_TO`; opcional `EMAIL_BCC_ADDRESS` ([cópia oculta](#millionsend-envio)) | MillionSend (API compatível com a Resend) |
 | Anti-robô | `TURNSTILE_SECRET_KEY` e `TURNSTILE_ALLOWED_HOSTNAMES` (obrigatório fora do stack local desde a auditoria run-3: sem ele, o desafio do Portal é recusado) | Cloudflare Turnstile |
 | Trava de tentativas | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `PORTAL_RATE_LIMIT_HMAC_SECRET` (e opcionais `PORTAL_RATE_LIMIT_*`) | Upstash |
 | Jobs | `ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`, `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `IMPORT_EFFECTS_CRON_SECRET`, `RECALC_CRON_SECRET`, `CE_UNLOCK_CLEANUP_SECRET`, `CE_UNLOCK_NOTIFY_SECRET`, `ITAU_PIX_CRON_SECRET`, `ITAU_PIX_DIAGNOSTIC_SECRET` e, na transição, `ITAU_PIX_ADMIN_SECRET`; `CE_UNLOCK_NOTIFY_SHARED_RETIRED=true` (não é segredo) encerra a transição dos avisos de CE (par com o Vault quando o job está habilitado; lista do cofre e ordem da troca em [segredos-cron.md](segredos-cron.md#um-segredo-por-rotina-auditoria-run-3)) | — |
@@ -705,6 +705,12 @@ mesmos.
      (migration `353`).
 - **Recebimento** e **Caixas de entrada** da MillionSend não são usados: o
   recebimento é do ImprovMX.
+- **Cópia oculta (desde 2026-11-03, [ADR 0117](../adr/0117-copia-oculta-de-todo-email-do-sistema.md)):**
+  todo e-mail do sistema, inclusive o redirecionado ao suporte, sai com
+  `lucca.juliatti@fwlog.com.br` em `bcc`. O secret `EMAIL_BCC_ADDRESS` troca o
+  endereço e `off` desliga, sem publicar as funções; sem o secret vale esse
+  endereço. A caixa recebe os links de uso único do Portal (risco aceito pelo
+  dono). Cada envio conta dois destinatários na MillionSend.
 - **Virada conferida em 2026-10-14:** "Esqueci minha senha" no Portal chegou,
   apareceu como entregue na MillionSend e o webhook marcou 100% de sucesso.
 - **Volta para a Resend (enquanto a conta existir), nesta ordem:**

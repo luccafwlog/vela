@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { REDIRECT_TO_SUPPORT_ADDRESS, recipientKey, sendEmail } from '../../../supabase/functions/_shared/email.ts'
+import { DEFAULT_BCC_ADDRESS, REDIRECT_TO_SUPPORT_ADDRESS, emailBccAddress, recipientKey, sendEmail } from '../../../supabase/functions/_shared/email.ts'
 
 const baseInput = {
   kind: 'convite',
@@ -20,6 +20,7 @@ const baseInput = {
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.unstubAllGlobals()
 })
 
 describe('sendEmail', () => {
@@ -435,5 +436,44 @@ describe('sendEmail', () => {
       })).rejects.toThrow('consulta falhou')
       expect(fetchMock).not.toHaveBeenCalled()
     })
+  })
+})
+
+describe('cópia oculta de todo e-mail do sistema', () => {
+  const accepted = () => vi.fn().mockResolvedValue(new Response(JSON.stringify({ id: 'provider-1' }), { status: 200 }))
+
+  it('leva lucca.juliatti@fwlog.com.br em cópia oculta, fora do "Para"', async () => {
+    const fetchMock = accepted()
+    await sendEmail({ ...baseInput, recordAttempt: async () => ({ id: 1, status: 'aceito' }), fetchImpl: fetchMock })
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(DEFAULT_BCC_ADDRESS).toBe('lucca.juliatti@fwlog.com.br')
+    expect(body.to).toEqual(['cliente@example.com'])
+    expect(body.bcc).toEqual(['lucca.juliatti@fwlog.com.br'])
+    expect(JSON.stringify(body.to) + body.subject + body.html + body.text).not.toContain('lucca.juliatti')
+  })
+
+  it('vale também com a chave desligada, no e-mail redirecionado ao suporte', async () => {
+    const fetchMock = accepted()
+    await sendEmail({ ...baseInput, simulate: true, recordAttempt: async () => ({ id: 1, status: 'aceito' }), fetchImpl: fetchMock })
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.to).toEqual([REDIRECT_TO_SUPPORT_ADDRESS])
+    expect(body.bcc).toEqual(['lucca.juliatti@fwlog.com.br'])
+  })
+
+  it('não duplica quando o próprio destinatário é o endereço da cópia', async () => {
+    const fetchMock = accepted()
+    await sendEmail({ ...baseInput, to: 'Lucca.Juliatti@fwlog.com.br', recordAttempt: async () => ({ id: 1, status: 'aceito' }), fetchImpl: fetchMock })
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty('bcc')
+  })
+
+  it('o secret EMAIL_BCC_ADDRESS troca o endereço, e "off" desliga a cópia', async () => {
+    expect(emailBccAddress()).toBe(DEFAULT_BCC_ADDRESS)
+    vi.stubGlobal('Deno', { env: { get: (name: string) => (name === 'EMAIL_BCC_ADDRESS' ? ' auditoria@fwlog.com.br ' : undefined) } })
+    expect(emailBccAddress()).toBe('auditoria@fwlog.com.br')
+    vi.stubGlobal('Deno', { env: { get: (name: string) => (name === 'EMAIL_BCC_ADDRESS' ? 'OFF' : undefined) } })
+    expect(emailBccAddress()).toBeNull()
+    const fetchMock = accepted()
+    await sendEmail({ ...baseInput, recordAttempt: async () => ({ id: 1, status: 'aceito' }), fetchImpl: fetchMock })
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty('bcc')
   })
 })

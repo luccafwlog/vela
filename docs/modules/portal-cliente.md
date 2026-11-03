@@ -635,7 +635,8 @@ nenhuma leva senha ou dado financeiro. O conteúdo não inclui pixel de abertura
 nem link de rastreamento de clique; no provedor atual
 (MillionSend), o rastreamento de cliques e de aberturas de `portalfwlog.com.br`
 aparecia desligado na configuração do domínio em 2026-10-14 (print do painel). O token opaco fica só no link e não é reproduzido em logs nem em
-auditoria.
+auditoria; o e-mail com o link vai também em cópia oculta à caixa definida em
+`EMAIL_BCC_ADDRESS` ([ADR 0117](../adr/0117-copia-oculta-de-todo-email-do-sistema.md), risco aceito pelo dono).
 
 - **Convite:** identifica a empresa e o CNPJ mascarado, informa a validade de
   48 horas e o uso único, e orienta a criar a própria senha ou, se o

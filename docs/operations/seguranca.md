@@ -544,6 +544,7 @@ Function:
 ## Riscos de segurança monitorados
 
 - A leitura de planilhas usa `@e965/xlsx` com limite de upload antes do parsing e acesso restrito a usuários autenticados. O `npm audit` do repositório estava limpo em 2026-08-26; manter o limite e revalidar a dependência em atualizações. Ver [ROADMAP](../ROADMAP.md).
+- Cópia oculta de todo e-mail do sistema (desde 2026-11-03, [ADR 0117](../adr/0117-copia-oculta-de-todo-email-do-sistema.md)): a caixa de `EMAIL_BCC_ADDRESS` (`lucca.juliatti@fwlog.com.br`) recebe também os links de uso único do Portal (convite, reenvio, recuperação de senha, confirmação da troca do Email de Recuperação). Quem lê essa caixa pode assumir a conta de qualquer Cliente antes dele; o dono aceitou o risco. Proteja a caixa com MFA e sem encaminhamento automático; `EMAIL_BCC_ADDRESS=off` desliga a cópia sem publicar as funções.
 - Snapshots de auditoria de segurança ficam em [archive/](../archive/README.md).
 
 ## Desbloqueio de CE Mercante
