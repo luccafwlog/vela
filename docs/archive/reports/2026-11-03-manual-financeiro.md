@@ -1,5 +1,7 @@
 # Manual de faturamento, pagamentos e correções
 
+> **Situação atual (2026-11-03):** substituído pelo Manual do Operador, capítulos 21 a 24 (`docs/manual/texto/`), por decisão do dono; mantido como registro histórico. Antes ficava em `docs/operations/manual-financeiro.md`; os links abaixo são os da época. O que era regra continua nos módulos [Faturamento](../../modules/faturamento.md), [Reconciliação PIX](../../modules/reconciliacao-pix.md) e [Demurrage](../../modules/demurrage.md). Não valem mais, pelo código de 2026-11-03: o recibo que "distingue recebido, abatido, devolvido, pendente e líquido" (§5 e §7; o recibo mostra só o **Valor recebido**, já sem o devolvido, e a data) e a restituição gerada ao cancelar um B/L integralmente pago (§6; o cancelamento do B/L não cria restituição, e o caminho é **Preparar cancelamento financeiro** antes).
+
 Edição atualizada em 2026-10-14. Os procedimentos valem para o ambiente publicado: as correções e controles financeiros (migrations `122`–`136`) estão em produção, e a cobrança Pix do Itaú com baixa automática está ativa desde 2026-10-07 (evidência em [Faturamento § Notas e divergências](../modules/faturamento.md#notas-e-divergências)). Este manual diz o que o usuário faz; as regras estão nos módulos [Faturamento](../modules/faturamento.md), [Reconciliação PIX](../modules/reconciliacao-pix.md) e [Demurrage](../modules/demurrage.md).
 
 ## 1. Quem faz e onde

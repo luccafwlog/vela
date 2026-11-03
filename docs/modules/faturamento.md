@@ -4,8 +4,9 @@
 
 ## Propósito e escopo
 
-Para a ação do usuário em cada exceção, consulte o
-[manual financeiro](../operations/manual-financeiro.md). A
+Para a ação do usuário em cada exceção, consulte o Manual do Operador:
+[a fatura](../manual/texto/22-a-fatura.md) e
+[pagamento e restituição](../manual/texto/24-pagamento-e-restituicao.md). A
 [revisão de 2026-10-04](../archive/audits/2026-10-04-revisao-fluxo-financeiro.md)
 registra evidências locais e lacunas de recibo, restituição e mudança de Cliente.
 
@@ -813,7 +814,9 @@ Cliente vinculado depois (ADR 0093, decisão 13; migration `379`).
 (definição vigente na `136`; ADR 0077, "Regra de CNPJ definida em 2026-10-04";
 ADR 0078, item 14). **Teste local-pg:**
 `src/integration/invoicePostBillingSafety.local-pg.test.ts`. O procedimento do
-usuário está no [manual financeiro](../operations/manual-financeiro.md).
+usuário está no Manual do Operador, em
+[Vincular ou trocar o Cliente do B/L](../manual/texto/07-ficha-do-bl.md#74-vincular-ou-trocar-o-cliente-do-bl)
+e [Devolver dinheiro ao Cliente](../manual/texto/24-pagamento-e-restituicao.md#246-devolver-dinheiro-ao-cliente).
 
 ### Ajuste de COD
 
