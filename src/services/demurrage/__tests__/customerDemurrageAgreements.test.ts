@@ -71,7 +71,7 @@ describe('customerDemurrageAgreements service', () => {
         free_days: 21,
         valid_from: '2026-01-01',
       }),
-    ).rejects.toThrow(/Cliente obrigatorio/)
+    ).rejects.toThrow(/Cliente obrigatório/)
 
     await expect(
       saveCustomerDemurrageAgreement({
@@ -87,7 +87,7 @@ describe('customerDemurrageAgreements service', () => {
         free_days: 21,
         valid_from: '',
       }),
-    ).rejects.toThrow(/Data de inicio/)
+    ).rejects.toThrow(/Data de início/)
 
     await expect(
       saveCustomerDemurrageAgreement({

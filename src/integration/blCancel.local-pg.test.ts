@@ -127,6 +127,14 @@ describeLocal('089 — B/L cancelado, Reativar e CE', () => {
     }
     expect(psql(`SELECT cancelled_at IS NULL FROM public.bls WHERE id = 'BL089SEMCE';`)).toBe('t')
     psql(`DELETE FROM public.bls WHERE id = 'BL089SEMCE';`)
+
+    // A exclusão travada (fatura, mesmo cancelada) mantém o cancelamento: senão não há saída.
+    psql(`INSERT INTO public.bls (id, voyage_id, customer_id) VALUES ('BL089SEMCEF', ${VOYAGE_ID}, ${CUSTOMER_ID});
+      SET session_replication_role = replica;
+      INSERT INTO public.invoices (invoice_number, customer_id, bl_id, total_brl, status)
+      VALUES ('INV-089SEMCEF', ${CUSTOMER_ID}, 'BL089SEMCEF', 10, 'cancelled');
+      SET session_replication_role = origin;`)
+    expect(as(ADMIN_ID, `SELECT public.cancel_bl('BL089SEMCEF', 'não embarcou');`).json).toMatchObject({ cancelled: true })
   })
 
   it('B/L cancelado fica selado, não entra em fatura e aparece com a data', () => {

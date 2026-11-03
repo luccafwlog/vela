@@ -772,12 +772,18 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     localPsql(`SELECT public.register_demurrage_payment('${randomUUID()}'::uuid, ${invoiceId}, (now() AT TIME ZONE 'America/Sao_Paulo')::date);`)
   }
 
-  // C5 (ADR 0078, item 12): só fatura emitida trava a exclusão.
-  it('B/L cancelado com recebível anulado pode ser excluído, e o recebível sai junto', () => {
-    expect(localPsql(`SELECT array_to_string(public.delete_lock_reasons(${voyage.recebivel}), '|');`)).not.toContain('documento financeiro emitido')
-    const result = JSON.parse(asAdmin(`SELECT public.delete_records('bl', ARRAY['A207-RC1'], false, 'B/L lançado por engano (A207)');`)) as { deleted: string[]; blocked: unknown[] }
-    expect(result).toMatchObject({ deleted: ['A207-RC1'], blocked: [] })
-    expect(localPsql(`SELECT count(*) FROM public.bl_receivables WHERE bl_id = 'A207-RC1';`)).toBe('0')
+  // C5 (ADR 0078, item 12): só fatura emitida trava a exclusão. Migration 574:
+  // o B/L sem CE não se cancela; com recebível sem fatura, ele se exclui.
+  it('B/L sem CE com recebível sem fatura não se cancela: é excluído, e o recebível sai junto', () => {
+    insertBl('A207-RC2', voyage.recebivel, pod, [{ number: 'ADCU2070092' }])
+    localPsql(`
+      INSERT INTO public.bl_receivables (bl_id, customer_id, source, original_amount_brl, settled_amount_brl, balance_brl, status)
+      VALUES ('A207-RC2', ${cliente.id}, 'local_charges', 100, 0, 100, 'open');
+    `)
+    expect(tryAsAdmin(`SELECT public.cancel_bl('A207-RC2', 'Carga não embarcou (A207)', false);`).error).toMatch(/sem CE Mercante não se cancela: exclua-o/)
+    const result = JSON.parse(asAdmin(`SELECT public.delete_records('bl', ARRAY['A207-RC2'], false, 'B/L lançado por engano (A207)');`)) as { deleted: string[]; blocked: unknown[] }
+    expect(result).toMatchObject({ deleted: ['A207-RC2'], blocked: [] })
+    expect(localPsql(`SELECT count(*) FROM public.bl_receivables WHERE bl_id = 'A207-RC2';`)).toBe('0')
   })
 
   it('B/L com recebível ligado a fatura emitida continua travado para exclusão', () => {

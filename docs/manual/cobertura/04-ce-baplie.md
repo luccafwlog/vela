@@ -187,14 +187,14 @@ tela, citados para o Apêndice B.
 | `Taxas Locais do B/L % não calculadas: %. Nada foi gravado: corrija e grave de novo.` | Planilha de CE Mercante: o cálculo das Taxas Locais de um B/L falhou na gravação (câmbio ausente com linha em dólar e afins). Nada da planilha foi gravado. (Mensagem de outra área que esta operação encontra.) | Ap. B |
 | `Viagem % cancelada: operação selada e somente leitura.` | Importar Baplie, cadastrar vazios, Vale o B/L, Informar, Mover ou Desvincular numa Viagem cancelada. (Mensagem de outra área que esta operação encontra.) | Ap. B |
 | `No máximo 50 B/Ls por lote de emissão.` | Limite do lote de emissão depois da planilha de CE; a tela emite de 25 em 25. Proteção do servidor que a tela não dispara: a tela não envia esse pedido; só uma gravação feita por fora do Vela veria o texto. (Mensagem de outra área que esta operação encontra.) | Fora |
-| Texto da tela: «Planilha invalida. Colunas obrigatorias: BL, CE MERCANTE.» | Importar CE Mercante: a planilha não tem a coluna do B/L ou a do CE (o texto lista só as que faltam). | Ap. B |
+| Texto da tela: «Planilha inválida. Colunas obrigatórias: BL, CE MERCANTE.» | Importar CE Mercante: a planilha não tem a coluna do B/L ou a do CE (o texto lista só as que faltam). | Ap. B |
 | Texto da tela: «Linha sem CE Mercante para o BL X.» | Prévia da planilha de CE: linha com B/L e sem CE. Bloqueia a planilha inteira. | Ap. B |
-| Texto da tela: «CE Mercante invalido para o BL X: a célula é numérica e ficou com N digitos. Formate a coluna CE como texto e digite os 15 digitos.» | Prévia da planilha de CE: o Excel guardou o CE como número e perdeu dígitos. | Ap. B |
-| Texto da tela: «CE Mercante invalido para o BL X: esperado 15 digitos, recebido N.» | Prévia da planilha de CE: CE com menos ou mais de 15 dígitos. | Ap. B |
+| Texto da tela: «CE Mercante inválido para o BL X: a célula é numérica e ficou com N dígitos. Formate a coluna CE como texto e digite os 15 dígitos.» | Prévia da planilha de CE: o Excel guardou o CE como número e perdeu dígitos. | Ap. B |
+| Texto da tela: «CE Mercante inválido para o BL X: esperado 15 dígitos, recebido N.» | Prévia da planilha de CE: CE com menos ou mais de 15 dígitos. | Ap. B |
 | Texto da tela: «BL X repetido na planilha de CE Mercante.» | Prévia da planilha de CE: o mesmo B/L em duas linhas. | Ap. B |
 | Texto da tela: «CE Mercante N repetido na planilha: já está na linha L (BL X). Um CE só pode estar em um B/L.» | Prévia da planilha de CE: o mesmo CE em dois B/Ls. | Ap. B |
 | Texto da tela: «B/L X pertence a outra viagem» | Prévia da planilha de CE com a Viagem preenchida: linha de B/L de outra Viagem. Bloqueia; limpe o campo Viagem para importar o arquivo inteiro. | Ap. B |
-| Texto da tela: «BL X nao encontrado no sistema. / B/L X não encontrado no sistema.» | Planilha de CE com B/L que não existe no Vela (o B/L precisa ser importado antes). | Ap. B |
+| Texto da tela: «BL X não encontrado no sistema. / B/L X não encontrado no sistema.» | Planilha de CE com B/L que não existe no Vela (o B/L precisa ser importado antes). | Ap. B |
 | Texto da tela: «O CE Mercante N já está em outro B/L não cancelado (Y).» | Conferência da planilha de CE no servidor: o CE já está noutro B/L ativo ou num B/L de Granito. | Ap. B |
 | Texto da tela: «Os B/Ls da planilha são de mais de uma viagem ou rota (POL → POD). Um manifesto tem uma única rota: separe a planilha por manifesto.» | Conferência da planilha de CE. | Ap. B |
 | Texto da tela: «Os B/Ls da planilha não têm POL e POD cadastrados; sem rota não há manifesto.» | Conferência da planilha de CE. | Ap. B |

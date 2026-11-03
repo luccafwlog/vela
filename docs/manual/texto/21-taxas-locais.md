@@ -104,7 +104,7 @@ Quando o cálculo não consegue dar valor a uma taxa, a linha fica **Em revisão
 | "Container IMO e OOG sem item THD standard…" | Não há THD Padrão para o container IMO e OOG. | Inclua o THD Padrão ou cobre por fatura avulsa. |
 | "Peso de carga solta ausente…" | Taxa por tonelada sem peso. | Informe o peso ([8.4](08-revisao.md#84-informar-o-peso-da-carga-solta)). |
 | "Item THD cadastrado com perfil de carga 'any'…" | THD com perfil **Todos**. | Corrija o perfil do item (**Aviso**: **THD sem perfil**). |
-| "Base de aplicacao nao suportada pelo motor: teu" | Item por TEU. | Troque a base do item (**Aviso**: **TEU não calculado**). |
+| "Base de aplicação não suportada pelo motor: teu" | Item por TEU. | Troque a base do item (**Aviso**: **TEU não calculado**). |
 | "Tarifa BRL sem valor unitário vigente." (ou USD) | O item não tem valor na moeda dele. | Preencha o valor do item. |
 
 Depois de corrigir:

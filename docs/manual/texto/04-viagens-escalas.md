@@ -16,7 +16,7 @@ Antes de cadastrar, procure a viagem em **Viagens**: ela pode já existir, criad
 
 ::: lado
 1. Em **Viagens**, clique em **Nova Viagem**.
-2. Preencha **Navio**, **IMO** e **Numero da viagem**. Navio já cadastrado mantém o armador dele; o navio novo vem com Cosco Shipping Specialized Carriers (CSSC). Se a viagem é de outro armador, clique em **Alterar armador**.
+2. Preencha **Navio**, **IMO** e **Número da viagem**. Navio já cadastrado mantém o armador dele; o navio novo vem com Cosco Shipping Specialized Carriers (CSSC). Se a viagem é de outro armador, clique em **Alterar armador**.
 3. Se já tem as datas, em **Portos e datas** informe o porto e a data e clique em **Adicionar**, um porto por vez: em **Origem**, o porto do exterior e o **ETD**; em **Destino**, o porto brasileiro e o **ETA**.
 4. Se a viagem deve aparecer na programação do Portal e do site fwlog.com.br, ligue a chave **Chegadas e Saídas**.
 5. Clique em **Cadastrar viagem**.

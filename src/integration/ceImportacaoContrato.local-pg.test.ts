@@ -225,7 +225,9 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     insertBl('A228-P1', { container: 'ADCU2280001' })
     insertBl('A228-P2', { container: 'ADCU2280002', ce: '992280000000002' })
     insertBl('A228-P3', { container: 'ADCU2280003' })
+    // Migration 574: só o B/L com CE se cancela; o CE vem sem gatilhos (sem faturar).
     psql(syntheticCeBeforeCancelSql('A228-P3'))
+    const cancelledCe = psql(`SELECT ce_mercante FROM public.bls WHERE id = 'A228-P3';`)
     expect(json<{ cancelled: boolean }>(`SELECT public.cancel_bl('A228-P3', 'Carga não embarcou (A228)', false);`).cancelled).toBe(true)
 
     const rows: Rows = [
@@ -253,7 +255,7 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
     const confirmed = apply(rows, 'A228D00000001', `, true, 'CE corrigido pelo despachante (A228)'`)
     expect(confirmed).toMatchObject({ ok: true, ignored: 1 })
     expect(psql(`SELECT ce_mercante FROM public.bls WHERE id = 'A228-P2';`)).toBe('992280000000022')
-    expect(psql(`SELECT COALESCE(ce_mercante, '') FROM public.bls WHERE id = 'A228-P3';`)).toBe('')
+    expect(psql(`SELECT COALESCE(ce_mercante, '') FROM public.bls WHERE id = 'A228-P3';`)).toBe(cancelledCe)
     expect(psql(`SELECT justification FROM public.audit_logs WHERE entity_id = 'A228-P2' AND field_name = 'ce_mercante' ORDER BY id DESC LIMIT 1;`))
       .toContain('CE corrigido pelo despachante (A228)')
   })
