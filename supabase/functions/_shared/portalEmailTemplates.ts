@@ -30,6 +30,9 @@ function accessBlock(companyName: string, cnpjMasked?: string) {
   }
 }
 
+// Convite e reenvio levam o PDF de `portalInviteAttachments.ts`.
+const ATTACHMENTS_NOTE = 'Em anexo está o tutorial completo do Portal.'
+
 function portalMail(input: {
   subject: string
   title: string
@@ -53,8 +56,8 @@ export function inviteTemplate(i: InviteTemplateInput) {
   return portalMail({
     subject: `Ative o acesso da ${i.companyName} ao Portal do Cliente`,
     title: 'Ative seu acesso ao Portal do Cliente',
-    html: access.html + p(escapeHtml(intro)) + p(escapeHtml(how)) + portal.button('Ativar acesso', i.activationUrl),
-    text: [access.text, '', intro, how, '', `Ativar acesso: ${i.activationUrl}`],
+    html: access.html + p(escapeHtml(intro)) + p(escapeHtml(how)) + portal.button('Ativar acesso', i.activationUrl) + p(escapeHtml(ATTACHMENTS_NOTE)),
+    text: [access.text, '', intro, how, '', `Ativar acesso: ${i.activationUrl}`, '', ATTACHMENTS_NOTE],
     portalUrl: i.portalUrl,
     footer: emailFooter(i.supportEmail),
   })
@@ -67,8 +70,8 @@ export function resendTemplate(i: InviteTemplateInput) {
   return portalMail({
     subject: 'Novo convite para ativar seu acesso ao Portal do Cliente',
     title: 'Novo convite do Portal do Cliente',
-    html: access.html + p(escapeHtml(intro)) + p(escapeHtml(how)) + portal.button('Ativar acesso', i.activationUrl),
-    text: [access.text, '', intro, how, '', `Ativar acesso: ${i.activationUrl}`],
+    html: access.html + p(escapeHtml(intro)) + p(escapeHtml(how)) + portal.button('Ativar acesso', i.activationUrl) + p(escapeHtml(ATTACHMENTS_NOTE)),
+    text: [access.text, '', intro, how, '', `Ativar acesso: ${i.activationUrl}`, '', ATTACHMENTS_NOTE],
     portalUrl: i.portalUrl,
     footer: emailFooter(i.supportEmail),
   })
