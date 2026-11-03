@@ -19,12 +19,9 @@ afterEach(() => {
   vi.restoreAllMocks()
 })
 
-describe('PDFs anexados ao convite do Portal', () => {
-  it('são os PDFs atuais do material do Cliente, com os nomes do anexo', () => {
-    const sources: Record<string, string> = {
-      'Tutorial_Portal_Fwlog.pdf': 'Tutorial_Portal_Fwlog.pdf',
-      'Guia_Rapido_Portal_Fwlog.pdf': 'guia-rapido-portal-fwlog.pdf',
-    }
+describe('Tutorial anexado ao convite do Portal', () => {
+  it('é só o tutorial atual do material do Cliente; o guia rápido não vai', () => {
+    const sources: Record<string, string> = { 'Tutorial_Portal_Fwlog.pdf': 'Tutorial_Portal_Fwlog.pdf' }
     expect(PORTAL_INVITE_ATTACHMENTS.map((attachment) => attachment.filename)).toEqual(Object.keys(sources))
     let total = 0
     for (const attachment of PORTAL_INVITE_ATTACHMENTS) {
@@ -42,13 +39,14 @@ describe('PDFs anexados ao convite do Portal', () => {
     expect(total).toBeLessThanOrEqual(10 * 1024 * 1024)
   })
 
-  it('convite e reenvio citam os dois anexos, no HTML e no texto', () => {
-    const line = 'Em anexo estão o tutorial completo e o guia rápido do Portal.'
+  it('convite e reenvio citam o tutorial anexo, no HTML e no texto', () => {
+    const line = 'Em anexo está o tutorial completo do Portal.'
     const input = { companyName: 'ACME', cnpjMasked: '***', activationUrl: 'https://portalfwlog.com.br/portal/ativar?token=t', portalUrl: 'https://portalfwlog.com.br', supportEmail: 'suporte@portalfwlog.com.br' }
     for (const template of [inviteTemplate, resendTemplate]) {
       const email = template(input)
       expect(email.html).toContain(line)
       expect(email.text).toContain(line)
+      expect(`${email.html}\n${email.text}`).not.toMatch(/guia rápido/i)
     }
   })
 
@@ -59,7 +57,7 @@ describe('PDFs anexados ao convite do Portal', () => {
     expect(call).toContain('attachments: PORTAL_INVITE_ATTACHMENTS')
   })
 
-  it('sendPortalEmail leva os anexos até o provedor', async () => {
+  it('sendPortalEmail leva o anexo até o provedor', async () => {
     const env: Record<string, string> = {
       RESEND_API_KEY: 'ms_test',
       PORTAL_FROM_EMAIL: 'Portal Fwlog <no-reply@portalfwlog.com.br>',

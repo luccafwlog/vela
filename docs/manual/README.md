@@ -487,8 +487,7 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   novo ao desativar Cliente, "Receba ou cancele antes o que está em aberto.", e
   o 13.10 deixa de avisar que a mensagem citava o Financeiro. As recusas que
   ganharam acento não aparecem no texto do manual.
-- **PDFs do Portal no convite** (pedido de 2026-11-03; Edge, sem migration): o
-  e-mail de convite e o de reenvio levam em anexo o tutorial completo e o guia
-  rápido do Portal (Tutorial_Portal_Fwlog.pdf e Guia_Rapido_Portal_Fwlog.pdf) e
-  a linha "Em anexo estão o tutorial completo e o guia rápido do Portal."
-  (POR-039, POR-040; 14.3).
+- **Tutorial em PDF no convite do Portal** (pedido de 2026-11-03; Edge, sem
+  migration): o e-mail de convite e o de reenvio levam em anexo o tutorial
+  completo do Portal (Tutorial_Portal_Fwlog.pdf) e a linha "Em anexo está o
+  tutorial completo do Portal." (POR-039, POR-040; 14.3).

@@ -30,8 +30,8 @@ function accessBlock(companyName: string, cnpjMasked?: string) {
   }
 }
 
-// Convite e reenvio levam os PDFs de `portalInviteAttachments.ts`.
-const ATTACHMENTS_NOTE = 'Em anexo estão o tutorial completo e o guia rápido do Portal.'
+// Convite e reenvio levam o PDF de `portalInviteAttachments.ts`.
+const ATTACHMENTS_NOTE = 'Em anexo está o tutorial completo do Portal.'
 
 function portalMail(input: {
   subject: string

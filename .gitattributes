@@ -6,5 +6,5 @@
 *.ts text eol=lf
 *.tsx text eol=lf
 
-# PDFs do convite em base64 (scripts/generate-portal-invite-pdfs.mjs): sem diff de texto.
+# Tutorial do convite em base64 (scripts/generate-portal-invite-pdfs.mjs): sem diff de texto.
 supabase/functions/_shared/portalInvitePdfs.generated.ts -diff linguist-generated=true
