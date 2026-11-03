@@ -4,7 +4,7 @@ Lista, por capítulo do Manual do Operador, dos objetivos de quem usa o Vela
 ("Quero fazer…") e das situações comuns fora do caminho normal
 ("Aconteceu…"). É a pauta da redação: cada procedimento do manual responde um
 objetivo, e cada situação vira um quadro "Aconteceu…" no capítulo
-([plano, "O manual parte do objetivo de quem usa"](../../plans/2026-10-26-manual-do-operador.md#o-manual-parte-do-objetivo-de-quem-usa)).
+([plano, "O manual parte do objetivo de quem usa"](../../archive/plans/2026-10-26-manual-do-operador.md#o-manual-parte-do-objetivo-de-quem-usa)).
 
 A [matriz de cobertura](../cobertura/) continua garantindo que nenhuma regra
 fica sem lugar; o catálogo diz em que ordem e em que pergunta do usuário cada

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Inventário do sistema para o Manual do Operador (plano
-// docs/plans/2026-10-26-manual-do-operador.md, Etapa 1.1).
+// docs/archive/plans/2026-10-26-manual-do-operador.md, Etapa 1.1).
 //
 // Lista tudo o que o manual precisa cobrir, com um identificador estável por
 // item. Parte vem do código (rotas, funções de servidor, modelos de e-mail,

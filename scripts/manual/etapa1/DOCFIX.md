@@ -1,7 +1,7 @@
 # Correção de documentação defasada (divergências da classe a)
 
 O mapeamento do Manual do Operador (plano
-`/home/user/vela/docs/plans/2026-10-26-manual-do-operador.md`, Etapa 1)
+`/home/user/vela/docs/archive/plans/2026-10-26-manual-do-operador.md`, Etapa 1)
 achou divergências entre o código e a documentação viva. As da **classe a**
 são "documento defasado; código coerente com a decisão": o plano manda
 corrigir o documento na mesma entrega
