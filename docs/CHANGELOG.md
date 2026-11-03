@@ -6,6 +6,29 @@
 
 ## 2026-11
 
+- **Recusas do banco com acento e "B/Ls e CEs" (2026-11-02, migration `567`; achado da sincronização do Manual
+  do Operador):** as recusas "B/L … já foi faturado …" (taxa manual, recálculo, troca de carga e reimportação do
+  Manifesto BB) ganham acento, e as da escala passam a "Informe a justificativa para alterar B/Ls e CEs." e
+  "Status de B/Ls e CEs inválido.", o mesmo nome da tela. Só os textos mudam; a matriz de cobertura cita os novos.
+- **Planilha de programação corrige o IMO fora do formato (2026-11-02, migration `568`; achado da sincronização
+  do Manual do Operador):** a #1135 deixou corrigir pela Viagem o IMO gravado errado (o nome do navio no campo
+  IMO), mas a planilha de Chegadas e Saídas ainda recusava a linha como "IMO conflitante", na prévia e na
+  gravação. Agora só um IMO gravado de 7 dígitos conflita; o fora do formato é trocado pelo do arquivo, também no
+  navio da Viagem já cadastrada, que a prévia passa a achar ("Atualiza", não "Cria"), salvo se o IMO já for de
+  outro navio.
+- **Demurrage: "correndo" e "a emitir" em todas as telas (2026-11-03, migration `569`; decisão do dono):** o
+  container ainda sem Invoice se diz "correndo" (fora, passado do free time) ou "a emitir" (devolvido), como as
+  divisões da página Demurrage e o glossário. Mudam a linha de cada container na ficha do B/L, a aba **Containers**
+  da ficha do Cliente (filtros **Demurrage correndo** e **Demurrage a emitir**, coluna, total e a planilha
+  exportada) e a recusa ao cancelar o B/L, que passa a "Demurrage correndo ou a emitir: …". "a faturar" e "em curso" saem dessas telas.
+- **Dispensa da Demurrage legível nos históricos, Terminal no Embarque de vazios vazio e glossário com
+  "container" (2026-11-02; achados da revisão do Manual do Operador):** o Histórico do B/L e o Histórico de ações
+  mostram "Container … · cobrança de Demurrage dispensada", "… · dispensa da Demurrage desfeita" e, quando a dispensa
+  acompanha a troca de Cliente do B/L, "Dispensa da Demurrage acompanhou a troca de Cliente do B/L", sem o número
+  interno do Cliente (antes, "Dado do B/L: vazio → …" e "B/L alterado"). A lista vazia do Embarque de vazios cita o
+  Terminal, que o **Novo embarque** exige. O glossário troca "caixa" por "container" nos verbetes da Demurrage; o
+  rateio entre Clientes passa a **Rateio da Demurrage entre Clientes**, para não se confundir com o rateio do
+  container das Taxas Locais.
 - **Tela TV com um nome só e "Line-Up" com hífen (2026-11-03; decisão do dono):** o item do menu **Viagens** que
   abre o quadro para o monitor passa de **Line Up TV** a **Tela TV**, o nome do botão do Painel; a aba do navegador
   diz "Tela TV". O quadro do Painel, as mensagens ("Erro ao carregar o Line-Up.", "Falha ao exportar o Line-Up.") e

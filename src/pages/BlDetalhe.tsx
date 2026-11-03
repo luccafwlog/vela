@@ -66,11 +66,15 @@ export const BL_TABS: { key: BlTab; label: string }[] = [
 
 // Motivos de Demurrage de `bl_open_financial_reasons` (migrations 517 e 530):
 // saem pela emissão da Invoice ou pela dispensa na Demurrage, não pela fatura.
-const DEMURRAGE_TO_BILL_REASON = 'Demurrage a faturar'
+// Migration 569: "Demurrage correndo ou a emitir"; "Demurrage a faturar" é o
+// texto anterior, que o banco devolve até a migration chegar.
+// ponytail: o começo antigo sai depois que a 569 estiver em produção (a
+// promoção staging → main que a leva); até lá, a ficha serve aos dois bancos.
+const DEMURRAGE_TO_BILL_REASONS = ['Demurrage correndo ou a emitir', 'Demurrage a faturar']
 const DEMURRAGE_LOCKED_REASON = 'Demurrage travada'
 
 function isDemurrageCancelReason(reason: string) {
-  return reason.startsWith(DEMURRAGE_TO_BILL_REASON) || reason.startsWith(DEMURRAGE_LOCKED_REASON)
+  return DEMURRAGE_TO_BILL_REASONS.some((prefix) => reason.startsWith(prefix)) || reason.startsWith(DEMURRAGE_LOCKED_REASON)
 }
 
 /** A travada (B/L sem Cliente, tipo sem tarifa) abre a divisão Travado; a outra, a busca. */

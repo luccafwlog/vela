@@ -57,15 +57,18 @@ function renderSection() {
 }
 
 describe('ficha do B/L › Demurrage com a Invoice do grupo', () => {
-  it('a caixa paga mostra a Invoice, não "a faturar", e o dado principal separa cobrado e a emitir', async () => {
+  it('a caixa paga mostra a Invoice, não "a emitir", e o dado principal separa cobrado e a emitir', async () => {
     renderSection()
 
     const paidRow = (await screen.findAllByText('DEM-2026-0009', { selector: 'td a' }))[0].closest('tr')!
-    expect(within(paidRow).queryByText('a faturar')).toBeNull()
+    expect(within(paidRow).queryByText('a emitir')).toBeNull()
     expect(within(paidRow).getByText(/Pago/)).toBeTruthy()
 
-    // A outra caixa voltou com 5 dias de sobreestadia sem Invoice: a emitir.
+    // A outra caixa voltou com 5 dias de sobreestadia sem Invoice: a emitir,
+    // no total e na linha (decisão de 2026-11-03: sem "a faturar").
     expect(screen.getByText('US$ 250,00 a emitir')).toBeTruthy()
+    const toIssueRow = screen.getAllByText('a emitir', { selector: 'span' })[0].closest('tr')!
+    expect(within(toIssueRow).queryByText('a faturar')).toBeNull()
     expect(screen.getByText(/1 cobrado · 1 a emitir de 2/)).toBeTruthy()
     // A Invoice do grupo aparece nas faturas do B/L, mesmo emitida no outro B/L.
     expect(screen.getByText('Fatura de Demurrage')).toBeTruthy()

@@ -485,14 +485,21 @@ export async function findVoyageByNumberAndVessel(
     // nominal sem IMO. Isso evita que o fallback produza ambiguidade falsa.
     if (exactImoCandidates.length === 1) return exactImoCandidates[0].id
 
-    const conflictingImo = voyageCandidates.some((row) => {
+    // Só um IMO gravado válido (7 dígitos) contradiz o do arquivo; o fora do
+    // formato (o nome do navio no campo IMO) é erro de digitação, que a
+    // gravação troca (migration 568 e `getOrCreateVessel`).
+    const validImo = (row: (typeof voyageCandidates)[number]) => {
       const rowImo = normalizeVesselImo(row.vessel?.imo)
+      return rowImo !== null && /^\d{7}$/.test(rowImo) ? rowImo : null
+    }
+    const conflictingImo = voyageCandidates.some((row) => {
+      const rowImo = validImo(row)
       return rowImo !== null && rowImo !== imo && canonicalizeVesselName(row.vessel?.name ?? '') === canonical
     })
     if (conflictingImo) return null
 
     const nameCandidates = voyageCandidates.filter((row) =>
-      !normalizeVesselImo(row.vessel?.imo) && canonicalizeVesselName(row.vessel?.name ?? '') === canonical,
+      !validImo(row) && canonicalizeVesselName(row.vessel?.name ?? '') === canonical,
     )
     if (nameCandidates.length > 1) {
       throw voyageRegistrationRefusal(`Viagem ${number} / ${canonical} ambígua: ${nameCandidates.length} candidatas. Informe o IMO.`)

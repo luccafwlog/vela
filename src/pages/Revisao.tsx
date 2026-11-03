@@ -306,7 +306,8 @@ export function Revisao() {
     } catch (error) {
       const message = extractErrorText(error)
       showToast(
-        // A tela (chargeOperationsService) diz "já"; o banco ainda diz "ja".
+        // A tela (chargeOperationsService) e o banco (desde a migration 567) dizem
+        // "já"; "ja" fica para a resposta de um banco ainda sem a 567.
         /j[aá] foi faturado/i.test(message)
           ? `Fatura já emitida para ${notice.id} — corrija o dado do B/L; a fatura é reemitida ou ajustada sozinha.`
           : 'Falha ao recalcular as taxas locais.',
