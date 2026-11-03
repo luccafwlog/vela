@@ -222,7 +222,7 @@ As outras três ações são do {{Administrativo}}:
 | **Excluir** | A Viagem foi criada por engano. | Apaga a Viagem e tudo o que é dela. O Vela mostra antes o que vai junto. |
 
 ::: atencao
-- Para cancelar, nenhum B/L da Viagem pode ter fatura ou pagamento. O {{Financeiro}} resolve B/L a B/L antes (capítulos 22 a 24).
+- Para cancelar, nenhum B/L da Viagem pode ter fatura ou pagamento. Resolva B/L a B/L antes: só o {{Administrativo}} cancela fatura ou baixa, e o {{Financeiro}} devolve o dinheiro (capítulos 22 a 24).
 - Para excluir, a Viagem não pode ter nada oficial: CE Mercante, fatura, ADR fechado ou Comunicado enviado. Nesse caso, cancele.
 - Para tirar uma escala cadastrada por engano, o Administrativo usa **Excluir escala**, na janela da escala. Com B/L ou Embarque de vazios no porto, ela não se exclui: exclua antes o B/L ([7.8](07-ficha-do-bl.md#78-cancelar-reativar-ou-excluir-um-bl)) ou o embarque ([10.5](10-veiculos-vazios-granito.md#105-registrar-o-embarque-de-vazios)). Se o navio só deixou de ir ao porto, registre a omissão ([4.7](#47-quando-o-armador-omite-uma-escala)).
 :::

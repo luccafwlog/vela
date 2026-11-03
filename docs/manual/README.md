@@ -435,3 +435,6 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   e o cancelamento do B/L pago fica como o código faz: a fatura paga por
   inteiro não segura o cancelamento, e o valor recebido só vira Restituição
   pelo **Preparar cancelamento financeiro** feito antes (7.8, 22.9).
+- **Quem cancela fatura e exclui Cliente** (decisão do dono de 2026-11-03,
+  igual ao código): só o Administrativo. O 4.8, o 13.10 e o Ap. B deixam de
+  dizer que o Financeiro cancela; o 13.10 diz quem exclui Cliente.
