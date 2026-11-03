@@ -1,14 +1,14 @@
 O Portal Fwlog é onde o Cliente vê os B/Ls, recebe as faturas e paga. Ninguém se cadastra sozinho nele: a conta nasce do convite que a {{Documentação}} ou o {{Administrativo}} envia, e só fica ativa quando o Cliente define a senha. Até lá, a fatura de Taxas Locais do Cliente fica retida. Neste capítulo você acompanha a fila das contas, convida o Cliente, cuida do e-mail de recuperação e suspende, reativa ou corrige uma conta. O que o Cliente vê depois de entrar está no capítulo 15.
 
 ::: aprende
-- ler a fila do Provisionamento do Portal e abrir a conta de um Cliente;
+- ler a fila do Portal e abrir a conta de um Cliente;
 - convidar o Cliente e acompanhar o convite até a ativação;
 - saber quando o Portal está pronto para faturar e quando entra a Liberação de faturamento sem Portal;
 - trocar o e-mail de recuperação ou liberar um endereço bloqueado;
 - suspender, reativar ou corrigir o CNPJ de uma conta.
 :::
 
-## 14.1 Ler a fila do Provisionamento do Portal
+## 14.1 Ler a fila do Portal
 
 **Quem faz:** {{Todas as equipes}} leem. Na rotina, a {{Documentação}}.
 
@@ -26,10 +26,10 @@ A coluna **Conta** diz em que pé está o acesso, e a coluna **Ação** diz o pr
 | **Suspensa** | A equipe cortou o acesso. | **Reativar conta** |
 
 ::: tela portal-fila
-A fila do Provisionamento do Portal, com todos os Clientes do exemplo ainda sem conta.
+A fila do Portal, com todos os Clientes do exemplo ainda sem conta.
 :::
 
-1. Em **Clientes**, abra a aba **Provisionamento do Portal**. O número ao lado da aba conta os Clientes em **Aguardando análise**.
+1. Em **Clientes**, abra a aba **Portal**. O número ao lado da aba conta os Clientes em **Aguardando análise**.
 2. Os cartões filtram a fila, e a página abre em **Aguardando análise**. **Sem e-mail** reúne quem não tem e-mail de recuperação nem contato com e-mail. Clique de novo no cartão marcado para ver todos.
 3. **Busca** acha pela razão social ou pelo CNPJ.
 4. Clique no nome do Cliente, ou no botão da coluna **Ação**, para abrir a conta ([14.2](#142-abrir-a-conta-de-um-cliente)).

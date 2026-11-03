@@ -22,7 +22,7 @@ describe('routeTitle (WCAG 2.4.2 — título por rota)', () => {
     expect(routeTitle('/bls')).toBe('B/Ls · Vela')
     expect(routeTitle('/clientes/12.345.678/0001-90')).toBe('Ficha do Cliente · Vela')
     // /clientes/portal casava com o padrão de CNPJ e era titulado "Ficha do Cliente".
-    expect(routeTitle('/clientes/portal')).toBe('Clientes · Provisionamento do Portal · Vela')
+    expect(routeTitle('/clientes/portal')).toBe('Clientes · Portal · Vela')
     expect(routeTitle('/admin')).toBe('Administração · Vela')
     expect(routeTitle('/admin/historico')).toBe('Administração · Histórico de ações · Vela')
   })

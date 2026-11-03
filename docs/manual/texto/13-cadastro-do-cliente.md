@@ -14,7 +14,7 @@ O Cliente é a empresa, identificada pelo CNPJ, que recebe a carga do B/L, vê o
 
 **Quem faz:** {{Todas as equipes}}
 
-A página **Clientes** tem três abas: **Clientes**, a lista deste capítulo; **Provisionamento do Portal**, onde se cuida da conta do Cliente no Portal (capítulo 14); e **Comunicação**, os avisos por e-mail (capítulo 16). O menu **Clientes** abre cada uma direto e também **Informações do Portal** ([13.9](#139-publicar-as-informações-do-portal)).
+A página **Clientes** tem três abas: **Clientes**, a lista deste capítulo; **Portal**, onde se cuida da conta do Cliente no Portal (capítulo 14); e **Comunicação**, os avisos por e-mail (capítulo 16). O menu **Clientes** abre cada uma direto. **Informações do Portal** abre pelo botão de mesmo nome na aba **Portal** ([13.9](#139-publicar-as-informações-do-portal)).
 
 ::: tela clientes-lista
 A lista de Clientes, com a busca e os filtros.
@@ -32,7 +32,7 @@ A busca e os filtros ficam no endereço da página: o link copiado abre o mesmo 
 
 **Quem faz:** {{Todas as equipes}}
 
-1. A faixa do alto traz o CNPJ, a cidade, o e-mail do contato principal e quantos B/Ls o Cliente tem. **Mais ações** leva às faturas em **Taxas Locais**, aos B/Ls na lista de **B/Ls** e ao **Provisionamento do Portal**.
+1. A faixa do alto traz o CNPJ, a cidade, o e-mail do contato principal e quantos B/Ls o Cliente tem. **Mais ações** leva às faturas em **Taxas Locais**, aos B/Ls na lista de **B/Ls** e a **Clientes** › **Portal**.
 2. A **Visão geral** mostra o **Saldo pendente**, a situação do **Portal**, o **Contato principal** e as pendências do Cliente, cada uma no bloco do assunto e com o atalho para resolver. Embaixo, a **Atividade recente**.
 3. As outras abas: **Cadastro e contatos** ([13.5](#135-corrigir-o-cadastro) e [13.6](#136-cuidar-dos-contatos-do-cliente)), **B/Ls**, **Containers** (com a Demurrage de cada um), **Financeiro** ([13.7](#137-as-faturas-e-as-condições-negociadas)), **Histórico** e **Desbloqueio de CE e VIP** (capítulo 12).
 
@@ -55,7 +55,7 @@ O CNPJ é a identidade do Cliente: um Cliente por CNPJ, numérico ou alfanuméri
 3. Em **Contatos**, preencha **Nome** e **E-mail** do **Contato principal**, que recebe todas as caixas. Para outro contato, clique em **Adicionar contato** e marque as caixas dele ([13.6](#136-cuidar-dos-contatos-do-cliente)).
 4. Clique em **Cadastrar cliente** e confirme.
 
-A ficha do novo Cliente abre. Ele já pode ser vinculado a B/Ls, e o B/L importado depois com o CNPJ dele se vincula sozinho (capítulo 6). No **Provisionamento do Portal**, ele aparece como **Aguardando análise**: nenhum convite sai sem alguém enviar (capítulo 14).
+A ficha do novo Cliente abre. Ele já pode ser vinculado a B/Ls, e o B/L importado depois com o CNPJ dele se vincula sozinho (capítulo 6). Em **Clientes** › **Portal**, ele aparece como **Aguardando análise**: nenhum convite sai sem alguém enviar (capítulo 14).
 
 ::: atencao
 - O Vela não aceita dois Clientes com o mesmo CNPJ. Se o CNPJ é de um Cliente desativado, peça ao {{Administrativo}} que o reative ([13.10](#1310-desativar-ou-reativar-um-cliente)).
@@ -153,7 +153,7 @@ As faturas retidas do Cliente são emitidas na hora, e as próximas saem sem esp
 
 **Informações** é a página do Portal onde o Cliente consulta, por porto de descarga, as Taxas Locais, onde devolver o container vazio, a Demurrage, os agentes, os contatos da agência e o tracking do armador. O Vela é a fonte: o que você grava aqui aparece para o Cliente. As Taxas Locais e as tarifas de Demurrage vêm sozinhas das tabelas de cobrança em uso; o resto você mantém aqui.
 
-1. No menu, abra **Clientes** › **Informações do Portal**. O botão de mesmo nome, em **Provisionamento do Portal**, abre a mesma página.
+1. Em **Clientes** › **Portal**, clique em **Informações do Portal**, no alto da tela.
 2. Escolha a seção: **Depots**, **Agentes**, **Contato**, **Tracking** ou **Demurrage**.
 3. Clique em **Editar** no cartão, ou em **Adicionar agente** ou **Adicionar contato**, preencha e clique em **Salvar informações**.
 

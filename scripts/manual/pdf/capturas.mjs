@@ -987,7 +987,7 @@ export const CAPTURAS = [
       const tabela = page.getByRole('table', { name: 'Fila de acesso ao Portal por Cliente' })
       await tabela.waitFor()
       await page.waitForTimeout(600)
-      const aba = page.getByRole('tab', { name: /^Provisionamento do Portal/ })
+      const aba = page.getByRole('tab', { name: /^Portal/ })
       const cartoes = page.getByRole('group', { name: 'Filtros de provisionamento' })
       const linhas = tabela.locator('tbody tr')
       const quarta = linhas.nth(Math.min(3, (await linhas.count()) - 1))

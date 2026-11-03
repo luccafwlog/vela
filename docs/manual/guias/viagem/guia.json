@@ -103,7 +103,7 @@
         "Documentação"
       ],
       "quando": "O Cliente é novo ou ainda não ativou a conta.",
-      "onde": "Clientes › Provisionamento do Portal.",
+      "onde": "Clientes › Portal.",
       "pronto": "Conta Ativa: as faturas do Cliente podem sair.",
       "arquivo": "09-ativar-o-portal.md"
     },

@@ -14,10 +14,10 @@ O Cliente não vê o Vela: vê o Portal Fwlog, que lê os mesmos dados. Quando e
 
 O **Modo Inspeção** abre o Portal de um Cliente com os mesmos dados e o mesmo saldo que ele vê, sem a senha dele e sem mexer na sessão dele. É o jeito mais rápido de entender uma dúvida do Cliente: você olha a mesma tela.
 
-1. Em **Clientes** › **Provisionamento do Portal**, clique no olho da coluna **Espiadinha**. O Portal abre numa aba nova. Pela ficha do Cliente, use **Acesso ao Portal** › **Gerenciar aqui** › **Ver como o Cliente vê** (ou **Ver o que o Cliente veria**, com a conta ainda não ativa).
+1. Em **Clientes** › **Portal**, clique no olho da coluna **Espiadinha**. O Portal abre numa aba nova. Pela ficha do Cliente, use **Acesso ao Portal** › **Gerenciar aqui** › **Ver como o Cliente vê** (ou **Ver o que o Cliente veria**, com a conta ainda não ativa).
 2. A faixa **Modo Inspeção**, no alto, mostra o Cliente, o CNPJ e se a conta está ativa.
 3. Navegue pela barra do Portal: **Painel**, **Faturas**, **B/Ls e containers**, **Desbloqueio de CE**, **Informações** e **Perfil**.
-4. Para sair, use o botão da faixa: **Fechar inspeção**, **Voltar à ficha do Cliente** ou **Voltar ao Provisionamento**.
+4. Para sair, use o botão da faixa: **Fechar inspeção**, **Voltar à ficha do Cliente** ou **Voltar à fila do Portal**.
 
 ::: tela portal-inspecao
 O Portal da ATLANTICO IMPORTADORA LTDA no Modo Inspeção.

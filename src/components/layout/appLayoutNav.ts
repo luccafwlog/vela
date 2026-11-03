@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   BarChart3,
   Bell,
-  BookOpen,
   CalendarClock,
   Car,
   Clock,
@@ -47,10 +46,12 @@ export const painelNavItem: NavItem = { to: '/painel', label: 'Painel', icon: Ho
 
 // Desde 2026-11-01 (decisão do dono), as telas que só abriam por botão dentro
 // de outra tela entram no grupo do seu assunto: Chegadas e Saídas e Tela TV
-// em Viagens; Informações do Portal (com Provisionamento e Comunicação) em
-// Clientes; Regras de alertas em Alertas; Locais em Exportação. Tabelas de
-// Taxas Locais e Tarifas de Demurrage voltaram a abrir só pelos botões de
-// Taxas Locais e de Demurrage (decisão do dono de 2026-11-02).
+// em Viagens; Portal e Comunicação em Clientes; Regras de alertas em Alertas;
+// Locais em Exportação. Tabelas de Taxas Locais e Tarifas de Demurrage
+// voltaram a abrir só pelos botões de Taxas Locais e de Demurrage (decisão do
+// dono de 2026-11-02). Informações do Portal voltou a abrir só pelo botão da
+// tela Portal, que deixou de se chamar Provisionamento do Portal (decisão do
+// dono de 2026-11-03).
 export const voyagesNavItems: NavItem[] = [
   { to: '/viagens', label: 'Viagens', icon: Ship },
   { to: '/chegadas-saidas', label: 'Chegadas e Saídas', icon: CalendarClock },
@@ -76,9 +77,8 @@ export const exportNavItems: NavItem[] = [
 
 export const customersNavItems: NavItem[] = [
   { to: '/clientes', label: 'Clientes', icon: Users },
-  { to: '/clientes/portal', label: 'Provisionamento do Portal', icon: UserCheck },
+  { to: '/clientes/portal', label: 'Portal', icon: UserCheck },
   { to: '/clientes/comunicacao', label: 'Comunicação', icon: Megaphone },
-  { to: '/clientes/informacoes', label: 'Informações do Portal', icon: BookOpen },
 ]
 
 export const alertsNavItems: NavItem[] = [
