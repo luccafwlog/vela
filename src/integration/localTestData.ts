@@ -20,6 +20,21 @@ function checkDigit(value: string, weights: readonly number[]): number {
 }
 
 /**
+ * Migration 574: `cancel_bl` recusa o B/L sem CE Mercante (ele se exclui). A
+ * fixture que cancela um B/L sem CE dá a ele, antes, um CE sintético gravado
+ * sem gatilhos, para não emitir, calcular nem reconciliar nada além do que o
+ * teste mede. Devolve o SQL para o `psql` de superusuário da suíte; B/L que
+ * já tem CE fica como está.
+ */
+export function syntheticCeBeforeCancelSql(...blIds: string[]): string {
+  const ids = blIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(', ')
+  return `SET session_replication_role = replica;
+    UPDATE public.bls SET ce_mercante = '99' || lpad((abs(hashtext(id))::bigint % 10000000000000)::text, 13, '0')
+    WHERE id IN (${ids}) AND NULLIF(btrim(COALESCE(ce_mercante, '')), '') IS NULL;
+    SET session_replication_role = origin;`
+}
+
+/**
  * `describe` de suíte `local-pg` com sonda de pré-requisito (Etapa 12 do plano
  * de correção das importações). Sem `LOCAL_PG_INTEGRATION=1` a suíte é pulada,
  * como antes; com a variável ligada, sonda falsa vira um teste que falha e diz
