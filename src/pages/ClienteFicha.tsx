@@ -105,7 +105,7 @@ export function ClienteFicha() {
       if (!deactivated) {
         const preview = await deactivateCustomer(id, '', { dryRun: true })
         if (preview.reasons.length > 0) {
-          showToast(`O cliente não pode ser desativado: ${preview.reasons.join(', ')}. O Financeiro quita ou cancela antes.`, 'error')
+          showToast(`O cliente não pode ser desativado: ${preview.reasons.join(', ')}. Receba ou cancele antes o que está em aberto.`, 'error')
           return
         }
       }

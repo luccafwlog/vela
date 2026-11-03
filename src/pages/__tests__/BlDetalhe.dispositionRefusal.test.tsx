@@ -105,13 +105,13 @@ describe('BlDetalhe - recusa do banco em Marcar COD e Reverter para transbordo',
 
   it('Reverter para transbordo recusado mostra o motivo do banco', async () => {
     cockpit.disposition = 'cod'
-    setBlTransshipment.mockRejectedValue({ code: 'P0002', message: 'Transbordo do B/L BL-COD-1 nao encontrado', details: null, hint: null })
+    setBlTransshipment.mockRejectedValue({ code: 'P0002', message: 'Transbordo do B/L BL-COD-1 não encontrado', details: null, hint: null })
     renderFicha()
 
     confirm('Reverter para transbordo', 'Confirmar reversão')
 
     const alert = await screen.findByRole('alert')
-    expect(alert.textContent).toContain('Transbordo do B/L BL-COD-1 nao encontrado')
+    expect(alert.textContent).toContain('Transbordo do B/L BL-COD-1 não encontrado')
   })
 
   it('sem usuário interno ativo, o aviso diz a recusa de permissão', async () => {

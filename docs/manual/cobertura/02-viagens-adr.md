@@ -289,7 +289,7 @@ independente sobre a escala (143 e 144); Gerar EDI Mercante (146 e 147).
 | `Terminal nao pertence ao porto % ou nao e terminal portuario.` | Atribuir à frente um Local de outro porto ou que é depot. | Ap. B |
 | `Terminal pertence ao departamento operacoes.` | Outro setor salvando o terminal do ADR antigo por porto. | Ap. B |
 | `terminal_atd < terminal_atb para o terminal %.` | ATD da Atracação sem ATB ou anterior a ele (a janela já recusa com "Informe o ATB antes do ATD…"). | Ap. B |
-| `Transbordo do B/L % nao encontrado` | Marcar ou reverter COD de B/L que não está naquela omissão; aparece no aviso da ficha do B/L. | Ap. B |
+| `Transbordo do B/L % não encontrado` | Marcar ou reverter COD de B/L que não está naquela omissão; aparece no aviso da ficha do B/L. | Ap. B |
 | `Use cancel_voyage para cancelar a viagem e registrar o motivo na mesma transação.` | Tentativa de cancelar a Viagem pela edição; o formulário não oferece Cancelada. | Fora |
 | `Usuario ativo sem permissao para editar a escala.` | Salvar escala sem usuário interno ativo. | Ap. B |
 | `Usuário sem permissão ativa para confirmar a data.` | Confirmar data efetiva sem usuário interno ativo. | Ap. B |
