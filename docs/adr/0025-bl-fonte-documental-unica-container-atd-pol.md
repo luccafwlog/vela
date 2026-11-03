@@ -4,6 +4,7 @@
 > Estendida pela [ADR 0035](./0035-escala-unificada-ancora-do-adr-fontes-da-descarga-e-relatorio-sem-zeros.md) (o B/L também conta os cheios no ADR; o ATD do POL é registro documental e não vira ATD da Escala nem da Atracação, nota de 2026-08-24, item 3)
 > e pela [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), item 17 (Laden on Board ilegível ou vazio não altera a data gravada).
 > Regra vigente: [Manifestos & EDI](../modules/manifesto-edi.md), seção de `/bls`.
+> Desde a [ADR 0116](./0116-edi-mercante-gerado-pelo-vela.md) (2026-11-02), o Vela volta a gerar o EDI Mercante de importação, a partir da Viagem e dos B/Ls importados, sem reabrir o Manifesto CNTR como fonte.
 
 Status: estendida — 2026-07-16
 

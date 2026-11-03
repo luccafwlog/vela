@@ -235,3 +235,13 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   política de segurança do Vela bloqueava só na prévia (CLI-066); o contato
   capturado do B/L fica sem nome em vez de "Contato manifesto", no Vela e no
   Portal (CLI-032, POR-089).
+- **Gerar EDI Mercante** (pedido do dono na issue #560, 2026-11-02, ADR 0116):
+  a linha de contêiner e a linha VAZIOS de Rotas e Manifestos geram o arquivo
+  do Mercante da rota, com impedimentos e avisos, no lugar do sistema externo
+  (VIA-053, VIA-146). As linhas BB e CNTR/BB geram o arquivo parcial de carga
+  solta, com o que falta em **A completar** (decisão do dono de 2026-11-03;
+  VIA-147).
+- **EDI Mercante e Canal de envio só para a conta Dev** (decisão do dono de
+  2026-11-03): os botões Gerar EDI Mercante e o bloco Canal de envio de
+  Comunicação com Clientes deixam de aparecer para os demais usuários (VIA-146,
+  VIA-147, CLI-052).
