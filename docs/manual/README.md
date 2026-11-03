@@ -454,3 +454,7 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   o 16.8 fala do envio real desligado, e não do bloco; a captura da Cobertura
   sai sem o bloco. O EDI Mercante não entra no manual, porque só a conta Dev o
   vê.
+- **Depois da PR luccafwlog/vela#1181** (migration `572`): o Ap. B cita o aviso
+  novo ao desativar Cliente, "Receba ou cancele antes o que está em aberto.", e
+  o 13.10 deixa de avisar que a mensagem citava o Financeiro. As recusas que
+  ganharam acento não aparecem no texto do manual.

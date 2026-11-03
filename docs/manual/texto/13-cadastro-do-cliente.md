@@ -184,6 +184,6 @@ A ficha passa a mostrar o selo **Desativado** e o motivo. Para desfazer, use **M
 Excluir Cliente é do {{Administrativo}}, na lista **Clientes**, mas não serve na prática: todo Cliente tem CNPJ, e o Vela recusa a exclusão ("desative em vez de excluir"). Para tirar um Cliente das listas, desative-o.
 
 ::: atencao
-- O Vela não desativa Cliente com fatura (mesmo em rascunho), valor a receber ou Invoice de Demurrage em aberto. Antes, o Cliente paga ou o {{Administrativo}} cancela a fatura ([22.9](22-a-fatura.md#229-cancelar-uma-fatura)); a mensagem diz "O Financeiro quita ou cancela antes", mas cancelar fatura é só do {{Administrativo}}.
+- O Vela não desativa Cliente com fatura (mesmo em rascunho), valor a receber ou Invoice de Demurrage em aberto. Antes, o Cliente paga ou o {{Administrativo}} cancela a fatura ([22.9](22-a-fatura.md#229-cancelar-uma-fatura)).
 - Cliente desativado não recebe B/L nem fatura avulsa. Para vincular um B/L a ele, reative-o antes.
 :::
