@@ -471,7 +471,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
                         : line.error ? <span className="text-[var(--app-danger-fg)]">{line.error}</span>
                         : over && calc ? (
                           <span title={`1º período: ${calc.days_p1} d × ${formatUSD(calc.rate_p1_usd)} · 2º período: ${calc.days_p2} d × ${formatUSD(calc.rate_p2_usd)}`}>
-                            <StatusText tone="warning">{formatUSD(line.usd ?? calc.total_usd)}</StatusText> <span className="text-[var(--app-muted)]">{line.returnDateVal ? 'a faturar' : 'em curso'}{line.share > 1 ? ` · 1/${line.share} do container` : ''}</span>
+                            <StatusText tone="warning">{formatUSD(line.usd ?? calc.total_usd)}</StatusText> <span className="text-[var(--app-muted)]">{line.returnDateVal ? 'a emitir' : 'correndo'}{line.share > 1 ? ` · 1/${line.share} do container` : ''}</span>
                           </span>
                         ) : <NoValue label="Sem cobrança" />}
                     </td>

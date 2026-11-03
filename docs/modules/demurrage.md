@@ -414,9 +414,11 @@ Desde o lote 0 da [repaginação](../archive/plans/2026-10-29-repaginacao-da-dem
 (ADR 0112, D3), a seção lê as Invoices vivas que cobram cada caixa pela chave do
 banco (Viagem, Cliente e número; `listBlDemurrageCoverage`), inclusive a
 Invoice do grupo emitida em outro B/L. A caixa cobrada mostra a Invoice e a
-situação dela no lugar de "a faturar", essa Invoice entra nas faturas do B/L, e o
+situação dela no lugar de "a emitir", essa Invoice entra nas faturas do B/L, e o
 dado principal separa o que está **a emitir** (devolvida, sem Invoice) do que
-está **correndo** (ainda fora), com a contagem de cobradas.
+está **correndo** (ainda fora), com a contagem de cobradas. Desde 2026-11-03
+(decisão do dono), cada caixa sem Invoice também diz "a emitir" ou "correndo",
+antes "a faturar" ou "em curso".
 
 ### `/demurrage/taxas`
 
@@ -551,7 +553,8 @@ gatilho `guard_tariff_active_change` (migration `091`) e excluir pela RPC
   conta como coberta: a emissão, a fila e a reconciliação de datas não a cobram,
   e a classificação a tira das divisões. Caixa já numa Invoice viva não se
   dispensa. `cancel_bl` recusa o B/L com caixa passada do free time sem Invoice
-  nem dispensa ("Demurrage a faturar"), salvo quando outro B/L ativo do mesmo
+  nem dispensa ("Demurrage correndo ou a emitir", até a migration `569` "Demurrage
+  a faturar"), salvo quando outro B/L ativo do mesmo
   Cliente na Viagem segura a caixa. Cliente com dispensa não se exclui
   ("vinculado a dispensa de cobrança de Demurrage"). Desde a migration `530`
   (decisões do dono de 2026-10-30): a caixa de B/L sem Cliente também se
@@ -565,7 +568,7 @@ gatilho `guard_tariff_active_change` (migration `091`) e excluir pela RPC
   ("Demurrage travada: vincule o Cliente ou cadastre a tarifa e emita a
   Invoice, ou dispense a cobrança na Demurrage"). Desde a migration `546`,
   essa recusa também solta quando outro B/L ativo do mesmo Cliente na Viagem
-  tem a caixa, como a "Demurrage a faturar": o B/L duplicado se cancela sem
+  tem a caixa, como a "Demurrage correndo ou a emitir": o B/L duplicado se cancela sem
   dispensar a caixa, o que tiraria a cobrança do B/L verdadeiro (a dispensa
   vale para a caixa do Cliente na Viagem).
   Desde a migration `548`, desfazer a dispensa da caixa que só está em B/L
@@ -590,7 +593,7 @@ gatilho `guard_tariff_active_change` (migration `091`) e excluir pela RPC
   "Demurrage travada" como motivo de Demurrage: sem o texto da fatura e com
   **Abrir em Demurrage** na divisão Travado (`/demurrage?divisao=travado&busca=<B/L>`).
   Na ficha do Cliente, a aba Containers mostra a caixa dispensada como
-  "Cobrança dispensada", fora de "em curso", "a faturar", do total e da
+  "Cobrança dispensada", fora de "correndo", "a emitir", do total e da
   planilha ([Clientes](clientes.md)).
 - **Datas:** `bl_containers.discharge_date` e `return_date` são a fonte
   operacional. `demurrage_invoice_items` copia datas, dias, free time, tarifas

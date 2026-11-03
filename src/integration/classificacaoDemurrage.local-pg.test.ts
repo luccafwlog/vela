@@ -442,8 +442,8 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
     }
 
     it('cancelar B/L com caixa devolvida com sobreestadia sem Invoice, ou ainda fora em atraso, é recusado com o caminho', () => {
-      expect(cancelReasons('TOISSUE')).toEqual([expect.stringMatching(/^Demurrage a faturar: devolva o container e emita a Invoice, ou dispense/)])
-      expect(cancelReasons('RUNNING')).toEqual([expect.stringMatching(/^Demurrage a faturar/)])
+      expect(cancelReasons('TOISSUE')).toEqual([expect.stringMatching(/^Demurrage correndo ou a emitir: devolva o container e emita a Invoice, ou dispense/)])
+      expect(cancelReasons('RUNNING')).toEqual([expect.stringMatching(/^Demurrage correndo ou a emitir/)])
       // No free time e devolvido no free time não seguram.
       expect(cancelReasons('INSIDE')).toEqual([])
       expect(cancelReasons('RETFREE')).toEqual([])
@@ -469,7 +469,7 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
         expect(revoked.status, revoked.stderr).toBe(0)
       }
       expect(board(voyageOf('toIssue'))[0]).toMatchObject({ division: 'a_emitir' })
-      expect(cancelReasons('TOISSUE')).toEqual([expect.stringMatching(/^Demurrage a faturar/)])
+      expect(cancelReasons('TOISSUE')).toEqual([expect.stringMatching(/^Demurrage correndo ou a emitir/)])
     })
 
     it('desfazer a dispensa da caixa que só está em B/L cancelado é recusado; com B/L ativo do Cliente, aceito (548, D7)', () => {
