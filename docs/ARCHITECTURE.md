@@ -506,7 +506,7 @@ em `bl_containers` (o status `overdue` é gravado por job diário, migration
 (migration `023`), Disputas em `demurrage_disputes` e restituições em
 `demurrage_refunds` (migration `136`). A cobrança é por caixa dentro do grupo de
 Demurrage (migration `214`, [ADR 0080](adr/0080-decisoes-da-revisao-final-da-pr-929.md);
-[Demurrage § Grupo de Demurrage e cobrança por caixa](modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-caixa)).
+[Demurrage § Grupo de Demurrage e cobrança por container](modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-container)).
 A operação fica em `/demurrage`; Demurrage aparece também na Conciliação PIX
 (`/reconciliacao`), no Portal (`/portal/billing`), nas fichas do B/L e do
 Cliente e em Relatórios, não em `/taxas-locais`. Regra em

@@ -284,6 +284,28 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
         AND created_by IS NULL
         AND status = 'blocked';
     `)).toBe('1')
+
+    // 570: o Reprocessar faz de quem reprocessa o iniciador; antes o efeito
+    // voltava à fila sem iniciador e bloqueava de novo pelo mesmo motivo.
+    const retried = JSON.parse(psql(`
+      SELECT public.retry_import_effect(${effectId}, 'CE gravado sem usuário; reprocessado pela Documentação.');
+    `, 'authenticated')) as { effect: { status: string; created_by: string | null; result: Record<string, unknown> } }
+    expect(retried.effect).toMatchObject({ status: 'retry_wait', created_by: actorId })
+    expect(retried.effect.result.initiator_assigned_on_retry).toBe(actorId)
+    expect(psql(`
+      SELECT new_value::jsonb->>'created_by'
+      FROM public.audit_logs
+      WHERE entity_type = 'import_effect' AND entity_id = '${effectId}' AND field_name = 'retry'
+      ORDER BY id DESC LIMIT 1;
+    `)).toBe(actorId)
+
+    psql(`SELECT count(*) FROM public.claim_import_effects('ce-auto-051-retry-worker', 10, 300);`)
+    const reprocessed = JSON.parse(psql(`
+      SELECT public.process_import_effect(${effectId}, 'ce-auto-051-retry-worker');
+    `)) as { effect: { status: string; last_error_code: string | null; result: Record<string, unknown> } }
+    expect(reprocessed.effect.last_error_code).not.toBe('authorization_invalid')
+    expect(reprocessed.effect.status).not.toBe('blocked')
+    expect(reprocessed.effect.result.initiator_id).toBe(actorId)
   })
 
   it('enfileira a recuperação quando a conexão não traz claims JWT', () => {

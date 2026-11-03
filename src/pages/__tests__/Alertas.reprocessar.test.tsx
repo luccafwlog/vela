@@ -117,3 +117,16 @@ it('recusa de negócio em português aparece como está, sem Detalhe técnico', 
   const cell = screen.getByText(`O faturamento pelo CE do B/L BL-394 está bloqueado. ${reason} Corrija a causa e use Reprocessar.`, { selector: 'td' })
   expect(within(cell).queryByText('Detalhe técnico')).toBeNull()
 })
+
+it('efeito sem iniciador diz que a gravação veio sem usuário, não "sem permissão"', () => {
+  rows.current = {
+    ...blocked,
+    message: 'O faturamento pelo CE do B/L BL-394 está bloqueado: Efeito sem iniciador validado.',
+    metadata: { ...blocked.metadata, error_code: 'authorization_invalid', error_message: 'Efeito sem iniciador validado.' },
+  }
+  render(<MemoryRouter><Alertas /></MemoryRouter>)
+  const cell = screen.getByText(/O faturamento pelo CE do B\/L BL-394 está bloqueado\. A gravação foi feita sem usuário identificado \(script ou integração\); o Reprocessar roda o passo em seu nome\. Corrija a causa e use Reprocessar\./, { selector: 'td' })
+  expect(cell.firstChild?.textContent).not.toContain('sem permissão para gravar')
+  const detail = within(cell).getByText('Detalhe técnico').closest('details') as HTMLElement
+  expect(detail.textContent).toContain('authorization_invalid: Efeito sem iniciador validado.')
+})

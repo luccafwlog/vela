@@ -224,9 +224,9 @@ no banco local); nada foi executado no navegador nesta etapa.
 | `Apenas Financeiro, Administrativo ou Admin pode liquidar ajustes de COD.` | Conferência interna repetida: a liquidação já recusa antes, pelo mesmo motivo, com "Sem permissao para liquidar ajuste de COD."; esta não chega a uma pessoa. | Fora |
 | `Apenas itens manuais podem ser removidos.` | Ação de remover item de fatura emitida, desligada; nenhuma tela chama. | Fora |
 | `B/L "%" nao encontrado.` | Ao emitir B/L que foi excluído ou número errado. | Ap. B |
-| `B/L % cancelado e somente leitura; nao e permitido lancar taxa manual.` | Ao adicionar cobrança manual em B/L cancelado. | Ap. B |
+| `B/L % cancelado e somente leitura; não é permitido lançar taxa manual.` | Ao adicionar cobrança manual em B/L cancelado. | Ap. B |
 | `B/L % cancelado não entra em fatura.` | Ao emitir ou incluir em fatura um B/L cancelado. | Ap. B |
-| `B/L % já foi faturado (status financeiro=%); não é permitido lançar taxa manual.` | Ao adicionar cobrança manual em B/L já faturado. | Ap. B |
+| `B/L % já foi faturado (situação financeira: %); não é permitido lançar taxa manual.` | Ao adicionar cobrança manual em B/L já faturado. | Ap. B |
 | `B/L % já foi faturado; não é permitido editar taxa manual.` | Ao editar cobrança manual de B/L já faturado. | Ap. B |
 | `B/L % já foi faturado; não é permitido remover taxa manual.` | Versão antiga da exclusão de cobrança manual, sem permissão de execução para a tela desde a migration `491`; a exclusão atual aceita B/L faturado (migration `493`). Não chega a uma pessoa. | Fora |
 | `B/L % não encontrado.` | B/L informado não existe (avulsa com B/L digitado, cancelar B/L, gerar Invoice de Demurrage, mover veículos, exceção de terminal). | Ap. B |
@@ -275,10 +275,10 @@ no banco local); nada foi executado no navegador nesta etapa.
 | `Invoice nao encontrada para o item %.` | Remover item de fatura emitida, desligado. | Fora |
 | `Invoice vinculada ao Granito nao encontrada.` | Fatura de Granito, desligada. | Fora |
 | `Item % nao encontrado.` | Remover item de fatura emitida, desligado. | Fora |
-| `Item manual % nao elegivel para este B/L` | Ao adicionar cobrança manual com item que não é manual ou não é da tabela do B/L. | Ap. B |
-| `Item manual nao elegivel para este B/L.` | Na avulsa Item da tabela, item fora da tabela do B/L. | Ap. B |
+| `Item manual % não elegível para este B/L` | Ao adicionar cobrança manual com item que não é manual ou não é da tabela do B/L. | Ap. B |
+| `Item manual não elegível para este B/L.` | Na avulsa Item da tabela, item fora da tabela do B/L. | Ap. B |
 | `Janela de vencimento inválida.` | Rotina da madrugada que reavalia Liberações vencidas; não chega a pessoa. | Fora |
-| `Linha de calculo % nao encontrada` | Ao editar ou excluir cobrança manual que já foi removida. | Ap. B |
+| `Linha de cálculo % não encontrada` | Ao editar ou excluir cobrança manual que já foi removida. | Ap. B |
 | `Manifesto % ainda nao esta pronto para faturamento automatico.` | Rotina antiga de lote de faturamento, sem tela. | Fora |
 | `Manifesto/lote % nao encontrado.` | Rotina antiga de lote de faturamento, sem tela. | Fora |
 | `Nao e permitido adicionar itens em fatura com pagamentos registrados.` | Incluir item em fatura emitida, desligado. | Fora |
