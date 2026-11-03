@@ -145,6 +145,7 @@ A **restituição** é dinheiro recebido que volta ao Cliente. O Vela a registra
 |---|---|
 | O Cliente pagou a mais | Sozinha, do excedente da baixa ([24.4](#244-registrar-um-pagamento-à-mão)). |
 | O Cliente pagou de novo uma fatura de Taxas Locais já paga, coberta ou cancelada | Sozinha, do Pix em duplicidade ([24.2](#242-tratar-um-pix-em-análise)); na Invoice de Demurrage e na avulsa cancelada não há restituição: o Pix fica em análise. |
+| O Cliente pagou a individual e depois o Pix da consolidada que a incluía | Sozinha: o Pix quita a consolidada que substituiu a antiga, e o que passa do saldo vira restituição. Sem consolidada nova em aberto, o valor todo vira restituição e o Pix fica em análise até a devolução ([24.2](#242-tratar-um-pix-em-análise)). |
 | Uma correção do B/L ou de uma taxa reduziu uma fatura paga além do saldo | Sozinha, no bloco **Ajustes pela correção do B/L** ([18.6](18-o-que-muda-sozinho.md#186-corrigir-um-bl)). |
 | O B/L trocou de Cliente depois do pagamento | Sozinha; a fatura do novo Cliente só sai depois da devolução ao Cliente original ([7.4](07-ficha-do-bl.md#74-vincular-ou-trocar-o-cliente-do-bl)). |
 | A cobrança de um B/L pago deve sair, para cancelar o B/L ou a Viagem | Do **Preparar cancelamento financeiro**, que o {{Administrativo}} faz no detalhe da fatura (capítulo 22). |

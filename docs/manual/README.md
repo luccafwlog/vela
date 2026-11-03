@@ -405,3 +405,7 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     (#1168 a #1171).
   - O cenário das capturas voltou a rodar sem ajuste à mão: a #1132 corrigiu o
     seed da auditoria visual.
+- **Pix na individual e na consolidada aberta** (decisão do dono de 2026-11-03):
+  fica como a #1151 deixou, com Pix nas duas; o texto passou a explicar que pagar
+  as duas não perde dinheiro, porque o segundo Pix quita a consolidada que
+  substituiu a antiga e o excedente vira restituição (15.5, 24.6).

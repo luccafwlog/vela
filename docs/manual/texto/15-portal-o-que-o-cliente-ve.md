@@ -103,6 +103,7 @@ O Cliente também junta faturas: **Gerar fatura consolidada** escolhe os B/Ls co
 ::: atencao
 - O **Saldo pendente** do Portal não é o da ficha do Cliente no Vela: ele soma só as faturas que o Cliente vê, mais a Demurrage em R$ de hoje. Quando o Cliente questiona o saldo, compare fatura por fatura.
 - O recibo não vai por e-mail: o Cliente o imprime no Portal, na fatura **Paga**. Se ele pedir o recibo a você, imprima pelo Vela (capítulo 24).
+- A individual que está numa consolidada aberta tem Pix nas duas. Se o Cliente paga a individual e depois o Pix da consolidada, o dinheiro não se perde: a consolidada é substituída por outra só com os B/Ls que ainda devem, o segundo Pix a quita, e o que sobra volta ao Cliente como restituição ([24.6](24-pagamento-e-restituicao.md#246-devolver-dinheiro-ao-cliente)).
 :::
 
 ## 15.6 A Demurrage e a Disputa
