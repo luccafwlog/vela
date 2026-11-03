@@ -1,3 +1,4 @@
+import { downloadBlob } from './download'
 import { sanitizeCellValue } from './spreadsheetSafe'
 
 // O separador \u00E9 a v\u00EDrgula, mas o Excel em pt-BR abre CSV separando por ';'
@@ -20,11 +21,5 @@ export function formatCsv(headers: string[], rows: string[][]): string {
 
 export function downloadCsv(filename: string, headers: string[], rows: string[][]) {
   const csv = formatCsv(headers, rows)
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
+  downloadBlob(filename, new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
 }

@@ -5,6 +5,7 @@ import { StatusText } from '../ui/StatusText'
 import { useMercanteEdiInput } from '../../hooks/useManifestosMercante'
 import { formatDate, formatCountLabel } from '../../lib/utils'
 import { userFacingErrorMessage } from '../../lib/errors'
+import { downloadBlob } from '../../lib/download'
 import {
   buildMercanteBreakbulkEdi,
   buildMercanteCargoEdi,
@@ -18,15 +19,6 @@ import type { MercanteCargoInput, MercanteVaziosInput } from '../../services/mer
 
 /** `carga_solta`: arquivo parcial, com o que a equipe completa antes de enviar. */
 export type MercanteEdiRoute = { pol: string; pod: string; label: string; kind: 'carga' | 'carga_solta' | 'vazio' }
-
-function downloadText(filename: string, content: string) {
-  const url = URL.createObjectURL(new Blob([content], { type: 'text/plain;charset=utf-8' }))
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(url)
-}
 
 function isCargo(input: MercanteCargoInput | MercanteVaziosInput): input is MercanteCargoInput {
   return 'bls' in input
@@ -135,7 +127,7 @@ export function MercanteEdiModal({ voyageId, route, onClose }: { voyageId: numbe
             disabled={!result?.content || !data}
             onClick={() => {
               if (!result?.content || !data) return
-              downloadText(mercanteFileName(data.vesselName, data.voyageNumber, new Date()), result.content)
+              downloadBlob(mercanteFileName(data.vesselName, data.voyageNumber, new Date()), new Blob([result.content], { type: 'text/plain;charset=utf-8' }))
             }}
           >
             Baixar arquivo

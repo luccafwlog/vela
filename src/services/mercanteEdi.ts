@@ -68,6 +68,11 @@ export type MercanteEdiContainer = {
   unNumber: string | null
   /** O contêiner está em mais de um B/L ativo da Viagem (uso parcial). */
   shared: boolean
+  /**
+   * O B/L declara carga perigosa para o contêiner, mas o Baplie não a confirmou
+   * (contêiner fora do Baplie ou Viagem sem Baplie): sai sem IMO, com aviso.
+   */
+  imoUnconfirmed?: boolean
 }
 
 /** Item de carga solta do B/L (`bl_breakbulk_items`): vira I5 tipo 2. */
@@ -116,6 +121,14 @@ export type MercanteEdiBl = {
   containers: MercanteEdiContainer[]
   breakbulkItems: MercanteEdiBreakbulkItem[]
   vehicles: MercanteEdiVehicle[]
+  /**
+   * Terminal do B/L que o Vela não sabe dizer (ex.: B/L misto com frentes de
+   * carga cheia e carga solta em terminais diferentes, sem exceção): o campo
+   * sai em branco e o motivo vira impedimento ou "completar".
+   */
+  terminalIssue?: string | null
+  /** Avisos da leitura do B/L (ex.: totais de carga solta não usados). */
+  warnings?: string[]
 }
 
 export type MercanteEdiVazio = {
@@ -213,6 +226,8 @@ function amount(ctx: Ctx, ref: string | null, label: string, value: number | nul
   const scaled = Math.round((value ?? 0) * 10 ** places)
   if (!Number.isFinite(scaled) || scaled < 0 || String(scaled).length > width) {
     block(ctx, ref, `${label} ${value ?? ''} não cabe no campo do Mercante (${width - places} dígitos inteiros, sem negativo).`)
+    // No arquivo parcial o campo fica em branco para a equipe, nunca cortado.
+    return ' '.repeat(width)
   }
   return digits(scaled, width)
 }
@@ -373,7 +388,10 @@ function buildC5(ctx: Ctx, header: MercanteEdiHeader, bl: MercanteEdiBl): string
   // ponytail: CPF (11) só tem o tamanho conferido; o CNPJ passa pelos dígitos verificadores.
   if (consigneeCnpj.length !== 14 && consigneeCnpj.length !== 11) block(ctx, ref, 'Sem CNPJ/CPF do consignatário — reimporte o arquivo do B/L.')
   else if (consigneeCnpj.length === 14 && !isValidCnpj(consigneeCnpj)) block(ctx, ref, `CNPJ do consignatário ${consigneeCnpj} inválido (dígitos verificadores) — corrija na ficha do B/L.`)
-  if (bl.id.length > BL_ID_LENGTH) block(ctx, ref, `Número do B/L com mais de ${BL_ID_LENGTH} caracteres não cabe no Mercante.`)
+  // Número do B/L cortado vira outro conhecimento: impede também o arquivo parcial.
+  if (bl.id.length > BL_ID_LENGTH) fatal(ctx, ref, `Número do B/L com mais de ${BL_ID_LENGTH} caracteres não cabe no Mercante.`)
+  if (bl.totalCbm === null || bl.totalCbm === undefined) block(ctx, ref, 'Sem cubagem do B/L.')
+  for (const message of bl.warnings ?? []) warn(ctx, ref, message)
   const shipper = cleanMercanteText(bl.shipperBlock, 'party')
   if (!shipper) block(ctx, ref, 'Sem bloco do embarcador (shipper) — reimporte o arquivo do B/L.')
   if (!date8(bl.emissionDate)) block(ctx, ref, 'Sem data de emissão do B/L.')
@@ -417,7 +435,8 @@ function buildC5(ctx: Ctx, header: MercanteEdiHeader, bl: MercanteEdiBl): string
   const pod = mercantePortCode(header.pod)
   const uf = BRAZILIAN_PORT_UF[pod] ?? null
   if (!uf) block(ctx, ref, `Sem UF para o porto ${pod}.`)
-  const terminal = bl.terminalCode ?? header.terminalCode ?? ''
+  const terminal = bl.terminalIssue ? '' : bl.terminalCode ?? header.terminalCode ?? ''
+  if (bl.terminalIssue) block(ctx, ref, bl.terminalIssue)
   if (bl.terminalDepot && !bl.terminalCode) block(ctx, ref, `Terminal ${bl.terminalDepot} da exceção do B/L sem código Mercante: o código precisa entrar na tabela de terminais do Vela.`)
   if (bl.terminalCode && !MERCANTE_TERMINAL_CODES.has(bl.terminalCode)) block(ctx, ref, `Terminal ${bl.terminalCode} do B/L não existe na tabela do Mercante.`)
 
@@ -492,6 +511,7 @@ function buildContainerItem(ctx: Ctx, bl: MercanteEdiBl, container: MercanteEdiC
   if (!containerSeals.length) warn(ctx, ref, 'Contêiner sem lacre: o Mercante bloqueia a carga se o lacre não for informado até a atracação.')
   if (containerSeals.length > MAX_SEALS) warn(ctx, ref, `Mais de ${MAX_SEALS} lacres: só os ${MAX_SEALS} primeiros entram.`)
   if (!CONTAINER_NUMBER.test(container.number)) block(ctx, ref, 'Número do contêiner fora do padrão ISO (4 letras e 7 dígitos).')
+  if (container.imoUnconfirmed) warn(ctx, ref, 'IMO declarado no B/L e não confirmado pelo Baplie: o contêiner sai sem IMO.')
   const unNumber = (container.unNumber ?? '').replace(/\D/g, '')
   if (container.isImo && (!unNumber || !container.imoClass)) block(ctx, ref, 'Contêiner IMO sem número ONU ou classe.')
 
@@ -505,7 +525,7 @@ function buildContainerItem(ctx: Ctx, bl: MercanteEdiBl, container: MercanteEdiC
   put(record, 44, container.shared ? 'S' : ' ', 1)
   if (container.isImo && unNumber) {
     put(record, 449, unNumber.padStart(6, '0').slice(-6), 6)
-    put(record, 455, asciiUpper(container.imoClass).trim(), 4)
+    put(record, 455, asciiUpper(container.imoClass).replace(/[^0-9A-Z.]/g, ''), 4)
   }
   put(record, 459, amount(ctx, ref, 'Cubagem', container.cbm, 13, 3), 13)
   containerSeals.slice(0, MAX_SEALS).forEach((seal, index) => put(record, 472 + index * 15, seal, 15))

@@ -57,3 +57,14 @@ describe('listBlNcms', () => {
     expect(listBlNcms(null)).toEqual([])
   })
 })
+
+describe('extractNcmCodes: lista na linha de baixo do rótulo', () => {
+  it('aceita a linha de baixo só de códigos', () => {
+    expect(extractNcmCodes('NCM:\n3926,4006 PLASTIC PARTS')).toEqual(['3926', '4006'])
+    expect(extractNcmCodes('NCM:\n8429\nEXCAVATOR')).toEqual(['8429'])
+  })
+
+  it('não lê quantidade da linha de baixo como NCM', () => {
+    expect(extractNcmCodes('NCM:\n2100 CARTONS OF SPARE PARTS')).toEqual([])
+  })
+})

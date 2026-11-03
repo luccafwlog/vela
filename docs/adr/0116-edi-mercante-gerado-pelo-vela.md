@@ -49,7 +49,12 @@ ordem e o tamanho dos NCM e a limpeza do texto livre.
    exceção de terminal do B/L, campos do B/L (partes, CNPJ, emissão, descrição, NCM,
    volumes, CBM, Type of Movement), Frete & Despesas do B/L e os contêineres
    do B/L. IMO, classe e UN de cada contêiner são os que o Baplie aplicou ao
-   contêiner, não a declaração do B/L.
+   contêiner, não a declaração do B/L: o importador de B/L grava a declaração
+   em todos os contêineres, e ela só vai ao manifesto quando o Baplie a
+   confirma (ou houve correção manual); sem confirmação, o contêiner sai sem
+   IMO, com aviso. O B/L misto sem exceção de terminal só tem terminal quando
+   as frentes de carga cheia e de carga solta coincidem
+   (`resolve_bl_terminal_id`).
 4. O CNPJ da agência no manifesto é o da Transhipping (`src/config/company.ts`).
    Dos componentes de frete, só o THD sai no C5 (código `017`, em reais,
    collect); o frete básico é o Ocean Freight do B/L. Só frete e THD são

@@ -390,3 +390,9 @@ describe('blParser', () => {
     await expect(parseBLFile(file)).rejects.toThrow(/não reconhecido como XLS\/XLSX/)
   })
 })
+
+describe('extractTaxId: CNPJ fora do padrão não atravessa linha', () => {
+  it('não junta o número da linha de baixo ao CNPJ incompleto', () => {
+    expect(extractTaxId('CNPJ: 17.140820/0007\n77 9999-0000')).toBeNull()
+  })
+})

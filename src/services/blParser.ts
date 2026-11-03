@@ -447,7 +447,7 @@ export function extractTaxId(value: string) {
   // junta os 14 primeiros caracteres sem a pontuação e só aceita se passar nos
   // dígitos verificadores, para não confundir telefone com CNPJ.
   if (labeled) {
-    const loose = /^[0-9A-Z][0-9A-Z./\s-]{12,24}/i.exec(searchValue)?.[0].replace(/[^0-9A-Z]/gi, '') ?? ''
+    const loose = /^[0-9A-Z][0-9A-Z./ \t-]{12,24}/i.exec(searchValue)?.[0].replace(/[^0-9A-Z]/gi, '') ?? ''
     const cnpj = loose.length >= 14 ? canonicalizeValidCnpj(loose.slice(0, 14)) : null
     if (cnpj) return cnpj
   }

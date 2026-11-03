@@ -1133,7 +1133,13 @@ ao Mercante continua fora do Vela. **Código:**
   com a modalidade do arquivo (carga cheia para contêiner, a mesma que
   `resolve_bl_terminal_id` usa no B/L sem exceção; carga solta para o arquivo
   de carga solta; vazio para vazios). O B/L com exceção de terminal leva o
-  terminal dele no C5.
+  terminal dele no C5. O B/L misto sem exceção só tem terminal quando as
+  frentes de carga cheia e de carga solta são o mesmo terminal, como em
+  `resolve_bl_terminal_id` (migration `059`); senão o campo sai em branco e o
+  motivo vira impedimento (ou "completar" no arquivo parcial).
+- **Leitura.** Frete & Despesas são lidos pela chave `bl_id` + `seq`, para que
+  a paginação não repita nem pule linha. Sem cubagem gravada no B/L, o C5 usa
+  a soma da cubagem dos contêineres; sem nenhuma, é impedimento.
   CNPJ da agência = Transhipping (`src/config/company.ts`).
 - **Conhecimento (C5).** Consignatário, CNPJ/CPF, embarcador, notify (o
   próprio consignatário quando o B/L diz "SAME AS CONSIGNEE"), data de
@@ -1147,8 +1153,12 @@ ao Mercante continua fora do Vela. **Código:**
 - **Contêiner (I5).** Tipo pelo de→para do Mercante (40HC → `45G1`, 40GP →
   `42G1`…), peso bruto, tara, cubagem, até quatro lacres, **compartilhado**
   quando o número aparece em mais de um B/L ativo da Viagem, e IMO, classe e ONU
-  do contêiner como o Baplie aplicou (não a declaração do B/L; sem Baplie,
-  nenhum contêiner sai como IMO).
+  do contêiner como o Baplie aplicou. O importador de B/L grava a declaração
+  de carga perigosa do B/L em todos os contêineres dele (`profile_source =
+  'bl'`); essa declaração só vai ao manifesto quando o Baplie a confirma (o
+  contêiner está no Baplie da Viagem) ou quando o perfil veio do Baplie ou de
+  correção manual. Sem confirmação, o contêiner sai sem IMO e a prévia avisa
+  (sem Baplie na Viagem, nenhum contêiner sai como IMO).
 - **Códigos.** Armador, terminal, porto que difere do código do Vela (CNTAC →
   CNTAG, CNTAO → CNQIN), UF, tipo de contêiner e moeda ficam em tabelas fixas
   no código; os portos e terminais são conferidos nas tabelas oficiais do
@@ -1186,10 +1196,14 @@ ao Mercante continua fora do Vela. **Código:**
   contramarca = descrição do item, cubagem) e tipo 4 para cada veículo fora de
   contêiner (`vehicles`: peso, chassi, marca, modelo como contramarca). B/L de
   carga solta sem linha de item (o Manifesto BB no modelo resumido grava só os
-  totais) ganha um item tipo 2 com os totais do B/L, como o sistema externo:
+  totais; no B/L misto, os totais de carga solta) ganha um item tipo 2 com os
+  totais do B/L, como o sistema externo:
   peso = `bb_weight_ton` × 1000, quantidade = total de volumes, cubagem da
   carga solta, marca = embarcador e contramarca = descrição do B/L, com aviso
-  para conferir. Notify com o mesmo nome do consignatário (o Manifesto BB
+  para conferir; com veículos fora de contêiner, os totais não viram item (o
+  peso seria contado duas vezes) e a prévia avisa. Valor que não cabe no
+  campo sai em branco, nunca cortado, e número do B/L com mais de 18
+  caracteres impede também este arquivo. Notify com o mesmo nome do consignatário (o Manifesto BB
   repete o nome) leva o CNPJ do consignatário, como o `SAME AS CONSIGNEE`. Terminal
   do M5: o da frente de carga solta do POD. O que falta (data de emissão,
   frete, Type of Movement, terminal…) sai em branco e aparece em **A completar**,

@@ -8,12 +8,15 @@ const NCM_LABEL = /\bNCM(?:\s*(?:NO\.?|NUMBER|CODE))?\s*[:.]?[ \t]*/gi
 // de baixo só quando a lista ainda não começou ("NCM:\n3926,...") ou quando a
 // linha termina num separador ("8513/9617/\n8414/..."); assim uma linha seguinte
 // que começa com número ("21 DAYS") não vira NCM.
+// A lista que começa na linha de baixo do rótulo ("NCM:\n3926,4006") só vale se
+// a linha for só de códigos: "NCM:\n2100 CARTONS" não vira o NCM 2100.
 function readNcmList(text: string): string {
   let list = ''
-  for (const line of text.split(/\r?\n/)) {
+  for (const [index, line] of text.split(/\r?\n/).entries()) {
     const run = /^[\d.,/;\s-]*/.exec(line)?.[0] ?? ''
-    list += `${run} `
     const startsWithLetter = run.length < line.length
+    if (index > 0 && !list.trim() && startsWithLetter && !/[,/;]/.test(run)) break
+    list += `${run} `
     const trimmed = list.trim()
     if (startsWithLetter || (trimmed && !/[,/;-]$/.test(trimmed))) break
   }

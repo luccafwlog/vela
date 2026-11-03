@@ -11,6 +11,7 @@ import { StatusText } from '../ui/StatusText'
 import { NoValue } from '../ui/NoValue'
 import { formatCountLabel, formatDate } from '../../lib/utils'
 import type { VoyagePolSchedule } from '../../services/voyageRouteSchedules'
+import { normalizePortCode } from '../../services/portCode'
 import { collectVoyageManifestBatchRows, countRouteManifestNumbers, formatPolDeparture, manifestosOfRoute, OMISSION_ROUTE_ROLE_LABELS, omissionRouteParts, type VoyageImportBatch } from './voyageCardHelpers'
 import type { EditingPolPayload, Voyage } from './voyageCardTypes'
 
@@ -39,6 +40,14 @@ export function VoyageManifestosTab({
   const [blsRoute, setBlsRoute] = useState<{ pol: string; pod: string; label: string } | null>(null)
   const [ediRoute, setEdiRoute] = useState<MercanteEdiRoute | null>(null)
   const { data: dbManifestos } = useManifestosMercanteByVoyage(voyage.id)
+  // Rotas com B/L de contêiner (não misto): só elas têm o arquivo de contêiner. A
+  // rota CNTR/BB só com B/L misto mostraria um botão que sempre impede.
+  const routePort = (value: string | null | undefined) => normalizePortCode(value) ?? (String(value ?? '').trim().toUpperCase() || '-')
+  const containerRoutes = new Set(
+    (voyage.bls ?? [])
+      .filter((bl) => bl.cargo_mode === 'container')
+      .map((bl) => `${routePort(bl.pol)}__${routePort(bl.pod)}`),
+  )
   const manifestRows = collectVoyageManifestBatchRows({
     voyageId: voyage.id,
     batches: importBatches,
@@ -100,7 +109,7 @@ export function VoyageManifestosTab({
                   const cannotEdit = !canEdit || !row.pol || row.pol === '-'
                   // EDI Mercante: arquivo de contêiner (CNTR, CNTR/BB) e de vazios; a carga
                   // solta (BB, CNTR/BB) tem arquivo próprio, parcial, que a equipe completa.
-                  const canGenerateEdi = row.isVazios ? (row.containerCount ?? 0) > 0 : row.blCount > 0 && row.modeLabel !== 'BB'
+                  const canGenerateEdi = row.isVazios ? (row.containerCount ?? 0) > 0 : containerRoutes.has(`${row.pol}__${row.pod}`)
                   const canGenerateBreakbulkEdi = !row.isVazios && row.blCount > 0 && (row.modeLabel === 'BB' || row.modeLabel === 'CNTR/BB')
                   return (
                     <tr key={`${voyage.id}-manifest-${row.routeKey}`}>

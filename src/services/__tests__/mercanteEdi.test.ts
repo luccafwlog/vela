@@ -348,6 +348,42 @@ describe('buildMercanteBreakbulkEdi (arquivo parcial)', () => {
   })
 })
 
+describe('revisão da PR 1173 (gerador)', () => {
+  it('IMO não confirmado pelo Baplie: contêiner sem IMO e aviso; classe IMO só com letras, dígitos e ponto', () => {
+    const result = buildMercanteCargoEdi(header, [bl({ containers: [
+      container({ imoUnconfirmed: true }),
+      container({ number: 'ABCU7654321', isImo: true, imoClass: ' 2.1 (A)', unNumber: 'UN 1950' }),
+    ] })])
+    const [, , semImo, comImo] = lines(result.content)
+    expect(field(semImo, 449, 458).trim()).toBe('')
+    expect(field(comImo, 449, 458)).toBe('0019502.1A')
+    expect(result.issues).toContainEqual(expect.objectContaining({ severity: 'aviso', ref: 'CSC45640602Q00 · ABCU1234567', message: expect.stringContaining('não confirmado pelo Baplie') }))
+  })
+
+  it('terminal pendente do B/L: impede o de contêiner, vira "completar" no parcial e o campo sai em branco', () => {
+    const issue = 'B/L misto sem terminal definido: defina a exceção de terminal do B/L.'
+    expect(buildMercanteCargoEdi(header, [bl({ terminalIssue: issue })]).issues).toContainEqual(expect.objectContaining({ severity: 'impedimento', message: issue }))
+    const partial = buildMercanteBreakbulkEdi(header, [bl({ terminalIssue: issue })])
+    expect(partial.issues).toContainEqual(expect.objectContaining({ severity: 'completar', message: issue }))
+    expect(field(lines(partial.content)[1], 1770, 1777)).toBe(' '.repeat(8))
+  })
+
+  it('no parcial, valor que não cabe sai em branco (nunca cortado) e número do B/L longo impede', () => {
+    const partial = buildMercanteBreakbulkEdi(header, [bl({ totalCbm: Number.NaN, containers: [container({ tareKg: 1_000_000 })] })])
+    const [, c5, i5] = lines(partial.content)
+    expect(field(c5, 1402, 1414)).toBe(' '.repeat(13))
+    expect(field(i5, 35, 43)).toBe(' '.repeat(9))
+    const longId = buildMercanteBreakbulkEdi(header, [bl({ id: 'CSC1234567890123456789' })])
+    expect(longId.content).toBeNull()
+  })
+
+  it('sem cubagem do B/L e aviso vindo da leitura chegam à prévia', () => {
+    const result = buildMercanteCargoEdi(header, [bl({ totalCbm: null, warnings: ['Aviso da leitura.'] })])
+    expect(result.issues).toContainEqual(expect.objectContaining({ severity: 'impedimento', message: 'Sem cubagem do B/L.' }))
+    expect(result.issues).toContainEqual(expect.objectContaining({ severity: 'aviso', message: 'Aviso da leitura.' }))
+  })
+})
+
 describe('buildMercanteVaziosEdi', () => {
   it('monta M5 sem conhecimento e um V5 por vazio', () => {
     const result = buildMercanteVaziosEdi(header, [
