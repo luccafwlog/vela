@@ -68,6 +68,7 @@ Quando o Vela não deixa excluir, ele diz o motivo de cada registro. Os motivos 
 
 | Mensagem | O que quer dizer | O que fazer |
 |---|---|---|
+| "B/L … sem CE Mercante não se cancela: exclua-o na lista de B/Ls." | O B/L não tem CE: não se cancela. | Exclua o B/L ([7.8](07-ficha-do-bl.md#78-cancelar-reativar-ou-excluir-um-bl)). |
 | "B/L com CE Mercante" | O B/L tem CE: não se exclui. | O {{Administrativo}} cancela o B/L ([7.8](07-ficha-do-bl.md#78-cancelar-reativar-ou-excluir-um-bl)). |
 | "documento financeiro emitido" | Há fatura de Taxas Locais (mesmo cancelada), Invoice de Demurrage ou valor recebido. | Não se exclui: cancele ([7.8](07-ficha-do-bl.md#78-cancelar-reativar-ou-excluir-um-bl)). |
 | "ADR de Saída fechado", "Granito com CE Mercante ou faturado", "comunicado enviado ao cliente" ou "viagem cancelada fica retida" | A Viagem já tem algo oficial ligado a ela, ou já foi cancelada. | Não se exclui: cancele a Viagem; a cancelada fica no Vela ([4.8](04-viagens-escalas.md#48-encerrar-cancelar-ou-excluir)). |
@@ -85,6 +86,7 @@ Quando o Vela não deixa excluir, ele diz o motivo de cada registro. Os motivos 
 |---|---|---|
 | "Há linhas que precisam de revisão: corrija o B/L e recalcule antes de emitir." | Uma taxa do B/L está **Em revisão**. | [7.6](07-ficha-do-bl.md#76-as-taxas-locais-na-ficha) e capítulo 21 |
 | "B/L … sem CE Mercante. Cadastre o CE antes de faturar." | A fatura, ou a volta dela a emitida, pede o CE de todos os B/Ls dela. | Importe a planilha de CE ([6.5](06-importacao.md#65-importar-o-ce-mercante-e-emitir-as-faturas)). |
+| "B/L … faturado com a carga alterada depois da fatura: a revisão só termina com a fatura corrigida…" | Na Revisão, **Salvar revisão** sem mudar dado num B/L faturado cuja carga mudou depois da fatura. | Corrija a fatura: o B/L sai da fila sozinho ([8.5](08-revisao.md#85-quando-a-pendência-não-é-uma-das-três) e [22.8](22-a-fatura.md#228-resolver-uma-fatura-desatualizada)). |
 | "Saiu da revisão, mas o faturamento automático não concluiu: …" | O B/L saiu da Revisão, mas a fatura não saiu. | [8.6](08-revisao.md#86-o-que-acontece-quando-o-bl-sai-da-revisão) |
 | "O excedente desta baixa já foi devolvido ao Cliente: a baixa não pode ser cancelada." | O dinheiro a mais dessa baixa já voltou ao Cliente. | Capítulo 24. |
 | "Sem baixa automática: Pix de QR estático, mas aqui a cobrança é pela API do Itaú: …" (no **Motivo** de um Pix em **Pix recebidos**) | O Pix veio de um QR estático, que as faturas daqui não mostram: pode ser um teste do ambiente de testes, que usa a mesma conta. | Confira a fatura e confirme o pagamento com o Cliente antes de baixar à mão ([24.1](24-pagamento-e-restituicao.md#241-acompanhar-a-baixa-automática-do-pix)). |

@@ -107,10 +107,10 @@ O cartão **Outras pendências** reúne o B/L que está em Revisão por um motiv
 1. Abra o grupo e leia a pendência registrada, quando houver.
 2. Corrija o que faltar e clique em **Salvar revisão**. O Vela recalcula: se não sobra pendência, o B/L sai da fila.
 
-O caso mais comum é o B/L já faturado cuja carga mudou depois da fatura (um container a mais, um peso corrigido). Ele volta para a Revisão para lembrar que a fatura precisa de correção. Esse B/L sai da fila sozinho quando a fatura é corrigida (capítulo 22).
+O caso mais comum é o B/L já faturado cuja carga mudou depois da fatura (um container a mais, um peso corrigido). Ele volta para a Revisão com a pendência "Fatura a corrigir: carga alterada depois da fatura", para lembrar que a fatura precisa de correção. Esse B/L sai da fila sozinho quando a fatura é corrigida: reemitida ou abatida pelo Vela, ou, quando a correção não sai sozinha, pelo alerta **Fatura desatualizada** ([22.8](22-a-fatura.md#228-resolver-uma-fatura-desatualizada)).
 
 ::: atencao
-No B/L faturado, **Salvar revisão** tira o B/L da fila, mas não corrige a fatura, embora o resultado fale em fatura emitida: é a fatura antiga. Corrija a fatura primeiro.
+Nesse B/L, **Salvar revisão** sem mudar nenhum dado é recusado: "B/L … faturado com a carga alterada depois da fatura: a revisão só termina com a fatura corrigida…". Corrija a fatura. Se você corrigir um dado do B/L, a correção é gravada, mas o B/L continua na fila até a fatura ser corrigida.
 :::
 
 ## 8.6 O que acontece quando o B/L sai da Revisão
@@ -124,6 +124,7 @@ Cada ação deixa um resultado no alto da tela:
 | Resultado | O que fazer |
 |---|---|
 | "Saiu da revisão e a fatura foi emitida automaticamente." | Nada. |
+| "Saiu da revisão; o B/L já estava faturado e a fatura emitida continua valendo." | Nada: nenhuma fatura nova saiu. |
 | "Continua em revisão: …" | Resolva a pendência que sobrou. |
 | "Saiu da revisão, mas o faturamento automático não concluiu: …" | Leia o motivo. "Aguardando cadastro do CE Mercante" é o caminho normal: a fatura sai depois da planilha de CE. Os outros motivos costumam ser do cálculo das Taxas Locais (capítulo 21). |
 
