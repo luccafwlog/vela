@@ -431,7 +431,7 @@ describeLocal('491 — alterar e excluir taxa calculada do B/L', () => {
     it('B/L cancelado não se altera; reativado, a alteração das taxas calculadas volta', () => {
       expect(alter(USERS.ope, BL.cancel, thd, 'unit', 1111).status).toBe(0)
       ok(USERS.adm, `SELECT public.cancel_bl(${q(BL.cancel)}, 'não embarcou 491', false)`)
-      expect(alter(USERS.ope, BL.cancel, thd, 'unit', 1000).stderr).toMatch(/cancelado e somente leitura; reative o B\/L para alterar as taxas/)
+      expect(alter(USERS.ope, BL.cancel, thd, 'unit', 1000).stderr).toMatch(/cancelado é somente leitura; reative o B\/L para alterar as taxas/)
       ok(USERS.adm, `SELECT public.reactivate_bl(${q(BL.cancel)}, 'cancelado por engano 491')`)
       calculate(BL.cancel)
       expect(line(BL.cancel, thd)).toBe('calculated|1.00|1111.00|1111.00|1420.00|true')

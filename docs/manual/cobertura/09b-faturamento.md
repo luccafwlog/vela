@@ -53,12 +53,12 @@ no banco local); nada foi executado no navegador nesta etapa.
 | FAT-023 | B/L com pendência na Revisão não é faturado: Cliente não vinculado, Portal não pronto sem Liberação ("Acesso ao portal nao provisionado") ou carga solta/mista sem peso. A recusa vem com a lista das pendências; o sistema também recusa marcar o B/L como faturado enquanto ele estiver em Revisão pendente. | Op 7; Op 17 | Doc | `funcao:mark_bl_ready_for_billing`, `gatilho:prevent_pending_review_invoice` |
 | FAT-024 | Taxa com linha em revisão (por exemplo, sem tabela, sem peso, base não suportada) segura a emissão: na ficha do B/L o aviso "1 linha em revisão: corrija e recalcule antes de emitir" (ou "N linhas em revisão: …") desliga **Emitir fatura**. | Op 6; Op 17 | Todos | `funcao:mark_bl_ready_for_billing`, `src/components/bl/BlCobrancasTab.tsx` |
 | FAT-025 | B/L com pendência de terminal de descarga não emite, e a recusa lista a pendência: B/L com terminal escolhido sem frente de operação de importação desse terminal no POD da Escala, ou B/L misto sem terminal escolhido cujas frentes de contêiner e de carga solta no POD têm terminais diferentes (ou faltam). | Op 4; Op 17 | Ope | `funcao:mark_bl_ready_for_billing`, `funcao:check_bl_terminal_pendencies` |
-| FAT-026 | O B/L precisa de ao menos uma taxa com valor; cálculo só com taxas zeradas não emite ("B/L sem linhas faturaveis."), e na emissão pelo CE aparece como "Nada a faturar", sem alerta. | Op 17 | Sistema | `funcao:mark_bl_ready_for_billing`, `funcao:emit_ce_mercante_billing` |
+| FAT-026 | O B/L precisa de ao menos uma taxa com valor; cálculo só com taxas zeradas não emite ("B/L sem linhas faturáveis."), e na emissão pelo CE aparece como "Nada a faturar", sem alerta. | Op 17 | Sistema | `funcao:mark_bl_ready_for_billing`, `funcao:emit_ce_mercante_billing` |
 | FAT-027 | Precisa haver tabela de cobrança ativa para o POD e o modo de carga do B/L (B/L misto precisa de duas: contêiner e carga solta). Sem ela, a recusa manda configurar em **Tabelas e condições**. | Op 17; Fin | Todos | `funcao:mark_bl_ready_for_billing` |
 | FAT-028 | **O Portal trava toda emissão** de Taxas Locais (automática, individual e consolidada): passa só se a conta do Portal do Cliente está pronta (ativa, com acesso criado e e-mail de recuperação válido, entregue e fora da lista de bloqueio) ou se há **Liberação de faturamento sem Portal** vigente. E-mail de contato não é condição. A avulsa não passa por esse gate. | Op 17; Op 12; Fin | Doc+Adm | `funcao:mark_bl_ready_for_billing`, `funcao:create_local_consolidated_invoice`, `src/components/billing/validacaoPipeline.ts`, `gatilho:enforce_portal_invoice_gate`, `gatilho:enforce_portal_invoice_bl_gate` |
 | FAT-029 | B/L cancelado não entra em fatura nenhuma ("B/L … cancelado não entra em fatura."). | Op 6; Op 17 | Sistema | `gatilho:guard_invoice_bl_not_cancelled` |
 | FAT-030 | Viagem cancelada fica selada: nada dela muda (B/L, recebível, vínculo de fatura, importações, Baplie, ADR, Vazios, veículos), com a recusa "Viagem … cancelada: operação selada e somente leitura." Só a situação financeira do B/L, a do Granito e o status de Demurrage do container ainda podem mudar. | Op 4; Op 17 | Sistema | `gatilho:guard_voyage_cancelled_mutation` |
-| FAT-031 | Por B/L, no máximo uma fatura individual viva (aberta ou paga) e no máximo uma consolidada aberta. A individual nova não sai por cima de individual viva nem de consolidada aberta ("Existe B/L vinculado a invoice ativa.", "O B/L … ja tem documento de Taxas Locais aberto…"), e a consolidada não entra por cima de outra consolidada aberta ("O B/L … já está em outra consolidada aberta."). A consolidada pode reunir B/L que já tem individual aberta (FAT-072). A exceção é a troca de CNPJ já devolvida, cuja individual antiga não conta mais. | Op 17; Fin | Sistema | `gatilho:prevent_duplicate_active_invoice_bl_link`, `gatilho:guard_single_open_local_document`, `gatilho:guard_single_open_consolidated` |
+| FAT-031 | Por B/L, no máximo uma fatura individual viva (aberta ou paga) e no máximo uma consolidada aberta. A individual nova não sai por cima de individual viva nem de consolidada aberta ("Existe B/L vinculado à invoice ativa.", "O B/L … já tem documento de Taxas Locais aberto…"), e a consolidada não entra por cima de outra consolidada aberta ("O B/L … já está em outra consolidada aberta."). A consolidada pode reunir B/L que já tem individual aberta (FAT-072). A exceção é a troca de CNPJ já devolvida, cuja individual antiga não conta mais. | Op 17; Fin | Sistema | `gatilho:prevent_duplicate_active_invoice_bl_link`, `gatilho:guard_single_open_local_document`, `gatilho:guard_single_open_consolidated` |
 | FAT-032 | Container compartilhado entre B/Ls da mesma Viagem: cada B/L é faturado com o rateio atual. A emissão é recusada quando um B/L irmão foi faturado com um rateio que mudou e essa fatura ainda pode ser reemitida (sem pagamento): a fatura do irmão precisa sair de novo antes. Se a fatura do irmão tem pagamento, cobertura ou correção, ela fica como está e o B/L que chega fatura com o rateio atual. Irmão com fatura cancelada, obsoleta ou em rascunho não conta. | Op 17; Op 8; Fin | Sistema | `gatilho:guard_shared_container_invoice` |
 | FAT-033 | Taxa em dólar na emissão: cada B/L converte pelo câmbio fixado no primeiro cálculo; só o B/L sem câmbio fixado usa o câmbio de referência do dia. Sem nenhum dos dois, a emissão é recusada ("Câmbio (ROE) não configurado; não é possível converter linhas em USD para emitir a fatura."). | Op 17; Fin | Sistema | `funcao:mark_bl_ready_and_create_invoice`, `src/services/billing.ts` |
 | FAT-034 | Antes de emitir, se a base do B/L mudou desde o último cálculo (containers, rateio, POD, peso, veículos), o sistema recalcula sozinho com o preço fixado na importação; a fatura sai com a base atual. | Op 17; Op 15 | Sistema | `funcao:mark_bl_ready_for_billing` |
@@ -81,7 +81,7 @@ no banco local); nada foi executado no navegador nesta etapa.
 | FAT-051 | Sem Portal pronto e sem Liberação, o CE calcula e **retém** a fatura (contada em **retidos**), sem tratar isso como falha; o B/L fica com o motivo "Acesso ao portal nao provisionado" e a Validação mostra **Conta do Portal não ativa**. | Op 15; Op 17; Op 12 | Sistema | `funcao:emit_ce_mercante_billing`, `src/components/billing/validacaoPipeline.ts` |
 | FAT-052 | Abrir o gate do Portal (o Cliente ativa a conta, confirma o e-mail de recuperação, ou o Administrativo concede a Liberação) reprocessa o Cliente: os B/Ls não faturados e conciliados dele emitem com o cálculo do dia do CE (preço fixado na importação) e a base atual. Quem continua com outro bloqueio fica na Validação; falha técnica abre **Portal do Cliente — falha no reprocessamento** (Documentação). Quando o próprio Cliente abre o gate, a emissão sai em nome da conta de sistema de faturamento (na falta dela, do primeiro Administrativo ativo). | Op 15; Op 12; Op 17 | Sistema | `parametro:system_billing_actor`, `funcao:emit_ce_mercante_billing`, `funcao:reprocess_customer_billing_after_portal_activation`, `funcao:grant_customer_billing_portal_release` |
 | FAT-053 | Fatura cancelada por uma pessoa **solta o B/L** e a nova fatura só sai pelo **Emitir** / **Emitir fatura**: a Liberação, a ativação do Portal, o CE, a planilha de CE e a fila de efeitos de importação não emitem de novo esse B/L. A reemissão automática da correção do B/L continua. | Op 17; Op 15; Fin | Sistema | `funcao:emit_ce_mercante_billing`, `funcao:mark_bl_ready_and_create_invoice` |
-| FAT-054 | Falha operacional na emissão pelo CE vira um efeito de faturamento na fila de efeitos de importação, que tenta de novo sozinho; o mesmo pedido repetido não cria segundo efeito nem segunda fatura, e B/L já faturado encerra o efeito. Falha que persiste aparece no efeito bloqueado como "Faturamento automatico do B/L … bloqueado: …". Revisão pendente e tabela faltando deixam o efeito aguardando, sem alerta crítico, e ele conclui sozinho. | Op 15; Op 5 | Sistema | `gatilho:suppress_duplicate_ce_auto_billing_effect` |
+| FAT-054 | Falha operacional na emissão pelo CE vira um efeito de faturamento na fila de efeitos de importação, que tenta de novo sozinho; o mesmo pedido repetido não cria segundo efeito nem segunda fatura, e B/L já faturado encerra o efeito. Falha que persiste aparece no efeito bloqueado como "Faturamento automático do B/L … bloqueado: …". Revisão pendente e tabela faltando deixam o efeito aguardando, sem alerta crítico, e ele conclui sozinho. | Op 15; Op 5 | Sistema | `gatilho:suppress_duplicate_ce_auto_billing_effect` |
 | FAT-055 | O efeito de cálculo de um B/L recalcula também os irmãos de container não faturados (inclusive com CE ou retidos); o efeito da Viagem recalcula só os B/Ls provisórios (sem CE e sem retenção). | Op 15; Op 5 | Sistema | `funcao:emit_ce_mercante_billing` |
 | FAT-056 | Efeitos de cálculo bloqueados por falta de câmbio voltam sozinhos para a fila quando o câmbio de referência é gravado (rotina diária da PTAX ou **Informar PTAX**). | Op 15; Op 5 | Sistema | `gatilho:reopen_effects_blocked_by_missing_roe` |
 | FAT-057 | Ao resolver um B/L na **Revisão** ou ao cadastrar e vincular o Cliente pela ficha do B/L, a tela tenta faturar sozinha: recalcula e, havendo CE e cálculo válido, emite ("Saiu da revisão e a fatura foi emitida automaticamente." / "Cliente vinculado. … Fatura emitida."); sem emitir, a Revisão diz "Saiu da revisão, mas o faturamento automático não concluiu: …" ou "Saiu da revisão e está pronto para faturamento.". Tabela ausente, linha inválida ou B/L sem valor abrem o alerta **Cálculo bloqueado** (Documentação), que fecha quando o cálculo fica válido ou o B/L fica isento; falha inesperada na ficha vira "Não foi possível concluir o faturamento; confira a aba Faturamento." Se a última fatura individual do B/L foi cancelada por uma pessoa, a tela não emite: "A última fatura deste B/L foi cancelada: a nova sai só pelo Emitir." (desde 2026-10-27, ficha FAT-D10). | Op 7; Op 6; Op 15; Op 16 | Doc | `src/services/reviewBillingAutomation.ts`, `src/pages/Revisao.tsx`, `src/components/bl/BlClienteSection.tsx`, `funcao:upsert_billing_alert` |
@@ -213,18 +213,18 @@ no banco local); nada foi executado no navegador nesta etapa.
 |---|---|---|
 | `A ação % exige o ID de uma invoice emitida para concluir o ajuste.` | Ao liquidar Ajuste de COD de Fatura complementar ou Revisão manual sem o número interno da fatura emitida (na tela, o aviso "Informe o ID da invoice emitida para concluir este ajuste." aparece antes). | Ap. B |
 | `A ação % não aceita vínculo manual de documento.` | Ao liquidar ajuste de abatimento ou restituição informando um documento (esses ramos não pedem fatura). | Ap. B |
-| `A correcao do B/L ja tratou este valor. Revise o ajuste de COD e a restituicao existente.` | Ao liquidar ajuste de COD que a correção automática do B/L já abateu ou restituiu. | Ap. B |
+| `A correção do B/L já tratou este valor. Revise o ajuste de COD e a restituição existente.` | Ao liquidar ajuste de COD que a correção automática do B/L já abateu ou restituiu. | Ap. B |
 | `A viagem informada não pertence ao B/L %.` | Na avulsa, com B/L e Navio / Viagem de viagens diferentes. | Ap. B |
 | `Acesso negado para marcar B/L como pronto para faturar.` | Conferência interna repetida: toda emissão pela tela já recusa usuário inativo antes, com "Usuário sem permissão de faturamento."; esta não chega a uma pessoa. | Fora |
-| `Ainda existem linhas com pendencia de revisao` | Ao emitir B/L com taxa em revisão (na ficha vira "Há linhas que precisam de revisão: corrija o B/L e recalcule antes de emitir."). | Ap. B |
-| `Ajuste de COD % nao encontrado.` | Ao liquidar ajuste que não existe mais (lista desatualizada). | Ap. B |
-| `Ajuste de COD % nao esta pendente (status=%).` | Ao liquidar ajuste já liquidado ou cancelado por outra pessoa. | Ap. B |
+| `Ainda existem linhas com pendência de revisão` | Ao emitir B/L com taxa em revisão (na ficha vira "Há linhas que precisam de revisão: corrija o B/L e recalcule antes de emitir."). | Ap. B |
+| `Ajuste de COD % não encontrado.` | Ao liquidar ajuste que não existe mais (lista desatualizada). | Ap. B |
+| `Ajuste de COD % não está pendente (status=%).` | Ao liquidar ajuste já liquidado ou cancelado por outra pessoa. | Ap. B |
 | `Ajuste de COD sem excedente para restituir.` | Ao registrar restituição de ajuste sem valor a devolver. | Ap. B |
 | `Apenas consolidadas podem ser marcadas obsoletas por esta rotina.` | Nenhuma tela marca consolidada como obsoleta à mão; a recusa nunca chega à operação. | Fora |
 | `Apenas Financeiro, Administrativo ou Admin pode liquidar ajustes de COD.` | Conferência interna repetida: a liquidação já recusa antes, pelo mesmo motivo, com "Sem permissao para liquidar ajuste de COD."; esta não chega a uma pessoa. | Fora |
 | `Apenas itens manuais podem ser removidos.` | Ação de remover item de fatura emitida, desligada; nenhuma tela chama. | Fora |
-| `B/L "%" nao encontrado.` | Ao emitir B/L que foi excluído ou número errado. | Ap. B |
-| `B/L % cancelado e somente leitura; não é permitido lançar taxa manual.` | Ao adicionar cobrança manual em B/L cancelado. | Ap. B |
+| `B/L "%" não encontrado.` | Ao emitir B/L que foi excluído ou número errado. | Ap. B |
+| `B/L % cancelado é somente leitura; não é permitido lançar taxa manual.` | Ao adicionar cobrança manual em B/L cancelado. | Ap. B |
 | `B/L % cancelado não entra em fatura.` | Ao emitir ou incluir em fatura um B/L cancelado. | Ap. B |
 | `B/L % já foi faturado (situação financeira: %); não é permitido lançar taxa manual.` | Ao adicionar cobrança manual em B/L já faturado. | Ap. B |
 | `B/L % já foi faturado; não é permitido editar taxa manual.` | Ao editar cobrança manual de B/L já faturado. | Ap. B |
@@ -232,45 +232,46 @@ no banco local); nada foi executado no navegador nesta etapa.
 | `B/L % não encontrado.` | B/L informado não existe (avulsa com B/L digitado, cancelar B/L, gerar Invoice de Demurrage, mover veículos, exceção de terminal). | Ap. B |
 | `B/L % nao pertence ao cliente informado.` | Emissão em lote de vários B/Ls com Cliente diferente; nenhuma tela de hoje faz esse lote. | Fora |
 | `B/L % não pertence ao cliente selecionado.` | Na avulsa Outra, B/L de outro Cliente. | Ap. B |
-| `B/L % nao possui cliente vinculado. Vincule um cliente antes de marcar como pronto para faturar.` | Ao emitir B/L sem Cliente vinculado. | Ap. B |
+| `B/L % não possui cliente vinculado. Vincule um cliente antes de marcar como pronto para faturar.` | Ao emitir B/L sem Cliente vinculado. | Ap. B |
 | `B/L % sem cliente vinculado.` | Ao usar Emitir/Emitir fatura em B/L sem Cliente. | Ap. B |
-| `B/L com pendencia de terminal: %` | Ao emitir B/L misto com terminais em conflito. | Ap. B |
+| `B/L com pendência de terminal: %` | Ao emitir B/L misto com terminais em conflito. | Ap. B |
 | `B/L em revisão manual não pode ser faturado: %` | Ao faturar B/L com Revisão pendente (inclusive Portal não pronto). | Ap. B |
-| `B/L exige reconciliacao manual antes do faturamento.` | Ao emitir B/L com Cliente vinculado só pelo nome ou rejeitado. | Ap. B |
+| `B/L exige reconciliação manual antes do faturamento.` | Ao emitir B/L com Cliente vinculado só pelo nome ou rejeitado. | Ap. B |
 | `B/L não encontrado.` | Ao pôr ou tirar ROE manual (ou ao abrir alerta de faturamento) de B/L inexistente. | Ap. B |
-| `B/L nao pertence ao cliente selecionado.` | Na avulsa Item da tabela, B/L de outro Cliente. | Ap. B |
-| `B/L obrigatorio para item da tabela.` | Na avulsa Item da tabela sem B/L. | Ap. B |
-| `B/L possui pendencias no gate de revisao: %` | Ao emitir B/L com pendência de Revisão (Cliente, "Acesso ao portal nao provisionado", peso BB). | Ap. B |
-| `B/L sem linhas faturaveis.` | Ao emitir B/L sem taxa com valor. | Ap. B |
-| `B/L sem quantidade faturavel.` | Na avulsa Item da tabela por TEU, B/L sem container. | Ap. B |
-| `B/L(s) nao encontrado(s): %` | Na emissão, B/L que não existe mais. | Ap. B |
-| `Base de cobranca nao suportada na avulsa: %.` | Na avulsa, item da tabela com base que não é por B/L nem por TEU. | Ap. B |
+| `B/L não pertence ao cliente selecionado.` | Na avulsa Item da tabela, B/L de outro Cliente. | Ap. B |
+| `B/L obrigatório para item da tabela.` | Na avulsa Item da tabela sem B/L. | Ap. B |
+| `B/L possui pendências no gate de revisão: %` | Ao emitir B/L com pendência de Revisão (Cliente, "Acesso ao portal nao provisionado", peso BB). | Ap. B |
+| `B/L sem linhas faturáveis.` | Ao emitir B/L sem taxa com valor. | Ap. B |
+| `B/L sem quantidade faturável.` | Na avulsa Item da tabela por TEU, B/L sem container. | Ap. B |
+| `B/L(s) não encontrado(s): %` | Na emissão, B/L que não existe mais. | Ap. B |
+| `Base de cobrança não suportada na avulsa: %.` | Na avulsa, item da tabela com base que não é por B/L nem por TEU. | Ap. B |
 | `Billing run % nao encontrado.` | Consulta da rotina antiga de lote de faturamento, sem tela. | Fora |
 | `Câmbio (ROE) não configurado; não é possível calcular o saldo de linhas em USD.` | Ao calcular ou vincular Cliente em B/L com taxa em dólar sem câmbio fixado nem de referência. | Ap. B |
 | `Câmbio (ROE) não configurado; não é possível converter linhas em USD para emitir a fatura.` | Ao emitir B/L com taxa em dólar sem câmbio. | Ap. B |
 | `Câmbio (ROE) não configurado.` | Na avulsa com item em dólar sem câmbio de referência. | Ap. B |
 | `Cliente desativado não recebe fatura avulsa. Reative o Cliente antes.` | Ao emitir avulsa para Cliente desativado. | Ap. B |
-| `Cliente informado nao corresponde aos B/Ls selecionados.` | Na emissão, quando o Cliente enviado difere do Cliente do B/L (por exemplo, Cliente trocado por outra pessoa enquanto a tela estava aberta). | Ap. B |
+| `Cliente informado não corresponde aos B/Ls selecionados.` | Na emissão, quando o Cliente enviado difere do Cliente do B/L (por exemplo, Cliente trocado por outra pessoa enquanto a tela estava aberta). | Ap. B |
 | `Consolidada com pagamento ou Pix recebido não pode ser marcada obsoleta. Cancele a baixa ou trate o Pix antes.` | Marcar consolidada obsoleta à mão não tem tela. | Fora |
-| `Correcao exige valor menor que a cobranca vigente.` | Proteção da correção com pagamento; pode aparecer ao tentar aplicar correção que não reduz valor. | Ap. B |
+| `Correção exige valor menor que a cobrança vigente.` | Proteção da correção com pagamento; pode aparecer ao tentar aplicar correção que não reduz valor. | Ap. B |
 | `Usuário sem permissão de faturamento.` | Ação de faturamento por usuário inativo, sessão expirada ou setor sem permissão (por exemplo, cancelar fatura sem ser Administrativo). | Ap. B |
 | `Descricao do item e obrigatoria.` | Ação de incluir item em fatura emitida, desligada. | Fora |
-| `Emissao bloqueada: conta do Portal do cliente nao esta pronta para receber a fatura.` | Ao emitir com Portal do Cliente não pronto e sem Liberação. | Ap. B |
-| `Emissao consolidada bloqueada: conta do Portal do cliente nao esta pronta para receber a fatura.` | Ao emitir consolidada com Portal não pronto e sem Liberação. | Ap. B |
+| `Emissão bloqueada: conta do Portal do cliente não está pronta para receber a fatura.` | Ao emitir com Portal do Cliente não pronto e sem Liberação. | Ap. B |
+| `Emissão consolidada bloqueada: conta do Portal do cliente não está pronta para receber a fatura.` | Ao emitir consolidada com Portal não pronto e sem Liberação. | Ap. B |
 | `Entidade de efeito local desconhecida: %.` | No efeito de faturamento bloqueado da fila de importação, quando o B/L ou a Viagem do efeito sumiu; avise o suporte. | Ap. B |
-| `Este B/L esta na consolidada %; cancele ou reemita pela consolidada.` | Ao cancelar individual cujo B/L está numa consolidada aberta. | Ap. B |
-| `Existe B/L ja faturado/pago/cancelado na selecao.` | Ao emitir B/L que já está faturado ou pago. | Ap. B |
-| `Existe B/L vinculado a invoice ativa.` | Ao emitir B/L que já tem fatura viva. | Ap. B |
-| `Fatura com correcao registrada nao pode ser cancelada; para diferenca adicional use fatura avulsa ou nova correcao.` | Ao cancelar fatura que já teve abatimento ou restituição pela correção do B/L. | Ap. B |
-| `Faturamento automatico do B/L % bloqueado: %` | No efeito de faturamento bloqueado (alerta Efeito de importação bloqueado / histórico da importação), com o motivo da falha. | Ap. B |
-| `Filtro de flags invalido.` | Aplicar marcas do Baplie com filtro que a tela não envia; se aparecer, avise o suporte. | Ap. B |
+| `Este B/L está na consolidada %; cancele ou reemita pela consolidada.` | Ao cancelar individual cujo B/L está numa consolidada aberta. | Ap. B |
+| `Existe B/L já faturado/pago/cancelado na seleção.` | Ao emitir B/L que já está faturado ou pago. | Ap. B |
+| `Existe B/L vinculado à invoice ativa.` | Ao emitir B/L que já tem fatura viva. | Ap. B |
+| `Fatura com correção registrada não pode ser cancelada; para diferença adicional use fatura avulsa ou nova correção.` | Ao cancelar fatura que já teve abatimento ou restituição pela correção do B/L. | Ap. B |
+| `Faturamento automático do B/L % bloqueado: %` | No efeito de faturamento bloqueado (alerta Efeito de importação bloqueado / histórico da importação), com o motivo da falha. | Ap. B |
+| `Filtro de flags inválido.` | Aplicar marcas do Baplie com filtro que a tela não envia; se aparecer, avise o suporte. | Ap. B |
 | `Granito não participa do faturamento financeiro.` | Emissão de fatura de Granito, desligada; nenhuma tela chama. | Fora |
 | `Informe a justificativa da resolução (mínimo de 15 caracteres): qual avulsa foi emitida ou por que a diferença não é cobrada.` | Em Resolver com justificativa, texto curto. | Ap. B |
 | `Informe a justificativa para cancelar a invoice.` | Ao cancelar fatura sem motivo (a tela já desliga o botão). | Ap. B |
 | `Informe ao menos um B/L e um cliente para faturar.` | Emissão em lote sem B/L ou Cliente; nenhuma tela faz esse lote. | Fora |
 | `Informe o motivo da fatura avulsa.` | Avulsa sem Motivo (interno). | Ap. B |
 | `Informe o motivo do ROE manual (mínimo de 10 caracteres).` | Ao pôr ou tirar ROE manual do B/L com motivo curto. | Ap. B |
-| `Invoice % nao encontrada.` | Ao abrir, cancelar ou consultar fatura que não existe (link antigo ou número errado), no Vela ou no Portal. | Ap. B |
+| `Invoice % nao encontrada.` | Nunca chega a uma pessoa: o texto sem acento ficou só em função antiga que nada chama (add_manual_invoice_charge, obsolete_consolidated_invoice, portal_invoice_details_legacy); a forma vigente, com acento, está na linha seguinte (migration `573`). | Fora |
+| `Invoice % não encontrada.` | Ao abrir, cancelar ou consultar fatura que não existe (link antigo ou número errado), no Vela ou no Portal. | Ap. B |
 | `Invoice % nao esta em estado obsoletavel (status=%).` | Marcar consolidada obsoleta à mão não tem tela. | Fora |
 | `Invoice nao encontrada para o item %.` | Remover item de fatura emitida, desligado. | Fora |
 | `Invoice vinculada ao Granito nao encontrada.` | Fatura de Granito, desligada. | Fora |
@@ -283,22 +284,22 @@ no banco local); nada foi executado no navegador nesta etapa.
 | `Manifesto/lote % nao encontrado.` | Rotina antiga de lote de faturamento, sem tela. | Fora |
 | `Nao e permitido adicionar itens em fatura com pagamentos registrados.` | Incluir item em fatura emitida, desligado. | Fora |
 | `Nao e permitido adicionar itens manuais em fatura consolidada.` | Incluir item em fatura emitida, desligado. | Fora |
-| `Nao e permitido cancelar invoice com pagamentos registrados.` | Ao cancelar fatura com baixa (a tela já troca o formulário pelo aviso). | Ap. B |
+| `Não é permitido cancelar invoice com pagamentos registrados.` | Ao cancelar fatura com baixa (a tela já troca o formulário pelo aviso). | Ap. B |
 | `Nao e permitido remover itens em fatura com pagamentos registrados.` | Remover item de fatura emitida, desligado. | Fora |
-| `Nao foi encontrada fatura ativa para o B/L %.` | Ao liquidar ajuste de COD de B/L cuja fatura foi cancelada. | Ap. B |
+| `Não foi encontrada fatura ativa para o B/L %.` | Ao liquidar ajuste de COD de B/L cuja fatura foi cancelada. | Ap. B |
 | `Não há usuário Administrativo ativo para reprocessar faturamento.` | Quando o Cliente abre o gate (ativação ou e-mail de recuperação) e não há conta de sistema nem Administrativo ativo; o sistema impede desativar o último Administrativo. | Ap. B |
-| `Nenhum B/L informado para emissao.` | Emissão chamada sem B/L. | Ap. B |
+| `Nenhum B/L informado para emissão.` | Emissão chamada sem B/L. | Ap. B |
 | `Nenhum receivable informado para consolidar.` | Emitir consolidada sem B/L selecionado (a tela já exige seleção). | Ap. B |
-| `Nenhuma linha BRL elegivel para faturamento.` | Ao emitir B/L sem taxa com valor. | Ap. B |
+| `Nenhuma linha BRL elegível para faturamento.` | Ao emitir B/L sem taxa com valor. | Ap. B |
 | `No máximo 50 B/Ls por lote de emissão.` | Emissão pela planilha de CE com lote maior que 50 (a tela usa 25). | Ap. B |
 | `Nome do item é obrigatório.` | Avulsa Outra sem Nome do item. | Ap. B |
 | `O ator da emissão deve ser o usuário autenticado.` | Conferência interna da avulsa: a emissão já recusa antes o autor diferente da sessão ("Autor informado difere do usuário da sessão."); esta não chega a uma pessoa. | Fora |
 | `O ator da liquidação deve ser o usuário autenticado.` | Conferência interna do Ajuste de COD: a liquidação já recusa antes o autor diferente da sessão; esta não chega a uma pessoa. | Fora |
 | `O B/L % já está em outra consolidada aberta.` | Ao incluir B/L que já está em consolidada aberta. | Ap. B |
-| `O B/L % ja tem documento de Taxas Locais aberto (individual ou consolidada); nao emita outro por cima.` | Ao emitir individual para B/L que já tem documento aberto. | Ap. B |
+| `O B/L % já tem documento de Taxas Locais aberto (individual ou consolidada); não emita outro por cima.` | Ao emitir individual para B/L que já tem documento aberto. | Ap. B |
 | `O B/L % já tem esse ROE manual.` | Ao definir ROE manual igual ao vigente. | Ap. B |
 | `O B/L % não tem ROE manual.` | Ao tirar ROE manual de B/L que não tem. | Ap. B |
-| `O B/L irmao % (container compartilhado %) foi faturado com outro rateio do container; a fatura dele precisa ser reemitida com o rateio atual antes de faturar o B/L %.` | Ao emitir B/L de container compartilhado cujo irmão foi faturado com rateio antigo e ainda pode ser reemitido. | Ap. B |
+| `O B/L irmão % (container compartilhado %) foi faturado com outro rateio do container; a fatura dele precisa ser reemitida com o rateio atual antes de faturar o B/L %.` | Ao emitir B/L de container compartilhado cujo irmão foi faturado com rateio antigo e ainda pode ser reemitido. | Ap. B |
 | `O documento % já está vinculado a outro ajuste de COD.` | Ao vincular a outro ajuste uma fatura já usada. | Ap. B |
 | `O documento % não pertence ao B/L % ou não está ativo.` | Ao vincular ao ajuste uma fatura de outro B/L ou cancelada. | Ap. B |
 | `O item "%" tem % condição(ões) de Cliente ativa(s) na moeda atual. Para cobrar em outra moeda, cadastre um item novo e recadastre as condições nele.` | Ao trocar a moeda de item de taxa com Condição de Cliente ativa (Tabelas e condições). | Ap. B |
@@ -306,29 +307,29 @@ no banco local); nada foi executado no navegador nesta etapa.
 | `prévia desfeita` | Marca interna da simulação da prévia da reimportação; nunca aparece. | Fora |
 | `Prontidão financeira bloqueada para este cliente e viagem (%).` | Ao enviar o Comunicado CE e Taxas sem prontidão; a tela mostra "Prontidão financeira bloqueada para este cliente e viagem." sem o código. | Ap. B |
 | `PT409: B/L Granito ja vinculado a uma invoice ativa.` | Fatura de Granito, desligada. | Fora |
-| `PT409: B/L ja vinculado a uma invoice ativa.` | Ao emitir B/L que já tem fatura viva. | Ap. B |
-| `PTAX invalida.` | Em Informar PTAX com valor fora de 0 a 1000. | Ap. B |
-| `PTAX obrigatoria para origem %.` | Gravação do câmbio do Banco Central sem PTAX (rotina diária). | Ap. B |
+| `PT409: B/L já vinculado a uma invoice ativa.` | Ao emitir B/L que já tem fatura viva. | Ap. B |
+| `PTAX inválida.` | Em Informar PTAX com valor fora de 0 a 1000. | Ap. B |
+| `PTAX obrigatória para origem %.` | Gravação do câmbio do Banco Central sem PTAX (rotina diária). | Ap. B |
 | `Quantidade deve ser maior que zero` | Cobrança manual do B/L com quantidade zero ou negativa. | Ap. B |
 | `Quantidade deve ser maior que zero.` | Avulsa com quantidade zero ou negativa. | Ap. B |
 | `Quantidade e valor unitário devem gerar um total positivo.` | Avulsa cujo total arredondado dá zero. | Ap. B |
-| `Receivable(s) inexistente(s) na selecao.` | Consolidada com B/L cujo recebível sumiu enquanto a tela estava aberta. | Ap. B |
-| `Referencia cambial invalida.` | Gravação do câmbio com data, origem ou ROE inválidos (Informar PTAX ou rotina). | Ap. B |
-| `Restituicao excede os recebimentos disponiveis do recebivel (%).` | Correção ou cancelamento financeiro que tentaria devolver mais do que o B/L recebeu. | Ap. B |
+| `Receivable(s) inexistente(s) na seleção.` | Consolidada com B/L cujo recebível sumiu enquanto a tela estava aberta. | Ap. B |
+| `Referência cambial inválida.` | Gravação do câmbio com data, origem ou ROE inválidos (Informar PTAX ou rotina). | Ap. B |
+| `Restituição excede os recebimentos disponíveis do recebível (%).` | Correção ou cancelamento financeiro que tentaria devolver mais do que o B/L recebeu. | Ap. B |
 | `ROE divergente da PTAX e do spread vigente.` | Gravação do câmbio do Banco Central com ROE que não é PTAX × 1,065. | Ap. B |
 | `ROE manual inválido.` | ROE manual do B/L zero, negativo ou acima de 1000. | Ap. B |
-| `Selecao contem B/Ls de clientes diferentes.` | Emissão com B/Ls de Clientes diferentes. | Ap. B |
-| `Selecao contem receivables de clientes diferentes.` | Consolidada com B/L de outro Cliente. | Ap. B |
+| `Seleção contém B/Ls de clientes diferentes.` | Emissão com B/Ls de Clientes diferentes. | Ap. B |
+| `Seleção contém receivables de clientes diferentes.` | Consolidada com B/L de outro Cliente. | Ap. B |
 | `Sem permissão para conferir a reimportação.` | Prévia da reimportação de carga solta com usuário inativo. | Ap. B |
-| `Sem permissao para consultar correcao.` | Detalhe da fatura com usuário inativo. | Ap. B |
-| `Sem permissao para liquidar ajuste de COD.` | Liquidar ajuste sem ser Financeiro ou Administrativo. | Ap. B |
-| `Sem permissao para resolver alerta.` | Resolver com justificativa com usuário inativo. | Ap. B |
+| `Sem permissão para consultar correção.` | Detalhe da fatura com usuário inativo. | Ap. B |
+| `Sem permissão para liquidar ajuste de COD.` | Liquidar ajuste sem ser Financeiro ou Administrativo. | Ap. B |
+| `Sem permissão para resolver alerta.` | Resolver com justificativa com usuário inativo. | Ap. B |
 | `So e permitido adicionar itens em faturas em aberto (status atual: %).` | Incluir item em fatura emitida, desligado. | Fora |
 | `So e permitido remover itens de faturas em aberto (status atual: %).` | Remover item de fatura emitida, desligado. | Fora |
 | `Somente linhas manuais podem ser editadas` | Editar linha automática do cálculo como manual. | Ap. B |
 | `Somente linhas manuais podem ser removidas` | Excluir linha automática do cálculo como manual. | Ap. B |
 | `Somente o Administrativo exclui taxa manual do B/L.` | Excluir cobrança manual sem ser Administrativo. | Ap. B |
-| `Tabela de cobranca incompleta ou inativa para POD "%" (modo: %). Configure em /taxas-locais/tabelas antes de prosseguir.` | Ao emitir B/L sem tabela ativa para o POD e o modo (misto sem as duas). | Ap. B |
+| `Tabela de cobrança incompleta ou inativa para POD "%" (modo: %). Configure em /taxas-locais/tabelas antes de prosseguir.` | Ao emitir B/L sem tabela ativa para o POD e o modo (misto sem as duas). | Ap. B |
 | `Taxas Locais do B/L % não calculadas: %. Nada foi gravado: corrija e grave de novo.` | Ao gravar CE, vínculo de Cliente ou importação cujo cálculo falhou. | Ap. B |
 | `Tipo de container desconhecido; confira os TEUs do B/L.` | Avulsa Item da tabela por TEU com container de tipo fora de 20/22/40/42/45. | Ap. B |
 | `Todos os B/Ls devem estar como ready_for_billing.` | Emissão de B/L que não ficou pronto (proteção do núcleo da emissão). | Ap. B |
@@ -337,16 +338,16 @@ no banco local); nada foi executado no navegador nesta etapa.
 | `Troca de Cliente não encontrada.` | Conclusão interna da troca de Cliente; a tela nunca a pede para troca inexistente. | Fora |
 | `Um ou mais B/Ls já estão em consolidada aberta.` | Consolidada com B/L que já está em outra consolidada aberta. | Ap. B |
 | `Um ou mais B/Ls nao foram encontrados.` | Emissão em lote sem tela. | Fora |
-| `Um ou mais receivables selecionados nao tem ROE congelado para linhas em USD; recalcule/atualize o B/L antes de consolidar.` | Consolidada com B/L de taxa em dólar sem câmbio congelado. | Ap. B |
+| `Um ou mais receivables selecionados não têm ROE congelado para linhas em USD; recalcule/atualize o B/L antes de consolidar.` | Consolidada com B/L de taxa em dólar sem câmbio congelado. | Ap. B |
 | `Valor unitario deve ser maior que zero.` | Incluir item em fatura emitida, desligado. | Fora |
 | `Valor unitário deve ser maior que zero.` | Avulsa Outra com valor zero ou negativo. | Ap. B |
-| `Viagem % nao encontrada` | Viagem inexistente ao aplicar marcas do Baplie, importar B/L, omitir Escala ou gravar CE mestre da rota. | Ap. B |
+| `Viagem % não encontrada` | Viagem inexistente ao aplicar marcas do Baplie, importar B/L, omitir Escala ou gravar CE mestre da rota. | Ap. B |
 | `Viagem % não encontrada.` | Viagem inexistente na avulsa, na planilha de programação ou ao reativar Viagem. | Ap. B |
-| `Viagem de efeito local nao encontrada: %.` | No efeito de cálculo bloqueado, Viagem excluída; avise o suporte. | Ap. B |
+| `Viagem de efeito local não encontrada: %.` | No efeito de cálculo bloqueado, Viagem excluída; avise o suporte. | Ap. B |
 | `Viagem e cliente são obrigatórios para o comunicado financeiro.` | Envio do Comunicado CE e Taxas sem Viagem ou Cliente; a tela mostra só "Prontidão financeira bloqueada para este cliente e viagem." | Fora |
-| `Viagem obrigatoria.` | Aplicar marcas do Baplie sem Viagem. | Ap. B |
+| `Viagem obrigatória.` | Aplicar marcas do Baplie sem Viagem. | Ap. B |
 | `B/L % sem CE Mercante. Cadastre o CE antes de faturar.` | Ao emitir B/L sem CE Mercante. | Ap. B |
-| `Fatura % coberta por outro documento pago: o B/L ja foi pago e ela nao pode ser cancelada.` | Ao cancelar fatura Coberta. | Ap. B |
+| `Fatura % coberta por outro documento pago: o B/L já foi pago e ela não pode ser cancelada.` | Ao cancelar fatura Coberta. | Ap. B |
 | `Fatura % tem B/L com baixa em outro documento; cancele a baixa naquele documento antes.` | Ao cancelar individual cujo B/L foi pago (inteiro ou em parte) pela consolidada. | Ap. B |
 | `Confirme a devolução ao Cliente original antes de emitir nova cobrança para este B/L.` | Ao emitir para B/L cuja troca de Cliente aguarda devolução. | Ap. B |
 | `Viagem % cancelada: operação selada e somente leitura.` | Ao mudar qualquer registro de Viagem cancelada. | Ap. B |

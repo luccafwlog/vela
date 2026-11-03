@@ -280,7 +280,7 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
       SELECT public.register_verified_invoice_payment(${id}, 0.05, 'pix', now(), 'Plano B', gen_random_uuid(), 'E357AVULSA')`)
     expect(psql(`SELECT status FROM public.invoices WHERE id = ${id}`)).toBe('paid')
     expect(settle('E357AVULSA', charge.txid, '0.05')).toBe('review')
-    expect(psql(`SELECT reason FROM public.itau_pix_receipts WHERE end_to_end_id = 'E357AVULSA'`)).toContain('ja baixado')
+    expect(psql(`SELECT reason FROM public.itau_pix_receipts WHERE end_to_end_id = 'E357AVULSA'`)).toContain('já baixado')
     expect(psql(`SELECT count(*) FROM public.payments WHERE invoice_id = ${id}`)).toBe('1')
     expect(psql(`SELECT count(*) FROM public.invoice_refunds WHERE invoice_id = ${id}`)).toBe('0')
   })
@@ -531,7 +531,7 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     try {
       expect(asAuthenticated('SELECT public.itau_pix_monitor()')).toMatch(/pending_cancel/)
       psql(`UPDATE public.user_profiles SET active = false WHERE id = '${userId}'`)
-      expect(asAuthenticated('SELECT public.itau_pix_monitor()')).toMatch(/Sem permissao/)
+      expect(asAuthenticated('SELECT public.itau_pix_monitor()')).toMatch(/Sem permissão/)
     } finally {
       psql(`UPDATE public.user_profiles SET role = 'administrativo', active = true WHERE id = '${userId}'`)
     }
@@ -575,7 +575,7 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     expect(asAuthenticated(`SELECT public.itau_pix_mark_receipt_handled('E153TRATAR', ' ')`)).toMatch(/motivo/)
     psql(`UPDATE public.user_profiles SET role = 'operacoes' WHERE id = '${userId}'`)
     try {
-      expect(asAuthenticated(`SELECT public.itau_pix_mark_receipt_handled('E153TRATAR', 'Restituído ao pagador')`)).toMatch(/Sem permissao/)
+      expect(asAuthenticated(`SELECT public.itau_pix_mark_receipt_handled('E153TRATAR', 'Restituído ao pagador')`)).toMatch(/Sem permissão/)
     } finally {
       psql(`UPDATE public.user_profiles SET role = 'administrativo' WHERE id = '${userId}'`)
     }

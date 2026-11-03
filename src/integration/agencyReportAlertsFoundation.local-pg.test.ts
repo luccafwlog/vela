@@ -139,7 +139,7 @@ describeLocal('migration 323 — runtime do agregado de alertas do ADR', () => {
     // O teste anterior deixou 'datas' (Operações) Pendente; as seções da Documentação estão resolvidas.
     const pending = asUser(opsId, `SELECT public.set_agency_report_department_signoff_by_report_id('${reportId}', ${voyageId}, 'BRSSZ', 'operacoes', true)`)
     expect(pending.status).not.toBe(0)
-    expect(pending.stderr).toMatch(/secoes pendentes/)
+    expect(pending.stderr).toMatch(/seções pendentes/)
     expect(psql(`SELECT count(*) FROM public.agency_departure_report_department_signoffs WHERE report_id='${reportId}' AND department='operacoes' AND signed_at IS NOT NULL;`)).toBe('0')
     const resolved = asUser(docsId, `SELECT public.set_agency_report_department_signoff_by_report_id('${reportId}', ${voyageId}, 'BRSSZ', 'documentacao', true)`)
     expect(resolved.stderr).toBe('')

@@ -367,7 +367,7 @@ it('consolidada: bloco B/Ls com itens por B/L, coluna B/L nos itens e Em US$ só
 })
 
 it('fatura inexistente diz "Fatura não encontrada." sem o texto do banco', () => {
-  mockDetailError = { code: 'P0002', message: 'Invoice 77 nao encontrada.' }
+  mockDetailError = { code: 'P0002', message: 'Invoice 77 não encontrada.' }
   render(<MemoryRouter><InvoiceDetailModal invoiceId={77} onClose={vi.fn()} /></MemoryRouter>)
   expect(screen.getByRole('alert').textContent).toBe('Fatura não encontrada.')
 })

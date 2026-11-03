@@ -688,7 +688,7 @@ describe('Conciliação PIX', () => {
     })
 
     it('recusa da baixa fica na linha e diz que nada foi gravado', async () => {
-      mocks.settleReceipt.mockRejectedValueOnce(new Error('Valor divergente das duas ultimas fotos financeiras da Demurrage 78.'))
+      mocks.settleReceipt.mockRejectedValueOnce(new Error('Valor divergente das duas últimas fotos financeiras da Demurrage 78.'))
       const user = userEvent.setup()
       renderPage('/reconciliacao?tab=recebidos')
       await screen.findByText('B/L ABC123')

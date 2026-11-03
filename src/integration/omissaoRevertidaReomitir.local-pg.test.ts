@@ -71,7 +71,7 @@ describeLocal('Omissão de escala revertida pode ser registrada de novo (A8)', (
 
     const first = omit('primeira')
     expect(first.error).toBe('')
-    expect(omit('duplicata').error).toMatch(/ja foi omitida/)
+    expect(omit('duplicata').error).toMatch(/já foi omitida/)
 
     const firstId = psql(`SELECT id FROM public.voyage_omissions WHERE voyage_id = ${VOYAGE_ID} AND reverted_at IS NULL`)
     expect(runAsUser(`SELECT public.revert_voyage_omission(${firstId}, 'registrada por engano', '${USER_ID}')`).error).toBe('')
@@ -80,6 +80,6 @@ describeLocal('Omissão de escala revertida pode ser registrada de novo (A8)', (
     expect(psql(`SELECT count(*) || ':' || count(*) FILTER (WHERE reverted_at IS NULL) FROM public.voyage_omissions
       WHERE voyage_id = ${VOYAGE_ID} AND omitted_pod = 'BRVIX'`)).toBe('2:1')
     expect(psql(`SELECT reverted_at IS NOT NULL FROM public.voyage_omissions WHERE id = ${firstId}`)).toBe('t')
-    expect(omit('duplicata outra vez').error).toMatch(/ja foi omitida/)
+    expect(omit('duplicata outra vez').error).toMatch(/já foi omitida/)
   })
 })

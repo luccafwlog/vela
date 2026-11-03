@@ -79,9 +79,9 @@ describe('TransshipmentInfoCard - recusa do banco', () => {
   })
 
   it('Reverter omissão recusado por B/L em COD mostra o motivo e a frase de COD', async () => {
-    const { alert } = await revertWith({ code: '22023', message: 'Nao e possivel reverter a omissao: 1 B/L(s) afetado(s) estao em COD.', details: null, hint: null })
+    const { alert } = await revertWith({ code: '22023', message: 'Não é possível reverter a omissão: 1 B/L(s) afetado(s) estão em COD.', details: null, hint: null })
 
-    expect(alert.textContent).toBe('Nao e possivel reverter a omissao: 1 B/L(s) afetado(s) estao em COD. Verifique se algum B/L está em COD.')
+    expect(alert.textContent).toBe('Não é possível reverter a omissão: 1 B/L(s) afetado(s) estão em COD. Verifique se algum B/L está em COD.')
   })
 
   it('Reverter omissão recusado por outro motivo mostra só esse motivo, e reabrir não repete a recusa', async () => {

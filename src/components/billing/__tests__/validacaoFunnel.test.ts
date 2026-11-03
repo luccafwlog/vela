@@ -51,7 +51,7 @@ describe('bloqueio por portal não provisionado', () => {
   // Regressao: um hold proprio do B/L (gravado pela save_bl_review) com notas de
   // portal era lido como "so o portal", escondia o hold real e rotulava errado.
   it('não confunde hold próprio do B/L com pendência de portal', () => {
-    const hold = 'B/L sem linhas faturaveis. Recalcule as taxas antes de faturar.'
+    const hold = 'B/L sem linhas faturáveis. Recalcule as taxas antes de faturar.'
     const block = getBillingBlock({ ...withCe, review_status: 'pending_review', notes: portalNotes, billing_hold_reason: hold })
     expect(block.code).toBe('calculo_incompleto')
     expect(block.detail).toBe(hold)

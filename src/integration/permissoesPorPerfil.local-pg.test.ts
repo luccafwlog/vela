@@ -700,7 +700,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   it.each(ALL_PROFILES)('P7: %s reprocessa efeito de importação; sem justificativa é recusado', (profile) => {
     // O efeito inexistente é recusado pelo efeito, não pelo perfil.
     expect(runAs(profile, `SELECT public.retry_import_effect(-1, 'motivo')`).error).toMatch(/não encontrado/)
-    expect(runAs(profile, `SELECT public.retry_import_effect(-1, ' ')`).error).toMatch(/Justificativa obrigatoria/)
+    expect(runAs(profile, `SELECT public.retry_import_effect(-1, ' ')`).error).toMatch(/Justificativa obrigatória/)
   })
 
   // P8 — Central de Informações do Portal por qualquer Departamento (ADR 0085, D7; migration 253).

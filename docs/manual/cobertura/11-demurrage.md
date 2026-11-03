@@ -175,8 +175,8 @@ de Cobrança e Disputa (Vela e Portal).
 | `B/L % não encontrado para a Demurrage.` | Emissão automática na fila de um B/L que foi excluído antes de a fila processar; aparece como falha da **Emissão de Demurrage**. | Ap. B |
 | `B/L % sem cliente para emissão de Demurrage.` | **Gerar Invoice** ou emissão automática de B/L-âncora sem Cliente vinculado. Vincule o Cliente na ficha do B/L. | Ap. B |
 | `B/L, containers e data de cálculo são obrigatórios.` | Proteção do cálculo; a emissão pela tela sempre manda os três. | Fora |
-| `BL % foi alterado por outro usuario; recarregue antes de salvar` | Gravação de condições do B/L (Revisão ou Demurrage) sobre ficha alterada por outra pessoa; na condição de Demurrage a tela troca pelo aviso "Este B/L foi alterado por outro usuario…". | Ap. B |
-| `BL % nao encontrado` | Gravação de condições de um B/L excluído enquanto a ficha estava aberta. | Ap. B |
+| `BL % foi alterado por outro usuário; recarregue antes de salvar` | Gravação de condições do B/L (Revisão ou Demurrage) sobre ficha alterada por outra pessoa; na condição de Demurrage a tela troca pelo aviso "Este B/L foi alterado por outro usuario…". | Ap. B |
+| `BL % não encontrado` | Gravação de condições de um B/L excluído enquanto a ficha estava aberta. | Ap. B |
 | `Calculo de Demurrage inconsistente em % item(ns) do B/L %.` | Forma antiga de criar Invoice, sem acesso pela tela. | Fora |
 | `Câmbio de referência não configurado: grave a PTAX antes de tirar o ROE manual.` | **Tirar ROE manual…** sem referência cambial gravada. Use **Informar PTAX** antes. | Ap. B |
 | `Caminho de anexo inválido.` | Proteção do anexo; o caminho é montado pelo próprio sistema. | Fora |
@@ -190,34 +190,36 @@ de Cobrança e Disputa (Vela e Portal).
 | `Dados invalidos para criar invoice de Demurrage.` | Forma antiga de criar Invoice, sem acesso pela tela. | Fora |
 | `Demurrage do B/L % não contém o conjunto completo e exclusivo de containers.` | Emissão em que o grupo mudou no meio (caixa nova, caixa já cobrada). Tente de novo. | Ap. B |
 | `Demurrage do B/L % possui itens sem containers físicos correspondentes ou já cobrados em outra Invoice.` | Emissão em que todas as caixas já estavam cobradas por outra Invoice. | Ap. B |
-| `Demurrage invoice % ja esta paga.` | **Registrar pagamento** ou conciliação de Invoice que acabou de ser paga. | Ap. B |
-| `Demurrage invoice % nao encontrada.` | Pagamento, desconto, cancelamento ou cancelamento de baixa de Invoice que não existe mais. | Ap. B |
-| `Demurrage invoice % nao esta paga (status=%).` | **Cancelar baixa…** de Invoice que já não está paga. | Ap. B |
-| `Demurrage invoice % nao pode ser baixada no status atual.` | **Registrar pagamento** de Invoice cancelada. | Ap. B |
+| `Demurrage invoice % já está paga.` | **Registrar pagamento** ou conciliação de Invoice que acabou de ser paga. | Ap. B |
+| `Demurrage invoice % nao encontrada.` | Nunca chega a uma pessoa: o texto sem acento ficou só em função antiga que nada chama (reopen_demurrage_invoice); a forma vigente, com acento, está na linha seguinte (migration `573`). | Fora |
+| `Demurrage invoice % não encontrada.` | Pagamento, desconto, cancelamento ou cancelamento de baixa de Invoice que não existe mais. | Ap. B |
+| `Demurrage invoice % não está paga (status=%).` | **Cancelar baixa…** de Invoice que já não está paga. | Ap. B |
+| `Demurrage invoice % não pode ser baixada no status atual.` | **Registrar pagamento** de Invoice cancelada. | Ap. B |
 | `Demurrage só pode ser emitida após a devolução de todos os containers do B/L %.` | Emissão em que uma caixa do grupo perdeu a devolução no meio. | Ap. B |
-| `Desconto fixo nao pode exceder o total USD da fatura.` | Desconto fixo maior que o total dos itens (a tela já avisa antes). | Ap. B |
-| `Desconto nao pode alterar fatura paga ou cancelada.` | Desconto em Invoice paga, isenta ou cancelada. | Ap. B |
-| `Desconto nao pode ser negativo.` | Valor de desconto negativo. | Ap. B |
+| `Desconto fixo não pode exceder o total USD da fatura.` | Desconto fixo maior que o total dos itens (a tela já avisa antes). | Ap. B |
+| `Desconto não pode alterar fatura paga ou cancelada.` | Desconto em Invoice paga, isenta ou cancelada. | Ap. B |
+| `Desconto não pode ser negativo.` | Valor de desconto negativo. | Ap. B |
 | `Desfecho da cobrança inválido.` | Rotina da Régua; nunca chega a uma pessoa. | Fora |
 | `Disputa não encontrada.` | Portal: anexo para Disputa que não é do Cliente ou não existe; **Reabrir Disputa** de conversa que não existe mais (até a migration `548`, "Dispute não encontrada."). | Ap. B |
 | `Dispute não está aberta.` | **Enviar resposta** numa Disputa que acabou de ser resolvida. | Ap. B |
 | `Dispute não está disponível para solicitação de reabertura.` | Portal: **Solicitar reabertura** de Disputa que não está resolvida. | Ap. B |
 | `Documento, B/L e cliente são obrigatórios.` | Proteção da emissão; a emissão pela tela sempre manda os três. | Fora |
 | `Esta Invoice já teve uma disputa resolvida. Para contestar de novo, use Solicitar reabertura na conversa da disputa.` | Portal: disputa nova numa Invoice que já teve uma resolvida; a tela mostra **Solicitar reabertura** no lugar de **Abrir disputa**. | Ap. B |
-| `Fatura % nao possui uma foto financeira pagavel.` | **Registrar pagamento** de Invoice cujo valor em reais ou ROE na data paga é zero ou falta. | Ap. B |
-| `Fatura % tem cotacao invalida na foto financeira.` | Baixa sobre foto de valores com PTAX inválida (registro antigo). | Ap. B |
+| `Fatura % não possui uma foto financeira pagável.` | **Registrar pagamento** de Invoice cujo valor em reais ou ROE na data paga é zero ou falta. | Ap. B |
+| `Fatura % tem cotação inválida na foto financeira.` | Baixa sobre foto de valores com PTAX inválida (registro antigo). | Ap. B |
 | `Fatura de demurrage não encontrada.` | Portal: mensagem de Disputa para fatura que não está mais visível (cancelada ou sem CE). | Ap. B |
 | `Fatura de demurrage paga não aceita nova disputa.` | Portal: abrir Disputa em fatura já paga. | Ap. B |
-| `Fatura e data de pagamento sao obrigatorias.` | **Registrar pagamento** sem data (a tela já pede "Informe a data do pagamento."). | Ap. B |
+| `Fatura e data de pagamento são obrigatórias.` | **Registrar pagamento** sem data (a tela já pede "Informe a data do pagamento."). | Ap. B |
 | `Fatura obrigatoria.` | Proteção do desconto; a tela sempre manda a Invoice. | Fora |
 | `Fatura paga deve ser estornada antes do cancelamento.` | **Cancelar Invoice…** de Invoice paga. Use antes **Cancelar baixa…**. | Ap. B |
 | `Fotos de cálculo de Demurrage são append-only.` | Registro técnico interno do cálculo; nenhuma tela o altera. | Fora |
 | `Identificador de pedido obrigatorio.` | Proteção contra gravação repetida; a tela sempre manda o identificador. | Fora |
-| `Identificador PIX invalido.` | Conciliação com identificador de Pix acima de 140 caracteres. | Ap. B |
+| `Identificador PIX inválido.` | Conciliação com identificador de Pix acima de 140 caracteres. | Ap. B |
 | `Informe a mensagem da disputa.` | Resposta ou mensagem de Disputa em branco (Vela ou Portal). | Ap. B |
 | `Informe comprovante, favorecido e data efetiva.` | **Confirmar devolução realizada** com comprovante ou favorecido abaixo de 3 caracteres ou data futura. | Ap. B |
 | `Informe o motivo de tirar o ROE manual (mínimo de 10 caracteres).` | **Tirar ROE manual** com motivo curto. | Ap. B |
-| `Invoice % nao encontrada ou acesso negado` | Portal: detalhe de Invoice cancelada, de outro Cliente ou de B/L sem CE Mercante. | Ap. B |
+| `Invoice % nao encontrada ou acesso negado` | Nunca chega a uma pessoa: o texto sem acento ficou só em função antiga que nada chama (portal_get_demurrage_invoice_detail_legacy); a forma vigente, com acento, está na linha seguinte (migration `573`). | Fora |
+| `Invoice % não encontrada ou acesso negado` | Portal: detalhe de Invoice cancelada, de outro Cliente ou de B/L sem CE Mercante. | Ap. B |
 | `Invoice de Demurrage não encontrada.` | **Tirar ROE manual** de Invoice que não existe mais. | Ap. B |
 | `Invoice e posição da régua são obrigatórios.` | Rotina da Régua; nunca chega a uma pessoa. | Fora |
 | `Invoice fora do cliente do comunicado.` | Rotina da Régua; nunca chega a uma pessoa. | Fora |
@@ -225,8 +227,8 @@ de Cobrança e Disputa (Vela e Portal).
 | `Ja existe fatura de Demurrage emitida ou paga para o B/L %. Cancele a fatura atual antes de reemitir.` | Forma antiga de criar Invoice, sem acesso pela tela. | Fora |
 | `Já existe fatura de Demurrage emitida ou paga para o container % do B/L %. Cancele a fatura atual antes de reemitir.` | Emissão de caixa que outra Invoice viva da mesma Viagem e Cliente acabou de cobrar. | Ap. B |
 | `Justificativa é obrigatória.` | **Reabrir Disputa** sem justificativa; Portal: **Solicitar reabertura** sem texto; também em ações do Portal na Administração. | Ap. B |
-| `Justificativa obrigatoria para alterar desconto.` | Salvar ou tirar desconto sem **Justificativa**. | Ap. B |
-| `Justificativa obrigatoria para cancelar a fatura.` | **Cancelar Invoice…** sem motivo. | Ap. B |
+| `Justificativa obrigatória para alterar desconto.` | Salvar ou tirar desconto sem **Justificativa**. | Ap. B |
+| `Justificativa obrigatória para cancelar a fatura.` | **Cancelar Invoice…** sem motivo. | Ap. B |
 | `Justificativa obrigatoria para reabrir a fatura.` | Função antiga de reabrir Invoice, sem acesso pela tela. | Fora |
 | `Limite diário de 20 anexos excedido.` | Portal: 21º anexo do Cliente em 24 horas. | Ap. B |
 | `Lista de conciliação inválida.` | Proteção da conciliação; a Conciliação PIX sempre manda a lista. | Fora |
@@ -244,9 +246,9 @@ de Cobrança e Disputa (Vela e Portal).
 | `Origem de PTAX invalida: %.` | Proteção do recálculo; **Informar PTAX** e a rotina das 14h mandam origens válidas. | Fora |
 | `Pedido % ja foi usado com outro conteudo.` | Proteção contra gravação repetida; a tela gera um identificador novo a cada ação. | Fora |
 | `Percentual de desconto deve ficar entre 0 e 100.` | Desconto percentual acima de 100. | Ap. B |
-| `PIX % ja esta associado a outra fatura.` | Conciliação de um Pix já usado para quitar outra Invoice de Demurrage. | Ap. B |
+| `PIX % já está associado a outra fatura.` | Conciliação de um Pix já usado para quitar outra Invoice de Demurrage. | Ap. B |
 | `Prévia de Demurrage desatualizada; recalcule antes de emitir.` | Proteção da emissão; a emissão pela tela não usa prévia. | Fora |
-| `PTAX e data de cotacao sao obrigatorias.` | **Informar PTAX** com valor acima de 1.000 confirmado no segundo clique. | Ap. B |
+| `PTAX e data de cotação são obrigatórias.` | **Informar PTAX** com valor acima de 1.000 confirmado no segundo clique. | Ap. B |
 | `Quota de armazenamento de anexos de 100 MB excedida.` | Portal: anexos das Disputas abertas do Cliente passariam de 100 MB. | Ap. B |
 | `Recebimento financia restituição: preserve a baixa e o valor congelado.` | **Cancelar baixa…** (ou mudança de valor) de Invoice com restituição de Demurrage não cancelada. Cancele a autorização antes, se for o caso. | Ap. B |
 | `Referência cambial sem PTAX factual para a origem %.` | Emissão com referência cambial do Banco Central sem a PTAX gravada. Use **Informar PTAX**. | Ap. B |
@@ -279,7 +281,7 @@ de Cobrança e Disputa (Vela e Portal).
 | `Usuário sem permissão para reabrir Demurrage.` | Função antiga de reabrir Invoice, sem acesso pela tela. | Fora |
 | `Usuário sem permissão para registrar baixa de Demurrage.` | **Registrar pagamento** por setor que não é Financeiro nem Administrativo. | Ap. B |
 | `Valor divergente da foto financeira da Demurrage %.` | Baixa de Invoice antiga sem foto de valores quando o valor não bate com o BRL atual. | Ap. B |
-| `Valor divergente das duas ultimas fotos financeiras da Demurrage %.` | Baixa cujo valor pago não bate com nenhuma das duas fotos de valores mais recentes até a data paga. | Ap. B |
+| `Valor divergente das duas últimas fotos financeiras da Demurrage %.` | Baixa cujo valor pago não bate com nenhuma das duas fotos de valores mais recentes até a data paga. | Ap. B |
 | `Valor pago nao pode ser negativo.` | Proteção; a conciliação ignora lançamento negativo e a baixa manual não manda valor. | Fora |
 | `Gerar Invoice exige um perfil interno ativo.` | Aba Containers aberta sem setor ativo. | Ap. B |
 | `Todos os containers deste B/L já estão em Invoice de Demurrage emitida ou paga.` | **Gerar Invoice** de grupo já todo cobrado (com "(grupo do B/L X)" quando o âncora é outro). | Ap. B |

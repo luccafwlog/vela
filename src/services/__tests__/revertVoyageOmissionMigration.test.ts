@@ -216,7 +216,7 @@ describeLocal('reversão de omissão em replay local do Postgres', () => {
       `SELECT public.omit_voyage_escala(${voyageId}, 'BRVIX', 'BRSSA', 'duplicata', '${adminId}')`,
     )
     expect(duplicate.status).not.toBe(0)
-    expect(`${duplicate.stdout}\n${duplicate.stderr}`).toMatch(/ja foi omitida|duplicate|23505/i)
+    expect(`${duplicate.stdout}\n${duplicate.stderr}`).toMatch(/j[aá] foi omitida|duplicate|23505/i)
 
     for (const signature of rpcSignatures) {
       expect(psql(`SELECT has_function_privilege('authenticated', '${signature}'::regprocedure, 'EXECUTE');`)).toBe('t')
@@ -291,7 +291,7 @@ describeLocal('reversão de omissão em replay local do Postgres', () => {
       adminId,
       `SELECT public.omit_voyage_escala(${voyageId}, 'BRVIX', 'BRSSA', 'duplicata', '${adminId}')`,
     )
-    expect(`${duplicateAgain.stdout}\n${duplicateAgain.stderr}`).toMatch(/ja foi omitida/i)
+    expect(`${duplicateAgain.stdout}\n${duplicateAgain.stderr}`).toMatch(/j[aá] foi omitida/i)
 
     expect(compact(getFunctionDefinition('public.revert_voyage_omission(bigint,text,uuid)')))
       .toMatch(/where o\.id = p_omission_id for update of o/)

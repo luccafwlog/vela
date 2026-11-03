@@ -971,7 +971,7 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
       );
     `)
     expect(direct.error?.code).toBe('P0008')
-    expect(direct.error?.message).toContain('container FCL nao e dividido entre Clientes diferentes')
+    expect(direct.error?.message).toContain('container FCL não é dividido entre Clientes diferentes')
     expect(blState('A202-FCL2')).toBeNull()
 
     // Mesmo Cliente divide o container normalmente.
@@ -1004,7 +1004,7 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     }
     const failure = await confirmBlFreightImport(handmade, actorId, false, 'a202-atm-banco.xlsx').then(() => null, (error: unknown) => error)
     expect(failure).toBeInstanceOf(BlFreightImportRefused)
-    expect((failure as Error).message).toMatch(/^Nada foi gravado: .*container FCL nao e dividido entre Clientes diferentes/)
+    expect((failure as Error).message).toMatch(/^Nada foi gravado: .*container FCL não é dividido entre Clientes diferentes/)
     expect(blState('A202-ATM1')).toBeNull()
     expect(blState('A202-FCL2')).toBeNull()
   })
