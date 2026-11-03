@@ -11,7 +11,7 @@ const ROUTE_TITLES: Array<[RegExp, string]> = [
   [/^\/clientes\/portal\/inspecao\//, 'Portal · Inspeção'],
   [/^\/perfil/, 'Meu perfil'],
   [/^\/login/, 'Login'],
-  [/^\/line-up-tv\/display/, 'Line Up · Tela TV'],
+  [/^\/line-up-tv\/display/, 'Tela TV'],
   [/^\/painel/, 'Painel'],
   [/^\/viagens/, 'Viagens'],
   [/^\/bls\/[^/]+/, 'Detalhe do B/L'],

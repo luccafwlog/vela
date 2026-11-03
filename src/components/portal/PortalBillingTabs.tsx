@@ -7,6 +7,7 @@ import { InvoiceSituation } from '../billing/InvoiceSituation'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
 import { FilterBar } from '../ui/FilterBar'
+import { PortalExportButton } from './PortalExportButton'
 import { Field, Input, Select } from '../ui/Input'
 import { TableFooterPagination } from '../ui/TableFooterPagination'
 import { RowActionButton } from '../ui/RowActionButton'
@@ -38,6 +39,9 @@ type LocalTabProps = {
   onOpenDetail: (id: number) => void
   /** "Pagar com Pix" da linha que ainda pede pagamento (decisão de 2026-11-01). */
   onPayPix: (invoice: PortalInvoiceSummary) => void
+  /** "Exportar Excel" na faixa do bloco, como em B/Ls e containers (2026-11-02). */
+  onExport: () => void
+  exporting: boolean
 }
 
 /**
@@ -47,12 +51,16 @@ type LocalTabProps = {
  * detalhe. A coluna Pagar traz o Pix de toda fatura em aberto, inclusive a
  * individual que está numa consolidada aberta (2026-11-01).
  */
-export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading, error, filters, onFilters, vesselOptions, pods, onOpenDetail, onPayPix }: LocalTabProps) {
+export function LocalFeesTab({ invoices, totalCount, page, onPageChange, loading, error, filters, onFilters, vesselOptions, pods, onOpenDetail, onPayPix, onExport, exporting }: LocalTabProps) {
   const totalPages = Math.max(1, Math.ceil(totalCount / BILLING_PAGE_SIZE))
   const safePage = Math.min(page, totalPages - 1)
 
   return (
-    <Block title="Faturas de taxas locais e avulsas" aside={formatResultCount(totalCount, 'fatura', 'faturas')} flush>
+    <Block
+      title="Faturas de taxas locais e avulsas"
+      aside={<><span>{formatResultCount(totalCount, 'fatura', 'faturas')}</span><PortalExportButton onClick={onExport} loading={exporting} /></>}
+      flush
+    >
       <div className="px-5 pt-4">
         <FiltersControls filters={filters} onFilters={onFilters} vesselOptions={vesselOptions} pods={pods} />
       </div>
@@ -196,6 +204,8 @@ type DemTabProps = {
   complementOf?: (invoice: PortalDemurrageInvoice) => PortalDemurrageInvoice[] | undefined
   /** "Pagar com Pix" da linha que ainda pede pagamento. */
   onPayPix: (invoice: PortalDemurrageInvoice) => void
+  onExport: () => void
+  exporting: boolean
 }
 
 /**
@@ -205,7 +215,7 @@ type DemTabProps = {
  * (lote 4 da identidade, 2026-10-18); a Invoice complementar leva a marca ao
  * lado do número.
  */
-export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading, error, filters, onFilters, vesselOptions, pods, onOpenDetail, roe, openDisputeCount, onOpenDisputes, complementOf, onPayPix }: DemTabProps) {
+export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading, error, filters, onFilters, vesselOptions, pods, onOpenDetail, roe, openDisputeCount, onOpenDisputes, complementOf, onPayPix, onExport, exporting }: DemTabProps) {
   const totalPages = Math.max(1, Math.ceil(totalCount / BILLING_PAGE_SIZE))
   const safePage = Math.min(page, totalPages - 1)
   // ponytail: o total em aberto soma só a página carregada; com mais de uma
@@ -228,12 +238,13 @@ export function DemurrageTab({ invoices, totalCount, page, onPageChange, loading
             {roe ? <> · <span className="whitespace-nowrap" title={`Atualizado em ${new Intl.DateTimeFormat('pt-BR', { timeZone: 'UTC' }).format(new Date(roe.updatedAt))}`}>ROE de hoje {formatRoe(roe.roe)}</span></> : null}
           </span>
           <Button variant="secondary" className="app-btn--sm" onClick={onOpenDisputes}>{disputesLabel}</Button>
+          <PortalExportButton onClick={onExport} loading={exporting} />
         </>
       )}
       flush
     >
       <div className="px-5 pt-4">
-        <FiltersControls filters={filters} onFilters={onFilters} vesselOptions={vesselOptions} pods={pods} />
+        <FiltersControls filters={filters} onFilters={onFilters} vesselOptions={vesselOptions} pods={pods} demurrage />
       </div>
 
       {error ? <div className="px-5 py-4 text-sm text-[var(--app-red)]">Falha ao consultar faturas de demurrage.</div> : null}
@@ -337,17 +348,22 @@ function DemurrageSituation({ invoice }: { invoice: PortalDemurrageInvoice }) {
   return <StatusText tone={tone}>{label}</StatusText>
 }
 
-function FiltersControls({ filters, onFilters, vesselOptions, pods }: { filters: Filters; onFilters: (f: Filters) => void; vesselOptions: string[]; pods: string[] }) {
+// No Portal os filtros começam recolhidos (decisão do dono de 2026-11-02),
+// mesmo com um atalho que chega filtrado: o contador e "Limpar" na barra
+// mostram que há recorte. Invoice de Demurrage cancelada nunca chega ao Portal
+// (`_portal_list_demurrage_invoices_core`): a aba Demurrage não oferece
+// Cancelada, e o padrão dela é "Todos" (decisão do dono de 2026-11-03).
+function FiltersControls({ filters, onFilters, vesselOptions, pods, demurrage = false }: { filters: Filters; onFilters: (f: Filters) => void; vesselOptions: string[]; pods: string[]; demurrage?: boolean }) {
   const vesselListId = useId()
   return (
-    <FilterBar activeCount={countActive(filters)} onClear={() => onFilters(EMPTY_PORTAL_BILLING_FILTERS)} defaultOpen>
+    <FilterBar activeCount={countActive(filters)} onClear={() => onFilters(EMPTY_PORTAL_BILLING_FILTERS)} defaultOpen={false}>
       <div className="app-filter-grid">
         <Field label="Status">
           <Select value={filters.status} onChange={(e) => onFilters({ ...filters, status: e.target.value as PortalBillingFilters['status'] })}>
-            <option value="">Em vigor (sem canceladas)</option>
+            <option value="">{demurrage ? 'Todos' : 'Em vigor (sem canceladas)'}</option>
             <option value="issued">Emitida</option>
             <option value="paid">Paga</option>
-            <option value="cancelled">Cancelada</option>
+            {demurrage ? null : <option value="cancelled">Cancelada</option>}
           </Select>
         </Field>
         <Field label="Navio/Viagem">

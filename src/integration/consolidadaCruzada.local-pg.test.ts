@@ -62,7 +62,7 @@ describeLocal('356 — consolidada e individuais coerentes', () => {
     const successor = w.successorOf(c)
     expect(successor).not.toBeNull()
     expect(w.invoice(successor!)).toMatchObject({ status: 'issued', total: 100, balance: 100, replaces: c })
-    expect(w.psql(`SELECT obsolete_reason FROM public.invoices WHERE id = ${c}`)).toMatch(/^Substituida pela /)
+    expect(w.psql(`SELECT obsolete_reason FROM public.invoices WHERE id = ${c}`)).toMatch(/^Substituída pela /)
     expect(Number(w.psql(`SELECT count(*) FROM public.portal_notifications WHERE customer_id = ${w.customerId} AND title = 'Fatura consolidada substituída'`))).toBeGreaterThan(0)
     // F-44: um evento `obsolete` só.
     expect(w.psql(`SELECT count(*) FROM public.invoice_lifecycle_events WHERE invoice_id = ${c} AND event_type = 'obsolete'`)).toBe('1')

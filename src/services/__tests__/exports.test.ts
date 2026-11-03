@@ -159,6 +159,14 @@ describe('planilhas de BLs e Containers do Portal', () => {
     expect(sheet[0]).toMatchObject({ 'B/L': 'ABERTO', 'CE Mercante': '152609130000101', Navio: 'NORDIC STAR', Viagem: '021W', POL: 'CNSHA', POD: 'BRSSA' })
   })
 
+  it('leva os devolvidos com demurrage, a mesma conta da coluna Demurrage da tela', async () => {
+    const returnedLate = { ...bl('LATE', { status: 'none', total_brl: null, balance_brl: null }) }
+    returnedLate.containers = [{ ...returnedLate.containers[0], return_date: '2026-10-20', usage_days: 28, demurrage_days: 7, status: 'devolvido' }]
+    await exportPortalBlsWorkbook([returnedLate, bl('NO-PRAZO', { status: 'none', total_brl: null, balance_brl: null })])
+    const sheet = jsonToSheet.mock.calls[0][0] as Array<Record<string, unknown>>
+    expect(sheet.map((row) => row['Devolvidos com demurrage'])).toEqual([1, 0])
+  })
+
   it('mantém CE Mercante, Navio, Viagem e POL na planilha de Containers', async () => {
     await exportPortalContainersWorkbook(flattenContainers([bl('BL1', { status: 'none', total_brl: null, balance_brl: null })]))
     expect(jsonToSheet.mock.calls[0][0]).toEqual([
@@ -287,9 +295,12 @@ describe('exportCustomerContainersWorkbook', () => {
     await exportCustomerContainersWorkbook('ACME', [
       { row, view: { soc: false, days: 27, freeTimeDays: 21, freeTimeSourceLabel: 'tabela', overFreeTime: true, demurrage: { kind: 'waived' } } },
       { row, view: { soc: false, days: 27, freeTimeDays: 21, freeTimeSourceLabel: 'tabela', overFreeTime: true, demurrage: { kind: 'to_bill', usd: 420 } } },
+      { row, view: { soc: false, days: 43, freeTimeDays: 21, freeTimeSourceLabel: 'tabela', overFreeTime: true, demurrage: { kind: 'running', usd: 2450 } } },
     ])
     const [sheetRows] = jsonToSheet.mock.calls[0] as unknown as [Array<Record<string, unknown>>]
     expect(sheetRows[0]).toMatchObject({ Demurrage: 'Cobrança dispensada', 'Demurrage (US$)': '' })
-    expect(sheetRows[1]).toMatchObject({ Demurrage: 'A faturar', 'Demurrage (US$)': 420 })
+    // Decisão de 2026-11-03: "a emitir" e "correndo", como a aba na tela.
+    expect(sheetRows[1]).toMatchObject({ Demurrage: 'A emitir', 'Demurrage (US$)': 420 })
+    expect(sheetRows[2]).toMatchObject({ Demurrage: 'Correndo', 'Demurrage (US$)': 2450 })
   })
 })

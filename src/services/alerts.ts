@@ -763,6 +763,13 @@ const IMPORT_EFFECT_BLOCKED_REASONS: Readonly<Record<string, string>> = {
   retry_exhausted: 'O passo falhou cinco vezes seguidas e parou de tentar.',
   lease_expired: 'O processamento parou no meio, sem resposta, várias vezes seguidas.',
 }
+// Mensagens cruas com motivo próprio, mais preciso que o do `error_code`.
+// "Efeito sem iniciador validado." (42501) é o CE gravado sem usuário, por
+// script ou integração: desde a migration 570 o Reprocessar roda o passo em
+// nome de quem reprocessa.
+const IMPORT_EFFECT_BLOCKED_MESSAGE_REASONS: Readonly<Record<string, string>> = {
+  'Efeito sem iniciador validado.': 'A gravação foi feita sem usuário identificado (script ou integração); o Reprocessar roda o passo em seu nome.',
+}
 // Códigos vindos de RAISE do próprio domínio (P0xxx, P0002, 22023), cujo texto
 // pode ser uma recusa escrita para a operação. `effect_failed` é erro cru do Postgres.
 const BUSINESS_REFUSAL_CODES: ReadonlySet<string> = new Set(['effect_domain_refused', 'effect_domain_missing', 'invalid_effect_payload'])
@@ -786,7 +793,10 @@ export function importEffectBlockedReason(
   const business = message && code && BUSINESS_REFUSAL_CODES.has(code)
     && !/\b(?:query returned|more than one row)\b/i.test(message) // SELECT INTO STRICT (P0002)
     && classifyDbError({ code: 'P0001', message }).message === message ? message : null
-  const reason = business ?? (code && IMPORT_EFFECT_BLOCKED_REASONS[code]) ?? IMPORT_EFFECT_BLOCKED_FALLBACK
+  const reason = business
+    ?? (message && IMPORT_EFFECT_BLOCKED_MESSAGE_REASONS[message.trim()])
+    ?? (code && IMPORT_EFFECT_BLOCKED_REASONS[code])
+    ?? IMPORT_EFFECT_BLOCKED_FALLBACK
   const raw = [code, message].filter(Boolean).join(': ')
   return { reason, technicalDetail: raw && !business ? raw : null }
 }

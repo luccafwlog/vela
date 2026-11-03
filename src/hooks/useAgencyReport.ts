@@ -123,8 +123,8 @@ export function useSetAgencyReportTerminal() {
 }
 
 // Fechamento/reabertura também altera alertas e os indicadores exibidos no
-// header, no Painel e na tela de Alertas.
-const CLOSE_REOPEN_KEYS = ['agency-report', 'agency-report-signoff-events', 'alerts', 'op-count', 'header-alert', 'dashboard']
+// menu, no Painel e na tela de Alertas.
+const CLOSE_REOPEN_KEYS = ['agency-report', 'agency-report-signoff-events', 'alerts', 'op-count', 'dashboard']
 
 export function useCloseAgencyReport(reportId?: string | null) {
   return useAgencyReportOwnMutation((input: Parameters<typeof closeReport>[0]) => (

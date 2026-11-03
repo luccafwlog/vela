@@ -445,7 +445,7 @@ rodada ([Itaú](#itaú--api-pix-recebimentos), "Rodadas com 500 desde a v29").
 |---|---|---|
 | Plataforma (automáticos) | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `SUPABASE_JWKS`, `SUPABASE_PUBLISHABLE_KEYS`, `SUPABASE_SECRET_KEYS` | Supabase |
 | Portal | `PORTAL_URL` (valor esperado em produção: `https://portalfwlog.com.br`; como os e-mails montam os links a partir dele: [Portal do Cliente](../modules/portal-cliente.md#email-transacional)), `PORTAL_TECH_EMAIL_DOMAIN`, `PORTAL_LOGIN_DUMMY_AUTH_USER_ID`, `PORTAL_PASSWORD_PEPPER` | — |
-| E-mail | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_BASE_URL` (obrigatório com a MillionSend), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `PORTAL_SUPPORT_EMAIL`, `COMMUNICATIONS_REPLY_TO`, `DEMURRAGE_REPLY_TO` | MillionSend (API compatível com a Resend) |
+| E-mail | `RESEND_API_KEY`, `RESEND_WEBHOOK_SECRET`, `RESEND_BASE_URL` (obrigatório com a MillionSend), `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`, `PORTAL_SUPPORT_EMAIL`, `COMMUNICATIONS_REPLY_TO`, `DEMURRAGE_REPLY_TO`; opcional `EMAIL_BCC_ADDRESS` ([cópia oculta](#millionsend-envio)) | MillionSend (API compatível com a Resend) |
 | Anti-robô | `TURNSTILE_SECRET_KEY` e `TURNSTILE_ALLOWED_HOSTNAMES` (obrigatório fora do stack local desde a auditoria run-3: sem ele, o desafio do Portal é recusado) | Cloudflare Turnstile |
 | Trava de tentativas | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `PORTAL_RATE_LIMIT_HMAC_SECRET` (e opcionais `PORTAL_RATE_LIMIT_*`) | Upstash |
 | Jobs | `ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`, `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `IMPORT_EFFECTS_CRON_SECRET`, `RECALC_CRON_SECRET`, `CE_UNLOCK_CLEANUP_SECRET`, `CE_UNLOCK_NOTIFY_SECRET`, `ITAU_PIX_CRON_SECRET`, `ITAU_PIX_DIAGNOSTIC_SECRET` e, na transição, `ITAU_PIX_ADMIN_SECRET`; `CE_UNLOCK_NOTIFY_SHARED_RETIRED=true` (não é segredo) encerra a transição dos avisos de CE (par com o Vault quando o job está habilitado; lista do cofre e ordem da troca em [segredos-cron.md](segredos-cron.md#um-segredo-por-rotina-auditoria-run-3)) | — |
@@ -512,7 +512,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `demurrage-travado-alerts` | a cada 15 min, em :04/:19/:34/:49 (`4-59/15 * * * *`, migration `516`) | `reconcile_demurrage_travado_alerts()`: abre o Alerta `demurrage_travado` para o grupo de cobrança que entrou em Travado sem passar por um gatilho (Portal do Cliente fechado, virada do dia) e fecha o que saiu; setor pelo motivo (Documentação ou Administrativo, ADR 0112, D25); desde a migration `525`, põe na fila de emissão (`demurrage_billing`) o grupo de A emitir parado, menos o que espera Invoice cancelada à mão, com o iniciador do sistema e uma vez para as mesmas caixas (migration `526`); desde a `529`, refaz a reconciliação das Invoices que ficaram diferentes (datas, SOC, divisão da caixa) quando o gatilho falhou (`reconcile_demurrage_stale_invoices`); SQL puro, sem Vault nem Edge Function | — |
 | `demurrage-disputa-prazo` | a cada 15 min, em :07/:22/:37/:52 (`7-59/15 * * * *`, migration `520`) | `reconcile_demurrage_dispute_deadline_alerts()`: abre o Alerta `demurrage_disputa_prazo` para a Disputa de Demurrage que passou de 1 dia útil aguardando Equipamentos e fecha o que deixou de valer (ADR 0112, D18); SQL puro, sem Vault nem Edge Function | — |
 | `http-job-failures` | a cada 15 min, em :09/:24/:39/:54 (`9-59/15 * * * *`, migration `310`) | `reconcile_http_job_failures_alert()`: abre o Alerta crítico `rotina_http_falhou` (Administrativo) quando `net._http_response` tem, na última hora, duas ou mais respostas fora de 2xx ou falhas sem resposta que não sejam tempo esgotado (uma isolada não abre desde a migration `533`), uma única resposta 401 ou 403 (segredo divergente, migration `534`), 10 ou mais tempos esgotados, ou quando há 30 ou mais chamadas paradas na fila do `pg_net` (migration `316`), e o fecha quando a hora fica limpa; SQL puro, sem Vault nem Edge Function | — |
-| `itau-pix-checkpoint-health` | a cada 5 min, em :01/:06/… (`1-59/5 * * * *`, migration `358`) | `reconcile_itau_pix_checkpoint_alert()`: com `pix_provider = 'itau'`, abre o Alerta crítico `itau_pix_consulta_parada` (Administrativo e Financeiro) quando o checkpoint da consulta Itaú está parado há mais de 15 minutos e o fecha quando anda; SQL puro, não depende da Edge | — |
+| `itau-pix-checkpoint-health` | a cada 5 min, em :01/:06/… (`1-59/5 * * * *`, migration `358`) | `reconcile_itau_pix_checkpoint_alert()`: com qualquer `pix_provider` (`itau` ou `static`, cujo Pix do QR estático dá baixa pela mesma consulta; migration `574`), abre o Alerta crítico `itau_pix_consulta_parada` (Administrativo e Financeiro) quando o checkpoint da consulta Itaú está parado há mais de 15 minutos ou nunca andou e o fecha quando anda; SQL puro, não depende da Edge | — |
 | `import-effects-queue-health` | de hora em hora, em :07 (`7 * * * *`, migration `178`) | `reconcile_import_effects_queue_alert()` (migration `190`): abre o Alerta `import_effects_queue_stalled` quando um efeito pendente ou em nova tentativa está vencido (`next_attempt_at`) há mais de 60 minutos e o fecha quando a fila anda; não processa efeitos | — |
 | `portal-daily-digest` | 11:00 (08:00 de Brasília) | resumo interno a Administrativo e Documentação, sem a conta de integração (migration `440`; inclui a exceção crítica de fatura) | `portal-daily-digest` |
 | `recalc-demurrage-ptax` | 17:00 de segunda a sexta (`0 17 * * 1-5`, 14:00 de Brasília; criado à mão em 07/10, jobid 26; recriado pela migration `358`) | PTAX do BCB, referência cambial e recálculo em BRL das Invoices de Demurrage emitidas ou vencidas e não pagas, salvo as de ROE manual (migrations `382` e `402`) | — |
@@ -705,6 +705,12 @@ mesmos.
      (migration `353`).
 - **Recebimento** e **Caixas de entrada** da MillionSend não são usados: o
   recebimento é do ImprovMX.
+- **Cópia oculta (desde 2026-11-03, [ADR 0117](../adr/0117-copia-oculta-de-todo-email-do-sistema.md)):**
+  todo e-mail do sistema, inclusive o redirecionado ao suporte, sai com
+  `lucca.juliatti@fwlog.com.br` em `bcc`. O secret `EMAIL_BCC_ADDRESS` troca o
+  endereço e `off` desliga, sem publicar as funções; sem o secret vale esse
+  endereço. A caixa recebe os links de uso único do Portal (risco aceito pelo
+  dono). Cada envio conta dois destinatários na MillionSend.
 - **Virada conferida em 2026-10-14:** "Esqueci minha senha" no Portal chegou,
   apareceu como entregue na MillionSend e o webhook marcou 100% de sucesso.
 - **Volta para a Resend (enquanto a conta existir), nesta ordem:**
@@ -980,7 +986,13 @@ para eles vale o backup do próprio Supabase.
 
 - **Workflows:** `ci.yml` (testes, build, migrations; só em PR),
   `local-pg-order.yml` (agendado: segunda, 09:17 UTC; suítes SQL nas duas
-  ordens), `cloudflare-pages-*.yml` (Pages; produção no push em `main`,
+  ordens), `manual-capturas.yml` (agendado: quarta, 10:23 UTC, e disparo
+  manual; refaz as telas do Manual do Operador contra a `staging` com o
+  Postgres local, o cenário, o `sb-shim` e o Vite, e abre ou comenta a issue
+  "Manual do Operador: capturas que falharam na staging" com os nomes das
+  capturas; os `<id>.erro.png` e os logs ficam no artefato da execução por 30
+  dias; usa só o `GITHUB_TOKEN` com `issues: write`, sem segredo; não é check de
+  PR), `cloudflare-pages-*.yml` (Pages; produção no push em `main`,
   esperando o check do Supabase; previews pela etiqueta `preview`),
   `provision-preview-admin.yml` (usuário admin na branch de preview, pela mesma
   etiqueta), `main-only-from-staging.yml` (check da PR contra a `main`) e

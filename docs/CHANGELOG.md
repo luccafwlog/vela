@@ -6,6 +6,82 @@
 
 ## 2026-11
 
+- **Recusas com acento, situação financeira em português e dispensa no assunto Container (2026-11-03, migration
+  `571`; pendências da revisão do Manual do Operador):** "B/L … não encontrado", "Linha de cálculo … não
+  encontrada", "Item manual … não elegível…", "B/L … cancelado e somente leitura; não é permitido lançar taxa
+  manual." e "Payload de carga solta inválido." ganham acento em todas as funções que os levam. As recusas "B/L …
+  já foi faturado …" dizem "(situação financeira: Faturado)" no lugar do código "(status financeiro=invoiced)",
+  também no recálculo pela tela. No Histórico do B/L, a dispensa da Demurrage passa ao assunto **Container**. Em
+  `demurrage.md` e `clientes.md`, os títulos "cobrança por caixa" passam a "por container".
+- **Recusas do banco com acento e "B/Ls e CEs" (2026-11-02, migration `567`; achado da sincronização do Manual
+  do Operador):** as recusas "B/L … já foi faturado …" (taxa manual, recálculo, troca de carga e reimportação do
+  Manifesto BB) ganham acento, e as da escala passam a "Informe a justificativa para alterar B/Ls e CEs." e
+  "Status de B/Ls e CEs inválido.", o mesmo nome da tela. Só os textos mudam; a matriz de cobertura cita os novos.
+- **Planilha de programação corrige o IMO fora do formato (2026-11-02, migration `568`; achado da sincronização
+  do Manual do Operador):** a #1135 deixou corrigir pela Viagem o IMO gravado errado (o nome do navio no campo
+  IMO), mas a planilha de Chegadas e Saídas ainda recusava a linha como "IMO conflitante", na prévia e na
+  gravação. Agora só um IMO gravado de 7 dígitos conflita; o fora do formato é trocado pelo do arquivo, também no
+  navio da Viagem já cadastrada, que a prévia passa a achar ("Atualiza", não "Cria"), salvo se o IMO já for de
+  outro navio.
+- **Demurrage: "correndo" e "a emitir" em todas as telas (2026-11-03, migration `569`; decisão do dono):** o
+  container ainda sem Invoice se diz "correndo" (fora, passado do free time) ou "a emitir" (devolvido), como as
+  divisões da página Demurrage e o glossário. Mudam a linha de cada container na ficha do B/L, a aba **Containers**
+  da ficha do Cliente (filtros **Demurrage correndo** e **Demurrage a emitir**, coluna, total e a planilha
+  exportada) e a recusa ao cancelar o B/L, que passa a "Demurrage correndo ou a emitir: …". "a faturar" e "em curso" saem dessas telas.
+- **Dispensa da Demurrage legível nos históricos, Terminal no Embarque de vazios vazio e glossário com
+  "container" (2026-11-02; achados da revisão do Manual do Operador):** o Histórico do B/L e o Histórico de ações
+  mostram "Container … · cobrança de Demurrage dispensada", "… · dispensa da Demurrage desfeita" e, quando a dispensa
+  acompanha a troca de Cliente do B/L, "Dispensa da Demurrage acompanhou a troca de Cliente do B/L", sem o número
+  interno do Cliente (antes, "Dado do B/L: vazio → …" e "B/L alterado"). A lista vazia do Embarque de vazios cita o
+  Terminal, que o **Novo embarque** exige. O glossário troca "caixa" por "container" nos verbetes da Demurrage; o
+  rateio entre Clientes passa a **Rateio da Demurrage entre Clientes**, para não se confundir com o rateio do
+  container das Taxas Locais.
+- **Tela TV com um nome só e "Line-Up" com hífen (2026-11-03; decisão do dono):** o item do menu **Viagens** que
+  abre o quadro para o monitor passa de **Line Up TV** a **Tela TV**, o nome do botão do Painel; a aba do navegador
+  diz "Tela TV". O quadro do Painel, as mensagens ("Erro ao carregar o Line-Up.", "Falha ao exportar o Line-Up.") e
+  a aba da planilha exportada escrevem **Line-Up**, como o glossário. O botão do Painel diz "abre em outra aba" (antes,
+  "abre em outra janela"), e a Tela TV sem escala, "Nenhuma escala disponível.".
+- **Impressão, modais e ajustes do Portal (2026-11-02; pedido do dono):** fatura, recibo e Invoice impressos (Vela e
+  Portal) ganham margem de cima maior: 20 mm na página (antes 10 mm) mais 8 mm no começo do documento, que valem
+  também quando o navegador imprime com "Margens: nenhuma". Os modais deixam de mostrar uma faixa sem desfoque no
+  alto da tela (o fundo herdava a margem das peças da página nas telas do Portal) e a página não rola mais por trás
+  deles (a trava passa ao `<html>`, também no menu do celular). No Portal, "Em aberto" do Desbloqueio de CE fica
+  como texto clicável, sem borda, e **Meu perfil** mostra a razão social ao lado do CNPJ.
+- **Portal: filtros recolhidos, topo de Faturas e atalhos (2026-11-02; pedido do dono):** os filtros de Faturas e
+  de B/Ls e containers começam recolhidos; com filtro aplicado, a barra fechada mostra o contador e **Limpar**. Em
+  **Faturas**, **Exportar Excel** vai para a faixa do bloco (como em B/Ls), **Consultar Taxas Locais**/**Consultar
+  Demurrage** e **Contato** sobem para o topo à direita, e **Gerar fatura consolidada** volta a ser o botão
+  preenchido. Em **B/Ls**, o valor de **Taxas locais** abre Faturas filtrada pelo B/L. **Meu perfil** mostra o CNPJ
+  do Cliente no topo, com o ícone de copiar.
+- **Portal › Desbloqueio de CE (2026-11-02; pedido do dono):** o prazo sai de "O que o desbloqueio pede" para um
+  bloco próprio, **Prazo para desbloqueio**, logo abaixo. Na coluna **Taxas locais**, "Em aberto" passa a ser o
+  próprio botão que abre as faturas em aberto do B/L, sem o ícone ao lado. A lista ganha os filtros **Navio** e
+  **Viagem**, na barra recolhida.
+- **Menu do Financeiro sem Tabelas e Tarifas (2026-11-02; decisão do dono):** **Tabelas de Taxas Locais** e
+  **Tarifas de Demurrage** saem do menu Financeiro, onde entraram em 2026-11-01, e voltam a abrir só pelos botões
+  **Tabelas e condições** (Taxas Locais) e **Tarifas e acordos** (Demurrage). Nessas páginas o menu marca Taxas
+  Locais ou Demurrage.
+- **Tracking em cada B/L do Portal (2026-11-01, migration `566`; pedido do dono):** B/Ls e containers ganha a
+  coluna **Tracking**, que abre o site do armador já na busca daquele B/L, quando o link do armador cadastrado em
+  Informações do Portal → Tracking tem a marca `{BL}`. O link da Cosco passa a `…?label=T&value={BL}`. Saem do
+  cadastro os armadores de teste "QA SHIPPING LINE", "QA-DISPLAY-2026 Carrier" e "QA Carrier - Plano 654-660",
+  que apareciam na aba Tracking do Vela.
+- **Demurrage fica na Demurrage (observações do dono de 2026-11-01):**
+  - **Vela, todas as telas:** saiu a faixa do alto com "N containers em atraso" e o câmbio PTAX/ROE, que os outros
+    setores não precisam ver. O câmbio (PTAX venda, ROE, data da cotação e atualizar) fica sob o título da
+    **Demurrage**; a contagem é o cartão **Correndo (US$)** da mesma tela.
+  - **Vela › Demurrage › Containers:** o **Próximo passo / motivo** em Correndo diz "N container(s) pendente(s) de
+    devolução" no lugar de "N caixas correndo; a Invoice sai quando todas voltarem".
+  - **"Container", nunca "caixa":** os textos das telas da Demurrage, da ficha do B/L, do detalhe da Invoice no
+    Portal, da Matriz de permissões e das planilhas trocam "caixa" por "container" ("Destino dos containers",
+    "1/2 do container", "Cobrança do container dispensada", "divisão do container alterada"…). Os textos que o
+    banco grava também trocam (migration `565`): "Divisão do container entre Clientes alterada" no motivo de
+    cancelamento e de pausa da Régua, "A divisão dos containers…" e "o container passou a ser cobrado…" nos
+    alertas, "cobra cada container uma vez" na recusa da emissão e "dispensa da cobrança do container" na troca
+    de Cliente. O motivo antigo "Divisão da caixa…" já gravado continua reconhecido como reemissão automática.
+  - **Portal › B/Ls e containers:** a coluna **Demurrage** separa "N em demurrage" (sem devolução, em vermelho) de
+    "N devolvido(s) com demurrage", e diz "Sem demurrage" quando não há nenhum; antes dizia "Nenhum" com o B/L todo
+    devolvido depois do free time. A planilha ganha **Devolvidos com demurrage**.
 - **Lacunas baixas da revisão da release (2026-11-01, migration `564`; decisões do dono):** o registro de "B/L
   criado" no Histórico passa a um gatilho por comando (2.000 B/Ls num INSERT: 1,89 s → 1,45 s no Postgres local); a
   reabertura do ADR sem terminal grava na chave do próprio ADR, e fechar e reabrir ficam no mesmo registro do Histórico

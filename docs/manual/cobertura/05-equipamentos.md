@@ -1,6 +1,6 @@
 # Cobertura — Containers, datas de container, veículos, Vazios de importação, Embarque de Vazios, Locais (depots) e Granito
 
-Mapeamento da Etapa 1 do [plano do Manual do Operador](../../plans/2026-10-26-manual-do-operador.md),
+Mapeamento da Etapa 1 do [plano do Manual do Operador](../../archive/plans/2026-10-26-manual-do-operador.md),
 lido no código da `staging` em `9839364` e no banco local com as 461
 migrations, em 2026-10-26. Cada linha é uma regra como o operador a vê; a
 coluna "Itens do código" liga a regra ao que a implementa. Mantido em dia
@@ -34,13 +34,13 @@ telas desta área que o inventário não lista.
 | EQU-010 | SOC/COC só aceita **SOC** (do Cliente) ou **COC** (do armador); sem valor, o container é tratado como COC. Container SOC não volta ao estoque: não espera devolução, nunca fica **Em atraso** na Demurrage (o sistema volta o status para No free time se algo o marcar como em atraso) e não paga as taxas marcadas como "não cobra de SOC". | Op 8; Op 15; Op 17 | Sistema | `restricao:bl_containers.bl_containers_ownership_check`, `gatilho:soc_container_never_overdue`, `src/lib/containerOwnership.ts` |
 | EQU-011 | Peso bruto do container não pode ser negativo; vazio é aceito. | Op 6; Op 8 | Todos | `restricao:bl_containers.bl_containers_gross_weight_nonneg` |
 | EQU-012 | Todo B/L tem uma modalidade: **Container**, **Carga Solta** ou **Misto** (os dois); o B/L de container pode ser **FCL** ou **LCL** (lido do Movement do arquivo: LCL ou destino CFS vira LCL) ou ficar sem essa marca. Cada lote de importação de B/L é de container ou de carga solta. | Op 5; Op 6 | Sistema | `restricao:bls.bls_cargo_mode_check`, `restricao:bls.bls_container_load_type_check`, `restricao:import_batches.import_batches_cargo_mode_check`, `src/lib/cargoMode.ts` |
-| EQU-013 | B/L de modalidade Container que chega a ter Taxas Locais calculadas sem nenhum container é parado pelo sistema: o cálculo volta a pedir revisão (Taxas locais **Pendente**) com o motivo "B/L container sem container vinculado para calculo de taxas locais", e o B/L fica retido no faturamento até ganhar container. | Op 15; Op 7; Op 17 | Sistema | `gatilho:guard_container_bl_without_containers` |
+| EQU-013 | B/L de modalidade Container que chega a ter Taxas Locais calculadas sem nenhum container é parado pelo sistema: o cálculo volta a pedir revisão (Taxas locais **Pendente**) com o motivo "B/L container sem container vinculado para cálculo de taxas locais", e o B/L fica retido no faturamento até ganhar container. | Op 15; Op 7; Op 17 | Sistema | `gatilho:guard_container_bl_without_containers` |
 | EQU-014 | Container e veículo de B/L cancelado são somente leitura: nenhuma correção, data, local de desova, inclusão ou exclusão passa ("B/L … cancelado é somente leitura: reative o B/L pela ficha para alterar containers ou veículos."). A exclusão do B/L inteiro pelo Administrativo é a única exceção. As correções da janela Corrigir recusam com "B/L … cancelado: somente leitura. Reative para corrigir.". | Op 6; Op 8; Ap. B | Sistema | `gatilho:guard_cancelled_bl_cargo`, `funcao:correct_bl_container_data`, `funcao:set_bl_container_profile`, `funcao:set_bl_container_ownership` |
 | EQU-015 | Pela tela, o único dado de container que se grava diretamente é o **Local de desova** (página Veículos), por qualquer usuário ativo. Todo o resto do container (número, tipo, perfil, SOC/COC, lacre, peso, CBM, datas) muda só pela importação ou pelas correções com justificativa. | Op 8; Op 2 | Todos | `politica:bl_containers.bl_containers_update_active_global` |
 | EQU-016 | Toda mudança em container ou veículo (e em Viagem, POD, modalidade, Cliente, peso, Movement ou cancelamento do B/L) recalcula sozinha, ao gravar, as Taxas Locais do B/L ainda não faturado e dos outros B/Ls da mesma Viagem que dividem o container, quando o cálculo gravado ficou desatualizado. Se esse recálculo falhar, a mudança inteira é recusada: "Taxas Locais do B/L … não calculadas: <motivo>. Nada foi gravado: corrija e grave de novo.". B/L com fatura viva não é recalculado: a fatura segue a correção após emissão. | Op 15; Op 17 | Sistema | `gatilho:refresh_unbilled_calculations_at_commit` |
 | EQU-017 | No ADR de Saída, as seções **Carga descarregada** e **Vazios descarregados** mostram o TEU pelo tipo do container: 20 e 22 valem 1 TEU, 40 e 42 valem 2, 45 vale 2,25; tipo fora disso não vira zero, aparece em **Tipos não reconhecidos**. | Op 9 | Sistema | `src/services/containerTeu.ts`, `src/services/agencyDepartureReport.ts` |
-| EQU-018 | A tela **Containers** abre **Importar datas** (EQU-028) para todos. O filtro **Veículos** (também aberto pelo link da Line-Up) separa os containers com ou sem veículo da Viagem. | Op 8 | Todos | `src/pages/Containers.tsx`, `src/pages/containersListState.ts` |
-| EQU-019 | Na ficha do B/L, aba **Carga**, bloco **Contêineres**, cada linha tem o ícone **Corrigir container …** enquanto o B/L não está cancelado. A janela **Corrigir container …** reúne **Perfil** (Standard, OOG, IMO, IMO + OOG), **COC/SOC**, **Lacre**, **Peso bruto (kg)**, **CBM (m³)**, **Descarga**, **Devolução** e **Justificativa** (obrigatória, vai ao Histórico). Com o B/L faturado (Faturado, Parcialmente pago ou Pago), Perfil e COC/SOC ficam travados com a dica "B/L faturado: reimporte o B/L ou aplique o Baplie; a fatura é tratada sozinha.". A confirmação mostra o antes e depois de cada campo e diz o que muda: Part Lot, Taxas Locais (perfil e SOC/COC) e Demurrage (datas). | Op 6; Op 8 | Todos | `src/components/bl/BlCargaTab.tsx`, `src/components/bl/BlContainerCorrectModal.tsx`, `src/services/containerCorrection.ts` |
+| EQU-018 | A tela **Containers** abre **Importar datas** (EQU-028) para todos. O filtro **Veículos** (também aberto pelo link do Line-Up) separa os containers com ou sem veículo da Viagem. | Op 8 | Todos | `src/pages/Containers.tsx`, `src/pages/containersListState.ts` |
+| EQU-019 | Na ficha do B/L, aba **Carga**, bloco **Containers**, cada linha tem o ícone **Corrigir container …** enquanto o B/L não está cancelado. A janela **Corrigir container …** reúne **Perfil** (Standard, OOG, IMO, IMO + OOG), **COC/SOC**, **Lacre**, **Peso bruto (kg)**, **CBM (m³)**, **Descarga**, **Devolução** e **Justificativa** (obrigatória, vai ao Histórico). Com o B/L faturado (Faturado, Parcialmente pago ou Pago), Perfil e COC/SOC ficam travados com a dica "B/L faturado: reimporte o B/L ou aplique o Baplie; a fatura é tratada sozinha.". A confirmação mostra o antes e depois de cada campo e diz o que muda: Part Lot, Taxas Locais (perfil e SOC/COC) e Demurrage (datas). | Op 6; Op 8 | Todos | `src/components/bl/BlCargaTab.tsx`, `src/components/bl/BlContainerCorrectModal.tsx`, `src/services/containerCorrection.ts` |
 | EQU-020 | A janela Corrigir confere antes de gravar: nada mudou ("Nenhum dado do container mudou."), sem justificativa ("Informe a justificativa da correção."), peso ou CBM ilegível ou negativo ("Peso bruto e CBM aceitam só números positivos."), datas mudadas sem descarga ("Informe a data de descarga para corrigir as datas.") e devolução antes da descarga ("A devolução não pode ser anterior à descarga."). Cada parte (perfil, COC/SOC, lacre/peso/CBM, datas) grava separada; se uma falha no meio, o aviso diz o que já ficou gravado e **Salvar correção** de novo envia só o que faltou. | Op 6; Ap. B | Todos | `src/components/bl/BlContainerCorrectModal.tsx`, `src/services/containerCorrection.ts` |
 | EQU-021 | Corrigir o **Perfil** exige justificativa, recusa B/L cancelado e B/L faturado (sugerindo o B/L irmão sem fatura, se houver) e recusa quando nada muda. Vale para todos os B/Ls ativos da Viagem com o mesmo container; B/L irmão já faturado não é recalculado e o aviso de sucesso diz que a fatura dele segue a correção após emissão. Sair de IMO apaga classe e número ONU. A correção fica marcada como manual: o Baplie não a desfaz (diferença vira divergência em Baplie EDI). Recalcula as Taxas Locais dos B/Ls sem fatura e grava no Histórico de cada B/L, com "(mesmo container do B/L …, Part Lot)" nos irmãos. | Op 6; Op 15; Op 17 | Todos | `funcao:set_bl_container_profile`, `src/services/vaziosNatureza.ts` |
 | EQU-022 | Corrigir **COC/SOC** segue as mesmas regras do perfil: justificativa, Part Lot, B/L cancelado e faturado recusados, recálculo das Taxas Locais (Drop Off e Damage Protection não cobram de SOC), Histórico. A origem passa a **Correção manual**, que nem o Baplie nem a reimportação do B/L sobrescrevem (a diferença para o Baplie aparece como SOC/COC divergente em Baplie EDI); só um container que entra novo no B/L recebe o SOC/COC do arquivo. | Op 6; Op 15; Op 17 | Todos | `funcao:set_bl_container_ownership`, `src/services/vaziosNatureza.ts`, `funcao:import_bl_freight_transactional` |
@@ -136,7 +136,7 @@ telas desta área que o inventário não lista.
 | EQU-112 | Erros de linha do Granito: B/L ausente, B/L repetido na planilha, Real Weight ausente ou zero, número ilegível, data de prontidão impossível ("Use DD/MM/AAAA") e L/PORT ou D/PORT não reconhecido como porto. Qualquer erro recusa o arquivo inteiro ("Nada foi gravado: … linhas têm erro."). O shipper e o CNPJ ficam como vieram, sem procurar Cliente. | Op 5; Ap. B | Todos | `src/services/graniteImport.ts`, `funcao:import_granite_manifest_transactional` |
 | EQU-113 | Planilha sem nenhum B/L em comum com os já gravados na Viagem vira outro manifesto. Com B/L em comum, ela reimporta só os manifestos que toca: atualiza os B/Ls pelo número, inclui os novos no manifesto mais recente e pergunta sobre os ausentes (**B/Ls fora do arquivo novo**: **Tirar da Viagem** ou **Manter gravados**; avisa se há linhas ou abas ocultas). B/L com Invoice antiga de Granito nunca sai. Os totais de todos os manifestos da Viagem são refeitos; a saída vai ao Histórico. O Resultado resume manifesto novo, novos, atualizados, retirados e mantidos até **Concluir**. | Op 5; Op 8 | Todos | `funcao:import_granite_manifest_transactional`, `unico:granite_bls.granite_bls_manifest_id_bl_number_key` |
 | EQU-114 | A importação do Granito trava a Viagem durante a gravação, fica no Histórico com o contexto "Importação de Granito", descarta qualquer Cliente ou sugestão que viesse no arquivo e não gera cálculo nem cobrança. | Op 5; Op 15 | Sistema | `funcao:import_granite_manifest_transactional` |
-| EQU-115 | O Granito importado aparece no ADR de Saída (seção **Carga carregada**, de Equipamentos) e no painel de Granito da aba Exportação da Viagem (manifestos, B/Ls e peso). A Line-Up marca a exportação com Granito pela declaração da escala, não pela importação. | Op 9; Op 4 | Equ | `funcao:import_granite_manifest_transactional`, `src/services/agencyDepartureReport.ts` |
+| EQU-115 | O Granito importado aparece no ADR de Saída (seção **Carga carregada**, de Equipamentos) e no painel de Granito da aba Exportação da Viagem (manifestos, B/Ls e peso). O Line-Up marca a exportação com Granito pela declaração da escala, não pela importação. | Op 9; Op 4 | Equ | `funcao:import_granite_manifest_transactional`, `src/services/agencyDepartureReport.ts` |
 | EQU-116 | Faturas antigas de Granito (de antes de 2026-10-19) continuam consultáveis em Taxas Locais → Faturas; não há como gerar fatura nova de Granito. | Op 17; Fin | Fin | `src/pages/Granite.tsx`, `src/services/billing.ts` |
 | EQU-117 | Nenhuma tela grava B/L ou manifesto de Granito diretamente: tudo entra e sai pela importação (ou pela exclusão da Viagem). | Op 8 | Sistema | `funcao:import_granite_manifest_transactional` |
 | EQU-118 | Cada terminal de uma Escala tem frentes de operação: na **Importação**, Carga cheia, Carga solta, **Vazios IMP** e **Veículos**; na **Exportação**, **Granito** e **Vazios EXP** (na janela da Escala, as frentes de vazios aparecem como **Vazios** sob Importação e sob Exportação). Cada frente leva à seção do ADR daquele terminal: Carga cheia e Carga solta a Carga descarregada, Vazios IMP a Vazios descarregados, Veículos a Veículos, Granito a Carga carregada e Vazios EXP a Embarque de vazios. | Op 4; Op 9 | Ope | `restricao:voyage_escala_operation_fronts.voyage_escala_operation_fronts_check`, `src/services/escalaTerminalAllocation.ts`, `src/components/shared/VoyageScheduleModals.tsx` |
@@ -184,49 +184,49 @@ telas desta área que o inventário não lista.
 | `B/L % nao encontrado para efeito de veículos.` | Nunca chega a uma pessoa: excluir o B/L ou a Viagem descarta o acompanhamento pendente dos veículos ("descartado: registro excluído", sem Alerta), e não há outro caminho que apague B/L. Se ocorresse, iria ao texto do Alerta "Efeito de importação bloqueado". | Fora |
 | `B/L Granite % nao encontrado` | Nunca chega a uma pessoa: a revisão de Cliente do Granito saiu do sistema e nenhuma tela a chama. | Fora |
 | `B/L inválido no efeito de veículos.` | Nunca chega a uma pessoa: a importação de veículos sempre registra o acompanhamento com o B/L de cada linha (rotina interna). | Fora |
-| `B/L obrigatorio.` | Nunca chega a uma pessoa: a tela sempre manda o B/L de cada grupo da planilha de datas. | Fora |
-| `BL nao encontrado` | Gravar veículo de B/L inexistente (a importação e o Mover conferem antes; só aparece com dado incoerente). | Ap. B |
-| `BL nao pertence a viagem informada` | Gravar veículo com Viagem diferente da do B/L (idem). | Ap. B |
-| `BL nao pertence ao container informado` | Gravar veículo num container de outro B/L (idem). | Ap. B |
+| `B/L obrigatório.` | Nunca chega a uma pessoa: a tela sempre manda o B/L de cada grupo da planilha de datas. | Fora |
+| `BL não encontrado` | Gravar veículo de B/L inexistente (a importação e o Mover conferem antes; só aparece com dado incoerente). | Ap. B |
+| `BL não pertence à viagem informada` | Gravar veículo com Viagem diferente da do B/L (idem). | Ap. B |
+| `BL não pertence ao container informado` | Gravar veículo num container de outro B/L (idem). | Ap. B |
 | `CBM não pode ser negativo.` | Corrigir CBM negativo (a janela já recusa com "Peso bruto e CBM aceitam só números positivos."). | Ap. B |
 | `Chassi % já está na Viagem do B/L %.` | Mover veículo para um B/L de outra Viagem que já tem o mesmo chassi. | Ap. B |
-| `Chassi obrigatorio` | Gravar veículo sem chassi (a importação confere antes). | Ap. B |
+| `Chassi obrigatório` | Gravar veículo sem chassi (a importação confere antes). | Ap. B |
 | `Container % duplicado com datas conflitantes no B/L %.` | Planilha de datas com o mesmo container duas vezes no B/L com datas diferentes (a prévia já recusa); aparece no Resultado. | Ap. B |
-| `Container % nao encontrado.` | Gravar datas de um container que foi excluído depois de a tela abrir. | Ap. B |
+| `Container % nao encontrado.` | Nunca chega a uma pessoa: o texto sem acento ficou só em função antiga que nada chama (update_container_demurrage_dates); a forma vigente, com acento, está na linha seguinte (migration `573`). | Fora |
 | `Container % não encontrado.` | Corrigir perfil, SOC/COC, lacre, peso ou CBM (ou resolver divergência do Baplie) de um container que já não existe. | Ap. B |
-| `Container % nao pertence ao B/L %.` | Planilha de datas com container que saiu do B/L depois da prévia; aparece no Resultado. | Ap. B |
+| `Container % não pertence ao B/L %.` | Planilha de datas com container que saiu do B/L depois da prévia; aparece no Resultado. | Ap. B |
 | `Container inválido.` | Adicionar ou editar unidade embarcada com número fora do formato de quatro letras e sete algarismos. | Ap. B |
-| `Container nao encontrado` | Gravar veículo sem container ou com container inexistente (a importação confere antes). | Ap. B |
-| `Container obrigatorio no B/L %.` | Planilha de datas com linha sem container (a prévia já recusa); aparece no Resultado. | Ap. B |
+| `Container não encontrado` | Gravar veículo sem container ou com container inexistente (a importação confere antes). | Ap. B |
+| `Container obrigatório no B/L %.` | Planilha de datas com linha sem container (a prévia já recusa); aparece no Resultado. | Ap. B |
 | `Usuário sem permissão para importar veículos.` | Nunca chega a uma pessoa: a mesma conferência de usuário ativo é feita antes, com outra mensagem. | Fora |
 | `Credenciais invalidas para importar manifesto Granito.` | Nunca chega a uma pessoa: o sistema confere antes e mostra "Sem permissão para importar o Granito: entre de novo com um usuário ativo.". | Fora |
-| `Data de descarga invalida para % no B/L %.` | Planilha de datas com descarga ilegível (a prévia já recusa); aparece no Resultado. | Ap. B |
-| `Data de devolucao invalida para % no B/L %.` | Planilha de datas com devolução ilegível (idem). | Ap. B |
-| `Depot comum nao pode ter porto brasileiro.` | Gravar Local do tipo Depot com porto (a janela limpa o porto ao escolher Depot). | Ap. B |
+| `Data de descarga inválida para % no B/L %.` | Planilha de datas com descarga ilegível (a prévia já recusa); aparece no Resultado. | Ap. B |
+| `Data de devolução inválida para % no B/L %.` | Planilha de datas com devolução ilegível (idem). | Ap. B |
+| `Depot comum não pode ter porto brasileiro.` | Gravar Local do tipo Depot com porto (a janela limpa o porto ao escolher Depot). | Ap. B |
 | `Depot exige entrada e saída válidas.` | Adicionar, editar ou importar unidade de Depot sem Entrada ou Saída, ou com Saída antes da Entrada. | Ap. B |
 | `Descarga e devolução do container são gravadas pela ficha do B/L ou pela planilha de datas.` | Nunca chega pela tela: nenhuma tela grava as datas diretamente; a recusa só protege contra gravação fora dos caminhos de EQU-025. | Fora |
 | `Destino inativo: escolha um transporte para local ativo ou reative o destino no cadastro.` | Lançar linha de transporte cujo destino foi desativado. | Ap. B |
-| `Devolucao anterior a descarga para % no B/L %.` | Planilha de datas com devolução antes da descarga (a prévia já recusa); aparece no Resultado. | Ap. B |
+| `Devolução anterior à descarga para % no B/L %.` | Planilha de datas com devolução antes da descarga (a prévia já recusa); aparece no Resultado. | Ap. B |
 | `Devolução anterior à descarga.` | Gravar devolução anterior à descarga pela ficha do B/L ou por Demurrage. | Ap. B |
 | `Escolha o container do B/L % que recebe os veículos.` | Mover veículos para B/L com mais de um container sem escolher o container, ou para B/L sem container (a janela já não libera **Mover** nesses casos). | Ap. B |
 | `Há Nº de manifesto Mercante para uma rota que não está na planilha.` | Importar Vazios de importação com número para rota que, depois de reconhecer os portos, não está no arquivo. | Ap. B |
 | `Informe a descarga antes da devolução.` | Gravar devolução em container sem descarga. | Ap. B |
-| `Informe o motivo da exclusao.` | Excluir unidade embarcada sem motivo. | Ap. B |
+| `Informe o motivo da exclusão.` | Excluir unidade embarcada sem motivo. | Ap. B |
 | `Informe o motivo para remover a data.` | Apagar descarga ou devolução já gravada sem motivo. | Ap. B |
 | `Informe o motivo.` | Excluir ou mover veículos sem motivo. | Ap. B |
 | `Informe um Nº de manifesto Mercante para cada porto de origem: falta em %.` | Importar Vazios de importação sem o número de alguma rota (a janela já exige). | Ap. B |
-| `Linha de datas invalida.` | Nunca chega a uma pessoa: a tela sempre monta as linhas da planilha de datas no formato certo. | Fora |
+| `Linha de datas inválida.` | Nunca chega a uma pessoa: a tela sempre monta as linhas da planilha de datas no formato certo. | Fora |
 | `Local inativo: escolha um local ativo ou reative o local no cadastro.` | Incluir, importar ou trocar para local inativo uma unidade embarcada, ou lançar linha em local inativo. | Ap. B |
 | `Local inválido.` | Gravar unidade embarcada com local inexistente (a tela só oferece locais do cadastro). | Ap. B |
-| `Lote de datas invalido.` | Nunca chega a uma pessoa: a tela sempre manda a planilha de datas no formato certo. | Fora |
+| `Lote de datas inválido.` | Nunca chega a uma pessoa: a tela sempre manda a planilha de datas no formato certo. | Fora |
 | `Lote deve ter entre 1 e 500 linhas.` | Planilha de datas com mais de 500 containers de um mesmo B/L; aparece no Resultado. | Ap. B |
 | `Manifesto Granito invalido.` | Nunca chega a uma pessoa: o sistema troca por "A planilha não tem B/L de Granito válido para gravar.". | Fora |
-| `Marca obrigatoria` | Gravar veículo com marca em branco (a importação confere antes). | Ap. B |
-| `Modelo obrigatorio` | Gravar veículo com modelo em branco (idem). | Ap. B |
+| `Marca obrigatória` | Gravar veículo com marca em branco (a importação confere antes). | Ap. B |
+| `Modelo obrigatório` | Gravar veículo com modelo em branco (idem). | Ap. B |
 | `Natureza de serviço inválida.` | Nunca chega a uma pessoa: todo serviço do catálogo tem uma das três naturezas. | Fora |
 | `Nenhum container na planilha.` | Importar Vazios de importação com arquivo sem container (a janela diz o mesmo antes). | Ap. B |
 | `Nenhum dado do container mudou.` | Salvar a janela Corrigir sem mudar nada (a janela diz o mesmo antes). | Ap. B |
-| `Novo terminal portuario exige porto brasileiro.` | Cadastrar terminal portuário sem porto, ou tirar o porto de um terminal (a janela exige o porto). | Ap. B |
+| `Novo terminal portuário exige porto brasileiro.` | Cadastrar terminal portuário sem porto, ou tirar o porto de um terminal (a janela exige o porto). | Ap. B |
 | `Número do manifesto Mercante é obrigatório.` | Nunca chega a uma pessoa: a tela sempre manda a lista de números das rotas. | Fora |
 | `O ADR de Saída deste porto está fechado: reabra o ADR para mudar as unidades embarcadas.` | Importar planilha de unidades embarcadas com o ADR de Saída do porto fechado. | Ap. B |
 | `O autor da alteração deve ser o usuário autenticado.` | Nunca chega a uma pessoa: a tela não informa outro autor nas correções de perfil e SOC/COC. | Fora |
@@ -244,14 +244,14 @@ telas desta área que o inventário não lista.
 | `Planilha com mais de 300 B/Ls: divida o arquivo.` | Importar planilha de datas com mais de 300 B/Ls (a tela já recusa ao ler). | Ap. B |
 | `planilha de datas recusada` | Nunca chega a uma pessoa: é o sinal interno que desfaz a planilha recusada; a tela mostra o Resultado com cada B/L recusado. | Fora |
 | `Planilha de datas vazia.` | Nunca chega a uma pessoa: sem linha, a tela não envia a planilha. | Fora |
-| `Planilha invalida: Container duplicado na planilha.` | Importar unidades embarcadas com container repetido (a tela já aponta a linha). | Ap. B |
-| `Planilha invalida: corrija todas as linhas e importe novamente.` | Importar unidades embarcadas com linha que o sistema recusa (local inativo, datas incompatíveis…), por exemplo local desativado entre a leitura e a gravação. | Ap. B |
+| `Planilha inválida: Container duplicado na planilha.` | Importar unidades embarcadas com container repetido (a tela já aponta a linha). | Ap. B |
+| `Planilha inválida: corrija todas as linhas e importe novamente.` | Importar unidades embarcadas com linha que o sistema recusa (local inativo, datas incompatíveis…), por exemplo local desativado entre a leitura e a gravação. | Ap. B |
 | `POL e POD são obrigatórios em todas as linhas: o Nº de manifesto Mercante pertence ao porto de origem.` | Importar Vazios de importação com linha sem POL ou POD (a janela já recusa). | Ap. B |
-| `Porto de embarque obrigatorio.` | Importar unidades embarcadas num embarque sem porto (não deveria ocorrer). | Ap. B |
+| `Porto de embarque obrigatório.` | Importar unidades embarcadas num embarque sem porto (não deveria ocorrer). | Ap. B |
 | `Preview obsoleto para % no B/L %: recarregue e reconfira.` | Planilha de datas quando outra pessoa mudou as datas do container depois da prévia; aparece no Resultado. | Ap. B |
 | `Propriedade do container inválida: %.` | Nunca chega a uma pessoa: a janela só oferece COC e SOC. | Fora |
 | `Quantidade de B/Ls Granito inserida diverge do manifesto.` | Nunca chega a uma pessoa: o total é calculado da própria planilha; se ocorresse, a tela mostraria a mensagem genérica de importação concorrente. | Fora |
-| `request_id obrigatorio.` | Nunca chega a uma pessoa: a tela sempre identifica a planilha de datas. | Fora |
+| `request_id obrigatório.` | Nunca chega a uma pessoa: a tela sempre identifica a planilha de datas. | Fora |
 | `Selecione ao menos um veículo.` | Mover sem veículo marcado (o botão já fica desabilitado). | Ap. B |
 | `Sem permissão para excluir veículos.` | Excluir veículos com usuário desativado. | Ap. B |
 | `Sem permissão para importar o Granito: entre de novo com um usuário ativo.` | Importar Granito com usuário desativado ou sessão de outro usuário. | Ap. B |
@@ -260,7 +260,6 @@ telas desta área que o inventário não lista.
 | `Serviço inativo: escolha um serviço ativo ou reative o serviço no cadastro do local.` | Lançar linha com serviço desativado. | Ap. B |
 | `Terminal portuário não aceita entrada ou saída.` | Gravar unidade de terminal portuário com Entrada ou Saída (a janela esconde os campos; a planilha aponta a linha). | Ap. B |
 | `Transporte exige o destino vinculado ao serviço, sem condição ou percentual.` | Lançar linha de transporte sem o destino do serviço ou com condição ou percentual. | Ap. B |
-| `Unidade embarcada nao encontrada.` | Excluir unidade embarcada que outra pessoa já excluiu. | Ap. B |
 | `Unidade embarcada não encontrada.` | Editar unidade embarcada que outra pessoa já excluiu. | Ap. B |
 | `Usuário interno ativo é obrigatório.` | Corrigir container (perfil, SOC/COC, lacre, peso, CBM) com usuário desativado; também em outras telas que exigem usuário interno ativo. | Ap. B |
 | `Usuário sem permissão ativa para editar unidade.` | Editar unidade embarcada com usuário desativado. | Ap. B |
@@ -350,7 +349,7 @@ telas desta área que o inventário não lista.
 | `O número % foi informado para mais de uma rota.` | Janela Importar vazios de importação com o mesmo número em duas rotas. | Ap. B |
 | `POL e POD são obrigatórios em todas as linhas: o Nº de manifesto Mercante pertence à rota (POL → POD).` | Janela Importar vazios de importação com linha sem POL ou POD (aviso **Importação bloqueada**). | Ap. B |
 | `Container já está em outra rota desta Viagem` | Prévia de Vazios de importação com container que outra planilha gravou numa rota que este arquivo não traz (bloqueia **Importar**). | Ap. B |
-| `Viagem nao encontrada.` | Importar Vazios de importação ou unidades embarcadas para uma Viagem excluída depois de a janela abrir. | Ap. B |
+| `Viagem não encontrada.` | Importar Vazios de importação ou unidades embarcadas para uma Viagem excluída depois de a janela abrir. | Ap. B |
 | `Container %: condição deve ser Vazio ou Com material.` | Importar planilha de unidades embarcadas. | Ap. B |
 | `Container %: data de embarque anterior à saída do depot.` | Importar planilha de unidades embarcadas. | Ap. B |
 | `Container %: local "%" não encontrado em Locais (depots e terminais).` | Importar planilha de unidades embarcadas com código de local que não existe. | Ap. B |

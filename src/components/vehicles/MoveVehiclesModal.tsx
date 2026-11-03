@@ -41,7 +41,7 @@ export function MoveVehiclesModal({ open, vehicleIds, impactChanges, onClose, on
     const reason = await confirmWithReason({
       title: 'Mover para outro B/L',
       message: `${vehicleIds.length} veículo(s) irão para o B/L ${target}.`,
-      consequence: 'As Taxas Locais dos dois B/Ls são recalculadas; fatura emitida segue a correção automática (ADR 0077).',
+      consequence: 'As Taxas Locais dos dois B/Ls são recalculadas; fatura emitida segue a correção automática.',
       reversibility: 'Mover de novo, com motivo.',
       confirmLabel: 'Mover',
     })

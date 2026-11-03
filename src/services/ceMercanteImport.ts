@@ -225,7 +225,7 @@ export async function importCeMercanteRows(
       errors.push({
         row: row.rowNumber,
         bl_id: row.bl_id,
-        message: `BL ${row.bl_id} nao encontrado no sistema.`,
+        message: `BL ${row.bl_id} não encontrado no sistema.`,
       })
       return false
     }
@@ -324,8 +324,8 @@ function parseRows(rows: SheetRow[]): ParsedCeMercanteFile {
         // Célula numérica perde zeros à esquerda e casas além da precisão: a
         // causa vai na mensagem para o operador formatar a coluna como texto.
         message: typeof mapped.ce_mercante === 'number'
-          ? `CE Mercante invalido para o BL ${bl_id}: a célula é numérica e ficou com ${ce_mercante.length} digitos. Formate a coluna CE como texto e digite os ${CE_MERCANTE_LENGTH} digitos.`
-          : `CE Mercante invalido para o BL ${bl_id}: esperado ${CE_MERCANTE_LENGTH} digitos, recebido ${ce_mercante.length}.`,
+          ? `CE Mercante inválido para o BL ${bl_id}: a célula é numérica e ficou com ${ce_mercante.length} dígitos. Formate a coluna CE como texto e digite os ${CE_MERCANTE_LENGTH} dígitos.`
+          : `CE Mercante inválido para o BL ${bl_id}: esperado ${CE_MERCANTE_LENGTH} dígitos, recebido ${ce_mercante.length}.`,
         raw: row,
       })
       return
@@ -370,7 +370,7 @@ function validateRequiredHeaders(rawHeaders: string[]) {
   const missing = missingFields.map((field) => requiredHeaders[field])
 
   if (missing.length) {
-    throw new Error(`Planilha invalida. Colunas obrigatorias: ${missing.join(', ')}.`)
+    throw new Error(`Planilha inválida. Colunas obrigatórias: ${missing.join(', ')}.`)
   }
 }
 

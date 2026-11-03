@@ -1,6 +1,6 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { describeWithProbe, syntheticCnpj } from './localTestData'
+import { describeWithProbe, syntheticCeBeforeCancelSql, syntheticCnpj } from './localTestData'
 
 // Migration 350 (revisão dos alertas de 2026-10-21, docs/revisao-alertas-2026-10.md,
 // decisão P3 e "fechar junto com o fato"): processo ativo do Portal é B/L vivo
@@ -135,6 +135,7 @@ describeLocal('350 — alertas do Portal seguem o processo ativo e fecham na hor
     expect(openings(ALFA, 'portal_pendencia_geral')).toBe('2')
 
     // Cancelar o B/L fecha na hora.
+    psql(syntheticCeBeforeCancelSql('BL350ALFA2'))
     asAdmin(`SELECT public.cancel_bl('BL350ALFA2', 'Carga não embarcou (teste 350)', false);`)
     expect(status(ALFA, 'portal_pendencia_geral')).toBe('resolved')
   })

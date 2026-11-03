@@ -23,7 +23,6 @@ vi.mock('../../../hooks/useOperationalCounts', () => ({
   }),
 }))
 
-vi.mock('../HeaderInfoBar', () => ({ HeaderInfoBar: () => null }))
 vi.mock('../InternalNotificationBell', () => ({ InternalNotificationBell: () => null }))
 vi.mock('../../ErrorBoundary', () => ({
   ErrorBoundary: ({ children }: { children: ReactNode }) => children,
@@ -94,7 +93,7 @@ describe('AppLayout (navegação visível)', () => {
     expect(menu.closest('header')).toBeTruthy()
     fireEvent.click(menu)
     expect(menu.getAttribute('aria-expanded')).toBe('true')
-    expect(document.body.style.overflow).toBe('hidden')
+    expect(document.documentElement.style.overflow).toBe('hidden')
     // A lista vem antes do botão no documento: o foco entra nela ao abrir.
     expect(document.activeElement).toBe(screen.getByRole('link', { name: 'Painel' }))
 
@@ -107,7 +106,7 @@ describe('AppLayout (navegação visível)', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(menu.getAttribute('aria-expanded')).toBe('false')
     expect(document.activeElement).toBe(menu)
-    expect(document.body.style.overflow).toBe('')
+    expect(document.documentElement.style.overflow).toBe('')
   })
 
   it('reúne marca, navegação e conta numa barra só, com a versão no menu da conta', () => {
@@ -121,6 +120,15 @@ describe('AppLayout (navegação visível)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Operador de teste/ }))
     expect(screen.getByText('Administrativo')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Sair' })).toBeTruthy()
+  })
+
+  it('não tem faixa de avisos no alto: câmbio e containers em atraso ficam só na Demurrage (2026-11-01)', () => {
+    const { container } = renderLayout()
+    expect(screen.queryByText(/PTAX/)).toBeNull()
+    expect(screen.queryByText(/em atraso/)).toBeNull()
+    // Nada acima da barra além do atalho de teclado.
+    const shell = container.querySelector('.app-shell') as HTMLElement
+    expect([...shell.children].map((child) => child.tagName.toLowerCase())).toEqual(['a', 'header', 'main'])
   })
 
   it('troca a posição do menu só pelo menu da conta e guarda a escolha', () => {

@@ -40,7 +40,7 @@
 import { randomUUID } from 'node:crypto'
 import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { syntheticCnpj } from './localTestData'
+import { syntheticCeBeforeCancelSql, syntheticCnpj } from './localTestData'
 
 // Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
 // teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
@@ -581,6 +581,7 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
       .toMatchObject({ ok: true })
     expect(containerLinesOf('A203-K1')).toEqual([{ quantity: 0.5, total_brl: containerFee / 2 }])
 
+    localPsql(syntheticCeBeforeCancelSql('A203-K2'))
     expect(JSON.parse(asOperator(`SELECT public.cancel_bl('A203-K2', 'A203 B/L lançado em duplicidade');`))).toMatchObject({ cancelled: true })
     expect(containerLinesOf('A203-K1')).toEqual([{ quantity: 1, total_brl: containerFee }])
   })
@@ -604,7 +605,7 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
     // A emissão pelo CE devolve o motivo: o irmão nomeado e o container.
     const attempt = JSON.parse(localPsql(`SELECT public.auto_bill_bl_after_ce_mercante('A203-J2', '${actorId}'::uuid);`)) as { status: string; message?: string }
     expect(attempt.status).not.toBe('invoiced')
-    expect(attempt.message).toMatch(/O B\/L irmao A203-J1 .*ADCU2030071.*reemitida/)
+    expect(attempt.message).toMatch(/O B\/L irmão A203-J1 .*ADCU2030071.*reemitida/)
   })
 
   // --- Correção da migration 191 (C2): irmão com fatura paga ------------------

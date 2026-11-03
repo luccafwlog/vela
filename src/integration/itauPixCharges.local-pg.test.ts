@@ -280,7 +280,7 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
       SELECT public.register_verified_invoice_payment(${id}, 0.05, 'pix', now(), 'Plano B', gen_random_uuid(), 'E357AVULSA')`)
     expect(psql(`SELECT status FROM public.invoices WHERE id = ${id}`)).toBe('paid')
     expect(settle('E357AVULSA', charge.txid, '0.05')).toBe('review')
-    expect(psql(`SELECT reason FROM public.itau_pix_receipts WHERE end_to_end_id = 'E357AVULSA'`)).toContain('ja baixado')
+    expect(psql(`SELECT reason FROM public.itau_pix_receipts WHERE end_to_end_id = 'E357AVULSA'`)).toContain('já baixado')
     expect(psql(`SELECT count(*) FROM public.payments WHERE invoice_id = ${id}`)).toBe('1')
     expect(psql(`SELECT count(*) FROM public.invoice_refunds WHERE invoice_id = ${id}`)).toBe('0')
   })
@@ -341,6 +341,24 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     } finally {
       psql(`UPDATE public.app_settings SET itau_pix_polled_until = ${before ? `'${before}'` : 'NULL'} WHERE id = 1`)
       setProvider('static')
+    }
+  })
+
+  it('migration 574: com o QR estático o Alerta de consulta parada também abre e fecha (o Pix dele dá baixa pela consulta)', () => {
+    const before = psql(`SELECT coalesce(itau_pix_polled_until::text, '') FROM public.app_settings WHERE id = 1`)
+    const active = () => psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'itau_pix_consulta_parada' AND status = 'active'`)
+    try {
+      setProvider('static')
+      psql(`UPDATE public.app_settings SET itau_pix_polled_until = now() - interval '20 minutes' WHERE id = 1;
+        SELECT public.reconcile_itau_pix_checkpoint_alert()`)
+      expect(active()).toBe('1')
+      expect(psql(`SELECT message FROM public.alert_items WHERE item_type = 'itau_pix_consulta_parada' AND status = 'active'`))
+        .toMatch(/não avança há 20 minutos: Pix pagos depois de .* não são baixados\. Use o plano B/)
+      psql(`UPDATE public.app_settings SET itau_pix_polled_until = now() WHERE id = 1;
+        SELECT public.reconcile_itau_pix_checkpoint_alert()`)
+      expect(active()).toBe('0')
+    } finally {
+      psql(`UPDATE public.app_settings SET itau_pix_polled_until = ${before ? `'${before}'` : 'NULL'} WHERE id = 1`)
     }
   })
 
@@ -531,7 +549,7 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     try {
       expect(asAuthenticated('SELECT public.itau_pix_monitor()')).toMatch(/pending_cancel/)
       psql(`UPDATE public.user_profiles SET active = false WHERE id = '${userId}'`)
-      expect(asAuthenticated('SELECT public.itau_pix_monitor()')).toMatch(/Sem permissao/)
+      expect(asAuthenticated('SELECT public.itau_pix_monitor()')).toMatch(/Sem permissão/)
     } finally {
       psql(`UPDATE public.user_profiles SET role = 'administrativo', active = true WHERE id = '${userId}'`)
     }
@@ -575,7 +593,7 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     expect(asAuthenticated(`SELECT public.itau_pix_mark_receipt_handled('E153TRATAR', ' ')`)).toMatch(/motivo/)
     psql(`UPDATE public.user_profiles SET role = 'operacoes' WHERE id = '${userId}'`)
     try {
-      expect(asAuthenticated(`SELECT public.itau_pix_mark_receipt_handled('E153TRATAR', 'Restituído ao pagador')`)).toMatch(/Sem permissao/)
+      expect(asAuthenticated(`SELECT public.itau_pix_mark_receipt_handled('E153TRATAR', 'Restituído ao pagador')`)).toMatch(/Sem permissão/)
     } finally {
       psql(`UPDATE public.user_profiles SET role = 'administrativo' WHERE id = '${userId}'`)
     }

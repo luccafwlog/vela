@@ -22,10 +22,23 @@ export function voyageCreationJustification(origin: VoyageOrigin) {
 export async function createVoyage(
   form: VoyageFormValues,
   changedBy: string | null,
-  { origin = 'viagens', showOnPortal = false }: { origin?: VoyageOrigin; showOnPortal?: boolean } = {},
+  {
+    origin = 'viagens',
+    showOnPortal = false,
+    keepRegisteredCarrier = false,
+  }: {
+    origin?: VoyageOrigin
+    showOnPortal?: boolean
+    /**
+     * Navio já cadastrado mantém o armador do cadastro; o armador do formulário
+     * só vale para navio novo. É o caso de "Adicionar navio" em Chegadas e
+     * Saídas, que manda o armador padrão (decisão do dono de 2026-11-03).
+     */
+    keepRegisteredCarrier?: boolean
+  } = {},
 ) {
   const carrierId = await getOrCreateCarrier(form.carrierName, form.carrierScac)
-  const vesselId = await getOrCreateVessel(form.vesselName, form.vesselImo, carrierId)
+  const vesselId = await getOrCreateVessel(form.vesselName, form.vesselImo, carrierId, { keepRegisteredCarrier })
 
   // A aparição em Chegadas e Saídas vai na própria inserção: um UPDATE depois
   // virava um segundo evento na linha do tempo (revisão de 2026-10-22).
@@ -161,7 +174,18 @@ async function getOrCreateCarrier(name: string, scac: string): Promise<number> {
   return created.id
 }
 
-async function getOrCreateVessel(name: string, imo: string, carrierId: number) {
+/**
+ * Acha o navio pelo IMO ou pelo nome, ou o cria com `carrierId`. Achado, o
+ * navio passa ao armador informado, salvo com `keepRegisteredCarrier`: aí o
+ * armador do cadastro fica, como na planilha de programação, que só usa o
+ * armador ao criar navio novo (`apply_schedule_sheet_atomic_legacy_189`).
+ */
+async function getOrCreateVessel(
+  name: string,
+  imo: string,
+  carrierId: number,
+  { keepRegisteredCarrier = false }: { keepRegisteredCarrier?: boolean } = {},
+) {
   const normalizedImo = normalizeVesselImo(imo)
   const canonical = canonicalizeVesselName(name.trim())
   // IMO prevalece sobre grafia: mesmo IMO, grafias distintas são o mesmo navio.
@@ -175,7 +199,7 @@ async function getOrCreateVessel(name: string, imo: string, carrierId: number) {
       // 02-viagens-adr:5 (2026-10-27): achado pelo IMO, o navio mantém o nome
       // cadastrado; a grafia digitada numa Viagem não renomeia as outras.
       const updates: { imo?: string; carrier_id?: number } = {}
-      if (vessel.carrier_id !== carrierId) updates.carrier_id = carrierId
+      if (!keepRegisteredCarrier && vessel.carrier_id !== carrierId) updates.carrier_id = carrierId
       if (vessel.imo !== normalizedImo) updates.imo = normalizedImo
       if (Object.keys(updates).length > 0) {
         const { error: updateError } = await supabase.from('vessels').update(updates).eq('id', vessel.id)
@@ -207,7 +231,7 @@ async function getOrCreateVessel(name: string, imo: string, carrierId: number) {
     }
     const updates: { imo?: string; carrier_id?: number } = {}
     if (normalizedImo && existingImo !== normalizedImo) updates.imo = normalizedImo
-    if (vessel.carrier_id !== carrierId) updates.carrier_id = carrierId
+    if (!keepRegisteredCarrier && vessel.carrier_id !== carrierId) updates.carrier_id = carrierId
 
     if (Object.keys(updates).length > 0) {
       const { error: updateError } = await supabase.from('vessels').update(updates).eq('id', vessel.id)
@@ -485,14 +509,21 @@ export async function findVoyageByNumberAndVessel(
     // nominal sem IMO. Isso evita que o fallback produza ambiguidade falsa.
     if (exactImoCandidates.length === 1) return exactImoCandidates[0].id
 
-    const conflictingImo = voyageCandidates.some((row) => {
+    // Só um IMO gravado válido (7 dígitos) contradiz o do arquivo; o fora do
+    // formato (o nome do navio no campo IMO) é erro de digitação, que a
+    // gravação troca (migration 568 e `getOrCreateVessel`).
+    const validImo = (row: (typeof voyageCandidates)[number]) => {
       const rowImo = normalizeVesselImo(row.vessel?.imo)
+      return rowImo !== null && /^\d{7}$/.test(rowImo) ? rowImo : null
+    }
+    const conflictingImo = voyageCandidates.some((row) => {
+      const rowImo = validImo(row)
       return rowImo !== null && rowImo !== imo && canonicalizeVesselName(row.vessel?.name ?? '') === canonical
     })
     if (conflictingImo) return null
 
     const nameCandidates = voyageCandidates.filter((row) =>
-      !normalizeVesselImo(row.vessel?.imo) && canonicalizeVesselName(row.vessel?.name ?? '') === canonical,
+      !validImo(row) && canonicalizeVesselName(row.vessel?.name ?? '') === canonical,
     )
     if (nameCandidates.length > 1) {
       throw voyageRegistrationRefusal(`Viagem ${number} / ${canonical} ambígua: ${nameCandidates.length} candidatas. Informe o IMO.`)

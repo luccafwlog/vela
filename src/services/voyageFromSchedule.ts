@@ -211,7 +211,9 @@ export async function createOrAttachVoyageFromSchedule(
   // leitura, e a tela não anexa nem publica (a planilha já recusa na prévia).
   if (options.voyageId === undefined && existingId !== null) await refuseCancelledVoyage(existingId, input)
   // A Viagem nova já nasce publicada, com a origem na linha do tempo; a
-  // existente é publicada aqui (revisão de 2026-10-22, F1).
+  // existente é publicada aqui (revisão de 2026-10-22, F1). O armador padrão
+  // só vale para navio novo: o navio já cadastrado mantém o armador dele, sem
+  // regravar, como na planilha (decisão do dono de 2026-11-03).
   const voyageId = existingId ?? (await createVoyage({
     carrierName: DEFAULT_CARRIER_NAME,
     carrierScac: DEFAULT_CARRIER_SCAC,
@@ -219,7 +221,7 @@ export async function createOrAttachVoyageFromSchedule(
     vesselImo: input.vesselImo,
     voyageNumber: input.voyageNumber,
     status: 'active',
-  }, changedBy, { origin: 'chegadas_saidas', showOnPortal: true })).id
+  }, changedBy, { origin: 'chegadas_saidas', showOnPortal: true, keepRegisteredCarrier: true })).id
 
   // "Não escala" só apaga data ou escala na edição (Viagem conhecida). Em
   // "Adicionar navio", a Viagem achada pelo VOY e navio recebe só os portos
@@ -303,7 +305,10 @@ async function newVoyageVesselProblem(name: string, imo: string | null): Promise
   if (error) throw error
   if ((data ?? []).length > 1) return { problem: `Navio ${name} ambíguo: mais de um cadastro. Corrija antes de importar.`, byImo: false }
   const registeredImo = normalizeVesselImo(data?.[0]?.imo)
-  if (imo && registeredImo && registeredImo !== imo) {
+  // Só um IMO gravado válido conflita: o fora do formato (o nome do navio no
+  // campo IMO) é substituído pelo do arquivo, como na gravação (migration 568)
+  // e no cadastro pela tela (`getOrCreateVessel`).
+  if (imo && registeredImo && /^\d{7}$/.test(registeredImo) && registeredImo !== imo) {
     return { problem: `Navio ${name} com IMO conflitante (${registeredImo} vs ${imo}). Corrija antes de importar.`, byImo: false }
   }
   return { problem: null, byImo: false }

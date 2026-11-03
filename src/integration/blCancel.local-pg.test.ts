@@ -1,6 +1,6 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { describeWithProbe } from './localTestData'
+import { describeWithProbe, syntheticCeBeforeCancelSql } from './localTestData'
 
 // Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
 // teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
@@ -117,6 +117,26 @@ describeLocal('089 — B/L cancelado, Reativar e CE', () => {
     expect(blocked.json).toMatchObject({ cancelled: false, reasons: ['fatura em aberto'] })
   })
 
+  // Migration 574 (a): o B/L sem CE não se cancela, nem na prévia: exclui-se.
+  it('B/L sem CE Mercante não se cancela: a recusa manda excluir', () => {
+    psql(`INSERT INTO public.bls (id, voyage_id, customer_id) VALUES ('BL089SEMCE', ${VOYAGE_ID}, ${CUSTOMER_ID});`)
+    for (const dryRun of ['false', 'true']) {
+      const run = as(ADMIN_ID, `SELECT public.cancel_bl('BL089SEMCE', 'não embarcou', ${dryRun});`)
+      expect(run.status).not.toBe(0)
+      expect(run.stderr).toMatch(/B\/L BL089SEMCE sem CE Mercante não se cancela: exclua-o na lista de B\/Ls\./)
+    }
+    expect(psql(`SELECT cancelled_at IS NULL FROM public.bls WHERE id = 'BL089SEMCE';`)).toBe('t')
+    psql(`DELETE FROM public.bls WHERE id = 'BL089SEMCE';`)
+
+    // A exclusão travada (fatura, mesmo cancelada) mantém o cancelamento: senão não há saída.
+    psql(`INSERT INTO public.bls (id, voyage_id, customer_id) VALUES ('BL089SEMCEF', ${VOYAGE_ID}, ${CUSTOMER_ID});
+      SET session_replication_role = replica;
+      INSERT INTO public.invoices (invoice_number, customer_id, bl_id, total_brl, status)
+      VALUES ('INV-089SEMCEF', ${CUSTOMER_ID}, 'BL089SEMCEF', 10, 'cancelled');
+      SET session_replication_role = origin;`)
+    expect(as(ADMIN_ID, `SELECT public.cancel_bl('BL089SEMCEF', 'não embarcou');`).json).toMatchObject({ cancelled: true })
+  })
+
   it('B/L cancelado fica selado, não entra em fatura e aparece com a data', () => {
     const run = as(ADMIN_ID, `SELECT public.cancel_bl('BL089A', 'armador reemitiu com outro número');`)
     expect(run.json).toMatchObject({ cancelled: true })
@@ -161,6 +181,7 @@ describeLocal('089 — B/L cancelado, Reativar e CE', () => {
       VALUES ('BL089R', ${VOYAGE_ID}, ${CUSTOMER_ID}, 'pending_review');`)
     expect(portalAlert()).toBe('active')
 
+    psql(syntheticCeBeforeCancelSql('BL089R'))
     expect(as(ADMIN_ID, `SELECT public.cancel_bl('BL089R', 'não embarcou');`).json).toMatchObject({ cancelled: true })
     expect(psql(`SELECT review_status FROM public.bls WHERE id = 'BL089R';`)).toBe('pending_review')
     expect(portalAlert()).toBe('resolved')
@@ -182,6 +203,7 @@ describeLocal('089 — B/L cancelado, Reativar e CE', () => {
 
   it('B/L cancelado não trava rotinas do sistema: status financeiro e base de clientes', () => {
     psql(`INSERT INTO public.bls (id, voyage_id, pol, pod, manifest_customer_cnpj_cpf) VALUES ('BL089SYS', ${VOYAGE_ID}, 'CNSHA', 'BRSSZ', '${BASE_CNPJ}');`)
+    psql(syntheticCeBeforeCancelSql('BL089SYS'))
     expect(as(ADMIN_ID, `SELECT public.cancel_bl('BL089SYS', 'carga não embarcou');`).json).toMatchObject({ cancelled: true })
 
     // Cancelar baixa recalcula o status financeiro do B/L, mesmo cancelado.

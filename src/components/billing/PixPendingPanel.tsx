@@ -109,10 +109,12 @@ function ItauStatus({ query, monitor }: { query: ReturnType<typeof useItauPixMon
       </div>
     )
   }
-  if (monitor.provider !== 'itau') {
-    return <LeadValue>Desligada: as faturas usam o QR estático e a baixa vem do extrato</LeadValue>
-  }
+  // Com o QR estático o Pix dele dá baixa pela mesma consulta de recebimentos
+  // (ADR 0115, migration 552): a idade e a parada da consulta valem para as duas chaves.
+  const itauOn = monitor.provider === 'itau'
+  const paid = itauOn ? 'Pix pagos' : 'Pix pagos pelo QR estático'
   const poll = describeItauPoll(monitor.polledUntil, new Date())
+  const polledUntil = <Fact label="Recebimentos consultados até">{monitor.polledUntil ? formatBrasiliaInstant(monitor.polledUntil) : 'Ainda não consultados'}</Fact>
   return (
     <div className="grid gap-4">
       {poll.stale ? (
@@ -120,20 +122,30 @@ function ItauStatus({ query, monitor }: { query: ReturnType<typeof useItauPixMon
           <LeadValue
             tone="warning"
             detail={`${monitor.polledUntil
-              ? `Pix pagos depois de ${formatBrasiliaInstant(monitor.polledUntil)} não deram baixa automática.`
-              : 'Nenhum recebimento foi consultado ainda; Pix pagos não deram baixa automática.'} Avise quem cuida da integração antes de baixar à mão.`}
+              ? `${paid} depois de ${formatBrasiliaInstant(monitor.polledUntil)} não deram baixa automática.`
+              : `Nenhum recebimento foi consultado ainda; ${paid} não deram baixa automática.`} Avise quem cuida da integração antes de baixar à mão.`}
           >
             {monitor.polledUntil ? `Consulta parada ${poll.text}` : 'Consulta de recebimentos ainda não feita'}
           </LeadValue>
         </div>
       ) : (
-        <LeadValue detail={`Recebimentos consultados ${poll.text}.`}>Baixa automática ligada</LeadValue>
+        <LeadValue detail={`Recebimentos consultados ${poll.text}.`}>
+          {itauOn ? 'Baixa automática ligada' : 'Cobrança Itaú desligada: as faturas usam o QR estático, e o Pix dele dá baixa pela consulta do Itaú'}
+        </LeadValue>
       )}
-      <FactList columns={3}>
-        <Fact label="Baixa automática">Ligada</Fact>
-        <Fact label="Recebimentos consultados até">{monitor.polledUntil ? formatBrasiliaInstant(monitor.polledUntil) : 'Ainda não consultados'}</Fact>
-        <Fact label="Cobranças ativas"><span className="tabular-nums">{(monitor.counts.active ?? 0).toLocaleString('pt-BR')}</span></Fact>
-      </FactList>
+      {itauOn ? (
+        <FactList columns={3}>
+          <Fact label="Baixa automática">Ligada</Fact>
+          {polledUntil}
+          <Fact label="Cobranças ativas"><span className="tabular-nums">{(monitor.counts.active ?? 0).toLocaleString('pt-BR')}</span></Fact>
+        </FactList>
+      ) : (
+        <FactList columns={3}>
+          <Fact label="Cobrança Itaú">Desligada</Fact>
+          <Fact label="Baixa automática">Ligada, pelo QR estático</Fact>
+          {polledUntil}
+        </FactList>
+      )}
     </div>
   )
 }

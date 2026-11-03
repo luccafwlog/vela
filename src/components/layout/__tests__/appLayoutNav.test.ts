@@ -17,21 +17,26 @@ describe('appLayoutNav - rota canonica B/Ls', () => {
 })
 
 describe('telas que só abriam por botão entram no grupo do seu assunto (2026-11-01)', () => {
-  it('as sete telas estão no menu, cada uma no seu grupo', () => {
+  it('as telas estão no menu, cada uma no seu grupo', () => {
     const groups = Object.fromEntries(buildNavGroups(COUNTS).map((group) => [group.id, group.items.map((item) => item.to)]))
     expect(groups.viagens).toEqual(expect.arrayContaining(['/chegadas-saidas', '/line-up-tv/display']))
     expect(groups.exportacao).toContain('/embarquevazios/depots')
-    expect(groups.financeiro).toEqual(expect.arrayContaining(['/taxas-locais/tabelas', '/demurrage/taxas']))
+    // Tabelas e Tarifas abrem pelos botões das suas telas, não pelo menu (2026-11-02).
+    expect(groups.financeiro).not.toContain('/taxas-locais/tabelas')
+    expect(groups.financeiro).not.toContain('/demurrage/taxas')
     expect(groups.alertas).toContain('/alertas/regras')
     expect(groups.clientes).toContain('/clientes/informacoes')
   })
 
-  it('Line Up TV abre em outra aba', () => {
-    expect(voyagesNavItems.find((item) => item.to === '/line-up-tv/display')?.external).toBe(true)
+  it('Tela TV abre em outra aba, com o mesmo nome do botão do Painel', () => {
+    const tv = voyagesNavItems.find((item) => item.to === '/line-up-tv/display')
+    expect(tv?.external).toBe(true)
+    expect(tv?.label).toBe('Tela TV')
   })
 
   it('marca só o item da tela: o endereço mais longo que casa', () => {
-    expect(activeNavItem(financialNavItems, '/taxas-locais/tabelas')?.to).toBe('/taxas-locais/tabelas')
+    expect(activeNavItem(financialNavItems, '/taxas-locais/tabelas')?.to).toBe('/taxas-locais')
+    expect(activeNavItem(financialNavItems, '/demurrage/taxas')?.to).toBe('/demurrage')
     expect(activeNavItem(financialNavItems, '/taxas-locais')?.to).toBe('/taxas-locais')
     expect(activeNavItem(exportNavItems, '/embarquevazios/depots')?.to).toBe('/embarquevazios/depots')
     expect(activeNavItem(exportNavItems, '/embarquevazios')?.to).toBe('/embarquevazios')

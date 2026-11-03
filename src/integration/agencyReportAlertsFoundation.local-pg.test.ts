@@ -139,7 +139,7 @@ describeLocal('migration 323 — runtime do agregado de alertas do ADR', () => {
     // O teste anterior deixou 'datas' (Operações) Pendente; as seções da Documentação estão resolvidas.
     const pending = asUser(opsId, `SELECT public.set_agency_report_department_signoff_by_report_id('${reportId}', ${voyageId}, 'BRSSZ', 'operacoes', true)`)
     expect(pending.status).not.toBe(0)
-    expect(pending.stderr).toMatch(/secoes pendentes/)
+    expect(pending.stderr).toMatch(/seções pendentes/)
     expect(psql(`SELECT count(*) FROM public.agency_departure_report_department_signoffs WHERE report_id='${reportId}' AND department='operacoes' AND signed_at IS NOT NULL;`)).toBe('0')
     const resolved = asUser(docsId, `SELECT public.set_agency_report_department_signoff_by_report_id('${reportId}', ${voyageId}, 'BRSSZ', 'documentacao', true)`)
     expect(resolved.stderr).toBe('')
@@ -174,5 +174,28 @@ describeLocal('migration 323 — runtime do agregado de alertas do ADR', () => {
     // Escala sem frente gravada nem dado operacional: o legado por porto segue.
     expect(signAs('BRITJ').stderr).toBe('')
     expect(psql(`SELECT count(*) FROM public.agency_departure_reports WHERE voyage_id = ${voyageId} AND port = 'BRITJ' AND terminal_id IS NULL;`)).toBe('1')
+  })
+
+  // 574 (decisão do dono de 2026-11-03): cancelar a Viagem fecha os alertas do
+  // ADR dela; a rodada não os reabre enquanto ela estiver cancelada; reativada,
+  // a rodada volta a avaliar.
+  it('574 — Viagem cancelada fecha os alertas do ADR e a rodada não os reabre', () => {
+    const activeSql = `SELECT count(*) FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id WHERE a.entity_id='${entityId}' AND i.status='active' AND i.item_type IN ('agency_report_department_pending', 'agency_report_deadline_missed');`
+    const before = Number(psql(activeSql))
+    expect(before).toBeGreaterThan(0)
+
+    psql(`SELECT public.cancel_voyage(${voyageId}, 'teste 574', '${adminId}');`)
+    expect(psql(activeSql)).toBe('0')
+    expect(psql(`SELECT count(*) FROM public.alert_item_events e JOIN public.alert_items i ON i.id=e.alert_item_id JOIN public.alerts a ON a.id=i.alert_id
+      WHERE a.entity_id='${entityId}' AND e.event_type='resolved' AND e.metadata->>'reason'='voyage_cancelled' AND e.metadata->>'source'='agency_report_reconcile';`)).toBe(String(before))
+
+    // A rodada (detectores de 15 minutos) não reabre.
+    psql(`SELECT public.detect_agency_report_pending(); SELECT public.detect_agency_report_deadline_missed();`)
+    expect(psql(`SELECT (public.reconcile_agency_report_alerts('${reportId}', true, true)->>'changed');`)).toBe('0')
+    expect(psql(activeSql)).toBe('0')
+
+    psql(`SELECT public.reactivate_voyage(${voyageId}, 'teste 574');`)
+    psql(`SELECT public.reconcile_agency_report_alerts('${reportId}', true, true);`)
+    expect(psql(activeSql)).toBe(String(before))
   })
 })

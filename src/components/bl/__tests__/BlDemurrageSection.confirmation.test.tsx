@@ -139,7 +139,7 @@ describe('BlDemurrageSection - confirmação com diff antes/depois (ADR 0072)', 
       await user.click(screen.getByRole('button', { name: /salvar condições/i }))
       await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Condições de Demurrage salvas.', 'success'))
       const keys = invalidate.mock.calls.map(([filters]) => JSON.stringify(filters?.queryKey))
-      for (const key of [['bl-detail', 'bl-123'], ['demurrage-containers'], ['header-alert'], ['customer-ficha'], ['demurrage-report']]) {
+      for (const key of [['bl-detail', 'bl-123'], ['demurrage-containers'], ['customer-ficha'], ['demurrage-report']]) {
         expect(keys).toContain(JSON.stringify(key))
       }
     } finally { client.clear() }

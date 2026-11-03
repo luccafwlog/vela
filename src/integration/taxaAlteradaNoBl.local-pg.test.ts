@@ -1,6 +1,6 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { describeWithProbe, syntheticCnpj } from './localTestData'
+import { describeWithProbe, syntheticCeBeforeCancelSql, syntheticCnpj } from './localTestData'
 
 // Migration 491 (ADR 0111; spec 2026-10-28, lote 1): na ficha do B/L qualquer
 // setor altera o valor de uma taxa (por unidade ou total), exclui a taxa e
@@ -430,8 +430,9 @@ describeLocal('491 — alterar e excluir taxa calculada do B/L', () => {
 
     it('B/L cancelado não se altera; reativado, a alteração das taxas calculadas volta', () => {
       expect(alter(USERS.ope, BL.cancel, thd, 'unit', 1111).status).toBe(0)
+      psql(syntheticCeBeforeCancelSql(BL.cancel))
       ok(USERS.adm, `SELECT public.cancel_bl(${q(BL.cancel)}, 'não embarcou 491', false)`)
-      expect(alter(USERS.ope, BL.cancel, thd, 'unit', 1000).stderr).toMatch(/cancelado e somente leitura; reative o B\/L para alterar as taxas/)
+      expect(alter(USERS.ope, BL.cancel, thd, 'unit', 1000).stderr).toMatch(/cancelado é somente leitura; reative o B\/L para alterar as taxas/)
       ok(USERS.adm, `SELECT public.reactivate_bl(${q(BL.cancel)}, 'cancelado por engano 491')`)
       calculate(BL.cancel)
       expect(line(BL.cancel, thd)).toBe('calculated|1.00|1111.00|1111.00|1420.00|true')
@@ -444,8 +445,21 @@ describeLocal('491 — alterar e excluir taxa calculada do B/L', () => {
       const run = alter(USERS.ope, BL.perm, thd, 'unit', 900)
       expect(run.status, run.stderr).toBe(0)
       expect(psql(`SELECT unit_value_brl FROM public.charge_calculations WHERE bl_id = ${q(BL.perm)} AND calculation_key = ${q(thd)}`)).toBe('900.00')
-      expect(as(USERS.adm, `SELECT public.calculate_bl_local_charges(${q(BL.perm)}, '${USERS.adm}'::uuid, true)`).stderr).toMatch(/ja foi faturado/)
+      // 571: a situação sai em português, não o código ("invoiced").
+      expect(as(USERS.adm, `SELECT public.calculate_bl_local_charges(${q(BL.perm)}, '${USERS.adm}'::uuid, true)`).stderr).toMatch(/já foi faturado \(situação financeira: Faturado\)/)
       psql(`UPDATE public.bls SET financial_status = 'pending' WHERE id = ${q(BL.perm)}`)
+    })
+
+    it('a dispensa da Demurrage cai no assunto Container do Histórico do B/L (571)', () => {
+      psql(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, justification, changed_at)
+        VALUES ('bl', ${q(BL.perm)}, 'demurrage_dispensa', NULL, 'RTAU4910097', '${USERS.adm}', 'Teste da família', now() + interval '1 minute')`)
+      // bl_timeline só responde a usuário interno ativo.
+      const read = psql(`BEGIN;
+        SELECT set_config('request.jwt.claims', '{"sub":"${USERS.adm}","role":"authenticated"}', true) IS NOT NULL;
+        SELECT 'familia=' || family FROM public.bl_timeline(${q(BL.perm)}, 50, 0) WHERE field_name = 'demurrage_dispensa';
+        COMMIT;`)
+      expect(read.split('\n')).toContain('familia=container')
+      psql(`DELETE FROM public.audit_logs WHERE entity_type = 'bl' AND entity_id = ${q(BL.perm)} AND field_name = 'demurrage_dispensa'`)
     })
   })
 })

@@ -8,6 +8,7 @@
 // Namespace exclusivo: ids 99229xxx, B/Ls 'A229-*', usuário ...0000002290NN,
 // containers 'ADCU229xxxx'.
 import { spawn } from 'node:child_process'
+import { syntheticCeBeforeCancelSql } from './localTestData'
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -156,6 +157,7 @@ describeLocal('Etapa 9 — Baplie em todos os B/Ls do container, perfil manual, 
     insertBl('A229-SX', [{ number: 'ADCU2290001' }])
     insertBl('A229-M1', [{ number: 'ADCU2290003' }])
     insertBl('A229-O1', [{ number: 'ADCU2290004', ownership: 'COC' }])
+    psql(syntheticCeBeforeCancelSql('A229-SX'))
     expect(JSON.parse(asAdmin(`SELECT public.cancel_bl('A229-SX', 'Armador reemitiu (A229)', false);`).output)).toMatchObject({ cancelled: true })
   })
 

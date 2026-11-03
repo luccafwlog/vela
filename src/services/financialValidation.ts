@@ -30,22 +30,22 @@ function isValidDateOnly(value: string) {
 const positiveNumberSchema = z.preprocess(
   parseNumberInput,
   z.number()
-    .refine(Number.isFinite, 'Valor invalido.')
+    .refine(Number.isFinite, 'Valor inválido.')
     .refine((value) => value > 0, 'Valor deve ser maior que zero.'),
 )
 
 const optionalNonNegativeNumberSchema = z.preprocess(
   (value) => (blankToNull(value) === null ? null : parseNumberInput(value)),
   z.number()
-    .refine(Number.isFinite, 'Valor invalido.')
-    .refine((value) => value >= 0, 'Valor nao pode ser negativo.')
+    .refine(Number.isFinite, 'Valor inválido.')
+    .refine((value) => value >= 0, 'Valor não pode ser negativo.')
     .nullable(),
 )
 
 const requiredDateSchema = z.string()
   .trim()
-  .min(1, 'Data obrigatoria.')
-  .refine(isValidDateOnly, 'Data invalida.')
+  .min(1, 'Data obrigatória.')
+  .refine(isValidDateOnly, 'Data inválida.')
 
 const optionalDateSchema = z.preprocess(blankToNull, requiredDateSchema.nullable())
 
@@ -63,12 +63,12 @@ export const paymentFormSchema = z.object({
 export const manualInvoiceCreationSchema = z.object({
   customerId: z.preprocess(
     parseNumberInput,
-    z.number().int().positive('Cliente obrigatorio.'),
+    z.number().int().positive('Cliente obrigatório.'),
   ),
-  itemName: z.string().trim().min(1, 'Nome do item obrigatorio.'),
+  itemName: z.string().trim().min(1, 'Nome do item obrigatório.'),
   description: nullableTextSchema,
   // Motivo interno obrigatório (ADR 0083, item 9; migration 272); não vai para o Portal.
-  reason: z.string().trim().min(1, 'Motivo obrigatorio.'),
+  reason: z.string().trim().min(1, 'Motivo obrigatório.'),
   quantity: positiveNumberSchema,
   unitValueBrl: positiveNumberSchema,
   blId: z.preprocess(
@@ -80,7 +80,7 @@ export const manualInvoiceCreationSchema = z.object({
   ),
   voyageId: z.preprocess(
     (value) => (blankToNull(value) === null ? null : parseNumberInput(value)),
-    z.number().int().positive('Viagem invalida.').nullable(),
+    z.number().int().positive('Viagem inválida.').nullable(),
   ),
 })
 
@@ -102,7 +102,7 @@ export const demurrageDiscountSchema = z.object({
     ctx.addIssue({
       code: 'custom',
       path: ['discount_justification'],
-      message: 'Justificativa obrigatoria para aplicar desconto.',
+      message: 'Justificativa obrigatória para aplicar desconto.',
     })
   }
 })
@@ -112,10 +112,10 @@ export const demurrageDatesSchema = z.object({
   ret: optionalDateSchema,
 }).refine((value) => !value.ret || value.ret >= value.discharge, {
   path: ['ret'],
-  message: 'Data de devolucao nao pode ser anterior a descarga.',
+  message: 'Data de devolução não pode ser anterior à descarga.',
 })
 
-export function formatValidationError(error: unknown, fallback = 'Dados invalidos.') {
+export function formatValidationError(error: unknown, fallback = 'Dados inválidos.') {
   if (error instanceof z.ZodError) {
     return error.issues[0]?.message ?? fallback
   }

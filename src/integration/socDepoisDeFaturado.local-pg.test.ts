@@ -191,6 +191,8 @@ describeLocal('Caixa dividida entre Clientes (migration 522)', () => {
     const reasons = [
       'Datas de container alteradas: cancelada para reemissão automática.',
       'Container passou a SOC: cancelada para reemissão automática.',
+      'Divisão do container entre Clientes alterada: cancelada para reemissão automática.',
+      // 565: o texto gravado antes da troca continua reconhecido.
       'Divisão da caixa entre Clientes alterada: cancelada para reemissão automática.',
       'Troca de CNPJ do B/L R522-X: cancelada.',
       'Cliente pediu cancelamento por telefone.',
@@ -199,7 +201,10 @@ describeLocal('Caixa dividida entre Clientes (migration 522)', () => {
       reasons.forEach((reason, index) => psql(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, justification)
         VALUES ('demurrage_invoice', '-9952290${index}', 'status', 'issued', 'cancelled', '${reason}')`))
       expect(reasons.map((_, index) => psql(`SELECT coalesce(public._demurrage_replaced_cause(-9952290${index}), '-')`)))
-        .toEqual(['datas', 'soc', 'divisao', '-', '-'])
+        .toEqual(['datas', 'soc', 'divisao', 'divisao', '-', '-'])
+      // 565: os dois textos da divisão contam como cancelamento automático, não à mão.
+      expect(psql(`SELECT public._demurrage_auto_reissue_reason('${reasons[2]}') || '|' || public._demurrage_auto_reissue_reason('${reasons[3]}') || '|' || public._demurrage_auto_reissue_reason('${reasons[5]}')`))
+        .toBe('true|true|false')
       expect(psql(`SELECT coalesce(public._demurrage_replaced_cause(-99522999), '-')`)).toBe('-')
     } finally {
       psql(`DELETE FROM public.audit_logs WHERE entity_type = 'demurrage_invoice' AND entity_id LIKE '-995229%'`)

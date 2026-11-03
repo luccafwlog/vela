@@ -25,11 +25,15 @@ export function filterLineUpRows(rows: LineUpRow[], filters: LineUpFilters): Lin
   const search = filters.search.trim().toLowerCase()
 
   return rows.filter((row) => {
-    // Exportações representam uma programação distinta e não somem com filtros operacionais do Line Up.
-    if (row.rowType === 'export') return true
+    // Busca, Escalas e Período valem para as duas linhas (decisão do dono de
+    // 2026-11-03): a de exportação traz o navio, a situação da Viagem e o ETA
+    // da mesma escala.
     if (filters.status !== 'all' && row.voyageStatus !== filters.status) return false
     if (search && !row.vesselName.toLowerCase().includes(search) && !row.voyageNumber.toLowerCase().includes(search)) return false
     if (filters.periodo === 'custom' && !isWithinPeriod(row.eta, filters.dataInicio, filters.dataFim)) return false
+    // Os filtros de carga, CE e vínculo descrevem a importação: a linha de
+    // exportação não some com eles.
+    if (row.rowType === 'export') return true
     if (!matchesPresence(filters.vehicles, row.vin > 0)) return false
     if (!matchesPresence(filters.bb, row.bbTotal > 0)) return false
     if (filters.ces !== 'all' && ceFilterStatus(row.ceStatus) !== filters.ces) return false

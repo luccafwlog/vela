@@ -25,7 +25,7 @@ const detail = {
 
 afterEach(cleanup)
 
-it('recibo distingue o total emitido do dinheiro efetivamente recebido após abatimento', () => {
+it('recibo certifica só o valor recebido, uma vez, sem abatimento, devolução ou restituição', () => {
   const adjustedDetail = {
     invoice: {
       id: 19, invoice_number: 'INV-19', status: 'paid',
@@ -38,12 +38,17 @@ it('recibo distingue o total emitido do dinheiro efetivamente recebido após aba
   } as never
   render(<InvoiceDocumentLocal detail={adjustedDetail} type="receipt" />)
   expect(screen.getByText('RECIBO DE TAXAS LOCAIS')).toBeTruthy()
-  expect(screen.getByTestId('invoice-totals').textContent).toContain('R$ 600,00')
-  expect(screen.getByText('Valor recebido:')).toBeTruthy()
-  expect(screen.getAllByText('R$ 500,00').length).toBeGreaterThan(0)
+  const totals = screen.getByTestId('invoice-totals')
+  expect(totals.textContent).toContain('Valor recebido:R$ 500,00')
+  expect(totals.textContent).toContain('Pago em 04/10/2026')
+  expect(screen.getAllByText('Valor recebido:')).toHaveLength(1)
+  expect(screen.getAllByText('R$ 500,00')).toHaveLength(1)
+  for (const gone of [/Total da fatura emitida/, /Abatido do saldo/, /Devolvido ao Cliente/, /Restituição pendente/, /líquido/]) {
+    expect(screen.queryByText(gone)).toBeNull()
+  }
 })
 
-it('recibo mostra devolução confirmada, pendente e valor líquido sem confundir cobertura', () => {
+it('recibo da individual coberta diz que o valor entrou pela consolidada, sem linhas de devolução', () => {
   const covered = {
     invoice: { id: 20, invoice_number: 'INV-20', status: 'covered', total_brl: 600, total_paid_brl: 0, balance_brl: 0 },
     bls: [], items: [], payments: [],
@@ -51,15 +56,12 @@ it('recibo mostra devolução confirmada, pendente e valor líquido sem confundi
       pending_refund_brl: 50, net_received_brl: 550, paid_at: '2026-10-04', covered_by_invoice_number: 'CON-21' },
   } as never
   render(<InvoiceDocumentLocal detail={covered} type="receipt" />)
-  expect(screen.getByText('Devolvido ao Cliente:')).toBeTruthy()
-  expect(screen.getByText('Restituição pendente:')).toBeTruthy()
   // Coberta: o dinheiro entrou na consolidada; não é "Valor recebido" nesta fatura.
   expect(screen.queryByText('Valor recebido:')).toBeNull()
-  expect(screen.getByText('Recebido pela consolidada CON-21 (atribuído a estes B/Ls):')).toBeTruthy()
-  expect(screen.getByText('Valor líquido atribuído a estes B/Ls:')).toBeTruthy()
-  expect(screen.getByText('R$ 550,00')).toBeTruthy()
-  expect(screen.getByText(/Quitação pela fatura consolidada CON-21/)).toBeTruthy()
+  expect(screen.getByTestId('invoice-totals').textContent).toContain('Recebido pela consolidada CON-21:R$ 550,00')
+  expect(screen.getAllByText('R$ 550,00')).toHaveLength(1)
   expect(screen.getByText('Pago em 04/10/2026')).toBeTruthy()
+  expect(screen.queryByText(/Devolvido ao Cliente|Restituição pendente|Abatido do saldo/)).toBeNull()
 })
 
 it('imprime recibo de taxas locais sem PIX e com o mesmo conteúdo da fatura', () => {

@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   reversePayment: vi.fn(),
   listDisputes: vi.fn(),
   print: vi.fn(),
+  fetchROE: vi.fn(),
 }))
 
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: mocks.role === 'administrativo', effectiveRole: mocks.role }) }))
@@ -39,6 +40,10 @@ vi.mock('../../components/ui/ConfirmDialog', () => ({
 vi.mock('../../services/demurrage/demurrageContainers', () => ({
   readDemurrageGroupAnchor: async (blId: string) => blId,
   updateContainerDates: mocks.updateContainerDates,
+}))
+vi.mock('../../services/demurrage/demurrageRoe', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/demurrage/demurrageRoe')>()),
+  fetchROE: mocks.fetchROE,
 }))
 vi.mock('../../services/demurrage/demurrageBoard', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/demurrage/demurrageBoard')>()),
@@ -236,9 +241,31 @@ describe('Demurrage page behaviours', () => {
     mocks.recalculateManual.mockResolvedValue({ updated: 1 })
     mocks.reversePayment.mockResolvedValue(undefined)
     mocks.listDisputes.mockResolvedValue([])
+    mocks.fetchROE.mockResolvedValue({ ptax: 5.4212, roe: 5.7736, effectiveDate: '2026-10-30', offline: false, cachedAt: null, source: 'bcb_live' })
   })
 
   afterEach(cleanup)
+
+  it('mostra o câmbio sob o título, que saiu da faixa do alto de todas as telas (2026-11-01)', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    const title = screen.getByRole('heading', { name: 'Demurrage' })
+    const header = title.closest('.page-header') as HTMLElement
+    await waitFor(() => expect(header.textContent).toMatch(/PTAX venda R\$ 5,4212/))
+    expect(header.textContent).toMatch(/ROE \(PTAX × 1,065\) R\$ 5,7736/)
+    expect(header.textContent).toContain('cotação de 30/10/2026')
+    expect(mocks.fetchROE).toHaveBeenCalledTimes(1)
+    await user.click(within(header).getByRole('button', { name: 'Atualizar cotação PTAX' }))
+    await waitFor(() => expect(mocks.fetchROE).toHaveBeenCalledTimes(2))
+  })
+
+  it('sem cotação, diz que o câmbio está indisponível sem esconder o resto da tela', async () => {
+    mocks.fetchROE.mockRejectedValue(new Error('BCB offline e sem cache'))
+    renderPage()
+    // A leitura do câmbio tenta de novo uma vez (useRoeHeaderRate) antes de desistir.
+    expect(await screen.findByText('Câmbio indisponível', {}, { timeout: 4000 })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Correndo \(US\$\)/ })).toBeTruthy()
+  })
 
   it('gera a Invoice, atualiza as telas que a leem e abre o detalhe da Invoice emitida', async () => {
     const user = userEvent.setup()

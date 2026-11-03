@@ -120,6 +120,37 @@ describeLocal('Programação por planilha atômica (migration 188)', () => {
     expect(psql(`SELECT count(*) FROM public.audit_logs WHERE entity_id = '${otherVoyage}::BRSSA';`)).toBe('0')
   })
 
+  it('IMO gravado fora do formato (o nome no campo IMO) é substituído pelo do arquivo (568)', () => {
+    seedVoyage('A235 RHO', 'A235 RHO', '015N')
+    const result = apply([row('A235 RHO', '9235015', '016N', '2026-11-15')])
+    expect(result.stderr).toBe('')
+    expect(JSON.parse(result.stdout)).toMatchObject({ created: 1 })
+    expect(psql(`SELECT string_agg(name || ':' || COALESCE(imo, '-'), ',') FROM public.vessels WHERE name = 'A235 RHO';`)).toBe('A235 RHO:9235015')
+    expect(psql(`SELECT count(*) FROM public.voyages v JOIN public.vessels s ON s.id = v.vessel_id WHERE s.name = 'A235 RHO';`)).toBe('2')
+  })
+
+  it('Viagem já cadastrada (id da prévia) com IMO fora do formato recebe o IMO do arquivo (568)', () => {
+    const voyage = seedVoyage('A235 SIGMA', 'A235 SIGMA', '017N')
+    const result = apply([row('A235 SIGMA', '9235017', '017N', '2026-11-17', Number(voyage))])
+    expect(result.stderr).toBe('')
+    expect(JSON.parse(result.stdout)).toMatchObject({ created: 0, updated: 1 })
+    expect(psql(`SELECT imo FROM public.vessels WHERE name = 'A235 SIGMA';`)).toBe('9235017')
+  })
+
+  it('IMO do arquivo que já é de outro navio não vai para o navio da Viagem (568)', () => {
+    seedVoyage('A235 TAU', '9235018', '018N')
+    const voyage = seedVoyage('A235 TAU2', '123', '019N')
+    const result = apply([row('A235 TAU2', '9235018', '019N', '2026-11-18', Number(voyage))])
+    expect(result.stderr).toBe('')
+    expect(psql(`SELECT imo FROM public.vessels WHERE name = 'A235 TAU2';`)).toBe('123')
+  })
+
+  it('IMO gravado válido com prefixo ("IMO 9235019") e diferente do arquivo continua conflitante (568)', () => {
+    seedVoyage('A235 UPSILON', 'IMO 9235019', '020N')
+    const refused = apply([row('A235 UPSILON', '9235020', '021N', '2026-11-19')])
+    expect(refused.stderr).toMatch(/Navio A235 UPSILON com IMO conflitante \(9235019 vs 9235020\)/)
+  })
+
   it('IMO sem 7 dígitos ("TBA") não casa com navios sem IMO: a Viagem nova ganha navio próprio', () => {
     seedVoyage('A235 ZETA', null, '005N')
     seedVoyage('A235 ETA', null, '005N')

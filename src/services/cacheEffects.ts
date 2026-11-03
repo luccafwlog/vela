@@ -35,7 +35,7 @@ const CARGO_READ_KEYS: readonly (readonly unknown[])[] = [
   ['customer-communications'], queryKeys.dashboard(),
   ['demurrage-containers'], ['demurrage-invoices'], ['demurrage-invoice-detail'],
   ['demurrage-kpis'], ['demurrage-customer-summary'], ['demurrage-customer-detail'],
-  ['demurrage-report'], ['header-alert'],
+  ['demurrage-report'],
 ]
 const FINANCIAL_READ_KEYS: readonly (readonly unknown[])[] = [
   queryKeys.ceUnlock.all(),
@@ -139,7 +139,7 @@ export async function afterManifestoImportado(queryClient: QueryInvalidator, _op
 export async function afterDeclaracaoVeiculosAlterada(queryClient: QueryInvalidator, options: { voyageId: number | string }): Promise<void> {
   await invalidate(queryClient, [
     queryKeys.vehicles.declaration(Number(options.voyageId)), voyageTimelineKey(options.voyageId),
-    queryKeys.alerts.all(), queryKeys.alerts.departmentSummary(), queryKeys.alerts.operationalCount(), ['header-alert'],
+    queryKeys.alerts.all(), queryKeys.alerts.departmentSummary(), queryKeys.alerts.operationalCount(),
     queryKeys.alerts.internalNotifications(), queryKeys.alerts.internalNotificationsUnreadCount(),
   ])
 }
@@ -205,7 +205,7 @@ export async function afterCustomerCommunicationBatchDispatched(
     ...(options.customerIds ?? []).map((customerId) => ['customer-ficha', 'timeline', customerId] as const),
     ...[...new Set(options.blIds ?? [])].map((blId) => ['bl-timeline', blId] as const),
     // O contador de Alertas do menu também muda quando o reenvio fecha um alerta.
-    queryKeys.alerts.all(), queryKeys.alerts.operationalCount(), ['alert-department-summary'], ['header-alert'],
+    queryKeys.alerts.all(), queryKeys.alerts.operationalCount(), ['alert-department-summary'],
   ])
 }
 
@@ -296,9 +296,9 @@ export async function afterReferenciaPortalAlterada(queryClient: QueryInvalidato
 export async function afterReferenciaDemurrageAlterada(queryClient: QueryInvalidator): Promise<void> {
   // A aba Containers de /demurrage prevê a sobreestadia com o acordo vigente na descarga.
   // Desde a 516, tarifa, tipo e acordo também tiram ou põem grupos em Travado
-  // na hora: o aviso do cabeçalho, os Alertas, o relatório e as fichas mudam junto.
+  // na hora: os Alertas, o relatório e as fichas mudam junto.
   await invalidate(queryClient, [queryKeys.portalInformation.all(), ['portal-operation-bls'], ['demurrage-containers'],
-    ['header-alert'], ['alerts'], ['demurrage-report'], ['customer-ficha'], ['bl-detail']])
+    ['alerts'], ['demurrage-report'], ['customer-ficha'], ['bl-detail']])
 }
 
 const DEMURRAGE_INVOICE_KEYS: readonly (readonly unknown[])[] = [
@@ -307,7 +307,7 @@ const DEMURRAGE_INVOICE_KEYS: readonly (readonly unknown[])[] = [
   ['demurrage-latest-recalc'], ['financial-refunds'], ['bl-detail'], ['bl-cockpit'], ['customer-ficha'],
   ['customer-detail'], ['portal-demurrage-invoices'], ['portal-demurrage-invoices-page'],
   ['portal-demurrage-invoice-detail'], ['portal-disputes'], ['reconciliation-history'],
-  ['alerts'], ['header-alert'], ['itau-pix-receipts'], ['itau-pix-monitor'],
+  ['alerts'], ['itau-pix-receipts'], ['itau-pix-monitor'],
 ]
 
 /**
@@ -343,6 +343,6 @@ export async function afterPixConciliado(queryClient: QueryInvalidator): Promise
 export async function afterPendenciaPixAlterada(queryClient: QueryInvalidator): Promise<void> {
   await invalidate(queryClient, [
     queryKeys.reconciliation.pixExceptions(), queryKeys.reconciliation.itauPixMonitor(), queryKeys.reconciliation.itauPixReceipts(),
-    queryKeys.alerts.all(), queryKeys.alerts.financial(), ['header-alert'],
+    queryKeys.alerts.all(), queryKeys.alerts.financial(),
   ])
 }

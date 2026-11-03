@@ -318,8 +318,8 @@ Quadro com a previsão de datas por porto da rota, exibido ao cliente no Portal
 (bloco **Chegadas e saídas** do Painel, nome desde 2026-10-23) e mantido em
 Chegadas e Saídas. Não tem cadastro próprio: é a projeção das
 Viagens marcadas como visíveis.
-- **Distinto de:** **Line-Up (TV)**, painel operacional interno derivado das
-  viagens cadastradas.
+- **Distinto de:** **Line-Up**, o quadro operacional interno derivado das
+  viagens cadastradas, no Painel e na **Tela TV** (o mesmo quadro num monitor).
 → Regra: [Chegadas e Saídas § Programação no Portal](docs/modules/chegadas-saidas.md#programação-no-portal) e [§ Saída da Programação](docs/modules/chegadas-saidas.md#saída-da-programação); Line-Up em [Operação e suporte](docs/modules/operacao-suporte.md#line-up)
 
 **ADR (Agency Departure Report)**
@@ -1020,11 +1020,11 @@ histórico da Invoice, e o recálculo para no pagamento, que congela o valor.
 
 **Invoice de Demurrage**
 Documento da sobreestadia de um B/L ou do grupo de B/Ls do mesmo Cliente que
-divide container na Viagem; cobra cada caixa não-SOC uma vez por Viagem e
+divide container na Viagem; cobra cada container não-SOC uma vez por Viagem e
 Cliente, e o grupo pode ter Invoice complementar. Nasce emitida com o USD
 travado; o BRL segue o Recálculo Diário. Distinta da fatura de Taxas Locais.
 - **Ver também:** P1, P2, Free Time, ROE, Recálculo Diário
-→ Regra: [Demurrage § Emissão da Invoice de Demurrage](docs/modules/demurrage.md#emissão-da-invoice-de-demurrage) e [§ Grupo de Demurrage e cobrança por caixa](docs/modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-caixa)
+→ Regra: [Demurrage § Emissão da Invoice de Demurrage](docs/modules/demurrage.md#emissão-da-invoice-de-demurrage) e [§ Grupo de Demurrage e cobrança por container](docs/modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-container)
 
 **Tarifa de Demurrage (Rate)**
 Tabela geral do armador, uma por Grupo de tarifa, com free time, faixas P1/P2,
@@ -1047,36 +1047,45 @@ Conjunto de Tipos de container que cobram pela mesma Tarifa de Demurrage:
 → Regra: [Demurrage § Tarifa, free time, P1 e P2](docs/modules/demurrage.md#tarifa-free-time-p1-e-p2)
 
 **Correndo, A emitir, Esperando, Travado**
-As quatro divisões da aba Containers de Demurrage, cada caixa com sobreestadia
+As quatro divisões da aba Containers de Demurrage, cada container com sobreestadia
 ainda sem Invoice num lugar só: **Correndo** (fora e passada do free time),
-**A emitir** (todas as caixas do grupo devolvidas, pronta para Gerar Invoice),
-**Esperando** (há caixa devolvida com sobreestadia, mas outra do grupo ainda
+**A emitir** (todos os containers do grupo devolvidos, pronta para Gerar Invoice),
+**Esperando** (há container devolvido com sobreestadia, mas outro do grupo ainda
 fora no free time) e **Travado** (o sistema não consegue cobrar: tipo sem
 tarifa, B/L sem Cliente, B/L cancelado, sem CE Mercante ou Portal fechando o
-faturamento). A divisão vem do banco; a caixa sai dela quando a Invoice é
+faturamento). A divisão vem do banco; o container sai dela quando a Invoice é
 emitida.
+Nas fichas do B/L e do Cliente e na recusa ao cancelar o B/L, "correndo" e
+"a emitir" valem por container (fora ou devolvido, sem Invoice; decisão do dono
+de 2026-11-03) e podem diferir da divisão do grupo: o container devolvido de um
+grupo em **Esperando** ou **Travado** aparece "a emitir" na ficha.
 - **Evitar:** "em atraso" para a divisão (é o status do container), "a faturar"
+  e "em curso"
 - **Ver também:** Invoice de Demurrage, Dispensa da cobrança
 → Regra: [Demurrage § Classificação da cobrança](docs/modules/demurrage.md#classificação-da-cobrança-migration-515)
 
 **Dispensa da cobrança**
-Decisão, com justificativa, de não cobrar a Demurrage de uma caixa (Viagem,
-Cliente e número). Qualquer Departamento dispensa e desfaz; a caixa dispensada
-conta como coberta e sai das divisões e da emissão. Distinta do desconto, que
+Decisão, com justificativa, de não cobrar a Demurrage de um container (Viagem,
+Cliente e número). Qualquer Departamento dispensa e desfaz; o container dispensado
+conta como coberto e sai das divisões e da emissão. Distinta do desconto, que
 é da Invoice.
 - **Evitar:** "isenção" (é o desconto integral da Invoice)
 - **Ver também:** Correndo, A emitir, Esperando, Travado
 → Regra: [Demurrage § Estado e dados](docs/modules/demurrage.md#estado-e-dados)
 
-**Rateio da caixa**
+**Rateio da Demurrage entre Clientes**
 Divisão em partes iguais da Demurrage de um container que está em B/Ls de
-Clientes diferentes na mesma Viagem: cada Cliente calcula a caixa pela própria
-condição e paga 1/n ("1/2 da caixa" com dois Clientes). Se o número de
-Clientes muda depois da emissão, vale a regra das datas alteradas.
-- **Evitar:** "caixa compartilhada" para Clientes diferentes (o grupo de
-  Demurrage é do mesmo Cliente)
-- **Ver também:** Invoice de Demurrage
-→ Regra: [Demurrage § Grupo de Demurrage e cobrança por caixa](docs/modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-caixa)
+Clientes diferentes na mesma Viagem: cada Cliente calcula o container pela
+própria condição e paga 1/n (a tela mostra "1/2 do container" com dois
+Clientes). Se o número de Clientes muda depois da emissão, vale a regra das
+datas alteradas.
+- **Evitar:** "Rateio da caixa" e "caixa" para o container (desde 2026-11-01 a
+  equipe só fala em container, migration `565`; Caixa de Comunicação é outro
+  conceito); "rateio do container", que é o das Taxas Locais entre B/Ls do
+  mesmo Cliente (Container compartilhado); "container compartilhado" para
+  Clientes diferentes (o grupo de Demurrage é do mesmo Cliente)
+- **Ver também:** Invoice de Demurrage, Container compartilhado
+→ Regra: [Demurrage § Grupo de Demurrage e cobrança por container](docs/modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-container)
 
 **Acordo de Demurrage do Cliente**
 Condições negociadas com um Cliente: free time e, opcionalmente, diárias P1/P2,
@@ -1216,9 +1225,10 @@ servidor, confirma que ela foi resolvida.
 → Regra: [Operação e Suporte § Ciclo de vida do Alerta](docs/modules/operacao-suporte.md#ciclo-de-vida-do-alerta)
 
 **Indicador Operacional**
-Contagem derivada de uma consulta ao estado atual, como os containers em
-atraso (que passaram do free time) da faixa do cabeçalho. Não tem instante de
-ocorrência nem estado de leitura.
+Contagem derivada de uma consulta ao estado atual, como as contagens do menu
+e os containers de Correndo no cartão da Demurrage (até 2026-11-01, também na
+faixa do alto de todas as telas). Não tem instante de ocorrência nem estado de
+leitura.
 - **Distinto de:** Alerta e Notificação Interna; não entra na entrega pessoal.
 → Regra: [Operação e Suporte § Indicador Operacional](docs/modules/operacao-suporte.md#indicador-operacional)
 
@@ -1589,7 +1599,7 @@ Sequência automática de cobranças numeradas de uma Invoice de Demurrage não
 paga, no intervalo configurado pelo Administrativo, sem teto. Pausa em Disputa
 aberta, sem contato válido ou com a Invoice suspensa. Não confundir com a régua
 automática dos avisos operacionais (NOA, NOR, NOB e CE e Taxas).
-→ Regra: [Demurrage](docs/modules/demurrage.md); destinatários em [Clientes § Cobrança de Demurrage por caixa](docs/modules/clientes.md#cobrança-de-demurrage-por-caixa)
+→ Regra: [Demurrage](docs/modules/demurrage.md); destinatários em [Clientes § Cobrança de Demurrage por container](docs/modules/clientes.md#cobrança-de-demurrage-por-container)
 
 **Tratamento de Bounce em Cascata**
 Reação a um bounce permanente: o endereço é suprimido, as caixas são reparadas,

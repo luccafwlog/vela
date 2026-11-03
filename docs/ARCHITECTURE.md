@@ -431,7 +431,7 @@ flowchart LR
 - Baplie entra em staging por viagem e pode alimentar Vazios de Importação.
 - O B/L é a entidade unificada de conhecimento de embarque (`cargo_mode IN ('container', 'carga_solta', 'misto')`), acessado pela rota canônica `/bls` (substituindo em definitivo as antigas telas e rotas separadas `/manifestos` e `/carga-solta`). B/Ls com presença simultânea de contêineres e carga solta assumem automaticamente o modo `misto` via trigger no banco (`trg_sync_bl_cargo_mode_statement`, migration `060`).
 - Peso e cubagem do B/L são colunas disjuntas por modalidade (`total_weight_kg`/`bb_weight_ton` e `total_cbm`/`bb_cbm`; migrations `061`, `063` e `064`), somadas por `blTotalWeightKg`/`blTotalCbm` (`src/lib/cargoMode.ts`). Regra em [Manifestos & EDI § Modalidade, peso e cubagem do B/L](modules/manifesto-edi.md#modalidade-peso-e-cubagem-do-bl).
-- Arquivos de B/L alimentam os B/Ls e cargas de container; Manifestos BB mantêm seu fluxo próprio. A importação de Manifesto CNTR e a geração local de EDI Mercante foram removidas conforme a ADR 0025.
+- Arquivos de B/L alimentam os B/Ls e cargas de container; Manifestos BB mantêm seu fluxo próprio. A importação de Manifesto CNTR foi removida conforme a ADR 0025. O EDI Mercante de importação é gerado no navegador por rota (ADR 0116): `mercanteEdiData.ts` lê Viagem, B/Ls, contêineres e vazios, e `mercanteEdi.ts` monta o arquivo; regra em [Manifestos & EDI § EDI Mercante](modules/manifesto-edi.md#edi-mercante).
 - Carga solta tem duas portas de ingestão que convivem: o Manifesto BB (planilha) e o B/L avulso do armador em `.pdf`/`.docx`. As duas terminam na mesma RPC transacional (`import_breakbulk_manifest_transactional`); o B/L avulso é lido no cliente (`blDocumentParser.ts`) e convertido em um manifesto de uma linha.
 - O Nº de Manifesto Mercante vive em `manifestos_mercante` (número único, Viagem, par de portos e `natureza` = `carga` ou `vazio`), com vários manifestos por rota; cada B/L aponta para o seu por `bls.manifesto_mercante_id`, e `voyage_route_ce_master` continua como espelho do **Informar** (Nº de Manifesto Mercante) da rota para os leitores antigos — a nomenclatura "CE Master" sobrevive só nesses identificadores. Desde a migration `212` a API só lê o cadastro. Regra em [Manifestos & EDI § Manifesto Mercante](modules/manifesto-edi.md#manifesto-mercante); o efeito do COD sobre o CE e o vínculo do Manifesto está em [Viagens § Omissão de Escala, Transbordo e COD](modules/viagens.md#omissão-de-escala-transbordo-e-cod).
 - Terminal do B/L: `bls.terminal_id` é a exceção auditada; nulo herda de `voyage_escala_operation_fronts` via `resolve_bl_terminal_id`. B/L misto exige convergência das duas frentes ou exceção válida. Terminal não participa da chave tarifária (ADR 0068).
@@ -506,7 +506,7 @@ em `bl_containers` (o status `overdue` é gravado por job diário, migration
 (migration `023`), Disputas em `demurrage_disputes` e restituições em
 `demurrage_refunds` (migration `136`). A cobrança é por caixa dentro do grupo de
 Demurrage (migration `214`, [ADR 0080](adr/0080-decisoes-da-revisao-final-da-pr-929.md);
-[Demurrage § Grupo de Demurrage e cobrança por caixa](modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-caixa)).
+[Demurrage § Grupo de Demurrage e cobrança por container](modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-container)).
 A operação fica em `/demurrage`; Demurrage aparece também na Conciliação PIX
 (`/reconciliacao`), no Portal (`/portal/billing`), nas fichas do B/L e do
 Cliente e em Relatórios, não em `/taxas-locais`. Regra em

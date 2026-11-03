@@ -4,8 +4,9 @@
 
 ## Propósito e escopo
 
-Para a ação do usuário em cada exceção, consulte o
-[manual financeiro](../operations/manual-financeiro.md). A
+Para a ação do usuário em cada exceção, consulte o Manual do Operador:
+[a fatura](../manual/texto/22-a-fatura.md) e
+[pagamento e restituição](../manual/texto/24-pagamento-e-restituicao.md). A
 [revisão de 2026-10-04](../archive/audits/2026-10-04-revisao-fluxo-financeiro.md)
 registra evidências locais e lacunas de recibo, restituição e mudança de Cliente.
 
@@ -410,6 +411,13 @@ documento no próprio diálogo e imprime por `printDocumentElement`
 calculado por `buildInvoiceFileBaseName`. Não existe geração de PDF por
 biblioteca.
 
+Margem da folha A4 (igual em `src/index.css` e em `src/lib/printDocument.ts`,
+Vela e Portal): 20 mm em cima e 12 mm embaixo em todas as páginas, mais 8 mm no
+começo do documento, que valem também quando o navegador imprime com
+"Margens: nenhuma" (pedido do dono de 2026-11-02; antes, 10 mm em cima e o
+cabeçalho colado na borda com "Margens: nenhuma"). Vale para fatura, recibo e
+Invoice de Demurrage.
+
 Desde a PR 939 (documentos impressos, tela 20 da identidade), sem mudar o visual: valores
 em R$ não quebram linha, a folha tem margem e "Página N de M" em todas as
 páginas, e o recibo da individual coberta diz "Recebido pela consolidada
@@ -425,10 +433,15 @@ cabeçalho "MISTO (CNTR + CARGA SOLTA)"); a consolidada mantém o subtotal por
 B/L. Vale para individual, consolidada, avulsa e recibos. O TOTAL sai da faixa
 âmbar na largura da tabela e vira caixa âmbar compacta à direita, logo abaixo
 dela, e na impressão não começa uma página sozinha (leva junto a última linha
-da tabela); no recibo, a última linha da tabela é o total emitido e a caixa traz o
-valor líquido recebido, com "Pago em" embaixo. Quantidade usa vírgula decimal
+da tabela); no recibo, a caixa traz o valor recebido, com "Pago em" embaixo. Quantidade usa vírgula decimal
 ("15,4"; inteiro sem casas), o rótulo é "Navio / Viagem:" e nada fica abaixo
-de 12px. No Pix, a frase do QR Code é seguida de "Depois do pagamento, a baixa
+de 12px. Desde 2026-11-01 o recibo só certifica o que foi recebido: o valor
+aparece uma vez, na caixa "Valor recebido:" (na individual coberta,
+"Recebido pela consolidada INV-…:"), com "Pago em". Saíram da tabela as linhas
+"Total da fatura emitida", "Valor recebido", "Abatido do saldo", "Devolvido ao
+Cliente", "Restituição pendente" e a nota "Quitação pela fatura consolidada";
+abatimento e restituição continuam no detalhe da fatura. O valor da caixa é o
+recebido menos a devolução já feita (`net_received_brl`). No Pix, a frase do QR Code é seguida de "Depois do pagamento, a baixa
 da fatura pode levar de 1 a 5 minutos. Para ver a fatura como paga, atualize a
 página no Portal do Cliente."; "Saldo a pagar" só aparece quando a fatura está
 parcialmente paga, e o código Copia e Cola quebra em várias linhas.
@@ -460,7 +473,7 @@ para achar o peso de carga solta do quadro do alto. **Código:**
 | Detalhe · registrar pagamento ledger | `canRegisterInvoicePayment`: fatura não avulsa com status `issued`/`partially_paid`/`overdue` e saldo positivo; fora disso o card mostra que a fatura não aceita pagamento | `InvoiceDetailModal.handleRegisterPayment` | `useRegisterLedgerInvoicePayment` → `registerLedgerInvoicePayment` | RPC `register_verified_invoice_payment` → `register_ledger_invoice_payment` → `payments`, `ledger_settlements`, receivables, invoice, B/Ls, eventos e possível refund | Invalidação ledger comum | Valor/data validados; RPC rejeita estado, ausência de links, TXID duplicado e regras de valor | **Código:** `src/pages/faturamentoLedgerPayment.ts`, `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billingLedger.ts` · **Teste:** `src/services/__tests__/billingLedger.test.ts` |
 | Detalhe · registrar pagamento de avulsa | `canRegisterInvoicePayment`: fatura avulsa com status `issued`/`overdue`/`partially_paid`/`paid` (excedente vira restituição); cancelada ou rascunho não mostra o formulário (VELA-15) | Mesmo handler, ramo `else` | `useRegisterInvoicePayment` → `registerInvoicePayment` | RPC `register_verified_invoice_payment` (ramo `manual`) → `payments`, agregados de `invoices`, restituição do excedente | Invalida invoices, detalhe, B/Ls e clientes | Bloqueia valor não positivo, referência bancária ausente e avulsa fora dos status aceitos (22023) | **Código:** `src/pages/faturamentoLedgerPayment.ts`, `src/hooks/useBilling.ts`, `supabase/migrations/136_controles_financeiros.sql` · **Teste:** `src/pages/__tests__/faturamentoLedgerPayment.test.ts`, `src/components/billing/__tests__/InvoiceDetailPrint.test.tsx` |
 | Taxas Locais · Reemissão pendente · Tentar reemitir | Consolidada cancelada pela correção do B/L; qualquer Departamento (migration `246`) | `PendingReissuesPanel` | `useRetryPendingConsolidatedReissue` → `retryPendingConsolidatedReissue` | RPC `retry_pending_consolidated_reissue` → `_try_recreate_consolidated` (128): recria com os mesmos B/Ls, encerra se já não são os mesmos ou aguarda a individual | Invalida invoices (inclui Reemissão pendente), detalhe, ledger e clientes | Trava (Portal não pronto) mantém a pendência com o motivo no alerta | **Teste:** `invoiceBasisCorrection.local-pg.test.ts` |
-| Detalhe · Resolver com justificativa | Fatura desatualizada tratada; qualquer Departamento (migration `246`); motivo | `StaleInvoiceResolutionPanel` | `resolveStaleInvoice` | `resolve_stale_invoice`; eventos de alerta e auditoria | Fecha alerta, sem emitir documento ou fazer ajuste | Motivo com menos de 15 caracteres (migration `376`) e papel não autorizado recusados | **Teste:** `invoiceCorrection.local-pg.test.ts`, `lote4NumeroAvulsaEstornoItau.local-pg.test.ts` |
+| Detalhe · Resolver com justificativa | Fatura desatualizada tratada; qualquer Departamento (migration `246`); motivo | `StaleInvoiceResolutionPanel` | `resolveStaleInvoice` | `resolve_stale_invoice`; eventos de alerta e auditoria; `_clear_post_billing_hold` nos B/Ls da fatura (migration `574`) | Fecha alerta, sem emitir documento ou fazer ajuste; o B/L da fatura retido na Revisão por "Carga … após faturamento" sai dela, como na reemissão | Motivo com menos de 15 caracteres (migration `376`) e papel não autorizado recusados | **Teste:** `invoiceCorrection.local-pg.test.ts`, `lote4NumeroAvulsaEstornoItau.local-pg.test.ts` |
 | Detalhe · cancelar invoice | Admin; invoice sem pagamentos, não **Coberta** e sem correção registrada; individual fora de consolidada aberta e sem baixa do B/L em outro documento | `handleCancelInvoice` | `useCancelInvoice` → `cancelInvoice` | RPC protegida `cancel_invoice` (executa como `SECURITY DEFINER` após validar sessão ativa e papel admin) → invoice, batch, B/Ls e auditoria; implementação mais recente também preserva regras de Granito | Invalida invoices, detalhe, billing-ready, B/Ls e clientes | Pagamentos bloqueiam cancelamento; também recusam a fatura **Coberta** e a individual com baixa do B/L em outro documento (`guard_cancel_settled_elsewhere`), a individual cujo B/L está em consolidada aberta (`cancel_invoice`) e a fatura com correção registrada (`guard_cancel_invoice_with_correction`); tabelas internas não são expostas diretamente; falha cria alerta/evento best-effort | **Código:** `src/components/billing/InvoiceDetailModal.tsx`, `src/services/billing.ts`, `supabase/migrations_archive/064_fix_granite_invoice_cancel_reissue.sql`, `supabase/migrations_archive/142_secure_cancel_invoice_wrapper.sql` |
 | Detalhe · confirmar devolução | Refund pendente; Financeiro/Administrativo; comprovante, favorecido e data | `handleSettleRefund` com conferência | `useSettleInvoiceRefund` → `settleInvoiceRefund` | RPC `confirm_invoice_refund` (136), com evidência/auditoria | Invalidação financeira comum, inclusive Portal e Demurrage | Sem permissão, evidência ou lastro é rejeitado; repetição idêntica é idempotente | **Código:** `src/services/billingLedger.ts` · **Teste local:** `invoicePostBillingSafety.local-pg.test.ts` · **Migration 136:** [controles financeiros](../archive/specs/2026-10-04-controles-financeiros-design.md) |
 | Detalhe da avulsa ou de Demurrage · **Restituição excepcional** (autorizar) | Qualquer Departamento (migration `247`); avulsa paga ou parcialmente paga, ou Invoice de Demurrage paga; valor positivo até o recebido ainda não reservado (em Cancelamento com devolução integral, exatamente esse valor); finalidade (Devolução por ajuste ou Cancelamento com devolução integral) e justificativa de ao menos 10 caracteres | `FinancialRefundsPanel` (variante de autorização no detalhe da avulsa; completa no detalhe de Demurrage) | `requestFinancialRefund` (`src/services/financialRefunds.ts`), com chave de tentativa | RPC `request_financial_refund` (`136`) → `invoice_refunds` ou `demurrage_refunds` pendente com finalidade e `request_id` | Invalida restituições e dados financeiros relacionados | Usuário inativo ou do Portal recebe `42501`; valor acima do disponível ou justificativa curta, `22023`. A autorização não transfere dinheiro: a devolução é registrada pelo Financeiro ou pelo Administrativo | **Código:** `src/components/billing/FinancialRefundsPanel.tsx`, `supabase/migrations/136_controles_financeiros.sql` |
@@ -704,6 +717,19 @@ fatura de R$ 3.000 com R$ 1.000 pagos e valor correto de R$ 2.400 — o saldo ca
 de R$ 2.000 para R$ 1.400, sem restituição; paga inteira, os R$ 600 viram
 restituição.
 
+**B/L de volta à Revisão.** A mudança de carga do B/L faturado ou pago grava a
+retenção "Carga … após faturamento" e devolve o B/L à Revisão como Pendente
+(`_recalculate_bl_cargo_mode`, `trg_sync_bl_weight_cargo_mode`). A correção
+que reemite, abate ou não muda o valor tira a retenção e o B/L sai da Revisão
+(`_clear_post_billing_hold`); quando ela não conclui (Fatura desatualizada),
+o B/L fica na Revisão até **Tentar aplicar correção** reemitir ou até
+**Resolver com justificativa**, que também tira a retenção (migration `574`).
+Enquanto a retenção existe, `save_bl_review` não marca o B/L Revisado: sem
+dado mudado, recusa (`P0003`) com a orientação; com dado mudado, grava e o
+deixa Pendente (decisão do dono de 2026-11-03; antes, Salvar revisão o
+passava a Revisado com a fatura antiga). **Teste local-pg:**
+`revisaoBlFaturadoCargaAlterada.local-pg.test.ts`.
+
 **Reemissão pendente** só nasce quando a fatura já foi cancelada e a nova
 emissão falhou depois, ou na consolidada que aguarda a individual do B/L, com o
 motivo no alerta; resolvida a trava, quem emite usa
@@ -801,7 +827,9 @@ Cliente vinculado depois (ADR 0093, decisão 13; migration `379`).
 (definição vigente na `136`; ADR 0077, "Regra de CNPJ definida em 2026-10-04";
 ADR 0078, item 14). **Teste local-pg:**
 `src/integration/invoicePostBillingSafety.local-pg.test.ts`. O procedimento do
-usuário está no [manual financeiro](../operations/manual-financeiro.md).
+usuário está no Manual do Operador, em
+[Vincular ou trocar o Cliente do B/L](../manual/texto/07-ficha-do-bl.md#74-vincular-ou-trocar-o-cliente-do-bl)
+e [Devolver dinheiro ao Cliente](../manual/texto/24-pagamento-e-restituicao.md#246-devolver-dinheiro-ao-cliente).
 
 ### Ajuste de COD
 

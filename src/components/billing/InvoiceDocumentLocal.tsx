@@ -1,4 +1,3 @@
-import React from 'react'
 import { QRCodeSVG } from 'qrcode.react'
 import type { InvoiceDetail } from '../../services/billing'
 import type { InvoiceItem } from '../../types/database'
@@ -178,7 +177,6 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
   const isManual = invoice.invoice_type === 'manual'
   const isCovered = invoice.status === 'covered'
   const coveredBy = detail.financial_summary?.covered_by_invoice_number ?? null
-  const valueCell: React.CSSProperties = { ...cell, whiteSpace: 'nowrap' }
   const isConsolidated = bls.length >= 2
   const paymentDate = detail.financial_summary?.paid_at ?? [...(detail.payments ?? [])]
     .map((payment) => payment.paid_at)
@@ -368,29 +366,18 @@ export function InvoiceDocumentLocal({ detail, type = 'invoice' }: Props) {
               })()}
           </tbody>
         )}
-        {type === 'receipt' ? (
-          <tbody className="invoice-document__receipt-totals">
-            <tr style={{ background: DOC_SUBTOTAL, fontWeight: 700 }} data-testid="invoice-totals" className="invoice-document__totals">
-              <td colSpan={3} style={{ ...cell, textAlign: 'right' }}>Total da fatura emitida:</td>
-              <td style={{ ...valueCell, textAlign: 'right' }}>{fmtBRL(invoice.total_brl)}</td>
-            </tr>
-            {/* Individual coberta: o dinheiro entrou na consolidada e foi
-                atribuído aos B/Ls deste documento; não foi pago nesta fatura. */}
-            <tr><td colSpan={3} style={cell}>{isCovered ? `Recebido pela consolidada${coveredBy ? ` ${coveredBy}` : ''} (atribuído a estes B/Ls):` : 'Valor recebido:'}</td><td style={valueCell}>{fmtBRL(detail.financial_summary?.gross_received_brl ?? invoice.total_paid_brl ?? 0)}</td></tr>
-            <tr><td colSpan={3} style={cell}>Abatido do saldo:</td><td style={valueCell}>{fmtBRL(detail.financial_summary?.offset_brl ?? Math.max(Number(invoice.total_brl ?? 0) - Number(invoice.total_paid_brl ?? 0) - Number(invoice.balance_brl ?? 0), 0))}</td></tr>
-            <tr><td colSpan={3} style={cell}>Devolvido ao Cliente:</td><td style={valueCell}>{fmtBRL(detail.financial_summary?.refunded_brl ?? 0)}</td></tr>
-            <tr><td colSpan={3} style={cell}>Restituição pendente:</td><td style={valueCell}>{fmtBRL(detail.financial_summary?.pending_refund_brl ?? 0)}</td></tr>
-            {detail.financial_summary?.covered_by_invoice_number ? <tr><td colSpan={4} style={cell}>Quitação pela fatura consolidada {detail.financial_summary.covered_by_invoice_number}. Valores atribuídos aos B/Ls deste documento.</td></tr> : null}
-          </tbody>
-        ) : null}
       </table>
 
       {/* Lote 6b: o total sai da faixa âmbar na largura da tabela e vira caixa
-          compacta à direita, logo abaixo dela. No recibo a caixa traz o valor
-          líquido recebido; o total emitido fica na última linha da tabela. */}
+          compacta à direita, logo abaixo dela. O recibo só certifica o que foi
+          recebido: um valor, uma vez, e a data. Abatimento, devolução e
+          restituição ficam no detalhe da fatura, não no recibo. Na individual
+          coberta o dinheiro entrou pela consolidada. */}
       {type === 'receipt' ? (
         <InvoiceTotalBox
-          label={isCovered ? 'Valor líquido atribuído a estes B/Ls:' : 'Valor líquido recebido:'}
+          testId="invoice-totals"
+          className="invoice-document__totals"
+          label={isCovered ? `Recebido pela consolidada${coveredBy ? ` ${coveredBy}` : ''}:` : 'Valor recebido:'}
           value={fmtBRL(detail.financial_summary?.net_received_brl ?? invoice.total_paid_brl ?? 0)}
         >
           {paymentDate ? <InvoiceTotalLine label={`Pago em ${formatDate(paymentDate)}`} /> : null}

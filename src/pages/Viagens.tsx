@@ -498,7 +498,7 @@ export function Viagens() {
         }}
         onSaved={async (payload) => {
           if (!user?.id) {
-            showToast('Sessao expirada. Entre novamente para registrar a auditoria.', 'error')
+            showToast('Sessão expirada. Entre novamente para registrar a auditoria.', 'error')
             return
           }
           try {
@@ -603,7 +603,7 @@ export function Viagens() {
         onClose={() => setEditingPol(null)}
         onSaved={async ({ voyageId, pol, pod, etd, atd, ceMaster, batchIds, cargoMode }) => {
           if (!user?.id) {
-            showToast('Sessao expirada. Entre novamente para registrar a auditoria.', 'error')
+            showToast('Sessão expirada. Entre novamente para registrar a auditoria.', 'error')
             return
           }
           try {

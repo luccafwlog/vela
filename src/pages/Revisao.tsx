@@ -31,7 +31,7 @@ import {
   type ReviewCause,
   type ReviewGroup,
 } from './revisaoHelpers'
-import { extractErrorText } from '../lib/errors'
+import { extractErrorText, userFacingErrorMessage } from '../lib/errors'
 import { canonicalizeValidCnpj, formatCnpj } from '../lib/cnpj'
 import { invalidateReviewQueueCaches } from '../components/review/reviewCaches'
 import { afterTaxasDoBlAlteradas } from '../services/cacheEffects'
@@ -264,7 +264,11 @@ export function Revisao() {
     const title = `B/L ${item.id}: ${actionLabel.charAt(0).toLowerCase()}${actionLabel.slice(1)}`
     if (invoiced) {
       dismissRecalcNotice(item.id)
-      pushOutcome({ tone: 'success', title, lines: ['Saiu da revisão e a fatura foi emitida automaticamente.'] })
+      // O B/L que já chegou faturado não ganhou fatura nova: a que vale é a emitida antes.
+      const alreadyBilled = ['invoiced', 'paid'].includes(item.financial_status ?? '')
+      pushOutcome({ tone: 'success', title, lines: [alreadyBilled
+        ? 'Saiu da revisão; o B/L já estava faturado e a fatura emitida continua valendo.'
+        : 'Saiu da revisão e a fatura foi emitida automaticamente.'] })
       return
     }
     if (!result.resolved) {
@@ -306,7 +310,8 @@ export function Revisao() {
     } catch (error) {
       const message = extractErrorText(error)
       showToast(
-        // A tela (chargeOperationsService) diz "já"; o banco ainda diz "ja".
+        // A tela (chargeOperationsService) e o banco (desde a migration 567) dizem
+        // "já"; "ja" fica para a resposta de um banco ainda sem a 567.
         /j[aá] foi faturado/i.test(message)
           ? `Fatura já emitida para ${notice.id} — corrija o dado do B/L; a fatura é reemitida ou ajustada sozinha.`
           : 'Falha ao recalcular as taxas locais.',
@@ -442,7 +447,8 @@ export function Revisao() {
         await queryClient.invalidateQueries({ queryKey: ['review-queue'] })
         pushOutcome({ tone: 'danger', title: `B/L ${item.id}: não foi salvo`, lines: ['Outro usuário alterou este B/L. A fila foi recarregada; confira os dados e salve de novo.'] })
       } else {
-        pushOutcome({ tone: 'danger', title: `B/L ${item.id}: falha ao salvar a revisão`, lines: [extractErrorText(err) || 'Tente de novo.'] })
+        // A recusa do servidor (ex.: B/L faturado com a carga alterada, P0003) vem pelo tradutor, sem o código.
+        pushOutcome({ tone: 'danger', title: `B/L ${item.id}: falha ao salvar a revisão`, lines: [userFacingErrorMessage(err, extractErrorText(err) || 'Tente de novo.')] })
       }
     } finally {
       setSavingInlineId(null)

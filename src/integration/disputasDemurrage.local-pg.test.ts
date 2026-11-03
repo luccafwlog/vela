@@ -203,6 +203,10 @@ describeLocal('520 — Disputas de Demurrage', () => {
       expect(psql(`SELECT public._demurrage_dispute_waiting_since(${DISP_REOPEN}) > now() - interval '1 minute'`)).toBe('t')
       expect(activeAlert('demurrage_disputa_prazo', INV_REOPEN)).toBe('0')
       expect(psql(`SELECT count(*) FROM public.internal_notifications WHERE item_type = 'demurrage_disputa_prazo' AND entity_id = '${INV_REOPEN}'`)).toBe('0')
+      // Fora da vez do Cliente, a recusa usa o nome que a conversa do Portal dá à equipe (574).
+      const outOfTurn = as(PORTAL, `SELECT public.portal_add_dispute_message(${INV_REOPEN}, 'Mais um detalhe')`)
+      expect(sqlstate(outOfTurn.error)).toBe('42501')
+      expect(outOfTurn.error).toContain('Aguarde a resposta da Equipe de Containers.')
     })
 
     it('vencido, abre o Alerta para Equipamentos; a resposta da equipe fecha', () => {

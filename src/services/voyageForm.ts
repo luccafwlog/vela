@@ -29,11 +29,11 @@ export const initialVoyageFormValues: VoyageFormValues = {
 }
 
 export const voyageFormSchema = z.object({
-  carrierName: z.string().min(2, 'Armador obrigatorio (min. 2 caracteres)'),
+  carrierName: z.string().min(2, 'Armador obrigatório (mín. 2 caracteres)'),
   carrierScac: z.string(),
-  vesselName: z.string().min(2, 'Navio obrigatorio (min. 2 caracteres)'),
+  vesselName: z.string().min(2, 'Navio obrigatório (mín. 2 caracteres)'),
   vesselImo: z.string(),
-  voyageNumber: z.string().min(1, 'Numero da viagem obrigatorio'),
+  voyageNumber: z.string().min(1, 'Número da viagem obrigatório'),
   status: z.enum(['active', 'completed', 'cancelled']),
   indicatedFirstBrazilianPort: z.string().nullable().optional(),
   indicatedFirstBrazilianEta: z.string().nullable().optional(),

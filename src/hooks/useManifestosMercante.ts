@@ -9,6 +9,13 @@ import {
   type ManifestoMercante,
 } from '../services/manifestosMercanteService'
 import { queryKeys } from '../services/queryKeys'
+import {
+  loadMercanteBreakbulkInput,
+  loadMercanteCargoInput,
+  loadMercanteVaziosInput,
+  type MercanteCargoInput,
+  type MercanteVaziosInput,
+} from '../services/mercanteEdiData'
 
 export function useManifestosMercanteByVoyage(voyageId: number | null | undefined) {
   return useQuery<ManifestoMercante[]>({
@@ -66,5 +73,27 @@ export function useUnlinkBlsFromManifestoMercante(voyageId?: number | null) {
       unlinkBlsFromManifestoMercante(blIds, reason, expected),
     onSuccess: () => afterManifestoChanged(queryClient, voyageId),
     onError: (error) => refreshIfStale(queryClient, error, voyageId),
+  })
+}
+
+/**
+ * Dados de uma rota para o EDI Mercante (prévia em Rotas e Manifestos). Lidos
+ * na hora de abrir a prévia, sem reaproveitar cache: o arquivo sai com o que
+ * está gravado agora.
+ */
+export function useMercanteEdiInput(
+  voyageId: number,
+  route: { pol: string; pod: string; kind: 'carga' | 'carga_solta' | 'vazio' } | null,
+) {
+  return useQuery<MercanteCargoInput | MercanteVaziosInput>({
+    queryKey: [...queryKeys.manifestosMercante.byVoyage(voyageId), 'edi', route?.kind ?? '', route?.pol ?? '', route?.pod ?? ''],
+    enabled: route !== null && voyageId > 0,
+    staleTime: 0,
+    gcTime: 0,
+    queryFn: () => {
+      if (route!.kind === 'vazio') return loadMercanteVaziosInput(voyageId, route!.pol, route!.pod)
+      if (route!.kind === 'carga_solta') return loadMercanteBreakbulkInput(voyageId, route!.pol, route!.pod)
+      return loadMercanteCargoInput(voyageId, route!.pol, route!.pod)
+    },
   })
 }

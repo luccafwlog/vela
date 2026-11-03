@@ -231,6 +231,13 @@ describe('timeline operacional de transbordo', () => {
 
     expect(withReason[0].title).toBe('Escala de VITÓRIA omitida · Porto de Transbordo — SANTOS · motivo: congestionamento portuário')
     expect(withoutReason[0].title).toBe('Escala de VITÓRIA omitida · Porto de Transbordo — SANTOS')
+    // Desde a 574 o motivo padrão vem com acento; as linhas antigas seguem sem.
+    const accentedDefault = buildVoyageTimeline({ auditEvents: [{
+      entity_type: 'voyage', entity_id: '2', field_name: 'escala_omitida',
+      old_value: 'VITÓRIA', new_value: 'SANTOS', justification: 'Omissão de escala',
+      changed_at: '2026-07-16T11:00:00Z',
+    }] })
+    expect(accentedDefault[0].title).toBe('Escala de VITÓRIA omitida · Porto de Transbordo — SANTOS')
   })
 
   it('exibe a correção como evento próprio após reverter uma omissão', () => {

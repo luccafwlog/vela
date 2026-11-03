@@ -24,7 +24,7 @@ import type { PortalScheduleVoyage } from './portalScheduleVoyages'
 import { scheduleExportRows, scheduleTemplateColumns } from './portalScheduleBulkImport'
 import type { PortalDemurrageInvoice, PortalInvoiceSummary } from './portalBilling'
 import type { PortalOperationBL } from './portalOperation'
-import { localChargesView, type PortalFlatContainer } from '../lib/portalOperationViews'
+import { blReturnSummary, localChargesView, type PortalFlatContainer } from '../lib/portalOperationViews'
 import type { QueueRow } from './portalProvisioning'
 import { portalProvisioningExportRow } from '../lib/portalProvisioningViewModel'
 import type { CeUnlockItem } from '../types/ceUnlock'
@@ -370,7 +370,7 @@ export function demurrageItemSheetRows(rows: readonly DemurrageItemReportRow[]) 
     '2º período (dias)': row.days_p2 ?? '',
     '2º período (US$/dia)': usdCell(row.rate_p2_usd),
     US$: usdCell(row.subtotal_usd),
-    'Parte da caixa': boxShareLabel(row.box_share_count) ?? '',
+    'Parte do container': boxShareLabel(row.box_share_count) ?? '',
   }))
 }
 
@@ -557,6 +557,8 @@ export async function exportPortalBlsWorkbook(rows: PortalOperationBL[]) {
     Devolvidos: row.containers_returned,
     'Sem devolucao': row.container_count - row.containers_returned,
     'Em demurrage': row.containers_in_demurrage,
+    // Mesma conta da coluna Demurrage da tela (observação de 2026-11-01).
+    'Devolvidos com demurrage': blReturnSummary(row).returnedWithDemurrage,
     ...portalBlLocalChargesColumns(row),
   }))
 
@@ -621,7 +623,7 @@ export async function exportLineUpWorkbook(rows: LineUpRow[]) {
     Linked: (row.rowType === 'export' ? row.exportLinked : row.linked) ? 'Sim' : 'Não',
   }))
   const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Line Up')
+  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Line-Up')
   XLSX.writeFile(workbook, `painel-lineup-${makeTimestamp()}.xlsx`)
 }
 
@@ -643,8 +645,9 @@ export async function exportCustomerContainersWorkbook(customerName: string, row
   const demurrageText = (view: import('./demurrage/customerContainers').CustomerContainerView) => {
     const d = view.demurrage
     if (d.kind === 'soc') return 'Não se aplica (SOC)'
-    if (d.kind === 'running') return 'Em curso'
-    if (d.kind === 'to_bill') return 'A faturar'
+    // Como a tela (decisão do dono de 2026-11-03): correndo ou a emitir.
+    if (d.kind === 'running') return 'Correndo'
+    if (d.kind === 'to_bill') return 'A emitir'
     if (d.kind === 'invoice') return `${d.invoice.doc_number} (${statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, d.invoice.status)})`
     if (d.kind === 'waived') return 'Cobrança dispensada'
     if (d.kind === 'error') return 'Sem tarifa para calcular'

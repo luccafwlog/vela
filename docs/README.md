@@ -23,7 +23,7 @@ roteadores. Diretrizes canônicas em [AGENTS.md](../AGENTS.md). Cada fato tem um
 | Saber quais serviços externos o sistema usa, onde estão as contas e os segredos | [operations/servicos-externos.md](operations/servicos-externos.md) |
 | Pôr Chegadas e saídas e a Consulta de container no site fwlog.com.br | [operations/fwlog-site-embed.md](operations/fwlog-site-embed.md) |
 | Validar um fluxo manualmente | [operations/validacao.md](operations/validacao.md) |
-| Resolver faturamento, baixa, restituição, cancelamento ou correção de B/L | [Manual financeiro](operations/manual-financeiro.md) |
+| Resolver faturamento, baixa, restituição, cancelamento ou correção de B/L | Manual do Operador: [fatura](manual/texto/22-a-fatura.md), [pagamento e restituição](manual/texto/24-pagamento-e-restituicao.md) e [Demurrage no Financeiro](manual/texto/23-demurrage-no-financeiro.md) |
 | Saber por que algo foi decidido | [adr/](adr/README.md) |
 | Saber onde registrar uma informação | [CONVENCOES.md](CONVENCOES.md#responsabilidade-de-cada-documento) |
 | Comunicar resultados na linguagem do sistema (agentes) | [agents/linguagem-do-sistema.md](agents/linguagem-do-sistema.md) |
@@ -73,7 +73,7 @@ as rotas de cadastro, de Comunicados, do console e da Inspeção do Portal, é o
 - [adr/](adr/README.md) — decisões numeradas (o porquê); o índice diz o status e onde está a regra vigente.
 - [operations/](operations/regras-de-negocio.md) — [manual dos serviços externos](operations/servicos-externos.md),
   [regras de negócio transversais](operations/regras-de-negocio.md), [segurança](operations/seguranca.md),
-  [manual financeiro](operations/manual-financeiro.md), [validação manual](operations/validacao.md),
+  [validação manual](operations/validacao.md),
   [limpeza dos dados de teste](operations/reset-ambiente.md), [backup lógico cifrado em R2](operations/backup-r2.md),
   [rate limit do Portal](operations/portal-rate-limit.md), [iframes do fwlog.com.br](operations/fwlog-site-embed.md), [segredos dos jobs `pg_cron`](operations/segredos-cron.md),
   [observabilidade (Better Stack e Sentry)](operations/observabilidade.md), [configuração do Sentry](operations/sentry-configuracao.md)
@@ -81,7 +81,7 @@ as rotas de cadastro, de Comunicados, do console e da Inspeção do Portal, é o
 - [agents/](agents/linguagem-do-sistema.md) — [contrato de comunicação dos agentes](agents/linguagem-do-sistema.md)
   e [issue tracker](agents/issue-tracker.md).
 - [setup/](setup/development.md) — desenvolvimento, deploy, testes.
-- [manual/](manual/README.md) — Manual do Operador: matriz de cobertura que liga cada regra do código ao lugar do manual que a explica (`npm run manual:coverage`) e catálogo de situações por capítulo.
+- [manual/](manual/README.md) — Manual do Operador, versão 1.0: [texto](manual/texto/README.md) (25 capítulos e apêndices; PDF por `npm run manual:build`), matriz de cobertura que liga cada regra do código ao lugar do manual que a explica (`npm run manual:coverage`) e catálogo de situações por capítulo.
 - [plans/](plans/README.md) — planos de implementação vivos (ainda não executados).
 - [spec/](spec/README.md) — specs funcionais ainda sem implementação concluída.
 - [archive/](archive/README.md) — histórico: planos executados, specs concluídas, auditorias, QA e relatórios.

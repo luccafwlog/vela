@@ -57,7 +57,7 @@
 import { randomUUID } from 'node:crypto'
 import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { syntheticCnpj } from './localTestData'
+import { syntheticCeBeforeCancelSql, syntheticCnpj } from './localTestData'
 
 // Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
 // teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
@@ -539,6 +539,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     expect(blState('A207-C1').financial_status).toBe('invoiced')
     // Sem tabela no POD, nada é calculado, não há recebível e a ficha oferece
     // Cancelar (B/L com CE, BlDetalhe.tsx:372-373); payload de blState.ts:10-18.
+    localPsql(syntheticCeBeforeCancelSql('A207-C2'))
     expect(JSON.parse(asAdmin(`SELECT public.cancel_bl('A207-C2', 'Carga não embarcou (A207)', false);`)))
       .toEqual({ cancelled: true, reasons: [] })
     expect(blState('A207-C2')).toMatchObject({ cancelled: true, financial_status: 'pending' })
@@ -755,6 +756,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
       INSERT INTO public.bl_receivables (bl_id, customer_id, source, original_amount_brl, settled_amount_brl, balance_brl, status)
       VALUES ('A207-RC1', ${cliente.id}, 'local_charges', 100, 0, 100, 'open');
     `)
+    localPsql(syntheticCeBeforeCancelSql('A207-RC1'))
     expect(JSON.parse(asAdmin(`SELECT public.cancel_bl('A207-RC1', 'Carga não embarcou (A207)', false);`))).toEqual({ cancelled: true, reasons: [] })
     expect(localPsql(`SELECT status || ':' || balance_brl FROM public.bl_receivables WHERE bl_id = 'A207-RC1';`)).toBe('void:0.00')
     expect(localPsql(`SELECT count(*) FROM public.audit_logs WHERE entity_id = 'A207-RC1' AND field_name = 'receivable_voided';`)).toBe('1')
@@ -770,12 +772,18 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     localPsql(`SELECT public.register_demurrage_payment('${randomUUID()}'::uuid, ${invoiceId}, (now() AT TIME ZONE 'America/Sao_Paulo')::date);`)
   }
 
-  // C5 (ADR 0078, item 12): só fatura emitida trava a exclusão.
-  it('B/L cancelado com recebível anulado pode ser excluído, e o recebível sai junto', () => {
-    expect(localPsql(`SELECT array_to_string(public.delete_lock_reasons(${voyage.recebivel}), '|');`)).not.toContain('documento financeiro emitido')
-    const result = JSON.parse(asAdmin(`SELECT public.delete_records('bl', ARRAY['A207-RC1'], false, 'B/L lançado por engano (A207)');`)) as { deleted: string[]; blocked: unknown[] }
-    expect(result).toMatchObject({ deleted: ['A207-RC1'], blocked: [] })
-    expect(localPsql(`SELECT count(*) FROM public.bl_receivables WHERE bl_id = 'A207-RC1';`)).toBe('0')
+  // C5 (ADR 0078, item 12): só fatura emitida trava a exclusão. Migration 574:
+  // o B/L sem CE não se cancela; com recebível sem fatura, ele se exclui.
+  it('B/L sem CE com recebível sem fatura não se cancela: é excluído, e o recebível sai junto', () => {
+    insertBl('A207-RC2', voyage.recebivel, pod, [{ number: 'ADCU2070092' }])
+    localPsql(`
+      INSERT INTO public.bl_receivables (bl_id, customer_id, source, original_amount_brl, settled_amount_brl, balance_brl, status)
+      VALUES ('A207-RC2', ${cliente.id}, 'local_charges', 100, 0, 100, 'open');
+    `)
+    expect(tryAsAdmin(`SELECT public.cancel_bl('A207-RC2', 'Carga não embarcou (A207)', false);`).error).toMatch(/sem CE Mercante não se cancela: exclua-o/)
+    const result = JSON.parse(asAdmin(`SELECT public.delete_records('bl', ARRAY['A207-RC2'], false, 'B/L lançado por engano (A207)');`)) as { deleted: string[]; blocked: unknown[] }
+    expect(result).toMatchObject({ deleted: ['A207-RC2'], blocked: [] })
+    expect(localPsql(`SELECT count(*) FROM public.bl_receivables WHERE bl_id = 'A207-RC2';`)).toBe('0')
   })
 
   it('B/L com recebível ligado a fatura emitida continua travado para exclusão', () => {
@@ -798,6 +806,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
       expect.objectContaining({ status: 'issued', containers: ['ADCU2070101', 'ADCU2070102'] }),
     ])
 
+    localPsql(syntheticCeBeforeCancelSql('A207-H2'))
     expect(JSON.parse(asAdmin(`SELECT public.cancel_bl('A207-H2', 'Carga não embarcou (A207)', false);`)))
       .toMatchObject({ cancelled: false, reasons: ['fatura de Demurrage em aberto'] })
     expect(blState('A207-H2').cancelled).toBe(false)
@@ -822,6 +831,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
   it('B/L cancelado não forma grupo nem recebe Invoice de Demurrage: a caixa é cobrada uma vez, pelo B/L ativo', () => {
     insertBl('A207-I1', voyage.canceladoRaiz, pod, [{ number: 'ADCU2070111' }], '207009000000011')
     insertBl('A207-I2', voyage.canceladoRaiz, pod, [{ number: 'ADCU2070111' }], '207009000000012')
+    localPsql(syntheticCeBeforeCancelSql('A207-I1'))
     expect(JSON.parse(asAdmin(`SELECT public.cancel_bl('A207-I1', 'B/L lançado em duplicidade (A207)', false);`))).toEqual({ cancelled: true, reasons: [] })
     expect(localPsql(`SELECT cardinality(public.demurrage_group_bl_ids('A207-I1'));`)).toBe('0')
 

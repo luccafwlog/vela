@@ -16,6 +16,7 @@ import {
   getReviewItemCauses,
   readReviewCauseParam,
   reviewReasonCause,
+  postBillingCargoHold,
   reviewReasonLabel,
   sortReviewGroupsByPriority,
   splitReviewNotes,
@@ -44,6 +45,15 @@ describe('rótulos da fila de revisão', () => {
     expect(reviewReasonLabel('Acesso ao portal nao provisionado')).toBe('Portal não provisionado')
     expect(reviewReasonLabel('Peso BB ausente')).toBe('Peso da carga solta ausente')
     expect(reviewReasonLabel('CE Mercante ausente')).toBe('CE Mercante ausente')
+  })
+
+  // Migration 574 (a): a retenção só conta no B/L faturado ou pago.
+  it('reconhece a retenção "Carga … após faturamento" do B/L faturado e a nomeia', () => {
+    const hold = 'Carga alterada após faturamento; estorno/refaturamento necessário.'
+    expect(reviewReasonLabel(hold)).toBe('Fatura a corrigir: carga alterada depois da fatura')
+    expect(postBillingCargoHold({ financial_status: 'paid', billing_hold_reason: hold })).toBe(hold)
+    expect(postBillingCargoHold({ financial_status: 'pending', billing_hold_reason: hold })).toBeNull()
+    expect(postBillingCargoHold({ financial_status: 'invoiced', billing_hold_reason: 'Cliente sem reconciliacao aprovada.' })).toBeNull()
   })
 
   it('exibe a modalidade operacional do B/L', () => {

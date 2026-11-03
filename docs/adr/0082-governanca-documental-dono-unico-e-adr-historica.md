@@ -1,5 +1,11 @@
 # 0082 — Governança da documentação: um dono por fato e ADR como registro histórico
 
+> **Situação atual (2026-11-03):** por decisão do dono, o dono do "Procedimento
+> do usuário do Financeiro" passou a ser o Manual do Operador, capítulos 21 a 24
+> (`docs/manual/texto/`). O `docs/operations/manual-financeiro.md` citado abaixo
+> foi absorvido e está no [arquivo histórico](../archive/reports/2026-11-03-manual-financeiro.md).
+> Tabela vigente em [CONVENCOES.md](../CONVENCOES.md#responsabilidade-de-cada-documento).
+
 Status: aceito — 2026-10-13 (decisões do dono). Aplicada pela
 [revisão geral da documentação](../archive/plans/2026-10-13-revisao-geral-documentacao.md),
 concluída em 2026-10-14 ([relatório](../archive/audits/2026-10-13-revisao-geral-documentacao.md)).

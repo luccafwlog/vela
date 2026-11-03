@@ -400,7 +400,7 @@ Valide:
 3. desconto;
 4. emissão, impressão, cancelamento e pagamento;
 5. container compartilhado: uma Invoice para o grupo e, com caixa nova
-   descoberta, a Invoice complementar ([regra](../modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-caixa));
+   descoberta, a Invoice complementar ([regra](../modules/demurrage.md#grupo-de-demurrage-e-cobrança-por-container));
 6. datas alteradas depois da emissão: sem pagamento (cancela e reemite), paga
    e com desconto ou disputa (suspensa, com Alerta) ([regra](../modules/demurrage.md#datas-alteradas-depois-da-emissão));
 7. **Cancelar baixa…** de uma Invoice paga;
@@ -536,7 +536,7 @@ Em `/chegadas-saidas` (regras em
 **Esperado:** datas persistem, o Portal reflete a programação, e a saída da
 viagem segue [Saída da Programação](../modules/chegadas-saidas.md#saída-da-programação).
 
-## 15. Admin, alertas, relatórios e Line Up
+## 15. Admin, alertas, relatórios e Line-Up
 
 - `/admin/usuarios`: crie um usuário de QA (**Novo usuário**), troque e-mail e
   senha (**Editar acesso**), troque o setor (**Alterar setor**) e confirme que

@@ -45,7 +45,10 @@ VIA-020, VIA-025, VIA-048).
 #### S4.02 — "Navio … com IMO conflitante"
 
 - **O que o sistema faz:** recusa quando o nome é de um navio cadastrado com
-  outro IMO; dois navios com o mesmo nome e sem IMO pedem o IMO.
+  outro IMO de 7 dígitos; dois navios com o mesmo nome e sem IMO pedem o IMO.
+  O IMO gravado fora do formato (o nome do navio no campo IMO) não conflita:
+  **Editar** na Viagem, **Adicionar navio** numa Viagem nova e a planilha de
+  programação o trocam pelo informado.
 - **Por quê:** o IMO identifica o navio; nome parecido não junta navios
   diferentes.
 - **O que você faz:** confira o IMO com o armador e informe o certo.
@@ -131,7 +134,7 @@ VIA-020, VIA-025, VIA-048).
 
 #### S4.11 — Mudei o ETA: o que muda e o que não muda
 
-- **O que muda sozinho:** Próxima escala e ordem das Viagens; Line Up;
+- **O que muda sozinho:** Próxima escala e ordem das Viagens; Line-Up;
   Chegadas e Saídas e Portal (se publicada); alertas de data; prazos D−7 e
   D−5 (B/Ls esperados, Baplie, CE Mercante); alerta de B/L sem Cliente perto do
   ETA; janela do Comunicado de Chegada Próxima (NOA).
@@ -144,7 +147,7 @@ VIA-020, VIA-025, VIA-048).
 - **O que o sistema faz:** conclui a Viagem quando toda escala ativa tem
   atracação com ATD, ao salvar a escala. Omitir ou excluir a última escala
   pendente também conclui; reverter a omissão reabre. Concluída, ela sai de
-  Chegadas e Saídas, do Portal e do Line Up padrão.
+  Chegadas e Saídas, do Portal e do Line-Up padrão.
 - **O que você faz:** se concluiu antes da hora, confira se falta registrar
   uma escala ou atracação; salvar a escala recalcula.
 - **Regras:** VIA-016, VIA-019, VIA-130, VIA-131.
@@ -233,9 +236,9 @@ VIA-020, VIA-025, VIA-048).
 - **Por quê:** o banco confere quem faz e o estado da omissão e do B/L antes
   de gravar.
 - **O que você faz:** siga o motivo:
-  - "Usuario sem permissao ativa.": saia e entre de novo; se continuar, o
+  - "Usuário sem permissão ativa.": saia e entre de novo; se continuar, o
     Administrativo confere o seu acesso.
-  - "A escala da viagem … ja foi omitida …" ou "Omissao … ja foi
+  - "A escala da viagem … já foi omitida …" ou "Omissão … já foi
     revertida.": outra pessoa já fez; atualize a tela.
   - B/L em COD: reverta antes o COD de cada B/L e depois a omissão (S4.16).
   - "Cambio (ROE) nao configurado; …": peça ao Financeiro para registrar o
@@ -277,7 +280,8 @@ VIA-020, VIA-025, VIA-048).
 
 - **O que o sistema faz:** tudo fica somente leitura ("operação selada e
   somente leitura"); só o status de Demurrage é recalculado. Os alertas do ADR
-  da Viagem cancelada continuam abertos e só saem com a exclusão da Viagem.
+  da Viagem cancelada fecham no cancelamento e não reabrem enquanto ela estiver
+  cancelada (migration `574`).
 - **O que você faz:** se o cancelamento foi engano, o Administrativo usa
   **Reativar viagem** com motivo.
 - **Regras:** VIA-023, VIA-024, ALE-085.

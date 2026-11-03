@@ -44,14 +44,14 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function asEffect(value: unknown): ImportEffect {
   if (!isObject(value) || typeof value.id !== 'number' || typeof value.entity_id !== 'string') {
-    throw new Error('Resposta invalida da fila de efeitos de import.')
+    throw new Error('Resposta inválida da fila de efeitos de import.')
   }
   return value as unknown as ImportEffect
 }
 
 function asOutcome(value: unknown): ImportEffectOutcome {
   if (!isObject(value) || !('effect' in value)) {
-    throw new Error('Resposta invalida da fila de efeitos de import.')
+    throw new Error('Resposta inválida da fila de efeitos de import.')
   }
   return {
     effect: asEffect(value.effect),
@@ -92,7 +92,7 @@ export async function claimImportEffects(input: {
     p_lease_seconds: input.leaseSeconds ?? 300,
   })
   if (error) throwRpcError(error)
-  if (!Array.isArray(data)) throw new Error('Resposta invalida do claim de efeitos de import.')
+  if (!Array.isArray(data)) throw new Error('Resposta inválida do claim de efeitos de import.')
   return data.map(asEffect)
 }
 
@@ -129,7 +129,7 @@ export async function listImportEffects(options: {
     p_limit: options.limit ?? 100,
   })
   if (error) throwRpcError(error)
-  if (!Array.isArray(data)) throw new Error('Resposta invalida da consulta de efeitos de import.')
+  if (!Array.isArray(data)) throw new Error('Resposta inválida da consulta de efeitos de import.')
   return data.map(asEffect)
 }
 

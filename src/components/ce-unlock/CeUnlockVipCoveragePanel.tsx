@@ -10,7 +10,7 @@ import {
 import type { PortalScope } from "../../services/portalScope";
 import { queryKeys } from "../../services/queryKeys";
 import { afterCeUnlockChanged } from "../../services/cacheEffects";
-import { annualDocumentValid } from "../../services/ceUnlockRules";
+import { annualDocumentValid, proposedVipStart, vipStartError } from "../../services/ceUnlockRules";
 import type { CeUnlockDocument } from "../../types/ceUnlock";
 import { ActionMenu } from "../ui/ActionMenu";
 import { Block, Fact, FactList, LeadValue } from "../ui/Block";
@@ -90,16 +90,23 @@ export function CeUnlockVipCoveragePanel({
       setBusy(false);
     }
   }
-  // Ano e início da vigência começam no ano corrente e no dia do envio; o fim é sempre 31/12 do ano.
+  // O ano começa no corrente e o início no mais tarde entre o envio e 01/01 desse
+  // ano (recalculado quando o ano muda); o fim é sempre 31/12 do ano.
   function analyze(d: CeUnlockDocument) {
+    const current = Number(localDay().slice(0, 4));
     setAnalyzing(d.id);
-    setYear(Number(localDay().slice(0, 4)));
-    setFrom(localDay(d.created_at));
+    setYear(current);
+    setFrom(proposedVipStart(localDay(d.created_at), current));
+  }
+  function changeYear(d: CeUnlockDocument, value: number) {
+    setYear(value);
+    setFrom(proposedVipStart(localDay(d.created_at), value));
   }
   async function review(d: CeUnlockDocument, decision: Decision) {
     let reason: string | null = null;
     const name = lower(d.type);
     if (decision === "approved") {
+      if (vipStartError(from, year)) return;
       if (
         !(await confirm({
           message: `Aprovar ${name} anual de ${formatDate(from)} a 31/12/${year}?`,
@@ -172,6 +179,7 @@ export function CeUnlockVipCoveragePanel({
   const primary = (["termo", "procuracao"] as const).find((type) => !vip?.[type] && latest(type)?.status !== "uploaded");
   const canUpload = manage || scope?.mode === "client";
   const analyzed = manage ? documents.find((d) => d.id === analyzing) ?? null : null;
+  const startError = analyzed ? vipStartError(from, year) : "";
   const actions = (d: CeUnlockDocument, current: boolean) => {
     if (current && (d.status === "uploaded" || d.status === "changes_requested"))
       return (
@@ -238,9 +246,9 @@ export function CeUnlockVipCoveragePanel({
         <Block title={`Analisar ${lower(analyzed.type)}`} headingLevel={3} aside={analyzed.file_name}>
           <div className="grid gap-3 sm:grid-cols-3">
             <Field label="Ano da cobertura">
-              <Input type="number" min={2020} max={2100} value={year} onChange={(e) => setYear(Number(e.target.value))} />
+              <Input type="number" min={2020} max={2100} value={year} onChange={(e) => changeYear(analyzed, Number(e.target.value))} />
             </Field>
-            <Field label="Início da vigência">
+            <Field label="Início da vigência" error={startError || undefined}>
               <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
             </Field>
             <Field label="Fim da vigência">
@@ -248,7 +256,7 @@ export function CeUnlockVipCoveragePanel({
             </Field>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button disabled={busy} onClick={() => void review(analyzed, "approved")}>Aprovar {lower(analyzed.type)}</Button>
+            <Button disabled={busy || !!startError} onClick={() => void review(analyzed, "approved")}>Aprovar {lower(analyzed.type)}</Button>
             {analyzed.status !== "changes_requested" ? (
               <Button variant="secondary" disabled={busy} onClick={() => void review(analyzed, "changes_requested")}>
                 Solicitar correção

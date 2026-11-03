@@ -9,6 +9,8 @@ import { useToast } from '../components/ui/Toast'
 import { useConfirm } from '../components/ui/ConfirmDialog'
 import { usePortalProfile } from '../hooks/usePortalProfile'
 import { usePortalScope } from '../hooks/usePortalScope'
+import { CopyValue } from '../components/ui/CopyValue'
+import { formatCnpjCpf } from '../lib/utils'
 import { portalErrorMessage } from '../lib/portalErrorMessage'
 import type { PortalProfile as PortalProfileData } from '../services/portalBilling'
 import { supabasePortal } from '../services/supabase'
@@ -60,7 +62,15 @@ export function PortalProfile() {
 
   return (
     <>
-      <PageHeader title="Meu perfil" description="Contatos que recebem comunicados, endereço da empresa e o e-mail usado para recuperar a senha." />
+      <PageHeader
+        title="Meu perfil"
+        description={(
+          <>
+            <CustomerIdentity name={scope.overview?.customer_name} document={scope.overview?.customer_cnpj_cpf} />
+            Contatos que recebem comunicados, endereço da empresa e o e-mail usado para recuperar a senha.
+          </>
+        )}
+      />
 
       {readOnly ? (
         <p className="portal-profile__inspection-note" role="note">
@@ -89,6 +99,25 @@ export function PortalProfile() {
         )}
       </div>
     </>
+  )
+}
+
+/**
+ * Razão social e CNPJ (ou CPF) do Cliente no topo de Meu perfil, o documento
+ * com o ícone de copiar (decisões do dono de 2026-11-02). Vêm da sessão, a
+ * mesma do Modo Inspeção.
+ */
+function CustomerIdentity({ name, document }: { name: string | null | undefined; document: string | null | undefined }) {
+  const companyName = name?.trim() ?? ''
+  const digits = (document ?? '').replace(/\D/g, '')
+  if (!companyName && !digits) return null
+  const label = digits.length === 11 ? 'CPF' : 'CNPJ'
+  return (
+    <span className="mb-1 block font-semibold text-[var(--app-text-strong)]">
+      {companyName ? <span>{companyName}</span> : null}
+      {companyName && digits ? ' · ' : null}
+      {digits ? <>{label} <span className="font-mono"><CopyValue value={formatCnpjCpf(document)} label={label} /></span></> : null}
+    </span>
   )
 }
 

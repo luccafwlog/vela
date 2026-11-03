@@ -71,7 +71,7 @@ describe('customerDemurrageAgreements service', () => {
         free_days: 21,
         valid_from: '2026-01-01',
       }),
-    ).rejects.toThrow(/Cliente obrigatorio/)
+    ).rejects.toThrow(/Cliente obrigatório/)
 
     await expect(
       saveCustomerDemurrageAgreement({
@@ -87,7 +87,7 @@ describe('customerDemurrageAgreements service', () => {
         free_days: 21,
         valid_from: '',
       }),
-    ).rejects.toThrow(/Data de inicio/)
+    ).rejects.toThrow(/Data de início/)
 
     await expect(
       saveCustomerDemurrageAgreement({
@@ -96,7 +96,7 @@ describe('customerDemurrageAgreements service', () => {
         valid_from: '2026-05-01',
         valid_to: '2026-04-01',
       }),
-    ).rejects.toThrow(/Data de termino da vigencia nao pode ser anterior/)
+    ).rejects.toThrow(/Data de término da vigência não pode ser anterior/)
   })
 
   it('upserts customer demurrage agreement payload', async () => {
@@ -153,7 +153,7 @@ describe('customerDemurrageAgreements service', () => {
         free_days: 28,
         valid_from: '2026-01-01',
       }),
-    ).rejects.toThrow(/Ja existe um acordo ativo para este cliente com vigencia sobreposta/)
+    ).rejects.toThrow(/Já existe um acordo ativo para este Cliente com vigência sobreposta/)
   })
 
   it('deletes and toggles active status of agreements', async () => {

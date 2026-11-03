@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { Button } from './Button'
+import { lockPageScroll } from '../../lib/pageScrollLock'
 
 /** Largura do modal: curto (confirmação), formulário de até duas colunas ou conteúdo largo. */
 export type ModalSize = 'sm' | 'md' | 'lg'
@@ -40,11 +41,7 @@ export function Modal({
 
   useEffect(() => {
     if (!open) return
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = previousOverflow
-    }
+    return lockPageScroll()
   }, [open])
 
   useEffect(() => {

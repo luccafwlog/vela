@@ -100,7 +100,7 @@ describe('fetchROE', () => {
     }))
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('network down'))))
 
-    await expect(fetchROE()).rejects.toThrow('BCB offline e sem cache de PTAX disponivel')
+    await expect(fetchROE()).rejects.toThrow('BCB offline e sem cache de PTAX disponível')
     expect(localStorage.getItem(ROE_CACHE_KEY)).toBeNull()
   })
 
@@ -134,14 +134,14 @@ describe('fetchROE', () => {
     localStorage.setItem(ROE_CACHE_KEY, JSON.stringify({ roe: 5.32, fetchedAt: '2026-06-20T00:00:00.000Z' }))
     vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('network down'))))
 
-    await expect(fetchROE()).rejects.toThrow('BCB offline e sem cache de PTAX disponivel')
+    await expect(fetchROE()).rejects.toThrow('BCB offline e sem cache de PTAX disponível')
     expect(reportBestEffortFailure.mock.calls[0][2]).toEqual({ fellBackToCache: false })
   })
 
   it('registra a falha no Sentry somente quando não há nenhum fallback disponível', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 503 } as Response)))
 
-    await expect(fetchROE()).rejects.toThrow('BCB offline e sem cache de PTAX disponivel')
+    await expect(fetchROE()).rejects.toThrow('BCB offline e sem cache de PTAX disponível')
     expect(reportBestEffortFailure).toHaveBeenCalledTimes(1)
     expect(reportBestEffortFailure.mock.calls[0][0]).toBe('fetchROE: BCB PTAX indisponivel e sem cache')
     expect(reportBestEffortFailure.mock.calls[0][2]).toEqual({ fellBackToCache: false })

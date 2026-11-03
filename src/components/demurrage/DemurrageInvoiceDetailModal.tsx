@@ -239,7 +239,7 @@ function DetailBody({
         <p className="app-invoice-detail__note">
           Substitui a Invoice{' '}
           <button type="button" className="app-invoice-detail__link app-invoice-detail__code" onClick={() => { if (invoice.replaces) onOpenInvoice(invoice.replaces.id) }}>{invoice.replaces.doc_number}</button>
-          , cancelada para reemissão automática quando as datas, o SOC/COC ou a divisão de uma caixa mudaram depois da emissão.
+          , cancelada para reemissão automática quando as datas, o SOC/COC ou a divisão de um container mudaram depois da emissão.
         </p>
       ) : null}
 
@@ -248,7 +248,7 @@ function DetailBody({
           <h3 id="dem-detail-group" className="app-invoice-detail__heading">Outras Invoices deste B/L</h3>
           {earlier.length ? (
             <p className="app-invoice-detail__note">
-              Esta é uma Invoice complementar: cobra só as caixas que ainda não estavam em Invoice. As já cobradas ficaram em {earlier.map((other) => other.doc_number).join(', ')}.
+              Esta é uma Invoice complementar: cobra só os containers que ainda não estavam em Invoice. As já cobradas ficaram em {earlier.map((other) => other.doc_number).join(', ')}.
             </p>
           ) : null}
           {siblingsError ? <p className="app-invoice-detail__alert">Não foi possível conferir as outras Invoices deste B/L.</p> : null}

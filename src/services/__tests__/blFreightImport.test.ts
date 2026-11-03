@@ -1062,9 +1062,9 @@ describe('blFreightImport', () => {
     )
     // o rotulo e o que o operador le no preview; o nome da coluna nao diz nada
     expect(preview.rows[0]?.diffs.find((diff) => diff.field === 'consignee_block')?.label).toBe(
-      'Consignatario (bloco completo)',
+      'Consignatário (bloco completo)',
     )
-    expect(BL_FREIGHT_DIFF_LABELS.cargo_description).toBe('Descricao da carga (origem do NCM)')
+    expect(BL_FREIGHT_DIFF_LABELS.cargo_description).toBe('Descrição da carga (origem do NCM)')
   })
 
   it('trata rota e viagem de B/L faturado como impacto de faturamento, nao como promessa vazia', () => {

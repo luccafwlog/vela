@@ -1,6 +1,7 @@
 // Predicados puros para a fila de revisão.
 import { canonicalizeValidCnpj, extractCnpjsFromText, formatCnpj } from '../lib/cnpj'
 import type { ReviewCustomer, ReviewQueueItem } from '../hooks/useReview'
+import type { BL } from '../types/database'
 import { isBreakbulkCargoMode } from '../lib/cargoMode'
 
 export function normalizeConsignee(value?: string | null) {
@@ -18,7 +19,25 @@ const reviewReasonLabels: Record<string, string> = {
 
 /** Texto operacional exibido na fila, mantendo o motivo bruto para filtros e persistência. */
 export function reviewReasonLabel(reason: string) {
+  if (POST_BILLING_CARGO_HOLD.test(reason)) return POST_BILLING_CARGO_HOLD_LABEL
   return reviewReasonLabels[reason] ?? reason
+}
+
+/** Rótulo da retenção "Carga … após faturamento" (B/L faturado cuja carga mudou). */
+export const POST_BILLING_CARGO_HOLD_LABEL = 'Fatura a corrigir: carga alterada depois da fatura'
+
+// Retenção que a mudança de carga do B/L faturado grava (`_recalculate_bl_cargo_mode`,
+// `trg_sync_bl_weight_cargo_mode`); o servidor a reconhece pelo mesmo texto.
+export const POST_BILLING_CARGO_HOLD = /^Carga .+ após faturamento;/
+
+/**
+ * A retenção "Carga … após faturamento" do B/L faturado ou pago, ou null. Ela
+ * segura a Revisão até a fatura ser corrigida, e Salvar revisão sem mudar dado
+ * é recusado (migration 574).
+ */
+export function postBillingCargoHold(bl: Pick<BL, 'financial_status' | 'billing_hold_reason'>): string | null {
+  const hold = bl.billing_hold_reason ?? ''
+  return ['invoiced', 'paid'].includes(bl.financial_status ?? '') && POST_BILLING_CARGO_HOLD.test(hold) ? hold : null
 }
 
 export function getReviewCargoTypeLabel(item: ReviewQueueItem) {

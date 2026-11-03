@@ -109,7 +109,7 @@ describeLocal('migration 470 — Taxas Locais e faturamento', () => {
       SELECT string_agg(bl_id || ':' || eligibility_status || ':' || eligibility_reason, ',' ORDER BY bl_id)
         FROM public.list_consolidatable_receivables(4670010);
       ROLLBACK;`)
-    expect(last(out)).toBe('B467A:no_ce_mercante:sem CE Mercante.,B467B:eligible:Elegivel para consolidacao.')
+    expect(last(out)).toBe('B467A:no_ce_mercante:sem CE Mercante.,B467B:eligible:Elegível para consolidação.')
   })
 
   it('Histórico do B/L mantém a exclusão de taxa manual e põe o refixar em Taxas (TAX-D08)', () => {

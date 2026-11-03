@@ -86,6 +86,30 @@ it("Vela: Analisar abre ano, início e fim (31/12, só leitura) e aprova com a v
   }));
 });
 
+it("Vela: anual enviado em dezembro e analisado no ano novo começa em 01/01; trocar o ano recalcula; início fora do ano avisa e não grava", async () => {
+  svc.getCeUnlockVip.mockResolvedValue(coverage([doc({ id: "dez", created_at: `${year - 1}-12-20T13:00:00Z` })]));
+  mount(<CeUnlockVipCoveragePanel customerId={101} manage />);
+  await userEvent.click(await screen.findByRole("button", { name: "Analisar procuração" }));
+  const analysis = screen.getByRole("region", { name: "Analisar procuração" });
+  const start = within(analysis).getByLabelText("Início da vigência") as HTMLInputElement;
+  const yearInput = within(analysis).getByLabelText("Ano da cobertura") as HTMLInputElement;
+  expect(yearInput.value).toBe(String(year));
+  expect(start.value).toBe(`${year}-01-01`);
+  await userEvent.clear(yearInput);
+  await userEvent.type(yearInput, String(year - 1));
+  expect(start.value).toBe(`${year - 1}-12-20`);
+  await userEvent.clear(yearInput);
+  await userEvent.type(yearInput, String(year));
+  expect(start.value).toBe(`${year}-01-01`);
+  await userEvent.clear(start);
+  await userEvent.type(start, `${year - 1}-12-20`);
+  expect(within(analysis).getByRole("alert").textContent).toBe(`O início da vigência precisa estar em ${year}, o ano da cobertura.`);
+  const approve = within(analysis).getByRole("button", { name: "Aprovar procuração" }) as HTMLButtonElement;
+  expect(approve.disabled).toBe(true);
+  await userEvent.click(approve);
+  expect(svc.ceUnlockCommand).not.toHaveBeenCalled();
+});
+
 it("Portal: correção pedida em âmbar com o motivo inteiro; envio por botões, sem análise", async () => {
   svc.getPortalCeUnlockVip.mockResolvedValue(coverage([docs[1], docs[2]]));
   const scope = { mode: "client" as const, customerId: null, overview: null, basePath: "/portal" };

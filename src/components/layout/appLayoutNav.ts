@@ -18,7 +18,6 @@ import {
   RefreshCw,
   Ship,
   ShieldCheck,
-  Table2,
   UserCheck,
   Users,
 } from 'lucide-react'
@@ -31,7 +30,7 @@ export type NavItem = {
   icon: ComponentType<{ size?: number }>
   badge?: number
   alert?: boolean
-  /** Abre em outra aba (Line Up na TV, fora do layout do Vela). */
+  /** Abre em outra aba (a Tela TV, fora do layout do Vela). */
   external?: boolean
 }
 
@@ -47,14 +46,16 @@ export type NavGroup = {
 export const painelNavItem: NavItem = { to: '/painel', label: 'Painel', icon: Home }
 
 // Desde 2026-11-01 (decisão do dono), as telas que só abriam por botão dentro
-// de outra tela entram no grupo do seu assunto: Chegadas e Saídas e Line Up
-// TV em Viagens; Informações do Portal (com Provisionamento e Comunicação) em
-// Clientes; Regras de alertas em Alertas; Tabelas e Tarifas no Financeiro;
-// Locais em Exportação.
+// de outra tela entram no grupo do seu assunto: Chegadas e Saídas e Tela TV
+// em Viagens; Informações do Portal (com Provisionamento e Comunicação) em
+// Clientes; Regras de alertas em Alertas; Locais em Exportação. Tabelas de
+// Taxas Locais e Tarifas de Demurrage voltaram a abrir só pelos botões de
+// Taxas Locais e de Demurrage (decisão do dono de 2026-11-02).
 export const voyagesNavItems: NavItem[] = [
   { to: '/viagens', label: 'Viagens', icon: Ship },
   { to: '/chegadas-saidas', label: 'Chegadas e Saídas', icon: CalendarClock },
-  { to: '/line-up-tv/display', label: 'Line Up TV', icon: Monitor, external: true },
+  // O mesmo nome do botão do Painel (decisão do dono de 2026-11-03).
+  { to: '/line-up-tv/display', label: 'Tela TV', icon: Monitor, external: true },
 ]
 
 export const importNavItems: NavItem[] = [
@@ -91,9 +92,7 @@ export const adminNavItem: NavItem = { to: '/admin', label: 'Admin', icon: Shiel
 
 export const financialNavItems: NavItem[] = [
   { to: '/taxas-locais', label: 'Taxas Locais', icon: ReceiptText },
-  { to: '/taxas-locais/tabelas', label: 'Tabelas de Taxas Locais', icon: Table2 },
   { to: '/demurrage', label: 'Demurrage', icon: Clock },
-  { to: '/demurrage/taxas', label: 'Tarifas de Demurrage', icon: Table2 },
   { to: '/reconciliacao', label: 'Conciliação PIX', icon: RefreshCw },
 ]
 
@@ -141,8 +140,8 @@ export function isPathActive(pathname: string, to: string) {
 
 /**
  * Item do grupo que corresponde à tela: o de endereço mais longo que casa.
- * Sem isso, /taxas-locais/tabelas marcaria também Taxas Locais, e
- * /embarquevazios/depots marcaria Vazios EXP. Item externo nunca é a tela.
+ * Sem isso, /embarquevazios/depots marcaria também Vazios EXP; uma
+ * sub-tela fora do menu (/taxas-locais/tabelas) marca o item pai. Item externo nunca é a tela.
  */
 export function activeNavItem(items: NavItem[], pathname: string): NavItem | null {
   return items

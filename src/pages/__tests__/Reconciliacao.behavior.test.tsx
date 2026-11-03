@@ -263,6 +263,29 @@ describe('Conciliação PIX', () => {
     expect(screen.queryByText(/Consulta parada/)).toBeNull()
   })
 
+  it('QR estático: a cobrança Itaú aparece desligada e a idade da consulta segue na tela, porque o Pix dele dá baixa pela consulta', async () => {
+    mocks.itauMonitor.mockResolvedValue({ provider: 'static', polledUntil: new Date().toISOString(), counts: {}, charges: [], receipts: [] })
+    renderPage()
+    const itau = (await screen.findByRole('heading', { name: 'Cobrança Pix Itaú' })).closest('section')!
+    expect(await within(itau).findByText('Cobrança Itaú desligada: as faturas usam o QR estático, e o Pix dele dá baixa pela consulta do Itaú')).toBeTruthy()
+    expect(within(itau).getByText(/Recebimentos consultados agora há pouco/)).toBeTruthy()
+    expect(within(itau).getByText('Recebimentos consultados até')).toBeTruthy()
+    expect(within(itau).getByText('Ligada, pelo QR estático')).toBeTruthy()
+    expect(within(itau).queryByText(/Consulta parada/)).toBeNull()
+    expect(within(itau).queryByText('Cobranças ativas')).toBeNull()
+  })
+
+  it('QR estático com a consulta parada mostra o aviso em âmbar, como com a cobrança Itaú', async () => {
+    mocks.itauMonitor.mockResolvedValue({ provider: 'static', polledUntil: '2026-10-06T15:00:00Z', counts: {}, charges: [], receipts: [] })
+    renderPage()
+    const itau = (await screen.findByRole('heading', { name: 'Cobrança Pix Itaú' })).closest('section')!
+    const lead = await within(itau).findByText(/^Consulta parada há/)
+    expect(lead.className).toContain('app-lead__value--warning')
+    expect(within(itau).getByText(/Pix pagos pelo QR estático depois de 06\/10\/2026 às 12:00 não deram baixa automática\. Avise quem cuida da integração/)).toBeTruthy()
+    expect(within(itau).getByText('06/10/2026 às 12:00')).toBeTruthy()
+    expect(within(itau).getByText('Desligada')).toBeTruthy()
+  })
+
   it('Pix Itaú em análise só é marcado como tratado com motivo; Voltar devolve o foco e a recusa fica no campo', async () => {
     mocks.itauMonitor.mockResolvedValue({
       provider: 'itau', polledUntil: new Date().toISOString(), counts: {}, charges: [],
@@ -567,8 +590,9 @@ describe('Conciliação PIX', () => {
     renderPage()
     expect(screen.getByRole('tab', { name: /Pendências/ })).toBeTruthy()
     await waitFor(() => expect(mocks.itauMonitor).toHaveBeenCalled())
-    // Cobrança Itaú desligada: o dado principal diz de onde vem a baixa.
-    expect(await screen.findByText('Desligada: as faturas usam o QR estático e a baixa vem do extrato')).toBeTruthy()
+    // Cobrança Itaú desligada e consulta nunca feita: a parada aparece também com o QR estático.
+    expect(await screen.findByText('Consulta de recebimentos ainda não feita')).toBeTruthy()
+    expect(screen.getByText('Desligada')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Marcar como tratado/ })).toBeNull()
     await user.click(screen.getByRole('tab', { name: /Conciliar extrato/ }))
     expect(screen.getByText('Conciliar extrato é do Financeiro e do Administrativo')).toBeTruthy()
@@ -688,7 +712,7 @@ describe('Conciliação PIX', () => {
     })
 
     it('recusa da baixa fica na linha e diz que nada foi gravado', async () => {
-      mocks.settleReceipt.mockRejectedValueOnce(new Error('Valor divergente das duas ultimas fotos financeiras da Demurrage 78.'))
+      mocks.settleReceipt.mockRejectedValueOnce(new Error('Valor divergente das duas últimas fotos financeiras da Demurrage 78.'))
       const user = userEvent.setup()
       renderPage('/reconciliacao?tab=recebidos')
       await screen.findByText('B/L ABC123')

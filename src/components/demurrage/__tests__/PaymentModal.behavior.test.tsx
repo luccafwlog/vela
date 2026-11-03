@@ -40,7 +40,7 @@ it('recusa junto do campo a data anterior à emissão, que a RPC não aceitaria'
 
 it('mantém a falha da baixa no modal', () => {
   render(
-    <PaymentModal open invoice={invoice} paymentDate="2026-07-19" error="Fatura 42 nao possui uma foto financeira pagavel." onPaymentDateChange={vi.fn()} onClose={vi.fn()} onSubmit={vi.fn()} />,
+    <PaymentModal open invoice={invoice} paymentDate="2026-07-19" error="Fatura 42 não possui uma foto financeira pagável." onPaymentDateChange={vi.fn()} onClose={vi.fn()} onSubmit={vi.fn()} />,
   )
   expect(screen.getByRole('alert').textContent).toContain('Nada foi baixado.')
 })

@@ -324,7 +324,7 @@ export function calculateDemurrage(
   const dischargeMs = noonMs(dischargeDate)
   const returnMs = noonMs(returnDate)
   if (returnMs < dischargeMs) {
-    throw new Error('Data de devolucao nao pode ser anterior a descarga.')
+    throw new Error('Data de devolução não pode ser anterior à descarga.')
   }
   const dc = Math.round((returnMs - dischargeMs) / 86400000)
 

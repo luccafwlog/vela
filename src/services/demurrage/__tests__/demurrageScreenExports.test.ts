@@ -19,7 +19,7 @@ describe('Exportar das abas da central de Demurrage', () => {
     const invoice = { id: 7, doc_number: 'DEM-7', bl_id: 'BL-1', billed_at: '2026-10-01T12:00:00Z', paid_at: '2026-10-05', total_usd: 100, current_total_brl: 550, payment_method: 'extrato', customer: { name: 'Cliente' } } as never
     const details = new Map([[7, { paymentRoe: 5.5, cancelReason: 'Erro de datas', cancelledBy: 'Ana', cancelledAt: '2026-10-06T12:00:00Z', destinations: [{ kind: 'aguardando' as const, invoice_id: null, doc_number: null, containers: ['MSCU1'] }] }]])
     expect(invoiceTabSheetRows('pagas', [invoice], details)[0]).toMatchObject({ 'Dias até pagar': 4, 'USD pago': 100, 'ROE do pagamento': 5.5, 'Meio de pagamento': 'Extrato' })
-    expect(invoiceTabSheetRows('canceladas', [invoice], details)[0]).toMatchObject({ Motivo: 'Erro de datas', 'Cancelada por': 'Ana', 'Destino das caixas': 'MSCU1: aguardando nova Invoice' })
+    expect(invoiceTabSheetRows('canceladas', [invoice], details)[0]).toMatchObject({ Motivo: 'Erro de datas', 'Cancelada por': 'Ana', 'Destino dos containers': 'MSCU1: aguardando nova Invoice' })
   })
 
   it('Por Cliente traz as colunas da tela', () => {

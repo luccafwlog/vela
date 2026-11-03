@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Check de cobertura do Manual do Operador (plano
-// docs/plans/2026-10-26-manual-do-operador.md, Etapa 1.6).
+// docs/archive/plans/2026-10-26-manual-do-operador.md, Etapa 1.6).
 //
 // Extrai de novo o inventário do sistema (scripts/manual/inventory.mjs) e
 // falha quando:

@@ -133,6 +133,39 @@ describe('PortalDisputeConversation', () => {
     expect(mutateAddMessageMock).toHaveBeenCalledTimes(1)
   })
 
+  it('fora da vez do Cliente, campo, anexo e envio ficam desligados, com a frase de espera', () => {
+    renderConversation([{ ...mockDispute, next_responder: 'equipamentos' as const }])
+    const textarea = screen.getByRole('textbox', { name: 'Sua resposta' }) as HTMLTextAreaElement
+    expect(textarea.disabled).toBe(true)
+    expect(screen.getByText('Aguardando a resposta da Equipe de Containers').id).toBe(textarea.getAttribute('aria-describedby'))
+    expect((screen.getByRole('button', { name: 'Enviar mensagem' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('button', { name: /Anexar arquivo/ }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.queryByText('PDF, JPG, PNG ou TXT, até 10 MB')).toBeNull()
+  })
+
+  it('na vez do Cliente não há frase de espera e o campo fica ativo', () => {
+    renderConversation([mockDispute])
+    expect((screen.getByRole('textbox', { name: 'Sua resposta' }) as HTMLTextAreaElement).disabled).toBe(false)
+    expect(screen.queryByText('Aguardando a resposta da Equipe de Containers')).toBeNull()
+  })
+
+  it('o anexo retido continua reenviável quando a conversa passa a aguardar a Equipe de Containers', async () => {
+    checkEligibilityMock.mockResolvedValueOnce(true)
+    mutateAddMessageMock.mockResolvedValueOnce({ message_id: 457 })
+    uploadAttachmentMock.mockRejectedValueOnce(new Error('Falha de rede ao transferir anexo.'))
+    const view = renderConversation([mockDispute])
+    fireEvent.change(screen.getByPlaceholderText('Responda à conversa…'), { target: { value: 'Segue anexo' } })
+    fireEvent.change(document.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [new File(['x'], 'eir.pdf', { type: 'application/pdf' })] } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar mensagem' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Confirmar envio da mensagem' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Enviar mensagem' }))
+    await screen.findByText(/Sua mensagem foi registrada, mas o anexo não pôde ser enviado/)
+    // A mensagem gravada passou a vez à equipe; a conversa chega de novo do servidor.
+    view.rerender(<ConfirmDialogProvider><PortalDisputeConversation dispute={{ ...mockDispute, next_responder: 'equipamentos' as const }} /></ConfirmDialogProvider>)
+    expect(screen.getByText('Aguardando a resposta da Equipe de Containers')).toBeTruthy()
+    expect((screen.getByRole('button', { name: 'Reenviar anexo' }) as HTMLButtonElement).disabled).toBe(false)
+  })
+
   it('does not record a customer message until the customer confirms its contents', async () => {
     renderConversation([mockDispute])
     fireEvent.change(screen.getByPlaceholderText('Responda à conversa…'), { target: { value: 'Vamos enviar o comprovante.' } })

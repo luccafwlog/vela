@@ -47,7 +47,7 @@ function formatRoe(roe: number) {
 function replacedCauseText(cause: PortalDemurrageReplacedCause | null | undefined) {
   if (cause === 'datas') return 'cancelada porque as datas dos containers mudaram.'
   if (cause === 'soc') return 'cancelada porque um container passou a SOC e saiu da cobrança.'
-  if (cause === 'divisao') return 'cancelada porque mudou a divisão de uma caixa entre Clientes.'
+  if (cause === 'divisao') return 'cancelada porque mudou a divisão de um container entre Clientes.'
   return 'cancelada e substituída por esta.'
 }
 

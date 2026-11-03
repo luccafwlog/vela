@@ -38,14 +38,14 @@ describe('OmitEscalaModal - recusa do banco', () => {
   })
 
   it('mostra o motivo da recusa e não fecha a janela', async () => {
-    const { onClose, alert } = await omitWith({ code: '23505', message: 'A escala da viagem 7 ja foi omitida para o POD BRSSA.', details: null, hint: null })
+    const { onClose, alert } = await omitWith({ code: '23505', message: 'A escala da viagem 7 já foi omitida para o POD BRSSA.', details: null, hint: null })
 
-    expect(alert.textContent).toBe('A escala da viagem 7 ja foi omitida para o POD BRSSA.')
+    expect(alert.textContent).toBe('A escala da viagem 7 já foi omitida para o POD BRSSA.')
     expect(onClose).not.toHaveBeenCalled()
   })
 
   it('Voltar e omitir de novo não mostra a recusa anterior na confirmação', async () => {
-    await omitWith({ code: '23505', message: 'A escala da viagem 7 ja foi omitida para o POD BRSSA.', details: null, hint: null })
+    await omitWith({ code: '23505', message: 'A escala da viagem 7 já foi omitida para o POD BRSSA.', details: null, hint: null })
     const user = userEvent.setup()
 
     await user.click(screen.getByRole('button', { name: 'Voltar' }))
