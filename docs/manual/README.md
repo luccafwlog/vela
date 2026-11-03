@@ -57,20 +57,17 @@ código, capturas refeitas numa rodada só), o dono decidiu:
 
 O que continua em aberto:
 
-1. **Prazo do ADR sem imagem:** o cenário de demonstração não fecha nenhum ADR,
-   e a aba mostra só "Nenhum ADR fechado no período". A captura espera um
-   cenário que feche um ADR.
-2. **Telas do Pix com a cobrança pelo Itaú ligada:** o emulador as mostra (basta
-   `pix_provider = 'itau'` no banco de demonstração, conferido em 2026-11-03),
-   mas o cenário segue com o QR estático, como a `staging`, e o capítulo 24
-   descreve o modo ligado sem imagem.
-3. **Casos de código achados na revisão de 2026-11-03:** esperam decisão do dono;
-   a lista está na descrição da PR da revisão. O texto descreve o comportamento
-   de hoje e muda quando a correção entrar.
-4. **Textos do servidor sem acento que não são recusa:** os motivos de revisão das
-   Taxas Locais, a isenção por veículo, o **Pode consolidar** e alguns avisos ao
-   Cliente no sino ("Consolidacao desfeita"). Ficaram fora da decisão 1, que
-   trata das recusas.
+1. **Textos do servidor sem acento que o próprio sistema compara:** ficaram
+   como estão, porque outras funções e telas os reconhecem pelo texto:
+   "Pendencias de importacao: …", "Acesso ao portal nao provisionado",
+   "Cliente nao vinculado", "Aguardando reconciliacao de cliente…", "Cliente nao
+   encontrado na base cadastral.", "Conciliacao automatica por TXID", "Nao
+   informado", "Atualizacao manual de …", os motivos do Histórico gravados pela
+   importação e os cabeçalhos das planilhas exportadas. Acentuá-los exige mudar
+   também quem compara.
+
+Os casos de código achados na revisão de 2026-11-03 foram decididos pelo dono
+no mesmo dia e entraram na migration `574` (ver "Atualizações da matriz").
 
 ## Catálogo de situações
 
@@ -537,3 +534,38 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     cenário), `precos-do-porto` (21.7), `demurrage-containers` (9.5),
     `pix-recebidos` (24.4, com dois Pix fictícios no cenário), `restituicao`
     (24.6) e a `tela-tv` já existente em 5.7.
+- **Decisões do dono de 2026-11-03, depois da revisão** (migration `574` e telas):
+  - Revisão: salvar sem mudar dado o B/L faturado com a carga alterada é
+    recusado; com mudança, grava e o B/L segue Pendente até a fatura ser
+    corrigida; **Resolver com justificativa** na **Fatura desatualizada** tira o
+    B/L da Revisão (8.5, 8.6, 22.8; BLR-102, BLR-129, BLR-133, BLR-149,
+    FAT-057, FAT-121).
+  - Cancelar B/L sem CE Mercante é recusado no servidor, salvo o B/L que também
+    não pode ser excluído (7.8, Ap. B; BLR-10x).
+  - Consulta de Pix: com o QR estático, o bloco **Cobrança Pix Itaú** mostra a
+    idade da consulta e o alerta **Consulta de Pix do Itaú parada** abre e fecha
+    como com o Itaú; a frase "Desligada: … a baixa vem do extrato" saiu (24.1,
+    24.3, 20.10; REC-005, REC-023, REC-025, REC-037, ALE-071, catálogo).
+  - Cancelar a Viagem fecha os alertas do ADR dela, e a rodada não os reabre
+    enquanto ela estiver cancelada (4.8, 20.12; ALE-085, VIA-095, VIA-096).
+  - Navio já cadastrado mantém o armador em **Adicionar navio** (Chegadas e
+    Saídas) e na **Nova Viagem**, salvo com **Alterar armador** (4.1, 5.2, 5.8;
+    VIA-014, VIA-106).
+  - **Busca**, **Escalas** e **Período** do Line-Up valem também para a
+    exportação (5.7; VIA-120, VIA-135).
+  - VIP: a análise do anual propõe um início no ano da cobertura e avisa antes de
+    gravar (12.8; DCE-082).
+  - Disputa no Portal: fora da vez do Cliente, campo e envio desligados, com
+    "Aguardando a resposta da Equipe de Containers"; a recusa diz o mesmo nome
+    (15.6; DEM-107, DEM-108, POR-079).
+  - Filtro **Status** da aba Demurrage do Portal sem **Cancelada**, com o padrão
+    **Todos** (17; DEM-112, POR-071).
+  - Recusa do Desbloqueio de CE exportado igual à da tela (DCE-057).
+  - "Disputa" no lugar de "Dispute" nas recusas e alertas da Disputa, textos de
+    tela corrigidos (4.1 **Número da viagem**) e textos do servidor que não são
+    recusa com acento: motivos de revisão das Taxas Locais, **Pode consolidar**,
+    avisos do sino do Portal e textos de alertas (21.4; matrizes 02, 03, 04, 05,
+    07, 09a, 09b, 10, 11 e 12).
+  - 17.11 com o aviso de que as páginas do site entram no ar com a publicação;
+    capturas novas `prazo-do-adr` (25.9, com um ADR fechado no cenário) e
+    `pix-itau-ligado` (24.1).
