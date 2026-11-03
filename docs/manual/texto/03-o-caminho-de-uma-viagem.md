@@ -36,7 +36,7 @@ Com o CE, o B/L aparece no Portal do Cliente vinculado. O Cliente vê a carga, a
 
 ## 3.3 Do porto à Viagem concluída
 
-**No porto.** {{Operações}} registra a chegada do navio, a atracação em cada terminal e a saída (capítulo 4). As datas novas chegam sozinhas ao Line Up, ao Portal e aos avisos de chegada que o Vela manda aos Clientes (capítulo 16).
+**No porto.** {{Operações}} registra a chegada do navio, a atracação em cada terminal e a saída (capítulo 4). As datas novas chegam sozinhas ao Line-Up, ao Portal e aos avisos de chegada que o Vela manda aos Clientes (capítulo 16).
 
 **Os containers.** Depois da descarga, {{Equipamentos}} acompanha a devolução de cada container vazio. Quem devolve depois do prazo livre paga a Demurrage (capítulo 9).
 
@@ -52,7 +52,7 @@ Com o CE, o B/L aparece no Portal do Cliente vinculado. O Cliente vê a carga, a
 | Importar o Baplie | {{Documentação}} | A conferência da carga a bordo | 6 |
 | Importar o CE Mercante | {{Documentação}} | A fatura e o B/L no Portal | 6 |
 | Ativar o Portal do Cliente | {{Documentação}} | A fatura dos Clientes novos | 14 |
-| Registrar chegada, atracação e saída | {{Operações}} | O Line Up, os avisos ao Cliente e o ADR | 4 |
+| Registrar chegada, atracação e saída | {{Operações}} | O Line-Up, os avisos ao Cliente e o ADR | 4 |
 | Acompanhar a devolução dos containers | {{Equipamentos}} | A Demurrage | 9 |
 | Conciliar o pagamento que não foi conferido sozinho | {{Financeiro}} | A fatura paga | 24 |
 | Assinar o ADR de Saída | cada equipe, a sua parte | O fechamento da Viagem no porto | 11 |

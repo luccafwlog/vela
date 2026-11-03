@@ -13,7 +13,7 @@ A frente de carga cheia no terminal TVV, com o ETB e o ETD.
 
 ::: sozinho
 - O terminal da frente vale para cada B/L da escala: é ele que decide o ADR de Saída e o Aviso de Atracação do B/L.
-- O ETB e o ETD chegam ao Line Up, ao Portal e aos avisos ao Cliente.
+- O ETB e o ETD chegam ao Line-Up, ao Portal e aos avisos ao Cliente.
 :::
 
 Escala que também embarca? Na mesma janela, em **Operação da escala**, escolha **Importação + exportação** e marque **Granito** ou **Embarque de vazios**.

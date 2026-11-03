@@ -22,8 +22,8 @@ A **Conciliação** da Viagem tem o mesmo nome e a mesma cor nos cartões, na li
 
 | Na tela | Cor | O que leva a ela |
 |---|---|---|
-| Faixa verde no Line Up (**Atracado**, no cartão da tela estreita) | verde | O ATB de um terminal, enquanto falta o ATD dele. |
-| **Omitida** | âmbar na ficha da Viagem; cinza no Line Up e em Chegadas e Saídas | **Omitir escala** ([4.7](04-viagens-escalas.md#47-quando-o-armador-omite-uma-escala)); **Reverter omissão** desfaz. |
+| Faixa verde no Line-Up (**Atracado**, no cartão da tela estreita) | verde | O ATB de um terminal, enquanto falta o ATD dele. |
+| **Omitida** | âmbar na ficha da Viagem; cinza no Line-Up e em Chegadas e Saídas | **Omitir escala** ([4.7](04-viagens-escalas.md#47-quando-o-armador-omite-uma-escala)); **Reverter omissão** desfaz. |
 | Data em âmbar | âmbar | A previsão passou e ninguém confirmou; só no Vela, o Cliente vê uma previsão comum. |
 | **TBC — pendente** (frente em **Editar escala**) e "N em TBC" | âmbar | Frente sem terminal ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)); com todas atribuídas, "Todas atribuídas", em verde. |
 
@@ -50,8 +50,8 @@ Na escala, **B/Ls e CEs** diz em que pé está a documentação no Mercante ([4.
 | Na tela | Cor | O que leva a ela |
 |---|---|---|
 | **Aguardando** | âmbar | O começo, até os B/Ls cobrirem a carga da escala. |
-| **Recebido** | âmbar na ficha da Viagem; sem cor no Line Up | Os B/Ls cobrem todos os containers cheios do Baplie (na carga solta, chegou um B/L). |
-| **Lançando** e **Em aprovação** | âmbar na ficha da Viagem; sem cor no Line Up | Só à mão, com justificativa. |
+| **Recebido** | âmbar na ficha da Viagem; sem cor no Line-Up | Os B/Ls cobrem todos os containers cheios do Baplie (na carga solta, chegou um B/L). |
+| **Lançando** e **Em aprovação** | âmbar na ficha da Viagem; sem cor no Line-Up | Só à mão, com justificativa. |
 | **Aprovado** | sem cor | Tudo recebido e CE em todos os B/Ls ativos. |
 
 ## Fatura de Taxas Locais

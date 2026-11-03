@@ -1,4 +1,4 @@
-As datas reais chegam sozinhas ao Line Up, ao Portal e aos avisos ao Cliente. Registre no dia: o prazo do ADR de Saída conta do ATD.
+As datas reais chegam sozinhas ao Line-Up, ao Portal e aos avisos ao Cliente. Registre no dia: o prazo do ADR de Saída conta do ATD.
 
 ::: tela escala-chegada
 A chegada ao porto, na escala.

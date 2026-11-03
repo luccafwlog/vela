@@ -54,7 +54,7 @@ A janela Adicionar escala com o porto de Salvador.
 
 Repita para cada porto. Nem sempre você precisa: a escala também nasce do **Destino** informado na Nova Viagem ([4.1](#41-cadastrar-uma-viagem)) e sozinha quando um arquivo de B/L traz carga para aquele porto ou quando a programação de navios informa a chegada.
 
-Quando a escala tem exportação, a janela pede o que vai ser embarcado: **Granito**, **Embarque de vazios** ou os dois. Você declara a exportação antes de saber a quantidade, para o terminal e o Line Up já se prepararem.
+Quando a escala tem exportação, a janela pede o que vai ser embarcado: **Granito**, **Embarque de vazios** ou os dois. Você declara a exportação antes de saber a quantidade, para o terminal e o Line-Up já se prepararem.
 
 ::: atencao
 A declaração de exportação só sai depois que a carga deixar de existir. Com Granito importado no porto ou um Embarque de vazios aberto na escala, ela fica travada (capítulo 10).
@@ -105,7 +105,7 @@ As datas mudam o tempo todo: o armador atrasa o navio, o navio chega, atraca, sa
 2. Mude o **ETA** ou, quando o navio chegar, informe o **ATA**. Atracação e saída vão no cartão do terminal ([4.3](#43-atribuir-os-terminais)).
 3. Clique em **Salvar escala**.
 
-Você não precisa avisar ninguém: a data nova chega sozinha ao Line Up, a Chegadas e Saídas, ao Portal do Cliente e ao site fwlog.com.br (se a Viagem está publicada) e aos avisos de chegada e atracação que o Vela manda ao Cliente. E o Vela cobra o que falta: quando o ETA passa sem o ATA registrado, ou o ETB passa sem o ATB, abre um alerta para a equipe.
+Você não precisa avisar ninguém: a data nova chega sozinha ao Line-Up, a Chegadas e Saídas, ao Portal do Cliente e ao site fwlog.com.br (se a Viagem está publicada) e aos avisos de chegada e atracação que o Vela manda ao Cliente. E o Vela cobra o que falta: quando o ETA passa sem o ATA registrado, ou o ETB passa sem o ATB, abre um alerta para a equipe.
 
 A **Próxima escala**, no alto da ficha, é a escala de menor ETA que ainda não teve chegada. Ela só passa a vez quando você registra o ATA: um ETA vencido continua ali, marcado "· vencido", para lembrar que falta registrar a chegada.
 
@@ -217,7 +217,7 @@ As outras três ações são do {{Administrativo}}:
 
 | Ação | Quando usar | O que acontece |
 |---|---|---|
-| **Cancelar viagem** | O armador não vai realizar a viagem. | A Viagem fica no Vela, somente leitura, com tudo o que tinha, e sai do Line Up e do Portal. Pede motivo. |
+| **Cancelar viagem** | O armador não vai realizar a viagem. | A Viagem fica no Vela, somente leitura, com tudo o que tinha, e sai do Line-Up e do Portal. Pede motivo. |
 | **Reativar viagem** | O cancelamento foi engano. | A Viagem volta a ativa. Pede motivo. |
 | **Excluir** | A Viagem foi criada por engano. | Apaga a Viagem e tudo o que é dela. O Vela mostra antes o que vai junto. |
 

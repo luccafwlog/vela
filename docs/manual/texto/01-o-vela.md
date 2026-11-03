@@ -38,7 +38,7 @@ O Vela e o Portal Fwlog são sistemas separados, com entradas separadas. Você p
 
 **Quem faz:** {{Todas as equipes}}
 
-O menu fica no alto da tela e agrupa as telas pelo assunto: **Painel**, **Viagens** (Viagens, Chegadas e Saídas, Line Up TV), **Importação** (Baplie EDI, B/Ls, Desbloqueio de CE, Containers, Veículos, Vazios IMP, Revisão), **Exportação** (Granito, Vazios EXP, Locais (depots e terminais)), **Clientes** (Clientes, Provisionamento do Portal, Comunicação, Informações do Portal), **Alertas** (Alertas, Regras de alertas), **Financeiro** (Taxas Locais, Demurrage, Conciliação PIX), **Relatórios** e **Admin**, que só o {{Administrativo}} vê. **Line Up TV** abre o quadro dos navios em outra aba, para um monitor ([5.7](05-programacao.md#57-acompanhar-o-line-up-e-a-tela-tv)).
+O menu fica no alto da tela e agrupa as telas pelo assunto: **Painel**, **Viagens** (Viagens, Chegadas e Saídas, Tela TV), **Importação** (Baplie EDI, B/Ls, Desbloqueio de CE, Containers, Veículos, Vazios IMP, Revisão), **Exportação** (Granito, Vazios EXP, Locais (depots e terminais)), **Clientes** (Clientes, Provisionamento do Portal, Comunicação, Informações do Portal), **Alertas** (Alertas, Regras de alertas), **Financeiro** (Taxas Locais, Demurrage, Conciliação PIX), **Relatórios** e **Admin**, que só o {{Administrativo}} vê. **Tela TV** abre o quadro dos navios em outra aba, para um monitor ([5.7](05-programacao.md#57-acompanhar-o-line-up-e-a-tela-tv)).
 
 O número ao lado de um item, e somado no grupo, conta o que está pendente no Vela inteiro, de todas as equipes: os alertas ativos, os B/Ls pendentes de Revisão, os B/Ls com taxa em revisão. O de **Alertas** se atualiza sozinho a cada minuto; os outros, quando você mexe no assunto ou recarrega a página.
 
@@ -66,7 +66,7 @@ O Painel: os atalhos no alto e um cartão de alertas por setor.
 :::
 
 - **Os cartões por setor** (Documentação, Equipamentos, Operações e Administrativo) mostram quantos alertas cada equipe tem abertos. Clique no da sua equipe para ver a lista (capítulo 20). O {{Financeiro}} não tem cartão próprio: os alertas dele contam no do {{Administrativo}} e chegam pelo sino. Um cartão **Sem setor** junta os alertas antigos, de antes da divisão por equipe.
-- **O Line Up**, logo abaixo, mostra os navios atracados, os que estão chegando e a carga de cada porto (capítulo 5).
+- **O Line-Up**, logo abaixo, mostra os navios atracados, os que estão chegando e a carga de cada porto (capítulo 5).
 - **Chegadas e Saídas** e **Tela TV** abrem a programação dos navios (capítulo 5).
 
 O Painel se atualiza sozinho a cada minuto e meio.

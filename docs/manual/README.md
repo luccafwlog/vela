@@ -409,3 +409,17 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   fica como a #1151 deixou, com Pix nas duas; o texto passou a explicar que pagar
   as duas não perde dinheiro, porque o segundo Pix quita a consolidada que
   substituiu a antiga e o excedente vira restituição (15.5, 24.6).
+- **Sincronização de 2026-11-03** (PRs luccafwlog/vela#1174 a #1178; migrations
+  `567` a `569`). A matriz veio atualizada nas PRs; o texto passou a descrever:
+  - **Tela TV** no menu **Viagens**, antes **Line Up TV** (1.2, 5.7), e
+    **Line-Up** com hífen no texto e no guia (#1178);
+  - "correndo" e "a emitir" por container nas fichas do B/L e do Cliente
+    (9.4, 13.2) e o motivo "Demurrage correndo ou a emitir" ao cancelar o B/L
+    (7.8, Ap. B) (#1177);
+  - o verbete **Rateio da Demurrage entre Clientes**, antes "Rateio da caixa"
+    (Ap. A) (#1176).
+  - Sem efeito no texto: #1174 (recusas do banco com acento, já citadas com
+    acento no Ap. B) e #1175 (IMO na planilha de programação, que o texto não
+    detalha).
+  - Matriz: a linha da recusa "… alterar BLs e CEs." do banco saiu (a `567`
+    trocou o texto); a captura do Line-Up do Painel procura o título novo.

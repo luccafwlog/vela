@@ -83,7 +83,7 @@ export const CAPTURAS = [
     async fazer({ page, base }) {
       await abrir(page, base, '/viagens')
       // Desde 2026-11-01 (#1151), Viagens é um grupo do menu: o botão abre
-      // Viagens, Chegadas e Saídas e Line Up TV.
+      // Viagens, Chegadas e Saídas e Tela TV.
       const nav = page.locator('header').getByRole('button', { name: 'Viagens', exact: true })
       const nova = page.getByRole('button', { name: 'Nova Viagem' })
       await nova.waitFor()
@@ -762,7 +762,7 @@ export const CAPTURAS = [
     capitulo: 5,
     async fazer({ page, base }) {
       await abrir(page, base, '/painel')
-      const bloco = secao(page, 'Line Up')
+      const bloco = secao(page, 'Line-Up')
       await bloco.waitFor()
       await page.waitForTimeout(1000)
       const clip = await recorteDe(page, [page.getByRole('heading', { name: 'Painel', level: 1 }), bloco], 8)

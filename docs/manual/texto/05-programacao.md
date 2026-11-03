@@ -1,10 +1,10 @@
-A programação é o que o Vela mostra das datas dos navios. O Cliente a vê em Chegadas e Saídas, no Portal, e qualquer pessoa, no site fwlog.com.br; as equipes, no Line Up do Painel e na Tela TV. Nenhum desses quadros tem datas próprias: todos leem as Viagens do capítulo 4. Por isso a regra deste capítulo é simples: a data é uma só, e mudá-la em qualquer lugar muda em todos.
+A programação é o que o Vela mostra das datas dos navios. O Cliente a vê em Chegadas e Saídas, no Portal, e qualquer pessoa, no site fwlog.com.br; as equipes, no Line-Up do Painel e na Tela TV. Nenhum desses quadros tem datas próprias: todos leem as Viagens do capítulo 4. Por isso a regra deste capítulo é simples: a data é uma só, e mudá-la em qualquer lugar muda em todos.
 
 ::: aprende
 - ler a programação que o Cliente vê e publicar nela um navio;
 - corrigir as datas e confirmar a saída ou a chegada que já aconteceu;
 - atualizar vários navios de uma vez por planilha;
-- acompanhar o Line Up e deixar a Tela TV num monitor;
+- acompanhar o Line-Up e deixar a Tela TV num monitor;
 - saber onde ficam navios, armadores, portos e terminais.
 :::
 
@@ -132,19 +132,19 @@ O navio sai do quadro sozinho quando a Viagem é concluída, no último ATD. Par
 1. Em **Viagens**, abra a Viagem e clique em **Editar**.
 2. Desligue a chave **Chegadas e Saídas** e clique em **Salvar viagem**.
 
-O navio some de Chegadas e Saídas, do Portal e do site fwlog.com.br, mas continua no Line Up, que é das equipes. Para publicar de novo, ligue a chave.
+O navio some de Chegadas e Saídas, do Portal e do site fwlog.com.br, mas continua no Line-Up, que é das equipes. Para publicar de novo, ligue a chave.
 
-## 5.7 Acompanhar o Line Up e a Tela TV
+## 5.7 Acompanhar o Line-Up e a Tela TV
 
 **Quem faz:** {{Todas as equipes}}
 
-O **Line Up**, no **Painel**, é o quadro de trabalho das equipes: os navios atracados, os que estão chegando e a carga de cada porto. Ele também não guarda nada: é a leitura das Viagens, e se atualiza sozinho a cada 90 segundos.
+O **Line-Up**, no **Painel**, é o quadro de trabalho das equipes: os navios atracados, os que estão chegando e a carga de cada porto. Ele também não guarda nada: é a leitura das Viagens, e se atualiza sozinho a cada 90 segundos.
 
 ::: tela painel-lineup
-O Line Up: o navio atracado em Vitória com a faixa verde, uma linha de exportação e a escala omitida no fim.
+O Line-Up: o navio atracado em Vitória com a faixa verde, uma linha de exportação e a escala omitida no fim.
 :::
 
-1. **Tela TV**, ou **Viagens** › **Line Up TV** no menu, abre o quadro em outra aba, para um monitor da sala.
+1. **Tela TV**, no alto do **Painel** ou no menu **Viagens**, abre o quadro em outra aba, para um monitor da sala.
 2. **Exportar** leva para uma planilha as linhas que estão na tela.
 3. Os filtros recortam o quadro. **Escalas** começa em **Ativas**.
 
@@ -159,7 +159,7 @@ Como ler o quadro:
 A **Tela TV** mostra as escalas que ainda não terminaram, em letras grandes, e desliza sozinha quando há mais de oito linhas.
 
 ::: atencao
-A Tela TV usa a sessão de quem a abriu. Depois de 8 horas sem ninguém mexer no computador, a sessão termina e a TV volta ao login: entre de novo e abra **Tela TV** pelo **Painel** ou **Line Up TV** pelo menu.
+A Tela TV usa a sessão de quem a abriu. Depois de 8 horas sem ninguém mexer no computador, a sessão termina e a TV volta ao login: entre de novo e abra **Tela TV** pelo **Painel** ou pelo menu **Viagens**.
 :::
 
 ## 5.8 Navios, armadores, portos e terminais

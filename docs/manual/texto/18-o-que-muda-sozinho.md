@@ -39,7 +39,7 @@ O ETA, a chegada prevista, é a data que mais mexe no Vela, porque os prazos da 
 
 | Você faz | O Vela faz | Onde aparece |
 |---|---|---|
-| Muda o ETA | Reordena a **Próxima escala**, a lista de Viagens e o Line Up. | Viagens; Line Up |
+| Muda o ETA | Reordena a **Próxima escala**, a lista de Viagens e o Line-Up. | Viagens; Line-Up |
 | | Leva a data nova à programação. | **Chegadas e Saídas**; Portal e site fwlog.com.br, se a Viagem está publicada e Ativa |
 | | Refaz os prazos da documentação. Sete dias antes do primeiro ETA no Brasil abrem **B/L esperado pendente** e **Baplie ausente**; cinco dias antes, **CE Mercante pendente** e, para {{Equipamentos}}, **Planilha de Veículos pendente**. O alerta de B/L sem Cliente conta do ETA de cada porto, cinco dias antes. | **Alertas** da {{Documentação}} |
 | | Move a janela do aviso de chegada (NOA), que sai aos Clientes a partir de cinco dias antes do ETA. | E-mail ao Cliente |
@@ -56,7 +56,7 @@ O ETA, a chegada prevista, é a data que mais mexe no Vela, porque os prazos da 
 
 | Você faz | O Vela faz | Onde aparece |
 |---|---|---|
-| Registra o ATA (chegada) | Passa a vez à escala seguinte na **Próxima escala**, marca a linha como chegada no Line Up e mostra a chegada efetiva na programação. | Viagens; Line Up; **Chegadas e Saídas**; Portal |
+| Registra o ATA (chegada) | Passa a vez à escala seguinte na **Próxima escala**, marca a linha como chegada no Line-Up e mostra a chegada efetiva na programação. | Viagens; Line-Up; **Chegadas e Saídas**; Portal |
 | | Fecha **Data da escala pendente** do ETA e, se nenhum terminal tem ETB, abre o que pede o ETB. | **Alertas** |
 | | Encerra a janela do NOA e manda o NOR (Aviso de Chegada) a cada Cliente que tem B/L ativo para aquele porto. | E-mail ao Cliente |
 | Registra o ATB (atracação) | Mostra o navio atracado (faixa verde) no Painel e na Tela TV e manda o NOB (Aviso de Atracação) aos Clientes daquele terminal. Sem ETD, abre **Data de terminal pendente**. | Painel; Tela TV; e-mail ao Cliente |
