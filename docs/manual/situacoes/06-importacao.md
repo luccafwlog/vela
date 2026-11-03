@@ -420,7 +420,10 @@ Administrativo: excluir, cancelar e reativar B/L (BLR-015, BLR-102).
   Baplie, cálculo, faturamento) falhou e parou.
 - **O que você faz:** leia o **Motivo do bloqueio**, corrija a causa e use
   **Reprocessar** com a justificativa. O alerta fecha quando o efeito conclui.
-- **Regras:** ALE-022, ALE-068.
+  Se o motivo for "A gravação foi feita sem usuário identificado", o CE (ou
+  outro dado) foi gravado por um script ou integração, fora da tela: não há o
+  que corrigir no B/L, e o **Reprocessar** roda o passo em seu nome.
+- **Regras:** ALE-022, ALE-068, BLR-140.
 
 #### S6.35 — O Cliente não vê o B/L no Portal
 
