@@ -217,7 +217,7 @@ As outras três ações são do {{Administrativo}}:
 
 | Ação | Quando usar | O que acontece |
 |---|---|---|
-| **Cancelar viagem** | O armador não vai realizar a viagem. | A Viagem fica no Vela, somente leitura, com tudo o que tinha, e sai do Line-Up e do Portal. Pede motivo. |
+| **Cancelar viagem** | O armador não vai realizar a viagem. | A Viagem fica no Vela, somente leitura, com tudo o que tinha, e sai do Line-Up e do Portal. Os alertas dela fecham: os do ADR de Saída na hora, os outros na rodada seguinte de alertas. Pede motivo. |
 | **Reativar viagem** | O cancelamento foi engano. | A Viagem volta a ativa. Pede motivo. |
 | **Excluir** | A Viagem foi criada por engano. | Apaga a Viagem e tudo o que é dela. O Vela mostra antes o que vai junto. |
 

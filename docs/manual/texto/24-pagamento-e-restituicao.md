@@ -28,7 +28,11 @@ Tudo isso se acompanha em **Conciliação PIX**, no menu **Financeiro**. Qualque
 | **Pendências** | Só o que pede decisão; o número na aba conta essas linhas. |
 | **Conciliar extrato** | O plano B, pelo extrato do Itaú ([24.3](#243-baixar-pelo-extrato-quando-a-baixa-automática-para)). |
 
-Se o bloco **Cobrança Pix Itaú**, no alto de **Pendências**, mostra **Consulta parada há N min**, os Pix pagos depois daquela hora não deram baixa: avise o suporte técnico e baixe pelo extrato ([24.3](#243-baixar-pelo-extrato-quando-a-baixa-automática-para)).
+::: tela pix-itau-ligado
+O bloco **Cobrança Pix Itaú**, em **Pendências**, com a cobrança pelo Itaú ligada: há quanto tempo o Vela consultou os recebimentos.
+:::
+
+O bloco **Cobrança Pix Itaú**, no alto de **Pendências**, diz se a cobrança pelo Itaú está ligada ou desligada e há quanto tempo os Pix recebidos foram consultados (**Recebimentos consultados há N min** e **Recebimentos consultados até**). A consulta é a mesma nos dois casos: desligada, é ela que dá baixa no Pix do QR estático. Se o bloco mostra **Consulta parada há N min**, em âmbar, os Pix pagos depois daquela hora não deram baixa: avise o suporte técnico e baixe pelo extrato ([24.3](#243-baixar-pelo-extrato-quando-a-baixa-automática-para)).
 
 No mesmo **Pendências**, **Cobranças aguardando o Itaú** lista as faturas cujo QR o Itaú ainda não confirmou; até lá, a fatura impressa diz "QR Code em preparação". Não há o que repetir: o Vela tenta de novo sozinho e consulta o Itaú antes de repetir. Se uma linha em âmbar não sai da lista, avise o suporte técnico.
 
@@ -80,7 +84,7 @@ O Pix sai da lista e o alerta fecha. A ação não baixa nem devolve nada.
 
 **Quem faz:** {{Financeiro}} e {{Administrativo}}
 
-**Conciliar extrato** é o plano B, não a rotina. Use quando a consulta do Itaú para (o alerta **Consulta de Pix do Itaú parada**, [20.10](20-alertas.md#2010-pix-e-pagamento), que só abre com a cobrança pelo Itaú ligada): sem ela, nenhum Pix dá baixa sozinho, nem o do QR estático. O Vela lê o relatório "QR Codes recebidos" do Itaú e acha a fatura só pelo identificador de cada linha: o CNPJ e o valor não acham fatura, só conferem.
+**Conciliar extrato** é o plano B, não a rotina. Use quando a consulta do Itaú para (o alerta **Consulta de Pix do Itaú parada**, [20.10](20-alertas.md#2010-pix-e-pagamento), com a cobrança pelo Itaú ligada ou desligada): sem ela, nenhum Pix dá baixa sozinho, nem o do QR estático. O Vela lê o relatório "QR Codes recebidos" do Itaú e acha a fatura só pelo identificador de cada linha: o CNPJ e o valor não acham fatura, só conferem.
 
 1. No Itaú, baixe o relatório "QR Codes recebidos", em .xlsx ou .xls.
 2. Em **Conciliação PIX** › **Conciliar extrato**, escolha o arquivo. A leitura não baixa nada.

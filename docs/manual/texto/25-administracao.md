@@ -153,6 +153,10 @@ O prazo é o de [11.4](11-adr-de-saida.md#114-cumprir-o-prazo-de-72-horas): cada
 1. Em **Admin**, abra **Prazo do ADR**.
 2. Escolha o período em **Fechado de** e **Fechado até**: entram os ADRs fechados nesses dias.
 3. Leia os cartões: para {{Operações}}, {{Documentação}} e {{Equipamentos}}, quantos ADRs a equipe assinou no prazo, de quantos fechados.
+
+::: tela prazo-do-adr
+Um ADR fechado em Salvador: Operações e Documentação assinaram no prazo, e Equipamentos atrasou 12 horas.
+:::
 4. Na lista, cada ADR mostra, por equipe, **No prazo**, **Atrasou N h** (em âmbar) ou **Não assinou** (em cinza); passe o mouse para ver quando a equipe assinou.
 
 ::: atencao

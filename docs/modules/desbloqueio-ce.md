@@ -116,7 +116,13 @@ Manifesto Mercante é regra de
   mouse). No Portal, o
   envio é pelos botões "Enviar termo de devolução" e "Enviar procuração"; no Vela,
   **Analisar** só onde há decisão abre "Analisar <documento>" (Ano da cobertura,
-  Início da vigência, Fim 31/12) com Aprovar / Solicitar correção / Voltar, e
+  Início da vigência, Fim 31/12) com Aprovar / Solicitar correção / Voltar. A tela propõe o
+  ano corrente e, como início, o mais tarde entre o dia do envio e 01/01 do ano escolhido
+  (recalculado quando o ano muda; `proposedVipStart` em `ceUnlockRules.ts`): o anual enviado
+  em dezembro e analisado em janeiro começa em 01/01 do ano novo, como exige a restrição
+  `ce_unlock_vip_start_year` (migration `141`). Início digitado fora do ano da cobertura
+  mostra "O início da vigência precisa estar em AAAA, o ano da cobertura." e desliga Aprovar
+  (`vipStartError`; decisão do dono de 2026-11-03), e
   **Revogar aprovação** fica no menu ⋮ do aprovado. O bloco Solicitações de desbloqueio da ficha
   lista todas as solicitações do Cliente, comuns e VIP (protocolo com "· VIP"), sem o B/L que
   passou para outra solicitação (migration `479`). Ficha de Cliente sem VIP mostra os blocos

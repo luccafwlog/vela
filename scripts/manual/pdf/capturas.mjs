@@ -6,6 +6,8 @@
 // Posição da marcação: canto do elemento (padrão); `campo` (dentro do campo, à
 // direita, sem cobrir rótulo nem valor); `esquerda`; `direita`.
 
+import { execFileSync } from 'node:child_process'
+
 // Caixa de um elemento relativa ao recorte, em pixels CSS.
 export async function caixa(locator, clip) {
   const b = await locator.boundingBox()
@@ -1483,6 +1485,49 @@ export const CAPTURAS = [
       const fim = tabela.locator('tbody tr').last()
       const clip = await recorteDe(page, [page.getByRole('heading', { name: 'Conciliação PIX', level: 1 }), tabela, fim], 12)
       return { clip, marks: [] }
+    },
+  },
+  {
+    id: 'prazo-do-adr',
+    capitulo: 25,
+    async fazer({ page, base }) {
+      await abrir(page, base, '/admin/prazo-do-adr')
+      const bloco = page.locator('.app-block').filter({ has: page.getByRole('heading', { name: 'ADRs fechados no período' }) }).first()
+      await bloco.getByRole('table').waitFor()
+      await page.waitForTimeout(600)
+      const de = page.getByLabel('Fechado de')
+      const cartao = page.getByText('Operações', { exact: true }).first()
+      const clip = await recorteDe(page, [page.getByRole('tab', { name: 'Prazo do ADR' }), de, bloco], 12)
+      return {
+        clip,
+        marks: [
+          await marca(2, de, clip, { posicao: 'campo' }),
+          await marca(3, cartao, clip, { posicao: 'direita' }),
+        ],
+      }
+    },
+  },
+  {
+    // A produção usa a cobrança pelo Itaú; o cenário, o QR estático, como a
+    // staging. Só para esta foto, a chave do banco de demonstração passa a
+    // `itau`, com a consulta de 2 minutos atrás, e volta a `static` depois.
+    id: 'pix-itau-ligado',
+    capitulo: 24,
+    async fazer({ page, base }) {
+      const banco = (sql) => execFileSync('psql', ['-h', process.env.PGHOST || '127.0.0.1', '-U', process.env.PGUSER || 'postgres', '-d', process.env.MANUAL_DB || 'manual_demo', '-v', 'ON_ERROR_STOP=1', '-qc', sql], { env: { PGPASSWORD: 'postgres', ...process.env } })
+      const voltar = () => banco("update public.app_settings set pix_provider = 'static'")
+      banco("update public.app_settings set pix_provider = 'itau', itau_pix_polled_until = now() - interval '2 minutes'")
+      try {
+        await abrir(page, base, '/reconciliacao?tab=pendencias')
+        const bloco = page.locator('.app-block').filter({ has: page.getByRole('heading', { name: 'Cobrança Pix Itaú' }) }).first()
+        await bloco.getByText('Baixa automática ligada').waitFor()
+        await page.waitForTimeout(600)
+        const clip = await recorteDe(page, [page.getByRole('heading', { name: 'Conciliação PIX', level: 1 }), bloco], 12)
+        return { clip, marks: [], depois: voltar }
+      } catch (error) {
+        voltar()
+        throw error
+      }
     },
   },
   {
