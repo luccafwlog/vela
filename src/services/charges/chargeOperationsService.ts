@@ -2,6 +2,7 @@ import { supabase } from '../supabase'
 import { escapeFilterTerm, sanitizeLikeTerm } from '../../lib/utils'
 import { classifyDbError } from '../../lib/errors'
 import { isBlFinanciallyLocked } from '../../lib/chargeStatus'
+import { FINANCIAL_STATUS_LABELS } from '../../lib/statusLabels'
 import { tokenIlikeClauses } from '../../lib/searchTerms'
 import type { ChargeAdjustmentSummary } from '../../lib/chargeAdjustmentSummary'
 
@@ -864,7 +865,9 @@ function extractBlIdFromChargeAuditMessage(message: string, candidates: string[]
 }
 
 function formatLockedBlError(blId: string, financialStatus: string | null | undefined) {
-  return `B/L ${blId} já foi faturado (status financeiro=${financialStatus}); recálculo bloqueado.`
+  // Migration 571: a situação em português, como nas recusas do banco.
+  const situation = financialStatus ? (FINANCIAL_STATUS_LABELS[financialStatus] ?? financialStatus) : 'sem situação'
+  return `B/L ${blId} já foi faturado (situação financeira: ${situation}); recálculo bloqueado.`
 }
 
 async function runBatch<T>(blIds: string[], worker: (blId: string) => Promise<T>) {

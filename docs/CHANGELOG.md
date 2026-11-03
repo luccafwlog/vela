@@ -6,6 +6,13 @@
 
 ## 2026-11
 
+- **Recusas com acento, situação financeira em português e dispensa no assunto Container (2026-11-03, migration
+  `571`; pendências da revisão do Manual do Operador):** "B/L … não encontrado", "Linha de cálculo … não
+  encontrada", "Item manual … não elegível…", "B/L … cancelado e somente leitura; não é permitido lançar taxa
+  manual." e "Payload de carga solta inválido." ganham acento em todas as funções que os levam. As recusas "B/L …
+  já foi faturado …" dizem "(situação financeira: Faturado)" no lugar do código "(status financeiro=invoiced)",
+  também no recálculo pela tela. No Histórico do B/L, a dispensa da Demurrage passa ao assunto **Container**. Em
+  `demurrage.md` e `clientes.md`, os títulos "cobrança por caixa" passam a "por container".
 - **Recusas do banco com acento e "B/Ls e CEs" (2026-11-02, migration `567`; achado da sincronização do Manual
   do Operador):** as recusas "B/L … já foi faturado …" (taxa manual, recálculo, troca de carga e reimportação do
   Manifesto BB) ganham acento, e as da escala passam a "Informe a justificativa para alterar B/Ls e CEs." e

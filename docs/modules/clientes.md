@@ -401,7 +401,7 @@ Quando uma tentativa de envio (Comunicado ou e-mail do Portal) volta com bounce 
 
 O aviso ao Cliente é um e-mail do mecanismo do Portal (tipo `contato_bounced_notificacao`), não uma Natureza de Comunicado, e segue a [chave de envio](#chave-de-envio-de-comunicados): desligada, vai ao suporte com o e-mail do Cliente no assunto. Cliente desativado não recebe o aviso, e a chave de idempotência da tentativa leva o hash do endereço devolvido, não o endereço (auditoria run-3). Supressão, reparo e alerta não dependem da chave. O bounce do próprio aviso não reabre a cascata. **Código:** `supabase/functions/_shared/portalBounceCascade.ts`, `supabase/functions/_shared/portalEmailEventProcessor.ts`.
 
-### Cobrança de Demurrage por caixa
+### Cobrança de Demurrage por container
 
 A Cobrança de Demurrage (`cobranca_demurrage`, Natureza Demurrage) da Régua de Cobrança vai aos contatos ativos e elegíveis vinculados às caixas Financeiro e Demurrage (`customer_communication_recipient_allowed` pelo modelo). Início, intervalo, numeração e pausas da Régua estão em [Demurrage](demurrage.md#régua-de-cobrança).
 

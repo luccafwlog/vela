@@ -444,8 +444,21 @@ describeLocal('491 — alterar e excluir taxa calculada do B/L', () => {
       const run = alter(USERS.ope, BL.perm, thd, 'unit', 900)
       expect(run.status, run.stderr).toBe(0)
       expect(psql(`SELECT unit_value_brl FROM public.charge_calculations WHERE bl_id = ${q(BL.perm)} AND calculation_key = ${q(thd)}`)).toBe('900.00')
-      expect(as(USERS.adm, `SELECT public.calculate_bl_local_charges(${q(BL.perm)}, '${USERS.adm}'::uuid, true)`).stderr).toMatch(/já foi faturado/)
+      // 571: a situação sai em português, não o código ("invoiced").
+      expect(as(USERS.adm, `SELECT public.calculate_bl_local_charges(${q(BL.perm)}, '${USERS.adm}'::uuid, true)`).stderr).toMatch(/já foi faturado \(situação financeira: Faturado\)/)
       psql(`UPDATE public.bls SET financial_status = 'pending' WHERE id = ${q(BL.perm)}`)
+    })
+
+    it('a dispensa da Demurrage cai no assunto Container do Histórico do B/L (571)', () => {
+      psql(`INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, justification, changed_at)
+        VALUES ('bl', ${q(BL.perm)}, 'demurrage_dispensa', NULL, 'RTAU4910097', '${USERS.adm}', 'Teste da família', now() + interval '1 minute')`)
+      // bl_timeline só responde a usuário interno ativo.
+      const read = psql(`BEGIN;
+        SELECT set_config('request.jwt.claims', '{"sub":"${USERS.adm}","role":"authenticated"}', true) IS NOT NULL;
+        SELECT 'familia=' || family FROM public.bl_timeline(${q(BL.perm)}, 50, 0) WHERE field_name = 'demurrage_dispensa';
+        COMMIT;`)
+      expect(read.split('\n')).toContain('familia=container')
+      psql(`DELETE FROM public.audit_logs WHERE entity_type = 'bl' AND entity_id = ${q(BL.perm)} AND field_name = 'demurrage_dispensa'`)
     })
   })
 })
