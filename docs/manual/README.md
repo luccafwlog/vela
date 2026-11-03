@@ -430,3 +430,10 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
     detalha).
   - Matriz: a linha da recusa "… alterar BLs e CEs." do banco saiu (a `567`
     trocou o texto); a captura do Line-Up do Painel procura o título novo.
+- **2026-11-03, depois das PRs luccafwlog/vela#1179 e #1180** (migrations
+  `570` e `571`): o Ap. B cita "(situação financeira: …)" no lugar de
+  "(status financeiro=…)". O manual financeiro (`docs/operations/`) foi
+  absorvido pelos capítulos 21 a 24 (decisão do dono de 2026-11-03) e está em
+  `docs/archive/reports/2026-11-03-manual-financeiro.md`; o que só ele tinha
+  entrou em 24.1 (cobranças aguardando o Itaú), 24.4 (tentar de novo ou encerrar
+  a tentativa) e 24.6 (tentar emitir para o novo Cliente).

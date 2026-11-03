@@ -9,8 +9,9 @@ trabalho, não o manual.
 **Etapas 1, 2 e 3 concluídas: o dono aprovou em 2026-10-29 a versão 1.0 do
 Manual do Operador (25 capítulos e apêndices A a D, 201 páginas). Etapa 4 em
 parte: a linha de dono em `docs/CONVENCOES.md`, a regra no `AGENTS.md` e o
-check do manual no CI entraram; a decisão sobre o manual financeiro e os guias
-de bolso seguem pendentes (ver "Pendências da versão 1.0").** Por
+check do manual no CI entraram, e o manual financeiro foi absorvido pelos
+capítulos 21 a 24 (decisão do dono de 2026-11-03); os guias de bolso seguem
+pendentes (ver "Pendências da versão 1.0").** Por
 decisão de manual único, entraram também o capítulo 25 (Administração) e o
 apêndice D gerado ("Quero fazer… onde fica"), que faz o papel do índice
 remissivo. O dono aprovou em
@@ -201,7 +202,7 @@ O manual não corrige o sistema: defeito encontrado vira tarefa separada.
 
 Cada afirmação do manual sai do caminho real: tela → botão → serviço → regra no
 banco → efeito → onde o resultado aparece. A documentação do repositório
-(módulos, `CONTEXT.md`, matriz de permissões, manual financeiro) serve de mapa
+(módulos, `CONTEXT.md`, matriz de permissões e, até 2026-11-03, o manual financeiro) serve de mapa
 para achar esse caminho, não de prova.
 
 Quando o código e um documento discordam, vale a classificação de
@@ -742,12 +743,14 @@ Na mesma entrega da versão 1.0:
 
 ## Pendências da versão 1.0
 
-1. **Manual financeiro:** os capítulos 21 a 24 descrevem o procedimento do
-   Financeiro, que [`docs/CONVENCOES.md`](../CONVENCOES.md) ainda dá como dono ao
-   [manual financeiro](../operations/manual-financeiro.md). O dono decide se ele
-   é absorvido pelo Manual do Operador (e vai para o arquivo histórico) ou fica
-   como referência detalhada do Financeiro, com o manual remetendo a ele.
-2. **Guias de bolso por equipe:** previstos na [régua visual](#régua-visual).
+O manual financeiro deixou de ser pendência: em 2026-11-03 o dono decidiu que o
+Manual do Operador o absorve. O que só existia nele e ainda vale foi levado aos
+capítulos 21 a 24 ou ao módulo dono, o arquivo foi para o
+[arquivo histórico](../archive/reports/2026-11-03-manual-financeiro.md), e
+[`docs/CONVENCOES.md`](../CONVENCOES.md#responsabilidade-de-cada-documento) dá o
+procedimento do Financeiro ao Manual do Operador.
+
+1. **Guias de bolso por equipe:** previstos na [régua visual](#régua-visual).
    O dono pediu em 2026-10-29 o primeiro, um guia da Documentação: o método
    de trabalho numa Viagem, em etapas, só o caminho feliz, mais imagem que
    texto. Na segunda revisão do mesmo dia, ele pôs o Baplie antes dos B/Ls e
@@ -762,7 +765,7 @@ Na mesma entrega da versão 1.0:
    à espera da aprovação dele; as capturas novas que eles sugerem (tabelas de
    cobrança, Conciliação PIX, Restituições, Editar acesso, Prazo do ADR…) ficam
    para a próxima rodada.
-3. **Imagens que o ambiente local não gera:** a lista de usuários da
+2. **Imagens que o ambiente local não gera:** a lista de usuários da
    Administração (depende de função do servidor) e as telas do Pix com a
    cobrança pelo Itaú ligada.
 
@@ -779,8 +782,10 @@ regras que a matriz já destinou a cada volume:
 1. **Manual do Financeiro:** baixa manual e automática do Pix Itaú,
    cancelamento de baixa e de fatura, restituição, Ajuste de COD, Conciliação,
    Demurrage, tabelas de Taxas Locais. Absorve o
-   [manual financeiro](../operations/manual-financeiro.md) atual para não haver
-   dois donos do mesmo procedimento.
+   [manual financeiro](../archive/reports/2026-11-03-manual-financeiro.md) atual para não haver
+   dois donos do mesmo procedimento. *Feito em 2026-11-03, dentro do manual
+   único: os capítulos 21 a 24 absorveram o manual financeiro, que foi para o
+   arquivo histórico.*
 2. **Manual do Administrativo:** usuários e setores, cancelamentos e
    exclusões com motivo, falhas de entrega, histórico de ações, Prazo do ADR.
 3. **PDF completo do Vela:** as três partes num volume.

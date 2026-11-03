@@ -4,7 +4,7 @@
 > A [ADR 0077](./0077-fatura-emitida-nao-muda-de-valor.md) a estendeu: o Tipo de cobrança "item da tabela" exige B/L do Cliente e preço resolvido no servidor, com Condição do Cliente e ROE (migration `123`); "Outra" mantém o item livre e o B/L e a Viagem opcionais do item 2; e o Administrativo pode autorizar a restituição excepcional de avulsa recebida (migration `136`).
 > "Deploy remoto não verificado" ficou superado: a emissão de avulsa e o saldo no Portal foram conferidos em produção em 2026-09-29, e uma avulsa já foi baixada pelo Itaú com recibo no Portal.
 > Pela [ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md) (item 9), não vale mais a emissão restrita a um setor: todo usuário interno ativo pode gerar fatura avulsa, com motivo e rastro; o "Item da tabela" escolhe a tabela e a Condição de Cliente pela vigência do cálculo automático (item 10). A emissão por qualquer usuário interno ativo vale desde a migration `246`, e o "Item da tabela" segue essa vigência desde a `248`.
-> Regra vigente em [Faturamento](../modules/faturamento.md), seções "Propósito e escopo" e "Catálogo de ações", e no [Manual financeiro](../operations/manual-financeiro.md).
+> Regra vigente em [Faturamento](../modules/faturamento.md), seções "Propósito e escopo" e "Catálogo de ações"; o procedimento do usuário está no Manual do Operador, em [Emitir uma fatura avulsa](../manual/texto/22-a-fatura.md#224-emitir-uma-fatura-avulsa) (o antigo manual financeiro foi absorvido em 2026-11-03 e está no [arquivo histórico](../archive/reports/2026-11-03-manual-financeiro.md)).
 
 Status: supersedida parcialmente — 2026-09-26. Implementada localmente nas migrations `097`, `098` e `099`;
 deploy remoto não verificado.

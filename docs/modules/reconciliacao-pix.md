@@ -5,7 +5,8 @@
 ## Propósito e escopo
 
 Procedimentos para linhas ambíguas, QR antigo, cancelamento de baixa e
-restituição estão no [manual financeiro](../operations/manual-financeiro.md).
+restituição estão no Manual do Operador, capítulo
+[Pagamento e restituição](../manual/texto/24-pagamento-e-restituicao.md).
 
 A baixa de rotina é automática pela API do Itaú: a cobrança Pix de cada fatura
 é emitida no banco e o recebimento é consultado a cada minuto e baixado sem

@@ -79,7 +79,7 @@ Depois que o usuário confirmar uma decisão, classifique-a antes de editar:
 - **`CONTEXT.md`:** termo de domínio e definição curta (vocabulário, sem regra);
 - **doc do módulo em `docs/modules/`:** regra vigente do domínio;
 - **`docs/operations/regras-de-negocio.md`:** regra que atravessa módulos;
-- **`docs/operations/manual-financeiro.md`:** procedimento do Financeiro;
+- **Manual do Operador (`docs/manual/texto/`, capítulos 21 a 24):** procedimento do Financeiro;
 - **ADR nova ou nota editorial:** por que decidimos uma decisão nova de negócio,
   arquitetura, segurança, dados ou contrato durável que afeta trabalhos futuros
   (a regra resultante fica no módulo);

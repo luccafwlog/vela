@@ -30,6 +30,8 @@ Tudo isso se acompanha em **Conciliação PIX**, no menu **Financeiro**. Qualque
 
 Se o bloco **Cobrança Pix Itaú**, no alto de **Pendências**, mostra **Consulta parada há N min**, os Pix pagos depois daquela hora não deram baixa: avise o suporte técnico e baixe pelo extrato ([24.3](#243-baixar-pelo-extrato-quando-a-baixa-automática-para)).
 
+No mesmo **Pendências**, **Cobranças aguardando o Itaú** lista as faturas cujo QR o Itaú ainda não confirmou; até lá, a fatura impressa diz "QR Code em preparação". Não há o que repetir: o Vela tenta de novo sozinho e consulta o Itaú antes de repetir. Se uma linha em âmbar não sai da lista, avise o suporte técnico.
+
 ::: atencao
 - Com a cobrança pelo Itaú ligada, o Pix do **QR estático do Vela** nunca dá baixa sozinho e fica **Sem baixa**. O ambiente de testes usa a mesma conta e numera as faturas do mesmo jeito, e o Pix pode ser de um teste de lá: confira a fatura e confirme o pagamento com o Cliente antes de baixar à mão.
 :::
@@ -117,6 +119,7 @@ Em **Pix recebidos**, abra a linha do Pix **Sem baixa**: o que não veio de uma 
 
 ::: atencao
 - O Vela aceita data futura em **Recebido em** e não barra a mesma **Referência bancária** em duas baixas: confira os dois. A referência só se repete quando um mesmo Pix ou TED pagou mais de uma fatura.
+- Se o registro falha (a conexão caiu, por exemplo), não comece outro pagamento: o botão vira **Tentar novamente**, que repete o mesmo registro sem lançar duas baixas. Use **Encerrar tentativa após conferir** só depois de ver nos **Pagamentos** que a baixa não entrou.
 :::
 
 ## 24.5 Cancelar uma baixa
@@ -158,7 +161,9 @@ A **restituição** é dinheiro recebido que volta ao Cliente. O Vela a registra
 2. No detalhe da fatura, em **Taxas Locais**, bloco **Restituições ao Cliente**, clique no ícone **Confirmar devolução** da linha **A devolver**. Na Invoice de Demurrage, o botão é **Registrar devolução**, no bloco **Restituição excepcional**.
 3. Preencha o comprovante, o favorecido e a data, clique em **Confirmar devolução realizada** e confirme.
 
-A linha passa a **Devolvida**, com a data, e o valor sai do **Valor recebido** do recibo. O alerta fecha quando não sobra nada a devolver. Na troca de Cliente, a confirmação libera a fatura do novo Cliente; no Pix em duplicidade, tira o Pix da análise.
+A linha passa a **Devolvida**, com a data, e o valor sai do **Valor recebido** do recibo. O alerta fecha quando não sobra nada a devolver. No Pix em duplicidade, a confirmação tira o Pix da análise.
+
+Na troca de Cliente, a confirmação emite a fatura do novo Cliente, com o valor cheio: o que o Cliente original pagou não conta, mesmo que o B/L volte a ele depois. Se ela não pode sair (o Portal do novo Cliente não está pronto, por exemplo), o bloco **Ajustes pela correção do B/L** diz "nova emissão pendente"; resolvida a causa, clique em **Tentar emitir para o novo Cliente**.
 
 ::: atencao
 - O botão não transfere dinheiro: ele registra uma transferência já feita. Confirme só depois dela.
