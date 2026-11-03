@@ -45,6 +45,8 @@ export type SendEmailInput = {
   simulate?: boolean
   from?: string | null
   replyTo?: string | null
+  /** Cópia oculta; sem valor, `emailBccAddress()` (secret `EMAIL_BCC_ADDRESS`). `null` desliga. */
+  bcc?: string | null
   missingConfigurationMessage?: string
   checkSuppression: (to: string) => Promise<EmailSuppression>
   /**
@@ -92,6 +94,20 @@ export function redirectedToSupport(message: { to: string; subject: string; html
 export function emailApiBaseUrl(configured?: string | null): string {
   const value = (configured ?? (globalThis as { Deno?: { env: { get(name: string): string | undefined } } }).Deno?.env.get('RESEND_BASE_URL'))?.trim()
   return value ? value.replace(/\/+$/, '') : DEFAULT_API_BASE_URL
+}
+
+/**
+ * Cópia oculta de todo e-mail do sistema, de Cliente ou da equipe, também do
+ * redirecionado ao suporte (decisão do dono de 2026-11-03, opção B: inclui os
+ * e-mails com link de acesso ao Portal). O secret `EMAIL_BCC_ADDRESS` troca o
+ * endereço; o valor `off` desliga.
+ */
+export const DEFAULT_BCC_ADDRESS = 'lucca.juliatti@fwlog.com.br'
+
+export function emailBccAddress(configured?: string | null): string | null {
+  const value = (configured ?? (globalThis as { Deno?: { env: { get(name: string): string | undefined } } }).Deno?.env.get('EMAIL_BCC_ADDRESS'))?.trim()
+  if (!value) return DEFAULT_BCC_ADDRESS
+  return value.toLowerCase() === 'off' ? null : value
 }
 
 // 408, 429 e qualquer 5xx: o problema é do provedor ou do momento, não do e-mail.
@@ -203,9 +219,12 @@ export async function sendEmail(input: SendEmailInput): Promise<{ ok: boolean; s
   const fetchImpl = input.fetchImpl ?? fetch
   const emailsUrl = `${emailApiBaseUrl(input.apiBaseUrl)}/emails`
   const message = redirected ? redirectedToSupport(input) : input
+  const bcc = input.bcc === undefined ? emailBccAddress() : input.bcc
   const body = JSON.stringify({
     from: input.from,
     to: [message.to],
+    // Mesmo endereço no "Para" e na cópia oculta: o provedor entregaria duas vezes.
+    ...(bcc && bcc.toLowerCase() !== message.to.toLowerCase() ? { bcc: [bcc] } : {}),
     reply_to: input.replyTo,
     subject: message.subject,
     html: message.html,
