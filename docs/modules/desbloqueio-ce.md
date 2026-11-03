@@ -187,7 +187,7 @@ invalida a família `ce-unlock` e a ficha do Cliente (`customer-detail`,
 
 Migrations `139`–`149`, `160`, `161`, `173`, `220`, `279` (requisito de
 pagamento), `280` (retenção), `281` (lote com hash e imutável), `282` (documento
-expurgado na projeção), `575` (veículo LCL isento sem solicitação) e `576` (VIP coberto no B/L sem solicitação) e `577` (busca, filtros e histórico do B/L); a `177` redefine `ce_unlock_reconcile` (chave
+expurgado na projeção), `575` (veículo LCL isento sem solicitação), `576` (VIP coberto no B/L sem solicitação), `577` (busca, filtros e histórico do B/L), `578` (envio de rascunho antigo recusa o veículo LCL isento) e `579` (rascunho VIP coberto pelo anual); a `177` redefine `ce_unlock_reconcile` (chave
 do CE) e a `181`/`195`/`230`/`277` o alerta `ce_trocado_com_desbloqueio`. Tabelas `ce_unlock_*` (`ce_unlock_requests`,
 `ce_unlock_request_bls`, `ce_unlock_documents`, `ce_unlock_vip_customers`,
 `ce_unlock_bl_deliveries`, `ce_unlock_events`, `ce_unlock_exports`,
@@ -255,7 +255,9 @@ seguir comum. O item traz `vip_covered` para o Portal explicar. No B/L ainda sem
 o mesmo `vip_covered` (os dois anuais cobrindo hoje) devolve termo e procuração atendidos, para a
 aba Andamento dos B/Ls, o filtro "Requisito pendente" e a planilha comum (migration `576`, pedido do
 dono de 2026-11-03); com só um anual cobrindo, os dois seguem pendentes, porque o pedido seria
-comum. Não deixa o B/L apto: a exportação à ZPT, o prazo e os motivos continuam exigindo a
+comum. O rascunho VIP (`source = 'vip_annual'`, que ainda não aponta os anuais: eles entram no
+envio) segue a mesma regra (migration `579`, decisão do dono de 2026-11-03); o rascunho comum e a
+solicitação cancelada seguem os documentos deles. Não deixa o B/L apto: a exportação à ZPT, o prazo e os motivos continuam exigindo a
 solicitação. **Teste:** `ceUnlockVip.local-pg.test.ts`. **Teste:**
 `ceUnlockVigenciaAnual.local-pg.test.ts`. Pagamento e entrega continuam por B/L, também para VIP. A entrega do
 original é independente da solicitação: o desk a registra antes ou depois do pedido.
@@ -300,7 +302,10 @@ A regra é lida dos dados atuais do B/L (`ce_unlock_private.documents_dispensed`
   (fatura avulsa, troca de Cliente). O único motivo pendente antes da entrega é "B/L físico
   aguardando entrega".
 - **Portal.** `can_submit` é falso: o B/L não entra em "Podem ser pedidos" nem na seleção, e
-  o rascunho que o inclua é recusado com a explicação. B/L que já estava em solicitação
+  o rascunho que o inclua é recusado com a explicação. O envio de um rascunho criado antes de o
+  B/L virar dispensado também o recusa (migration `578`): sem isso, a solicitação enviada
+  passava a ser o caminho do B/L e o envio direto à ZPT já feito voltava a "Não exportado"; o
+  Cliente cancela o rascunho e pede os demais B/Ls em outro. B/L que já estava em solicitação
   enviada continua nela, com termo e procuração atendidos para ele; rascunho e solicitação
   cancelada não o seguram.
 - **Envio à ZPT.** O desk exporta como os demais; a planilha leva as quatro colunas "Sim". O

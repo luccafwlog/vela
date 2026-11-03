@@ -33,7 +33,7 @@ import { CeUnlockBlHistory } from "../components/ce-unlock/CeUnlockBlHistory";
 import { CeUnlockRequirementIcon, CeUnlockZptState } from "../components/ce-unlock/CeUnlockRequirements";
 import { CeUnlockSla } from "../components/ce-unlock/CeUnlockSla";
 import { CeUnlockZptImport } from "../components/ce-unlock/CeUnlockZptImport";
-import { ceDateTime } from "../lib/ceUnlockLabels";
+import { ceDateTime, ceVipAnnualCovered } from "../lib/ceUnlockLabels";
 import {
   ceUnlockCommand,
   ceUnlockRead,
@@ -544,9 +544,9 @@ export function DesbloqueioCe() {
                             <StatusText tone="muted">Sem solicitação</StatusText>
                           )}
                         </td>
-                        {/* Sem solicitação, o VIP coberto pelos anuais vem atendido (migration 576). */}
-                        <td><CeUnlockRequirementIcon label="Termo de devolução" subject={i.bl_id} ok={i.termo} dispensed={i.documents_dispensed} vipAnnual={!i.request_id && !!i.vip_covered} /></td>
-                        <td><CeUnlockRequirementIcon label="Procuração" subject={i.bl_id} ok={i.procuracao} dispensed={i.documents_dispensed} vipAnnual={!i.request_id && !!i.vip_covered} /></td>
+                        {/* Sem solicitação ou em rascunho VIP, o VIP coberto pelos anuais vem atendido (migrations 576 e 579). */}
+                        <td><CeUnlockRequirementIcon label="Termo de devolução" subject={i.bl_id} ok={i.termo} dispensed={i.documents_dispensed} vipAnnual={ceVipAnnualCovered(i)} /></td>
+                        <td><CeUnlockRequirementIcon label="Procuração" subject={i.bl_id} ok={i.procuracao} dispensed={i.documents_dispensed} vipAnnual={ceVipAnnualCovered(i)} /></td>
                         <td><CeUnlockRequirementIcon label="Taxas locais" subject={i.bl_id} ok={i.paid} /></td>
                         <td>
                           <input

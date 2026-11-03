@@ -207,6 +207,17 @@ export function ceUnlockMissing(request: Pick<CeUnlockRequest, "items" | "state"
   return missing.length ? `falta ${missing.join("; ")}` : null;
 }
 
+/**
+ * Termo e procuração atendidos pelos anuais VIP antes do envio: B/L sem
+ * solicitação (migration 576) ou em rascunho VIP (migration 579, decisão do dono
+ * de 2026-11-03). Rascunho comum e solicitação cancelada seguem os documentos dela.
+ */
+export function ceVipAnnualCovered(
+  item: Pick<CeUnlockItem, "request_id" | "state" | "source" | "vip_covered">,
+): boolean {
+  return !!item.vip_covered && (!item.request_id || (item.state === "draft" && item.source === "vip_annual"));
+}
+
 const BL_HISTORY_REQUIREMENT: Record<CeUnlockBlHistoryEvent["requirement"], string> = {
   termo: "Termo de devolução",
   procuracao: "Procuração",

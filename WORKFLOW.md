@@ -478,7 +478,10 @@ regra depende da época de cada arquivo:
 
 O checker ignora `UPDATE`/`DELETE` dentro de `CREATE FUNCTION` (código que roda
 depois, a pedido da aplicação) mas não dentro de blocos `DO` (executam durante o
-deploy). O relatório conta as exceções históricas. A análise é textual: confere
+deploy). A partir da `575` reconhece também `UPDATE` com alias
+(`UPDATE public.bls AS b SET`), `ONLY`, outro schema e nome entre aspas; até a
+`574`, o padrão fica como era quando elas foram aplicadas. O relatório conta as
+exceções históricas. A análise é textual: confere
 que o plano existe e tem corpo, não que ele preserva de fato, e não detecta toda
 forma de SQL dinâmico ou efeito indireto. Ela complementa a revisão, que julga o
 plano; não autoriza perda de dados.
