@@ -46,8 +46,9 @@ VIA-020, VIA-025, VIA-048).
 
 - **O que o sistema faz:** recusa quando o nome é de um navio cadastrado com
   outro IMO de 7 dígitos; dois navios com o mesmo nome e sem IMO pedem o IMO.
-  O IMO gravado fora do formato (o nome do navio no campo IMO) não conflita: a
-  Viagem, Adicionar navio e a planilha o trocam pelo informado.
+  O IMO gravado fora do formato (o nome do navio no campo IMO) não conflita:
+  **Editar** na Viagem, **Adicionar navio** numa Viagem nova e a planilha de
+  programação o trocam pelo informado.
 - **Por quê:** o IMO identifica o navio; nome parecido não junta navios
   diferentes.
 - **O que você faz:** confira o IMO com o armador e informe o certo.

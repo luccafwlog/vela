@@ -10,10 +10,15 @@
 --
 -- apply_schedule_sheet_atomic_legacy_189 é a definição vigente (217, lida com
 -- pg_get_functiondef no Postgres local com toda a cadeia aplicada) com duas
--- trocas no navio achado pelo nome:
---   1. só o IMO gravado com 7 dígitos, diferente do arquivo, é conflito;
+-- trocas:
+--   1. no navio achado pelo nome, só o IMO gravado com 7 dígitos, diferente
+--      do arquivo, é conflito;
 --   2. o IMO gravado vazio ou fora do formato recebe o IMO do arquivo (antes,
---      só o vazio).
+--      só o vazio);
+--   3. na Viagem já cadastrada (a prévia manda o id dela), o navio com IMO
+--      fora do formato recebe o IMO de 7 dígitos do arquivo, salvo se esse
+--      IMO já for de outro navio. A prévia acha essa Viagem pelo nome
+--      (`findVoyageByNumberAndVessel`), em vez de oferecer "Cria".
 -- IMOs válidos diferentes continuam recusados; a assinatura, o SECURITY
 -- DEFINER, o search_path e os grants ficam iguais (CREATE OR REPLACE).
 --
@@ -191,6 +196,20 @@ BEGIN
     ELSE
       IF NOT EXISTS (SELECT 1 FROM public.voyages WHERE id = v_voyage) THEN
         RAISE EXCEPTION 'Viagem % não encontrada.', v_voyage USING ERRCODE = 'P0002';
+      END IF;
+      -- 568: a Viagem já cadastrada cujo navio tem IMO fora do formato (a
+      -- prévia a acha pelo nome) recebe o IMO de 7 dígitos do arquivo, como a
+      -- Viagem nova; nunca o IMO que já é de outro navio.
+      v_imo := substring(upper(btrim(COALESCE(v_row->>'vessel_imo', ''))) FROM '^(?:IMO[\s:./-]*)?(\d{7})$');
+      IF v_imo IS NOT NULL THEN
+        UPDATE public.vessels AS s SET imo = v_imo
+          FROM public.voyages AS v
+         WHERE v.id = v_voyage AND s.id = v.vessel_id
+           AND NULLIF(regexp_replace(upper(btrim(COALESCE(s.imo, ''))), '^IMO[\s:./-]*', ''), '') !~ '^\d{7}$'
+           AND NOT EXISTS (
+             SELECT 1 FROM public.vessels AS other
+              WHERE other.id <> s.id
+                AND NULLIF(regexp_replace(upper(btrim(COALESCE(other.imo, ''))), '^IMO[\s:./-]*', ''), '') = v_imo);
       END IF;
       v_updated := v_updated + 1;
     END IF;
