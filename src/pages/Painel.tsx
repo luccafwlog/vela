@@ -49,7 +49,7 @@ export function Painel() {
     return filterLineUpRows(lineup?.rows ?? [], filters)
   }, [lineup, filters])
   // Vazios sem escala seguem os filtros pela Viagem: só os das Viagens que a tabela mostra.
-  // Viagem sem nenhuma linha no Line Up não tem como ser filtrada e continua no aviso.
+  // Viagem sem nenhuma linha no Line-Up não tem como ser filtrada e continua no aviso.
   const unassignedMty = useMemo(() => {
     const all = new Set((lineup?.rows ?? []).map((row) => row.voyageId))
     const visible = new Set(rows.filter((row) => row.rowType !== 'export').map((row) => row.voyageId))
@@ -68,7 +68,7 @@ export function Painel() {
       const { exportLineUpWorkbook } = await import('../services/exports')
       await exportLineUpWorkbook(rows)
     } catch {
-      showToast('Falha ao exportar o Line Up.', 'error')
+      showToast('Falha ao exportar o Line-Up.', 'error')
     } finally {
       setIsExporting(false)
     }
@@ -91,7 +91,7 @@ export function Painel() {
               <Monitor size={18} aria-hidden="true" />
               <span className="flex flex-col">
                 <span>Tela TV</span>
-                <span className="text-xs font-normal text-[var(--app-muted)]">abre em outra janela</span>
+                <span className="text-xs font-normal text-[var(--app-muted)]">abre em outra aba</span>
               </span>
             </Link>
             <button
@@ -123,10 +123,10 @@ export function Painel() {
         activeCount={activeFilterCount}
       />
 
-      {lineUpError ? <InlineError message="Erro ao carregar o Line Up." /> : null}
+      {lineUpError ? <InlineError message="Erro ao carregar o Line-Up." /> : null}
 
       <Block
-        title="Line Up"
+        title="Line-Up"
         aside={(
           <span className="flex flex-wrap items-center gap-3">
             <span>{isLineUpLoading ? '—' : lineUpCountLabel(rows.length, lineup)}</span>
@@ -162,14 +162,14 @@ export function Painel() {
   )
 }
 
-// Vazios de importação cujo porto não tem linha no Line Up: ficam fora das
+// Vazios de importação cujo porto não tem linha no Line-Up: ficam fora das
 // linhas (nunca entram no MTY de outro porto) e são listados aqui.
 function UnassignedMtyNote({ items }: { items: LineUpUnassignedMty[] }) {
   const total = items.reduce((sum, item) => sum + item.count, 0)
   return (
     <p className="border-t border-[var(--app-border-soft)] px-4 py-2 text-sm">
       <StatusText tone="warning">
-        {total} {total === 1 ? 'vazio de importação sem escala' : 'vazios de importação sem escala'} no Line Up:
+        {total} {total === 1 ? 'vazio de importação sem escala' : 'vazios de importação sem escala'} no Line-Up:
       </StatusText>{' '}
       {items.map((item, index) => (
         <span key={`${item.voyageId}::${item.pod ?? ''}`}>
@@ -185,7 +185,7 @@ function UnassignedMtyNote({ items }: { items: LineUpUnassignedMty[] }) {
 }
 
 /**
- * Faixa do Line Up (02-viagens-adr:10): as duas contagens são de escalas. Com
+ * Faixa do Line-Up (02-viagens-adr:10): as duas contagens são de escalas. Com
  * mais Viagens do que a janela carregada, a parte das Viagens vem à parte.
  */
 function lineUpCountLabel(shown: number, lineup: { rows: Array<{ voyageId: number }>; hasMore?: boolean; totalVoyages?: number } | undefined) {

@@ -175,7 +175,7 @@ describe('VaziosImportacao — Atribuição em Lote de Natureza', () => {
     expect(screen.getByText('2 containers')).toBeTruthy()
   })
 
-  it('filtros ativos mostram navio e viagem, nunca o número interno, e o POD vindo da Line Up tem campo', () => {
+  it('filtros ativos mostram navio e viagem, nunca o número interno, e o POD vindo do Line-Up tem campo', () => {
     renderPage('/vazios-importacao?voyage=7&pod=brvix')
 
     expect(screen.getByText('Filtros ativos: Viagem COSCO SHIPPING ARIES / 088E, POD BRVIX')).toBeTruthy()

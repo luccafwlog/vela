@@ -29,6 +29,11 @@
   Terminal, que o **Novo embarque** exige. O glossário troca "caixa" por "container" nos verbetes da Demurrage; o
   rateio entre Clientes passa a **Rateio da Demurrage entre Clientes**, para não se confundir com o rateio do
   container das Taxas Locais.
+- **Tela TV com um nome só e "Line-Up" com hífen (2026-11-03; decisão do dono):** o item do menu **Viagens** que
+  abre o quadro para o monitor passa de **Line Up TV** a **Tela TV**, o nome do botão do Painel; a aba do navegador
+  diz "Tela TV". O quadro do Painel, as mensagens ("Erro ao carregar o Line-Up.", "Falha ao exportar o Line-Up.") e
+  a aba da planilha exportada escrevem **Line-Up**, como o glossário. O botão do Painel diz "abre em outra aba" (antes,
+  "abre em outra janela"), e a Tela TV sem escala, "Nenhuma escala disponível.".
 - **Impressão, modais e ajustes do Portal (2026-11-02; pedido do dono):** fatura, recibo e Invoice impressos (Vela e
   Portal) ganham margem de cima maior: 20 mm na página (antes 10 mm) mais 8 mm no começo do documento, que valem
   também quando o navegador imprime com "Margens: nenhuma". Os modais deixam de mostrar uma faixa sem desfoque no

@@ -134,7 +134,7 @@ VIA-020, VIA-025, VIA-048).
 
 #### S4.11 — Mudei o ETA: o que muda e o que não muda
 
-- **O que muda sozinho:** Próxima escala e ordem das Viagens; Line Up;
+- **O que muda sozinho:** Próxima escala e ordem das Viagens; Line-Up;
   Chegadas e Saídas e Portal (se publicada); alertas de data; prazos D−7 e
   D−5 (B/Ls esperados, Baplie, CE Mercante); alerta de B/L sem Cliente perto do
   ETA; janela do Comunicado de Chegada Próxima (NOA).
@@ -147,7 +147,7 @@ VIA-020, VIA-025, VIA-048).
 - **O que o sistema faz:** conclui a Viagem quando toda escala ativa tem
   atracação com ATD, ao salvar a escala. Omitir ou excluir a última escala
   pendente também conclui; reverter a omissão reabre. Concluída, ela sai de
-  Chegadas e Saídas, do Portal e do Line Up padrão.
+  Chegadas e Saídas, do Portal e do Line-Up padrão.
 - **O que você faz:** se concluiu antes da hora, confira se falta registrar
   uma escala ou atracação; salvar a escala recalcula.
 - **Regras:** VIA-016, VIA-019, VIA-130, VIA-131.

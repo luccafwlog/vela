@@ -30,7 +30,7 @@ export type NavItem = {
   icon: ComponentType<{ size?: number }>
   badge?: number
   alert?: boolean
-  /** Abre em outra aba (Line Up na TV, fora do layout do Vela). */
+  /** Abre em outra aba (a Tela TV, fora do layout do Vela). */
   external?: boolean
 }
 
@@ -46,15 +46,16 @@ export type NavGroup = {
 export const painelNavItem: NavItem = { to: '/painel', label: 'Painel', icon: Home }
 
 // Desde 2026-11-01 (decisão do dono), as telas que só abriam por botão dentro
-// de outra tela entram no grupo do seu assunto: Chegadas e Saídas e Line Up
-// TV em Viagens; Informações do Portal (com Provisionamento e Comunicação) em
+// de outra tela entram no grupo do seu assunto: Chegadas e Saídas e Tela TV
+// em Viagens; Informações do Portal (com Provisionamento e Comunicação) em
 // Clientes; Regras de alertas em Alertas; Locais em Exportação. Tabelas de
 // Taxas Locais e Tarifas de Demurrage voltaram a abrir só pelos botões de
 // Taxas Locais e de Demurrage (decisão do dono de 2026-11-02).
 export const voyagesNavItems: NavItem[] = [
   { to: '/viagens', label: 'Viagens', icon: Ship },
   { to: '/chegadas-saidas', label: 'Chegadas e Saídas', icon: CalendarClock },
-  { to: '/line-up-tv/display', label: 'Line Up TV', icon: Monitor, external: true },
+  // O mesmo nome do botão do Painel (decisão do dono de 2026-11-03).
+  { to: '/line-up-tv/display', label: 'Tela TV', icon: Monitor, external: true },
 ]
 
 export const importNavItems: NavItem[] = [

@@ -318,8 +318,8 @@ Quadro com a previsão de datas por porto da rota, exibido ao cliente no Portal
 (bloco **Chegadas e saídas** do Painel, nome desde 2026-10-23) e mantido em
 Chegadas e Saídas. Não tem cadastro próprio: é a projeção das
 Viagens marcadas como visíveis.
-- **Distinto de:** **Line-Up (TV)**, painel operacional interno derivado das
-  viagens cadastradas.
+- **Distinto de:** **Line-Up**, o quadro operacional interno derivado das
+  viagens cadastradas, no Painel e na **Tela TV** (o mesmo quadro num monitor).
 → Regra: [Chegadas e Saídas § Programação no Portal](docs/modules/chegadas-saidas.md#programação-no-portal) e [§ Saída da Programação](docs/modules/chegadas-saidas.md#saída-da-programação); Line-Up em [Operação e suporte](docs/modules/operacao-suporte.md#line-up)
 
 **ADR (Agency Departure Report)**

@@ -28,8 +28,10 @@ describe('telas que só abriam por botão entram no grupo do seu assunto (2026-1
     expect(groups.clientes).toContain('/clientes/informacoes')
   })
 
-  it('Line Up TV abre em outra aba', () => {
-    expect(voyagesNavItems.find((item) => item.to === '/line-up-tv/display')?.external).toBe(true)
+  it('Tela TV abre em outra aba, com o mesmo nome do botão do Painel', () => {
+    const tv = voyagesNavItems.find((item) => item.to === '/line-up-tv/display')
+    expect(tv?.external).toBe(true)
+    expect(tv?.label).toBe('Tela TV')
   })
 
   it('marca só o item da tela: o endereço mais longo que casa', () => {
