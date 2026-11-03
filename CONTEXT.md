@@ -1055,7 +1055,12 @@ fora no free time) e **Travado** (o sistema não consegue cobrar: tipo sem
 tarifa, B/L sem Cliente, B/L cancelado, sem CE Mercante ou Portal fechando o
 faturamento). A divisão vem do banco; o container sai dela quando a Invoice é
 emitida.
+Nas fichas do B/L e do Cliente e na recusa ao cancelar o B/L, "correndo" e
+"a emitir" valem por container (fora ou devolvido, sem Invoice; decisão do dono
+de 2026-11-03) e podem diferir da divisão do grupo: o container devolvido de um
+grupo em **Esperando** ou **Travado** aparece "a emitir" na ficha.
 - **Evitar:** "em atraso" para a divisão (é o status do container), "a faturar"
+  e "em curso"
 - **Ver também:** Invoice de Demurrage, Dispensa da cobrança
 → Regra: [Demurrage § Classificação da cobrança](docs/modules/demurrage.md#classificação-da-cobrança-migration-515)
 
