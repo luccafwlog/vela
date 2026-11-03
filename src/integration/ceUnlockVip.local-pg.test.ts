@@ -112,6 +112,29 @@ local('desbloqueio CE — matriz VIP, anual, expurgo e lotes', () => {
     expect(commandError('apply_vip', { request_id: expired.id, expected_version: view(expired.id).version, request_key: key() })).toContain('Cobertura VIP indisponível')
   })
 
+  it('576: sem solicitação, o VIP coberto pelos dois anuais tem termo e procuração atendidos, sem ficar apto', () => {
+    const y = Y()
+    // Sem VIP, sem solicitação: pendente, mesmo com anuais aprovados.
+    annual(A, 'termo', y)
+    expect(item('CE700-A1')).toMatchObject({ state: 'no_request', vip: false, vip_covered: false, termo: false, procuracao: false })
+    // VIP com só um dos anuais: o pedido nasceria comum, então os dois seguem pendentes.
+    setVip(A, true)
+    expect(item('CE700-A1')).toMatchObject({ vip: true, vip_covered: false, termo: false, procuracao: false })
+    annual(A, 'procuracao', y)
+    deliver('CE700-A1')
+    // Os dois anuais cobrindo: atendidos, mas a ZPT ainda pede a solicitação.
+    expect(item('CE700-A1')).toMatchObject({ state: 'no_request', vip_covered: true, termo: true, procuracao: true, paid: true, delivered: true, can_export: false, sla_started_at: null })
+    expect(commandError('export', { bl_ids: ['CE700-A1'], request_key: key() })).toContain('não apto')
+    // O filtro "Requisito pendente" da aba Andamento lê os mesmos campos.
+    const pending = (req: string) => (JSON.parse(sql(`SELECT public.ce_unlock_read('bls',jsonb_build_object('filters',jsonb_build_object('search','CE700-A1','pending_requirement','${req}'),'page',1));`, admin)) as { items: Array<{ bl_id: string }> }).items.map((i) => i.bl_id)
+    expect(pending('termo')).not.toContain('CE700-A1')
+    expect(pending('procuracao')).not.toContain('CE700-A1')
+    // Perdido o VIP, volta a pendente.
+    setVip(A, false)
+    expect(item('CE700-A1')).toMatchObject({ vip_covered: false, termo: false, procuracao: false })
+    expect(pending('termo')).toContain('CE700-A1')
+  })
+
   it('matriz VIP: anual de outro CNPJ não cobre o cliente nem pode ser aplicado', () => {
     const y = Y()
     setVip(A, true); setVip(B, true)

@@ -37,11 +37,15 @@ export type CeUnlockItem = {
   version: number;
   vip: boolean;
   /**
-   * Termo e procuração anuais aprovados cobrem este B/L: o CE Mercante atual foi
-   * vinculado dentro da vigência deles, e a cobertura continua depois de vencer
-   * (migration 456). Sem isso, a solicitação segue com termo e procuração anexados a ela.
+   * Termo e procuração anuais aprovados cobrem este B/L pela data da solicitação
+   * (antes dela, hoje; migrations 479 e 487, ADR 0110). Sem isso, a solicitação
+   * segue com termo e procuração anexados a ela.
    */
   vip_covered?: boolean;
+  /**
+   * Atendidos pela solicitação; sem solicitação, verdadeiros só para o VIP com
+   * `vip_covered` (migration 576), sem deixar o B/L apto para a ZPT.
+   */
   termo: boolean;
   procuracao: boolean;
   paid: boolean;

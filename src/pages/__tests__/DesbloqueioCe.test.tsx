@@ -95,6 +95,16 @@ it('veículo LCL isento: termo e procuração dispensados e sem solicitação (m
   expect(screen.getByRole('img', { name: 'Procuração BL-LCL: dispensado (veículo LCL isento)' })).toBeTruthy()
   expect(screen.getByText('Dispensada · veículo LCL')).toBeTruthy()
 })
+it('VIP sem solicitação com os anuais cobrindo: termo e procuração cobertos pelo anual (migration 576)', () => {
+  state.extra = [
+    { bl_id: 'BL-VIP', vip: true, vip_covered: true, termo: true, procuracao: true },
+    { bl_id: 'BL-VIP-FALTA', vip: true, vip_covered: false, termo: false, procuracao: false },
+  ]
+  mount()
+  expect(screen.getByRole('img', { name: 'Termo de devolução BL-VIP: coberto pelo anual VIP' })).toBeTruthy()
+  expect(screen.getByRole('img', { name: 'Procuração BL-VIP: coberto pelo anual VIP' })).toBeTruthy()
+  expect(screen.getByRole('img', { name: 'Termo de devolução BL-VIP-FALTA: pendente' })).toBeTruthy()
+})
 
 it('filtro padrão é "Todas"', () => {
   mount()

@@ -90,7 +90,9 @@ Manifesto Mercante é regra de
   Requisito pendente em "Mais filtros". Uma linha por B/L com CE, com
   ou sem pedido (lista vazia: "Todo B/L com CE aparece aqui, com ou sem solicitação."): B/L, CE Mercante, Cliente (marca "VIP"), Solicitação, Termo de devolução,
   Procuração e Taxas locais como ícones somente leitura (verde = atendido; no veículo LCL isento, termo
-  e procuração verdes com "dispensado (veículo LCL isento)" no texto e a Solicitação "Dispensada ·
+  e procuração verdes com "dispensado (veículo LCL isento)" no texto; no B/L sem solicitação de Cliente
+  VIP com os dois anuais cobrindo hoje, termo e procuração verdes com "coberto pelo anual VIP", e a
+  planilha comum diz "Coberto pelo anual VIP" (migration `576`, pedido do dono de 2026-11-03) e a Solicitação "Dispensada ·
   veículo LCL", também na planilha comum); **B/L original** é a única
   caixa clicável (confirmação ao marcar, motivo ao desmarcar), inclusive antes de existir pedido.
   Prazo numa célula ("Hoje, HH:MM" em âmbar; "Venceu …" em vermelho) e **Na ZPT** só com o estado da
@@ -179,7 +181,7 @@ invalida a família `ce-unlock` e a ficha do Cliente (`customer-detail`,
 
 Migrations `139`–`149`, `160`, `161`, `173`, `220`, `279` (requisito de
 pagamento), `280` (retenção), `281` (lote com hash e imutável), `282` (documento
-expurgado na projeção) e `575` (veículo LCL isento sem solicitação); a `177` redefine `ce_unlock_reconcile` (chave
+expurgado na projeção), `575` (veículo LCL isento sem solicitação) e `576` (VIP coberto no B/L sem solicitação); a `177` redefine `ce_unlock_reconcile` (chave
 do CE) e a `181`/`195`/`230`/`277` o alerta `ce_trocado_com_desbloqueio`. Tabelas `ce_unlock_*` (`ce_unlock_requests`,
 `ce_unlock_request_bls`, `ce_unlock_documents`, `ce_unlock_vip_customers`,
 `ce_unlock_bl_deliveries`, `ce_unlock_events`, `ce_unlock_exports`,
@@ -243,7 +245,12 @@ regras de quem não tem o anual (solicitação comum, `source = 'request'`, com 
 anexados). A situação VIP do Cliente na tela (anuais vigentes hoje) não muda; a seleção de B/Ls
 no Portal segue a cobertura de cada B/L (`vip_covered`). O rascunho só nasce VIP
 (`vip_annual`) quando os anuais cobrem todos os B/Ls; um B/L sem cobertura faz o pedido inteiro
-seguir comum. O item traz `vip_covered` para o Portal explicar. **Teste:**
+seguir comum. O item traz `vip_covered` para o Portal explicar. No B/L ainda sem solicitação,
+o mesmo `vip_covered` (os dois anuais cobrindo hoje) devolve termo e procuração atendidos, para a
+aba Andamento dos B/Ls, o filtro "Requisito pendente" e a planilha comum (migration `576`, pedido do
+dono de 2026-11-03); com só um anual cobrindo, os dois seguem pendentes, porque o pedido seria
+comum. Não deixa o B/L apto: a exportação à ZPT, o prazo e os motivos continuam exigindo a
+solicitação. **Teste:** `ceUnlockVip.local-pg.test.ts`. **Teste:**
 `ceUnlockVigenciaAnual.local-pg.test.ts`. Pagamento e entrega continuam por B/L, também para VIP. A entrega do
 original é independente da solicitação: o desk a registra antes ou depois do pedido.
 Conteúdo, assinatura e validade do termo e da procuração são conferidos só pela

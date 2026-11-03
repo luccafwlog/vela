@@ -523,8 +523,9 @@ export function DesbloqueioCe() {
                             <StatusText tone="muted">Sem solicitação</StatusText>
                           )}
                         </td>
-                        <td><CeUnlockRequirementIcon label="Termo de devolução" subject={i.bl_id} ok={i.termo} dispensed={i.documents_dispensed} /></td>
-                        <td><CeUnlockRequirementIcon label="Procuração" subject={i.bl_id} ok={i.procuracao} dispensed={i.documents_dispensed} /></td>
+                        {/* Sem solicitação, o VIP coberto pelos anuais vem atendido (migration 576). */}
+                        <td><CeUnlockRequirementIcon label="Termo de devolução" subject={i.bl_id} ok={i.termo} dispensed={i.documents_dispensed} vipAnnual={!i.request_id && !!i.vip_covered} /></td>
+                        <td><CeUnlockRequirementIcon label="Procuração" subject={i.bl_id} ok={i.procuracao} dispensed={i.documents_dispensed} vipAnnual={!i.request_id && !!i.vip_covered} /></td>
                         <td><CeUnlockRequirementIcon label="Taxas locais" subject={i.bl_id} ok={i.paid} /></td>
                         <td>
                           <input

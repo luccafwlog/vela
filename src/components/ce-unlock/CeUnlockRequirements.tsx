@@ -12,15 +12,24 @@ export function CeUnlockRequirementIcon({
   label,
   subject,
   dispensed = false,
+  vipAnnual = false,
 }: {
   ok: boolean;
   label: string;
   subject?: string;
   dispensed?: boolean;
+  /** B/L sem solicitação de Cliente VIP com os dois anuais cobrindo (migration 576). */
+  vipAnnual?: boolean;
 }) {
   const met = ok || dispensed;
   const Icon = met ? CheckCircle2 : Circle;
-  const state = dispensed ? "dispensado (veículo LCL isento)" : ok ? "atendido" : "pendente";
+  const state = dispensed
+    ? "dispensado (veículo LCL isento)"
+    : ok && vipAnnual
+      ? "coberto pelo anual VIP"
+      : ok
+        ? "atendido"
+        : "pendente";
   return (
     <span
       role="img"
