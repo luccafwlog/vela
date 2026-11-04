@@ -4,6 +4,11 @@ name: Abrir PR staging → main
 # da staging para a main. O merge na main continua manual: push na main
 # publica a produção (cloudflare-pages-production.yml). ADR 0091.
 #
+# A PR nasce rascunho (ADR 0122): o ci.yml não roda em rascunho, então os
+# merges na staging só atualizam a lista. O dono marca "Ready for review" quando
+# vai publicar, e o CI confere a staging inteira nessa hora. Atualizar uma PR
+# que já está pronta não a devolve a rascunho: cada novo push roda o CI de novo.
+#
 # Gatilho no push, não no fechamento da PR (auditoria run-3, decisão do dono
 # de 2026-10-22): STAGING_TO_MAIN_TOKEN mora no environment `staging-release`,
 # restrito à branch staging, e o GitHub confere essa restrição contra o
@@ -148,8 +153,8 @@ jobs:
             echo "PR #${existing} atualizada."
             exit 0
           fi
-          if url=$(gh pr create --repo "$REPO" --base main --head staging --title "$title" --body-file body.md); then
-            echo "PR aberta: ${url}"
+          if url=$(gh pr create --draft --repo "$REPO" --base main --head staging --title "$title" --body-file body.md); then
+            echo "PR aberta em rascunho: ${url}"
             exit 0
           fi
           existing=$(gh api "repos/${REPO}/pulls?state=open&base=main&head=${owner}:staging&per_page=20" --jq 'map(.number) | min // empty')

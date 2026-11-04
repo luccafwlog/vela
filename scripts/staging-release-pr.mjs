@@ -217,7 +217,7 @@ export function buildReleaseBody(input) {
     '',
     '- [ ] Testado no staging (https://staging.vela-internal.pages.dev e https://staging.vela-portal.pages.dev)',
     '- [ ] Migrations conferidas (numeração sem conflito)',
-    '- [ ] CI verde',
+    '- [ ] Marcada como pronta (**Ready for review**) e CI verde. Em rascunho o CI não roda: ele começa quando a PR fica pronta.',
     '',
     '> Fazer o merge com **Create a merge commit** (não squash). O merge publica a produção: vela.app.br e portalfwlog.com.br.',
     '',

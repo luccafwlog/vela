@@ -703,25 +703,48 @@ impressão não consiga atender; preserve o fluxo de impressão descrito acima.
 
 ### Gate local
 
-Escolha os checks pelo impacto da alteração. Para mudanças somente em Markdown
-ou instruções de agentes, rode `npm run docs:check` e `git diff --check`; se uma
-skill tiver scripts alterados, valide também esses scripts. Não rode a suíte da
-aplicação apenas por uma mudança de prosa.
+Escolha os checks pelo impacto da alteração. A tabela de `AGENTS.md`
+("Verify the claim you will make") diz o que rodar antes de cada push e o que
+prova a suíte completa; esta seção traz os comandos. Os checks locais pegam o
+que a mudança quebrou antes de chegar ao CI; a suíte completa é provada pelo CI
+do commit final, quando a mudança vai por PR
+([ADR 0122](docs/adr/0122-ci-nao-roda-em-rascunho-e-promocao-nasce-rascunho.md)).
 
-Para mudanças de aplicação ou configuração que possam afetar esses contratos,
-o gate completo é:
+Para mudanças somente em Markdown ou instruções de agentes, rode
+`npm run docs:check` e `git diff --check`; se uma skill tiver scripts alterados,
+valide também esses scripts. Não rode a suíte da aplicação apenas por uma
+mudança de prosa.
+
+Antes de cada push de uma mudança de aplicação, rode o que é barato e o que é
+focado no diff:
 
 ```powershell
 npm run docs:check
 npm run typecheck
+npx eslint <arquivos alterados>
+npx vitest related --run <arquivos alterados>
+```
+
+`vitest related` roda os testes que importam os arquivos alterados. Mudança de
+build, rotas, imports lazy, dependências ou configuração do Vite/TypeScript
+roda também `npm run build` e `npm run size-limit`. Mudança de aparência, CSS
+ou componente visual roda também `npm run design:check` e
+`npm run a11y:contrast` (os dois estão no job `quality` do CI). Mudança de
+schema ou RPC segue a seção 5 e roda as suítes `*.local-pg.test.ts` afetadas.
+
+Quando nenhum CI vai rodar no commit entregue (sem PR), o gate completo roda uma
+vez, na árvore final:
+
+```powershell
+npm run docs:check
 npm run lint
 npm test
 npm run build
 ```
 
-Mudança de aparência, CSS ou componente visual roda também
-`npm run design:check` e `npm run a11y:contrast` (os dois estão no job
-`quality` do CI).
+`npm run build` já roda `tsc -b`; `npm run typecheck` à parte só serve durante a
+implementação. Rode as suítes com saída curta (por exemplo,
+`npm test -- --reporter=dot`) e guarde só as falhas.
 
 Execute testes focados durante a implementação. Após corrigir falhas, repita os
 checks afetados; resultados de código e ambiente inalterados continuam válidos.
@@ -880,7 +903,13 @@ Nenhum restore destrutivo faz parte dos checks locais.
 
 `.github/workflows/ci.yml` roda só em pull requests (aberta, novo commit,
 reaberta ou saída de rascunho), em três jobs mais o agregador
-([ADR 0086](docs/adr/0086-ci-confere-na-medida-da-mudanca.md)). As etapas Node
+([ADR 0086](docs/adr/0086-ci-confere-na-medida-da-mudanca.md)). PR em rascunho
+não roda nada: os quatro jobs ficam pulados e o CI começa quando ela é marcada
+**Ready for review**, que cria um run novo e pendente
+([ADR 0122](docs/adr/0122-ci-nao-roda-em-rascunho-e-promocao-nasce-rascunho.md)).
+Rascunho não pode ser mergeado, então o `checks` pulado não libera merge. Cada
+push numa PR pronta roda o CI inteiro; por isso os agentes juntam as correções
+de uma rodada num push só (`AGENTS.md`). As etapas Node
 usam a versão 24 e `npm ci --legacy-peer-deps`; o replay de guardas usa Python
 e o de banco requer PostgreSQL 16:
 
@@ -913,13 +942,13 @@ e o de banco requer PostgreSQL 16:
    PGDG e remove o cluster da outra versão para o 16 ficar na porta 5432)
    (`setup-local-pg.sh --reset`), trava invariantes em banco real
    (`check-squash-replay.sql` e `check-comunicados-caixas-nob.sql`), confere o
-   catálogo de RPCs e aplica/verifica `supabase/seed.sql` em toda PR. As suítes
+   catálogo de RPCs e aplica/verifica `supabase/seed.sql` em toda PR pronta. As suítes
    locais serializadas (ordem natural) e a bateria financeira rodam só quando o
    diff da PR toca o banco: `supabase/`, `src/integration/`, os scripts do
    replay e das suítes, `vite.config.ts`, `package.json`, `package-lock.json`,
    o próprio `ci.yml` ou o classificador `scripts/ci-db-paths.mjs`, que escreve
-   a decisão no log do passo. A condição fica nos passos, então o job nunca é
-   pulado;
+   a decisão no log do passo. A condição fica nos passos, então o job só é
+   pulado em rascunho;
 4. `checks` — gate agregador que só fica verde quando os três terminam verdes.
 
 `checks` é o nome estável para a proteção de branch: a quantidade de shards
@@ -971,6 +1000,21 @@ estiver aberta. O merge na `main`
 continua manual: é esse push que publica a produção. A lista de PRs no corpo
 sai do assunto dos commits (`título (#n)` ou `Merge pull request #n`).
 
+A PR de promoção nasce rascunho
+([ADR 0122](docs/adr/0122-ci-nao-roda-em-rascunho-e-promocao-nasce-rascunho.md)):
+enquanto ela é rascunho, os merges na `staging` só reescrevem o corpo e o CI não
+roda. Para publicar:
+
+1. Na PR `staging` → `main`, clique em **Ready for review**. O CI confere a
+   `staging` inteira, a mesma árvore que vai para a produção (~7 minutos).
+2. Com o `checks` verde e os itens do checklist do corpo conferidos, faça o
+   merge com **Create a merge commit**.
+
+Um merge na `staging` depois do clique roda o CI de novo na PR pronta. A
+próxima PR de promoção nasce rascunho outra vez. Esse CI é o único que confere
+a `staging` inteira, porque a PR de feature não precisa estar atualizada
+([ADR 0086](docs/adr/0086-ci-confere-na-medida-da-mudanca.md), D2).
+
 O secret `STAGING_TO_MAIN_TOKEN` (PAT fine-grained só deste repositório,
 Contents em leitura e Pull requests em escrita) faz o CI dessa PR começar
 sozinho. Desde a auditoria run-3 (decisão do dono de 2026-10-22) ele mora no
@@ -978,7 +1022,9 @@ environment GitHub `staging-release`, restrito à branch `staging`, e não mais
 nos secrets do repositório: só um job rodando na `staging` o lê. Por isso o
 gatilho é o push, e não o fechamento da PR (no evento de PR o GitHub confere a
 restrição contra `refs/pull/N/merge`). Sem o secret no environment, o workflow
-usa o `GITHUB_TOKEN` e o CI fica esperando aprovação. Marcar o check
+usa o `GITHUB_TOKEN` e o CI dos pushes que chegam com a PR já pronta fica
+esperando aprovação; o run do **Ready for review** vem do clique do dono e não
+depende do secret. Marcar o check
 `main-only-from-staging` como obrigatório na proteção da `main`, trocar a
 branch padrão para `staging`, criar o environment com a restrição e mover o
 secret para ele são passos do dono, fora do workflow. Regra
@@ -1039,7 +1085,8 @@ Antes de concluir:
 - rotas, comandos, auth, migrations e procedimentos atualizaram os documentos
   vivos;
 - testes focados passaram;
-- `npm run docs:check`, lint, testes e build passaram quando aplicáveis;
+- os checks locais da tabela de `AGENTS.md` passaram; a suíte completa passou
+  no CI do commit final ou, sem PR, localmente;
 - `git diff --check` não aponta whitespace;
 - snapshots históricos não foram reescritos como se descrevessem o presente.
 

@@ -1,6 +1,12 @@
 # 0091 — Promoção feature → staging → main
 
-Status: aceito — 2026-10-20. Estende a [ADR 0010](./0010-validacao-testes-deploy-gates.md)
+> **Situação atual (2026-11-04).** A PR `staging` → `main` nasce rascunho e o
+> CI dela começa quando o dono a marca **Ready for review** para publicar, não
+> a cada merge na `staging` ([ADR 0122](./0122-ci-nao-roda-em-rascunho-e-promocao-nasce-rascunho.md)).
+> No item 5, o `STAGING_TO_MAIN_TOKEN` continua necessário para o CI rodar
+> sozinho nos pushes que chegam depois da PR pronta. O resto vale como abaixo.
+
+Status: supersedida parcialmente — aceita em 2026-10-20. Estende a [ADR 0010](./0010-validacao-testes-deploy-gates.md)
 no caminho até a produção. Não altera o que o CI confere
 ([ADR 0086](./0086-ci-confere-na-medida-da-mudanca.md)) nem o hosting
 ([ADR 0076](./0076-cloudflare-pages-como-hosting.md)).

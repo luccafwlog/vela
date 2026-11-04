@@ -6,6 +6,12 @@
 
 ## 2026-11
 
+- **CI não roda em rascunho, e a promoção nasce rascunho (2026-11-04, ADR 0122; pedido do dono):** PR em rascunho
+  não roda o `ci.yml`; o CI começa em **Ready for review**. A PR `staging` → `main` nasce rascunho e o dono a marca
+  pronta na hora de publicar, em vez de o CI conferir a staging a cada merge (~16 runs por dia contra ~3
+  publicações). No `AGENTS.md`, o CI do commit final passa a ser a prova da suíte completa, o agente roda antes de
+  cada push só os checks baratos e focados, e junta as correções de uma rodada num push só
+  ([WORKFLOW.md](../WORKFLOW.md#promoção-da-staging-para-a-main)).
 - **Consolidada só com dois B/Ls ou mais (2026-11-04, migration `591`; decisão do dono):** no Vela e no Portal, a
   fatura consolidada pede pelo menos dois B/Ls distintos. Com um B/L só, o botão de emitir fica apagado e o banco
   recusa com "A fatura consolidada precisa de pelo menos dois B/Ls. Para um B/L só, use a fatura individual dele.".

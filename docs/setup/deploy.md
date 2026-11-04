@@ -15,9 +15,9 @@ O staging publica o `index.html` correspondente a cada projeto e copia somente s
 
 | Workflow | Gatilho | Resultado |
 |---|---|---|
-| `.github/workflows/ci.yml` | PR (aberta, novo commit, reaberta, pronta para revisão) | Documentação, lint, build, testes, tamanho de bundle, contratos do Pages e replay de migrations em toda PR; suítes SQL só quando o diff toca o banco ([ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md)). Não roda depois do merge. |
+| `.github/workflows/ci.yml` | PR (aberta, novo commit, reaberta, pronta para revisão) | Documentação, lint, build, testes, tamanho de bundle, contratos do Pages e replay de migrations em toda PR pronta; suítes SQL só quando o diff toca o banco ([ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md)). Em PR rascunho os jobs ficam pulados e o CI começa em **Ready for review** ([ADR 0122](../adr/0122-ci-nao-roda-em-rascunho-e-promocao-nasce-rascunho.md)). Não roda depois do merge. |
 | `.github/workflows/main-only-from-staging.yml` | PR contra `main` (aberta, novo commit, reaberta, editada, pronta para revisão) | Check `main-only-from-staging`. Falha se a origem não for a branch `staging` deste repositório ([ADR 0091](../adr/0091-promocao-feature-staging-main.md)). |
-| `.github/workflows/staging-to-main-pr.yml` | Push na `staging` (o merge de uma PR) | Acha a PR mergeada pelo commit e abre ou atualiza a PR `staging` → `main`, com `STAGING_TO_MAIN_TOKEN` do environment `staging-release` (restrito à `staging`). O merge na `main` continua manual. |
+| `.github/workflows/staging-to-main-pr.yml` | Push na `staging` (o merge de uma PR) | Acha a PR mergeada pelo commit e abre ou atualiza a PR `staging` → `main`, com `STAGING_TO_MAIN_TOKEN` do environment `staging-release` (restrito à `staging`). A PR nasce rascunho: o dono a marca **Ready for review** para publicar, e o CI roda nessa hora ([ADR 0122](../adr/0122-ci-nao-roda-em-rascunho-e-promocao-nasce-rascunho.md)). O merge na `main` continua manual. |
 | `.github/workflows/local-pg-order.yml` | Segunda, 09:17 UTC, ou execução manual | Suítes SQL nas duas ordens, cada uma num banco recriado, e bateria financeira. |
 | `.github/workflows/manual-capturas.yml` | Quarta, 10:23 UTC, ou execução manual; e a PR que muda o próprio arquivo | Refaz as telas do Manual do Operador contra a `staging` (Postgres local, cenário, `sb-shim` e Vite). Com captura que falha, abre ou comenta a issue "Manual do Operador: capturas que falharam na staging" e guarda os `<id>.erro.png` no artefato; na PR, só o resumo. Não é check de PR. |
 | `.github/workflows/cloudflare-pages-preview.yml` | Etiqueta `preview` em PR interna cuja base é `main`, ou execução manual a partir da `main` com o número da PR | Aguarda o check Supabase Preview da branch vinculada à PR e publica os dois previews privados; sem essa branch, termina com falha depois de cerca de 6 min de espera. PR contra `staging` não dispara esta prévia. |
@@ -42,8 +42,9 @@ ADR 0056 (`stagingtdesk`). A git branch `staging` é o ambiente fixo de QA.
 Desde a [ADR 0091](../adr/0091-promocao-feature-staging-main.md), a PR de
 feature abre contra `staging`. O merge publica estes sites, porque o workflow
 de staging continua no push da branch, e `staging-to-main-pr.yml` abre ou
-atualiza a PR `staging` → `main`. O merge dessa PR continua manual e é o que
-publica a produção.
+atualiza a PR `staging` → `main`, que nasce rascunho. Para publicar, o dono a
+marca **Ready for review**, espera o CI verde e faz o merge, que continua manual
+e é o que publica a produção ([passos](../../WORKFLOW.md#promoção-da-staging-para-a-main)).
 
 - **Sites:** `https://staging.vela-internal.pages.dev` e
   `https://staging.vela-portal.pages.dev`. A branch `staging` não é o

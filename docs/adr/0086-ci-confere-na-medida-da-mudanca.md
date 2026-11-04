@@ -1,6 +1,11 @@
 # 0086 — O CI confere na medida do que a PR muda
 
-Status: aceito — 2026-10-15 (decisões do dono D1 e D2 do
+> **Situação atual (2026-11-04).** O item 1 vale para PR fora do rascunho. A
+> [ADR 0122](./0122-ci-nao-roda-em-rascunho-e-promocao-nasce-rascunho.md)
+> deixa a PR em rascunho sem CI (os jobs ficam pulados) e o run começa quando
+> ela fica pronta (`ready_for_review`). O resto desta decisão permanece.
+
+Status: supersedida parcialmente — aceita em 2026-10-15 (decisões do dono D1 e D2 do
 [plano de compactação do CI](../archive/plans/2026-10-15-compactacao-do-ci.md)).
 Estende a [ADR 0010](./0010-validacao-testes-deploy-gates.md). Regra vigente
 em [WORKFLOW.md](../../WORKFLOW.md), seções "11. Testes e validação" e
