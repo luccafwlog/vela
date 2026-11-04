@@ -13,7 +13,7 @@ import {
 import { withPendingTerminal } from '../lineup'
 
 // Revisão de 2026-11-04 (D5): a tela lê as frentes sem terminal pela mesma
-// derivação do banco que trava o Fechar ADR (migration 583).
+// derivação do banco que trava o Fechar ADR (migration 584).
 describe('frentes sem terminal por escala', () => {
   beforeEach(() => rpc.mockReset())
 

@@ -54,7 +54,7 @@ describe('alertEntityLink & alertEntityLinkLabel — roteador de destino compart
     expect(alertEntityLinkLabel({ type: 'voyage_terminal_date_pending', entity_type: 'voyage_escala_terminal' })).toBe('Abrir Viagem')
   })
 
-  it('roteia o NOB sem terminal para a escala, onde a frente ganha terminal (583)', () => {
+  it('roteia o NOB sem terminal para a escala, onde a frente ganha terminal (584)', () => {
     const alert = {
       type: 'comunicado_nob_pendente',
       entity_type: 'voyage_pod_schedule',
@@ -67,7 +67,7 @@ describe('alertEntityLink & alertEntityLinkLabel — roteador de destino compart
     expect(alertEntityLinkLabel({ type: 'comunicado_nob_pendente', entity_type: 'voyage_escala_terminal' })).toBe('Abrir Comunicados')
   })
 
-  it('roteia Escala sem terminal para a escala da Viagem (583)', () => {
+  it('roteia Escala sem terminal para a escala da Viagem (584)', () => {
     expect(alertEntityLink({ type: 'voyage_escala_terminal_missing', entity_type: 'voyage_pod_schedule', entity_id: '100::BRVIX' }))
       .toBe('/viagens/100?escala=BRVIX')
     expect(alertEntityLinkLabel({ type: 'voyage_escala_terminal_missing', entity_type: 'voyage_pod_schedule' })).toBe('Abrir Viagem')

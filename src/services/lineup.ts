@@ -100,7 +100,7 @@ export type LineUpRow = {
   /**
    * Frentes deste sentido ainda sem terminal (`importacao:*` na linha de
    * importação, `exportacao:*` na de exportação), pela derivação do banco
-   * (migration 583). Com alguma, o terminal da linha leva "TBC", que o Painel
+   * (migration 584). Com alguma, o terminal da linha leva "TBC", que o Painel
    * mostra em âmbar e o filtro Terminal "Sem terminal" separa.
    */
   pendingTerminalFronts?: string[]
@@ -601,7 +601,7 @@ async function fetchTerminalFrontsByVoyageIds(voyageIds: number[]) {
 
 // ponytail: o destaque da frente sem terminal não derruba o Line-Up (a TV
 // inclusive): sem a leitura (RPC ausente ou falha), a coluna mostra só as
-// frentes gravadas, como antes da migration 583. O alerta "Escala sem
+// frentes gravadas, como antes da migration 584. O alerta "Escala sem
 // terminal" continua cobrando pelo banco; mostrar um aviso de leitura parcial
 // no Painel é o próximo passo se a falha passar a ocorrer.
 async function fetchEscalasSemTerminalOrEmpty(voyageIds: number[]) {

@@ -5,7 +5,7 @@ import { supabase } from './supabase'
 /**
  * Frentes de operação sem terminal por escala, pela mesma derivação do banco
  * que trava o Fechar ADR e abre o alerta "Escala sem terminal"
- * (`escala_frentes_sem_terminal`, migration 583): as frentes gravadas em TBC e
+ * (`escala_frentes_sem_terminal`, migration 584): as frentes gravadas em TBC e
  * as que nascem dos dados (B/L, transbordo, vazios de importação, Granito e
  * Embarque de vazios) e ainda não têm terminal. Chave: `${voyageId}::${porto}`,
  * com o porto normalizado.

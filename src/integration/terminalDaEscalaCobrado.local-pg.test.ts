@@ -1,4 +1,4 @@
-// Migration 583 (decisões do dono de 2026-11-04, ADR 0121; revisão do vínculo
+// Migration 584 (decisões do dono de 2026-11-04, ADR 0121; revisão do vínculo
 // de terminal): "Escala sem terminal" no D-5 e no ATA, ETB cobrado por
 // terminal depois do ATA, NOB sem terminal no alerta, ATB não anterior ao ATA e
 // a leitura `escala_frentes_sem_terminal`. Cada cenário roda numa transação
@@ -21,20 +21,20 @@ const SCALE = `${VOYAGE}::BRVIX`
 
 const FIXTURES = `
   SET LOCAL session_replication_role = replica;
-  INSERT INTO auth.users(id, email) VALUES ('${USER}', 'r583-ops@test.local');
-  INSERT INTO public.user_profiles(id, full_name, role, active) VALUES ('${USER}', 'R583 Operações', 'operacoes', true);
-  INSERT INTO public.carriers(id, name) VALUES (${VOYAGE}, 'R583');
-  INSERT INTO public.vessels(id, carrier_id, name) VALUES (${VOYAGE}, ${VOYAGE}, 'R583 VESSEL');
-  INSERT INTO public.voyages(id, vessel_id, voyage_number, status) VALUES (${VOYAGE}, ${VOYAGE}, '583A', 'active');
+  INSERT INTO auth.users(id, email) VALUES ('${USER}', 'r584-ops@test.local');
+  INSERT INTO public.user_profiles(id, full_name, role, active) VALUES ('${USER}', 'R584 Operações', 'operacoes', true);
+  INSERT INTO public.carriers(id, name) VALUES (${VOYAGE}, 'R584');
+  INSERT INTO public.vessels(id, carrier_id, name) VALUES (${VOYAGE}, ${VOYAGE}, 'R584 VESSEL');
+  INSERT INTO public.voyages(id, vessel_id, voyage_number, status) VALUES (${VOYAGE}, ${VOYAGE}, '584A', 'active');
   INSERT INTO public.depots(id, code, name, tipo, port_id)
     SELECT x.id::uuid, x.code, x.code, 'terminal_portuario', p.id
-    FROM (VALUES ('${T1}', 'T583'), ('${T2}', 'U583')) AS x(id, code)
+    FROM (VALUES ('${T1}', 'T584'), ('${T2}', 'U584')) AS x(id, code)
     CROSS JOIN (SELECT id FROM public.ports WHERE locode = 'BRVIX' LIMIT 1) AS p;
   INSERT INTO public.customers(id, name, cnpj_cpf) VALUES
     (49900001, 'CLI CHEIA', '49900001000101'), (49900002, 'CLI SOLTA', '49900001000102'), (49900003, 'CLI MISTO', '49900001000103');
   INSERT INTO public.bls (id, voyage_id, pol, pod, cargo_mode, ce_mercante, customer_id) VALUES
-    ('R583-BL1', ${VOYAGE}, 'CNSHA', 'BRVIX', 'container', '583000000000001', 49900001),
-    ('R583-BL2', ${VOYAGE}, 'CNSHA', 'BRVIX', 'carga_solta', '583000000000002', 49900002);
+    ('R584-BL1', ${VOYAGE}, 'CNSHA', 'BRVIX', 'container', '583000000000001', 49900001),
+    ('R584-BL2', ${VOYAGE}, 'CNSHA', 'BRVIX', 'carga_solta', '583000000000002', 49900002);
   SET LOCAL session_replication_role = origin;
 `
 
@@ -82,7 +82,7 @@ function item(lines: string[], type: string, entity: string) {
   return { status, message, events }
 }
 
-describeLocal('583 — o terminal da escala é cobrado antes da chegada', () => {
+describeLocal('584 — o terminal da escala é cobrado antes da chegada', () => {
   it('Escala sem terminal abre no D-5 do ETA com as frentes derivadas, e não antes', () => {
     const before = scenario(`${eta(6)} ${asDetector} SELECT public.reconcile_voyage_operation_alerts(${VOYAGE}); ${report}`)
     expect(before.stderr).toBe('')
@@ -139,10 +139,10 @@ describeLocal('583 — o terminal da escala é cobrado antes da chegada', () => 
       ${report}
     `)
     expect(stderr).toBe('')
-    expect(item(lines, 'voyage_terminal_date_pending', `${SCALE}::U583`))
-      .toEqual({ status: 'active', message: 'Terminal U583: ATA registrada; falta o ETB.', events: 'opened' })
-    // O T583 tem ETB: nada abriu, nem por um instante.
-    expect(item(lines, 'voyage_terminal_date_pending', `${SCALE}::T583`)).toBeNull()
+    expect(item(lines, 'voyage_terminal_date_pending', `${SCALE}::U584`))
+      .toEqual({ status: 'active', message: 'Terminal U584: ATA registrada; falta o ETB.', events: 'opened' })
+    // O T584 tem ETB: nada abriu, nem por um instante.
+    expect(item(lines, 'voyage_terminal_date_pending', `${SCALE}::T584`)).toBeNull()
     expect(item(lines, 'voyage_schedule_date_pending', SCALE)).toBeNull()
     expect(item(lines, 'voyage_escala_terminal_missing', SCALE)).toBeNull()
   })
@@ -158,13 +158,13 @@ describeLocal('583 — o terminal da escala é cobrado antes da chegada', () => 
     `)
     expect(stderr).toBe('')
     expect(item(lines, 'voyage_schedule_date_pending', SCALE)).toBeNull()
-    expect(item(lines, 'voyage_terminal_date_pending', `${SCALE}::T583`)?.message).toBe('Terminal T583: ATB registrada; falta o ETD.')
+    expect(item(lines, 'voyage_terminal_date_pending', `${SCALE}::T584`)?.message).toBe('Terminal T584: ATB registrada; falta o ETD.')
   })
 
   it('NOB sem terminal: lista quem ficou fora, explica o B/L misto e fecha com a exceção de terminal', () => {
     const misto = `SET LOCAL session_replication_role = replica;
       INSERT INTO public.bls (id, voyage_id, pol, pod, cargo_mode, ce_mercante, customer_id)
-        VALUES ('R583-BL3', ${VOYAGE}, 'CNSHA', 'BRVIX', 'misto', '583000000000003', 49900003);
+        VALUES ('R584-BL3', ${VOYAGE}, 'CNSHA', 'BRVIX', 'misto', '583000000000003', 49900003);
       SET LOCAL session_replication_role = origin;`
     const berthed = `'[{"terminal_id":"${T1}","terminal_etb":"' || ${at(-1, '08:00')} || '","terminal_atb":"' || ${at(-1, '09:00')} || '"},{"terminal_id":null}]'`
     const { lines, stderr } = scenario(`
@@ -177,7 +177,7 @@ describeLocal('583 — o terminal da escala é cobrado antes da chegada', () => 
     expect(stderr).toBe('')
     const nob = item(lines, 'comunicado_nob_pendente', SCALE)
     expect(nob?.status).toBe('active')
-    expect(nob?.message).toMatch(/^NOB sem terminal na escala BRVIX \(ATB T583 \d{2}\/\d{2}\/\d{4} 09:00\)\. Sem terminal: CLI MISTO, CLI SOLTA\./)
+    expect(nob?.message).toMatch(/^NOB sem terminal na escala BRVIX \(ATB T584 \d{2}\/\d{2}\/\d{4} 09:00\)\. Sem terminal: CLI MISTO, CLI SOLTA\./)
 
     const later = scenario(`
       ${misto} ${eta(-2)}
@@ -191,13 +191,13 @@ describeLocal('583 — o terminal da escala é cobrado antes da chegada', () => 
       -- A rodada de Comunicados e o fechamento na hora (353) não fecham o item: ele não é alvo da régua.
       ${asDetector}
       SELECT public.detect_customer_communication_alerts() IS NOT NULL;
-      SELECT public.resolve_customer_communication_pending_alerts(${VOYAGE}, 'BRVIX', NULL, 'teste_583') IS NOT NULL;
+      SELECT public.resolve_customer_communication_pending_alerts(${VOYAGE}, 'BRVIX', NULL, 'teste_584') IS NOT NULL;
       RESET ROLE;
       SELECT '>apos-rodada|' || i.status FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
         WHERE i.item_type = 'comunicado_nob_pendente' AND a.entity_id = '${SCALE}';
       SET LOCAL session_replication_role = replica;
       UPDATE public.bls SET terminal_id = '${T1}', pod_port_id = (SELECT id FROM public.ports WHERE locode = 'BRVIX' LIMIT 1)
-        WHERE id = 'R583-BL3';
+        WHERE id = 'R584-BL3';
       SET LOCAL session_replication_role = origin;
       ${asDetector}
       SELECT public.detect_customer_communication_alerts() IS NOT NULL;
@@ -215,7 +215,7 @@ describeLocal('583 — o terminal da escala é cobrado antes da chegada', () => 
   })
 
   it('ATB anterior ao ATA é recusado na gravação e na confirmação da chegada; corrigir os dois juntos passa', () => {
-    const refusal = /ATB anterior ao ATA da escala: o navio atraca depois de chegar ao porto\. Corrija o ATA ou o ATB do terminal T583\./
+    const refusal = /ATB anterior ao ATA da escala: o navio atraca depois de chegar ao porto\. Corrija o ATA ou o ATB do terminal T584\./
     const fronts = [front('carga_cheia', T1), front('carga_solta', T1)]
     const atb = (days: number, time: string) => `'[{"terminal_id":"${T1}","terminal_etb":"' || ${at(-3, '08:00')} || '","terminal_atb":"' || ${at(days, time)} || '"}]'`
 

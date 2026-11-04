@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const from = vi.fn()
-// `escala_frentes_sem_terminal` (migration 583): sem frente pendente por padrão.
+// `escala_frentes_sem_terminal` (migration 584): sem frente pendente por padrão.
 type RpcResult = { data: unknown[] | null; error: unknown }
 const rpc = vi.fn<(name: string, args: unknown) => Promise<RpcResult>>(async () => ({ data: [], error: null }))
 vi.mock('../supabase', () => ({ supabase: { from: (table: string) => from(table), rpc: (name: string, args: unknown) => rpc(name, args) } }))

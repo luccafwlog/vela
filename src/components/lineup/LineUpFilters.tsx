@@ -12,7 +12,7 @@ type LineUpFiltersProps = {
 
 /**
  * Filtros do Line-Up no Painel (lote 5a): Busca, Escalas, Período, CEs e
- * Terminal ("Sem terminal", migration 583) ficam
+ * Terminal ("Sem terminal", migration 584) ficam
  * abertos; os de presença de carga (Veículos, BB, MTY, RTW, Vinculada) vão
  * para "Mais filtros", como na lista de BLs. A contagem de escalas fica na
  * faixa do bloco do Line-Up.

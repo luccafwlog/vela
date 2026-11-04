@@ -6,7 +6,7 @@
 
 ## 2026-11
 
-- **Terminal da escala cobrado antes da chegada (2026-11-04, migration `583`,
+- **Terminal da escala cobrado antes da chegada (2026-11-04, migration `584`,
   [ADR 0121](adr/0121-terminal-da-escala-cobrado-antes-da-chegada.md); decisões do dono sobre a
   [revisão do vínculo de terminal](archive/audits/2026-11-04-revisao-vinculo-terminal-escala.md)):** o alerta
   crítico **Escala sem terminal** avisa Operações cinco dias antes do ETA, e de novo no ATA, quando alguma frente de

@@ -445,7 +445,7 @@ function buildTerminalPayload({
       validationError = `Informe o ATB antes do ATD do terminal ${code}; o ATD não pode ser anterior ao ATB.`
     }
     // D4 da revisão de 2026-11-04: o navio atraca depois de chegar ao porto.
-    // O banco recusa o mesmo (migration 583).
+    // O banco recusa o mesmo (migration 584).
     if (!validationError && isBeforeInstant(atb, ata)) {
       validationError = `O ATB do terminal ${code} não pode ser anterior ao ATA da escala.`
     }

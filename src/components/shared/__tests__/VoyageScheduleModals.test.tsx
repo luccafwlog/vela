@@ -695,7 +695,7 @@ describe('EscalaModal', () => {
   })
 
   // D4 da revisão de 2026-11-04: o navio atraca depois de chegar ao porto. O
-  // banco recusa o mesmo (migration 583); a janela avisa antes de gravar.
+  // banco recusa o mesmo (migration 584); a janela avisa antes de gravar.
   it('recusa ATB anterior ao ATA da escala', async () => {
     const user = userEvent.setup()
     const onSaved = renderEscala({

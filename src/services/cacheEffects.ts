@@ -31,7 +31,7 @@ const CARGO_READ_KEYS: readonly (readonly unknown[])[] = [
   // As frentes do ADR por terminal nascem da carga (B/L, veículo, vazio):
   // importar uma frente nova precisa aparecer no ADR e em Editar escala.
   ['agency-report-terminal-state'],
-  // A mesma carga cria a frente sem terminal da Visão geral (migration 583).
+  // A mesma carga cria a frente sem terminal da Visão geral (migration 584).
   queryKeys.voyages.escalasSemTerminal(),
   ['customer-detail'], ['customer-ficha'], ['customers-summary'],
   ['customer-communications'], queryKeys.dashboard(),

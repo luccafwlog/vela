@@ -1,4 +1,4 @@
--- 583: o terminal da escala é cobrado antes da chegada; o NOB que não sai por
+-- 584: o terminal da escala é cobrado antes da chegada; o NOB que não sai por
 -- falta de terminal fica no alerta; o ATB não pode ser anterior ao ATA
 -- (decisões do dono de 2026-11-04, ADR 0121, sobre a revisão do vínculo de
 -- terminal: docs/archive/audits/2026-11-04-revisao-vinculo-terminal-escala.md).
@@ -309,7 +309,7 @@ BEGIN
 
   -- Predicado da escala. Depois do ATA, o item da escala só cobra o ETB
   -- quando ela não tem terminal nenhum nem frente a atribuir; com frente sem
-  -- terminal, quem cobra é "Escala sem terminal" (583), e cada terminal cobra
+  -- terminal, quem cobra é "Escala sem terminal" (584), e cada terminal cobra
   -- o próprio ETB abaixo. A Atracação TBC não tem ETB desde a 490.
   IF v_eta IS NOT NULL AND v_eta <= v_today AND v_ata IS NULL THEN
     PERFORM public.upsert_alert_item(
@@ -343,7 +343,7 @@ BEGIN
     WHERE s.voyage_id = p_voyage_id AND s.port = v_port_norm AND s.terminal_id IS NOT NULL
   LOOP
     v_term_entity_id := p_voyage_id || '::' || v_port_norm || '::' || public.voyage_terminal_code(v_term_rec.terminal_id);
-    -- 583: com o ATA, o terminal sem ETB (e ainda sem ATB) é cobrado; antes
+    -- 584: com o ATA, o terminal sem ETB (e ainda sem ATB) é cobrado; antes
     -- só o primeiro terminal com ETB era conferido pela escala.
     IF v_ata IS NOT NULL AND v_term_rec.terminal_etb IS NULL AND v_term_rec.terminal_atb IS NULL THEN
       PERFORM public.upsert_alert_item(
@@ -687,7 +687,7 @@ BEGIN
 
   -- Fecha o que não é mais alvo: entregue a todos, janela vencida, escala
   -- excluída ou omitida, terminal removido, sem B/L elegível. O NOB "sem
-  -- terminal" da escala (583) tem conta própria, abaixo.
+  -- terminal" da escala (584) tem conta própria, abaixo.
   FOR v_stale IN
     SELECT DISTINCT i.item_type, a.entity_type, a.entity_id
     FROM public.alert_items i
@@ -704,7 +704,7 @@ BEGIN
     END IF;
   END LOOP;
 
-  -- 583: o B/L que não pertence a nenhuma Atracação não vira alvo; o item da
+  -- 584: o B/L que não pertence a nenhuma Atracação não vira alvo; o item da
   -- escala o lista enquanto houver ATB na janela de 30 dias (ADR 0067).
   BEGIN
     v_nob_sem_terminal := public.detect_customer_communication_nob_sem_terminal(v_source);

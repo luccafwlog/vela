@@ -6,7 +6,7 @@ export type LineUpCeFilter = 'all' | 'waiting' | 'received' | 'launching' | 'app
 export type LineUpStatusFilter = 'all' | 'active' | 'completed'
 export type LineUpPresenceFilter = 'all' | 'with' | 'without'
 // "Sem terminal": a linha com frente do seu sentido ainda sem terminal
-// (migration 583; revisão de 2026-11-04, D5).
+// (migration 584; revisão de 2026-11-04, D5).
 export type LineUpTerminalFilter = 'all' | 'pending'
 
 export type LineUpFilters = {

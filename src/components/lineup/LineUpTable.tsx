@@ -169,7 +169,7 @@ function LineUpCard({ row }: { row: LineUpRow }) {
 
 /**
  * Terminal da linha. O "TBC" de uma frente com carga e sem terminal (migration
- * 583) fica em âmbar, com as frentes no título; o "TBC" da escala ainda sem
+ * 584) fica em âmbar, com as frentes no título; o "TBC" da escala ainda sem
  * carga (planejamento) continua em texto comum.
  */
 function TerminalCell({ row }: { row: LineUpRow }) {

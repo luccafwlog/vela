@@ -15,7 +15,7 @@ e [Clientes § Régua automática de Comunicados](../../modules/clientes.md#rég
 O mapeamento anterior, só sobre o que chega ao ADR, é o
 [de 2026-10-30](viagem-terminal-adr-2026-10-30.md).
 
-**Decisões do dono (mesmo dia):** as recomendações D1 a D5 foram aceitas e implementadas na migration `583` e nas telas ([ADR 0121](../../adr/0121-terminal-da-escala-cobrado-antes-da-chegada.md)); a D6 (NOB da carga em transbordo) ficou para ouvir a Documentação. As lacunas T1 a T11 abaixo descrevem o sistema antes dessa mudança; T12 continua aberta.
+**Decisões do dono (mesmo dia):** as recomendações D1 a D5 foram aceitas e implementadas na migration `584` e nas telas ([ADR 0121](../../adr/0121-terminal-da-escala-cobrado-antes-da-chegada.md)); a D6 (NOB da carga em transbordo) ficou para ouvir a Documentação. As lacunas T1 a T11 abaixo descrevem o sistema antes dessa mudança; T12 continua aberta.
 
 ## Resposta curta
 

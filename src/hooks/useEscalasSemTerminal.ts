@@ -3,7 +3,7 @@ import { fetchEscalasSemTerminal } from '../services/escalaTerminalPendente'
 import { queryKeys } from '../services/queryKeys'
 
 /**
- * Frentes sem terminal das escalas destas Viagens (migration 583). Gravar
+ * Frentes sem terminal das escalas destas Viagens (migration 584). Gravar
  * Editar escala (`afterEscalaAlterada`) e importar carga (efeitos de carga)
  * invalidam a família.
  */

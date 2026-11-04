@@ -82,7 +82,7 @@ export function VoyageVisaoTab({
   const routesByBatchId = useMemo(() => groupBlsByRoute(voyage.bls), [voyage.bls])
 
   const { data: timelineSources } = useVoyageTimeline(voyage.id)
-  // Frentes sem terminal de cada escala, pela derivação do banco (migration 583).
+  // Frentes sem terminal de cada escala, pela derivação do banco (migration 584).
   const { data: escalasSemTerminal } = useEscalasSemTerminal([voyage.id])
   const timelineEvents = useMemo(
     () =>

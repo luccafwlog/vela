@@ -2,7 +2,7 @@
 
 Status: aceito — 2026-11-04 (decisões do dono sobre as seis recomendações da
 [revisão do vínculo de terminal](../archive/audits/2026-11-04-revisao-vinculo-terminal-escala.md):
-"concordo com as recomendações"). Implementada na migration `583` e nas telas
+"concordo com as recomendações"). Implementada na migration `584` e nas telas
 Painel, Visão geral da Viagem, Editar escala e Disparo de Comunicados.
 
 Estende a [ADR 0109](./0109-frente-de-operacao-exige-terminal-ate-o-ata.md) (o

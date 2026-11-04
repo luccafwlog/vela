@@ -434,7 +434,7 @@ function alertEntityLinkRaw(alert: {
     return '/taxas-locais'
   }
 
-  // NOB que não sai por falta de terminal (migration 583): a correção é a
+  // NOB que não sai por falta de terminal (migration 584): a correção é a
   // frente da escala, em Editar escala, não o Disparo.
   if (
     effectiveType === 'comunicado_nob_pendente'
@@ -593,7 +593,7 @@ export function alertEntityLinkLabel(alert: {
   metadata?: Record<string, unknown> | null
 }): string {
   const effectiveType = getEffectiveAlertType(alert)
-  // NOB sem terminal (583): o link abre a escala, não o Disparo.
+  // NOB sem terminal (584): o link abre a escala, não o Disparo.
   if (effectiveType === 'comunicado_nob_pendente' && alert.entity_type === 'voyage_pod_schedule' && alert.metadata?.scope === 'sem_terminal') {
     return 'Abrir Viagem'
   }
