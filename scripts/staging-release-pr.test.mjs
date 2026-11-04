@@ -143,6 +143,8 @@ test('corpo preserva aspas no título e não executa o texto', () => {
   assert.match(body, /por @lucca/)
   assert.match(body, /1\*\* commit à frente/)
   assert.match(body, /Create a merge commit/)
+  // ADR 0122: a PR nasce rascunho e o CI só roda quando ela fica pronta.
+  assert.match(body, /Ready for review/)
   assert.match(body, /https:\/\/staging\.vela-internal\.pages\.dev/)
   assert.doesNotMatch(body, /\$\{/)
   const quiet = buildReleaseBody({
@@ -189,6 +191,9 @@ test('promoção abre ou atualiza a PR e não faz merge', async () => {
   assert.match(yaml, /cancel-in-progress: false/)
   assert.match(yaml, /group: staging-to-main-pr/)
   assert.doesNotMatch(yaml, /gh pr merge/)
+  // ADR 0122: só a criação leva --draft; atualizar não devolve a rascunho.
+  assert.match(yaml, /gh pr create --draft /)
+  assert.doesNotMatch(yaml, /gh pr ready/)
   assert.match(yaml, /staging-release-pr\.mjs/)
   assert.match(yaml, /page-size/)
   assert.match(yaml, /\bcap\b/)
