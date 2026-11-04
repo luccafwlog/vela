@@ -67,6 +67,9 @@ na exclusão, nada impediria o esvaziamento.
 - 2026-11-03 23:33: o dono removeu o bloco ("Remove chart"). O snippet continuou
   salvo no SQL Editor; o texto completo foi guardado como evidência antes, fora
   do repositório.
+- 2026-11-04: o dono apagou todos os snippets do SQL Editor do projeto,
+  inclusive o "LIMPA TUDO"; Shared, Favorites e Private ficaram vazios
+  (conferido por ele no dashboard).
 - Migration `584`: todo `TRUNCATE` em tabela de `public` passa a ser recusado,
   inclusive em cascata, salvo na sessão que rodou
   `SET vela.limpeza_banco_descartavel = 'confirmo'`
@@ -75,9 +78,6 @@ na exclusão, nada impediria o esvaziamento.
 
 ## Pendências na data
 
-- Apagar o snippet "LIMPA TUDO" no SQL Editor: decidido pelo dono em
-  2026-11-04, a ser feito por ele no dashboard (o conector não apaga
-  snippets).
 - Aplicar a migration `584` em produção pelo fluxo normal (`staging` → `main`).
 - Backups na data: o diário do Supabase (físico, não baixável) mais recente era
   de 2026-11-03 08:02, antes do primeiro dia com dados reais; o backup lógico
