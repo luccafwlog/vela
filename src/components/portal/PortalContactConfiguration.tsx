@@ -14,7 +14,7 @@ import {
 } from '../../services/customerCommunicationBoxes'
 import type { PortalContactDraft, PortalContactItem } from '../../services/portalContactConfiguration'
 import { isPortalReadOnly } from '../../services/portalScope'
-import { boxesWithoutRecipient, currentSuppressionReason, firstBoxWithoutContact, hasEligibleContactReplacement, normalizePrimaryContactBoxes } from '../../lib/customerContactDrafts'
+import { boxesWithoutRecipient, currentSuppressionReason, firstBoxWithoutContact, hasEligibleContactReplacement, isEligibleContact, normalizePrimaryContactBoxes } from '../../lib/customerContactDrafts'
 import { ProfileSaveBar } from './ProfileSaveBar'
 import { StatusText } from '../ui/StatusText'
 
@@ -432,8 +432,10 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
 /**
  * Caixas de recebimento à vista, como no Tutorial do Portal (pedido do dono de
  * 2026-11-04): cada caixa, os comunicados que ela recebe e quem a recebe agora,
- * pelos contatos da tela (ainda não salvos inclusive). A mesma tabela da ficha
- * do Cliente no Vela; o texto de cada caixa vem de CUSTOMER_COMMUNICATION_BOXES.
+ * pelos contatos da tela (ainda não salvos inclusive). Endereço bloqueado por
+ * devolução ou reclamação não recebe (o envio o recusa), então não conta como
+ * quem recebe (`isEligibleContact`, a mesma regra do aviso ao salvar). O texto
+ * de cada caixa vem de CUSTOMER_COMMUNICATION_BOXES.
  */
 function BoxGuide({ drafts }: { drafts: readonly PortalContactDraft[] }) {
   return (
@@ -450,15 +452,14 @@ function BoxGuide({ drafts }: { drafts: readonly PortalContactDraft[] }) {
         <tbody>
           {CUSTOMER_COMMUNICATION_BOXES.map((box) => {
             const emails = drafts
-              .filter((contact) => contact.active && contact.boxCodes.includes(box.code))
+              .filter((contact) => isEligibleContact(contact) && contact.boxCodes.includes(box.code))
               .map((contact) => (contact.email ?? '').trim())
-              .filter(Boolean)
             return (
               <tr key={box.code}>
                 <th scope="row" className="whitespace-nowrap font-semibold">{box.label}</th>
                 <td className="app-table__text">{box.description}</td>
                 <td className="app-table__text">
-                  {emails.length ? emails.join(', ') : <StatusText tone="warning">Nenhum contato com e-mail</StatusText>}
+                  {emails.length ? emails.join(', ') : <StatusText tone="warning">Nenhum e-mail apto a receber</StatusText>}
                 </td>
               </tr>
             )

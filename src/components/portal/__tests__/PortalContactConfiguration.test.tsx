@@ -396,6 +396,22 @@ describe('PortalContactConfiguration', () => {
     expect(row('Financeiro').textContent).not.toContain('joao@cliente.com')
   })
 
+  it('e-mail bloqueado por devolução não conta como quem recebe a caixa', async () => {
+    getContactConfig.mockResolvedValueOnce({
+      boxes: [],
+      contacts: [
+        { id: 1, name: 'Mariana', email: 'mariana@cliente.com', phone: null, is_primary: true, active: true, origin: 'portal', box_codes: ['documentacao_operacao', 'financeiro', 'demurrage'], suppression_reason: null, sendable: true },
+        { id: 2, name: 'Bloqueado', email: 'bounce@cliente.com', phone: null, is_primary: false, active: true, origin: 'portal', box_codes: ['financeiro'], suppression_reason: 'suprimido_bounce', sendable: false },
+      ],
+    })
+    renderComponent()
+    await screen.findByDisplayValue('bounce@cliente.com')
+    const guide = screen.getByRole('table', { name: /Caixas de recebimento/ })
+    const financeiro = within(guide).getByRole('rowheader', { name: 'Financeiro' }).closest('tr')!
+    expect(financeiro.textContent).toContain('mariana@cliente.com')
+    expect(financeiro.textContent).not.toContain('bounce@cliente.com')
+  })
+
   it('marca as três caixas ao carregar principal sem vínculos', async () => {
     getContactConfig.mockResolvedValueOnce({ boxes: [], contacts: [{ ...principal, box_codes: [] }] })
     renderComponent()
