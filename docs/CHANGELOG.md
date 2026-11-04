@@ -6,6 +6,15 @@
 
 ## 2026-11
 
+- **B/L cancelado não pede terminal (2026-11-04, migration `588`; decisão do dono):** o B/L cancelado, ou cancelado
+  no financeiro, deixa de criar frente de operação na escala. A carga que só ele trazia sai de **Escala sem
+  terminal**, do TBC em âmbar do Painel e da trava do **Fechar ADR**, e Editar escala não a mostra mais em TBC.
+  Antes, a saída era escolher um terminal para uma carga que não veio ([Viagens](modules/viagens.md#escala-atracação-e-datas)).
+- **Alertas do Pix e da Restituição no setor Financeiro (2026-11-04, migration `587`; decisão do dono):**
+  **Pix não conciliado**, **Consulta de Pix do Itaú parada** e **Restituição pendente**, que desde a `583` só o
+  Financeiro e a conta Dev resolvem, passam do setor Administrativo para o Financeiro, que ganha cartão no Painel e
+  em **Alertas** e recebe o sino só dele. Todos os setores continuam vendo todos os alertas. **Fatura desatualizada**
+  segue no Administrativo, avisando o Financeiro ([ADR 0107](adr/0107-sino-so-do-setor-responsavel.md)).
 - **Terminal da escala cobrado antes da chegada (2026-11-04, migration `584`,
   [ADR 0121](adr/0121-terminal-da-escala-cobrado-antes-da-chegada.md); decisões do dono sobre a
   [revisão do vínculo de terminal](archive/audits/2026-11-04-revisao-vinculo-terminal-escala.md)):** o alerta
@@ -21,7 +30,7 @@
   pode. Cancelar fatura sem pagamento passa a ser do Administrativo e do Financeiro; cancelar Invoice de Demurrage sem
   pagamento e mudar o intervalo da Régua, do Administrativo, do Financeiro e de Equipamentos. Liquidar Ajuste de COD,
   Informar PTAX/ROE e responder Disputa não mudam. A conta de integração da baixa automática Itaú precisa ser do
-  Financeiro. A matriz "O que cada setor pode" passa a 46 linhas
+  Financeiro, e desde a migration `586` o banco recusa tirá-la de lá. A matriz "O que cada setor pode" passa a 46 linhas
   ([Segurança](operations/seguranca.md#modelo-de-permissões-por-perfil)).
 - **Planilha do armador sem o container no free time (2026-11-03):** a aba **Demurrage** da Planilha do armador
   listava também o container devolvido dentro do free time, que a Invoice traz com US$ 0,00 (EXCESS 0). Ele sai da

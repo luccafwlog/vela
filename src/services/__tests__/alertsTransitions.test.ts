@@ -101,7 +101,7 @@ it('expõe somente os tipos financeiros ativos do contrato', () => {
 
   expect(FINANCIAL_ALERT_EVENTS).toEqual({
     fatura_desatualizada: { audience: ['administrativo', 'financeiro'], units: ['invoice'] },
-    restituicao_pendente: { audience: ['administrativo', 'financeiro'], units: ['invoice'] },
+    restituicao_pendente: { audience: ['financeiro'], units: ['invoice'] },
     billing_calculation_blocked: {
       audience: ['documentacao'],
       units: ['bl'],
@@ -115,7 +115,7 @@ it('expõe somente os tipos financeiros ativos do contrato', () => {
       units: ['exchange_rate_reference'],
     },
     pix_unreconciled: {
-      audience: ['administrativo', 'financeiro'],
+      audience: ['financeiro'],
       units: ['pix_transaction', 'itau_pix_receipt'],
     },
     portal_dispute_opened: {

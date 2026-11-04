@@ -106,6 +106,23 @@ describeLocal('419 — corte do access token interno na revogação', () => {
     expect(staff(ADMIN, adminCut - 60, `SELECT public.is_admin()`).output).toBe('f')
   })
 
+  // Migration 583: a guarda da baixa e da Conciliação PIX (Financeiro ou conta
+  // Dev) também corta o token anterior à revogação da conta Dev.
+  it('a conta Dev revogada perde a baixa (is_financeiro_or_dev_user)', () => {
+    psql(`UPDATE public.user_profiles SET is_dev = true WHERE id = '${ADMIN}';`)
+    try {
+      const now = Math.floor(Date.now() / 1000)
+      psql(`DELETE FROM public.internal_credential_revocations WHERE user_id = '${ADMIN}';`)
+      expect(staff(ADMIN, now - 60, `SELECT public.is_financeiro_or_dev_user()`).output).toBe('t')
+      const cut = revoke(ADMIN)
+      expect(staff(ADMIN, cut - 60, `SELECT public.is_financeiro_or_dev_user()`).output).toBe('f')
+      expect(staff(ADMIN, cut + 1, `SELECT public.is_financeiro_or_dev_user()`).output).toBe('t')
+    } finally {
+      psql(`UPDATE public.user_profiles SET is_dev = false WHERE id = '${ADMIN}';
+        DELETE FROM public.audit_logs WHERE entity_id = '${ADMIN}' AND field_name = 'is_dev';`)
+    }
+  })
+
   it('a checagem antes da requisição recusa o token anterior com 28000 e as políticas não deixam ler nem gravar', () => {
     const cut = revoke(DOC)
     const blocked = staff(DOC, cut - 60, `SELECT public.check_internal_token_cutoff()`)

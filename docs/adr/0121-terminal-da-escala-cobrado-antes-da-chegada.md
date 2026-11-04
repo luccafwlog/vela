@@ -80,6 +80,12 @@ revisão) ficou para ouvir a Documentação; nada muda nela.
 - A Atracação já gravada com ATB anterior ao ATA só é recusada na próxima
   gravação da escala.
 
+> **Nota de 2026-11-04 (revisão da release staging → main).** O plano de desfazer
+> do cabeçalho da migration `584` manda reaplicar `reconcile_inactive_voyage_alerts`
+> "pela 346"; a definição anterior à `584` é a da migration `468`, que inclui a
+> planilha de Veículos (`voyage_vehicle_sheet_pending`). Desfazer pela `346` tiraria
+> esse tipo da reavaliação das Viagens concluídas.
+
 Regra vigente: [Viagens](../modules/viagens.md#escala-atracação-e-datas),
 [Clientes](../modules/clientes.md#régua-automática-de-comunicados) e
 [Operação e Suporte](../modules/operacao-suporte.md#alertas-e-notificações-internas).

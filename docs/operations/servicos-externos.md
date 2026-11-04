@@ -1315,7 +1315,7 @@ Financeiro, com o e-mail em `portal_suppressed_emails`
 conta nova para a baixa precisa de Financeiro e de `account_kind = 'integracao'`
 gravado por migration ou `service_role`. Desde a migration `583` (decisão do
 dono de 2026-11-04) a baixa aceita só o Financeiro (e a conta Dev): uma conta
-Administrativa nessa função deixa o Pix em análise, e a `583` avisa no deploy. `ITAU_PIX_ADMIN_SECRET` cadastrado também no Vault;
+Administrativa nessa função deixa o Pix em análise, e a `583` avisa no deploy; desde a `586` o banco recusa tirar essa conta do Financeiro (em 2026-11-04 ela é do Financeiro, de integração e ativa em produção). `ITAU_PIX_ADMIN_SECRET` cadastrado também no Vault;
 chamada de diagnóstico pelo banco confirmou HTTP 200, Bearer, 300 s em 07/10.
 Job `itau-pix-queue` ativo a cada minuto (jobid 25), autorizado em 07/10;
 primeiro ciclo confirmou cron `succeeded`, Edge HTTP 200 e avanço do checkpoint,

@@ -49,7 +49,7 @@ import { matchesAnyToken } from '../lib/searchTerms'
 type AlertLens = 'ativos' | 'criticos'
 
 // Setores aceitos no endereço (?departamento=); o filtro é feito pelos cartões por setor.
-const DEPARTMENT_VALUES = ['documentacao', 'equipamentos', 'operacoes', 'administrativo', 'sem_departamento']
+const DEPARTMENT_VALUES = ['documentacao', 'equipamentos', 'operacoes', 'financeiro', 'administrativo', 'sem_departamento']
 
 const SEVERITY_OPTIONS = [
   { value: 'all', label: 'Todas' },

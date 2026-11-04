@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { afterClienteAtivacaoAlterada, afterPendenciaPixAlterada, afterPixConciliado, afterFaturaDemurrageAlterada, afterReferenciaDemurrageAlterada, afterBlEstadoAlterado, afterBaplieImportado, afterEmbarqueVaziosNaEscala, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterNaturezaVaziosAlterada, afterRotaAlterada, afterTaxasDoBlAlteradas, afterViagemAlterada } from '../cacheEffects'
+import { afterClienteAtivacaoAlterada, afterPendenciaPixAlterada, afterPixConciliado, afterFaturaDemurrageAlterada, afterReferenciaDemurrageAlterada, afterBlEstadoAlterado, afterBaplieImportado, afterEmbarqueVaziosNaEscala, afterEscalaAlterada, afterLiberacaoFaturamentoPortal, afterManifestoImportado, afterNaturezaVaziosAlterada, afterRotaAlterada, afterTaxasDoBlAlteradas, afterTerminalDoBlAlterado, afterViagemAlterada } from '../cacheEffects'
 
 function fakeQueryClient() {
   const invalidateQueries = vi.fn().mockResolvedValue(undefined)
@@ -61,6 +61,22 @@ describe('cache effects', () => {
       await effect(client, { voyageId: 24 })
       expect(keys()).toContain(JSON.stringify(['voyage-escalas-sem-terminal']))
     }
+  })
+
+  // Migration 584: salvar Editar escala fecha "Escala sem terminal" e o NOB sem
+  // terminal no fim da transação; a fila, os cartões e o Disparo não ficam velhos.
+  it('gravar a escala relê os Alertas, os cartões de setor e a conferência do Disparo', async () => {
+    const { client, keys } = fakeQueryClient()
+    await afterEscalaAlterada(client, { voyageId: 24 })
+    expect(keys()).toEqual(expect.arrayContaining(keySet([['alerts'], ['alert-department-summary'], ['customer-communications']])))
+  })
+
+  it('exceção de terminal do B/L relê o B/L, a conferência do Disparo e as frentes sem terminal', async () => {
+    const { client, keys } = fakeQueryClient()
+    await afterTerminalDoBlAlterado(client, { blId: 'BL-1' })
+    expect(keys()).toEqual(expect.arrayContaining(keySet([
+      ['bl-detail', 'BL-1'], ['audit-logs', 'bl', 'BL-1'], ['customer-communications'], ['voyage-escalas-sem-terminal'],
+    ])))
   })
 
   it('embarque de vazios na escala relê a escala inteira e os portos do Embarque', async () => {

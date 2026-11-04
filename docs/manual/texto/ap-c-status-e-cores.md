@@ -26,7 +26,7 @@ A **Conciliação** da Viagem tem o mesmo nome e a mesma cor nos cartões, na li
 | **Omitida** | âmbar na ficha da Viagem; cinza no Line-Up e em Chegadas e Saídas | **Omitir escala** ([4.7](04-viagens-escalas.md#47-quando-o-armador-omite-uma-escala)); **Reverter omissão** desfaz. |
 | Data em âmbar | âmbar | A previsão passou e ninguém confirmou; só no Vela, o Cliente vê uma previsão comum. |
 | **TBC — pendente** (frente em **Editar escala**) e "N em TBC" | âmbar | Frente sem terminal ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)); com todas atribuídas, "Todas atribuídas", em verde. |
-| **TBC** na coluna de terminal do **Painel** e na coluna **Terminal** do **Planejamento por escala** | âmbar | A carga da escala já pede terminal e alguma frente ainda não tem ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)); passe o mouse para ver quais. **TBC** sem cor no Painel é a escala sem carga, ainda em planejamento. |
+| **TBC** na coluna de terminal do **Painel** e na coluna **Terminal** do **Planejamento por escala** | âmbar | Alguma frente da escala, declarada em **Editar escala** ou vinda da carga, ainda não tem terminal ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)); passe o mouse para ver quais. **TBC** sem cor no Painel é a escala ainda sem frente, em planejamento. |
 
 ## B/L
 

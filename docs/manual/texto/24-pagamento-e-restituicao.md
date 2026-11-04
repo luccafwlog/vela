@@ -19,7 +19,7 @@ Com a cobrança pelo Itaú ligada, cada fatura em aberto, de Taxas Locais ou de 
 
 Com a cobrança pelo Itaú desligada, a fatura mostra o **QR estático**, que leva o número dela. O Pix pago nele aparece com a origem **QR estático do Vela** e também dá baixa sozinho, com as mesmas regras de valor. O que não é seguro baixar fica **Sem baixa**, com o **Motivo** na linha do Pix, e não abre alerta.
 
-Tudo isso se acompanha em **Conciliação PIX**, no menu **Financeiro**. Qualquer equipe lê; só o {{Financeiro}} trata, baixa, cancela baixa e confirma restituição, e, no {{Administrativo}}, só a conta com a marca Dev. Desde 2026-11-04 (decisão do dono), o {{Administrativo}} comum não faz mais essas ações, e a aba **Conciliar extrato** mostra a ele o aviso **Conciliar extrato é do Financeiro**.
+Tudo isso se acompanha em **Conciliação PIX**, no menu **Financeiro**. Qualquer equipe lê; só o {{Financeiro}} trata, baixa, cancela baixa e confirma restituição, e, no {{Administrativo}}, só a conta com a marca Dev. Desde 2026-11-04 (decisão do dono), o {{Administrativo}} comum não faz mais essas ações: para ele, o botão **Conciliar extrato**, no bloco **Cobrança Pix Itaú** de **Pix recebidos**, fica desativado, com a dica **Conciliar extrato é do Financeiro**.
 
 | Aba | Para que serve |
 |---|---|
@@ -32,7 +32,7 @@ O bloco **Cobrança Pix Itaú**, no alto de **Pix recebidos**, com a cobrança p
 
 O bloco **Cobrança Pix Itaú**, no alto de **Pix recebidos**, diz se a cobrança pelo Itaú está ligada ou desligada e há quanto tempo os Pix recebidos foram consultados (**Recebimentos consultados há N min** e **Recebimentos consultados até**). A consulta é a mesma nos dois casos: desligada, é ela que dá baixa no Pix do QR estático. Se o bloco mostra **Consulta parada há N min**, em âmbar, os Pix pagos depois daquela hora não deram baixa: avise o suporte técnico e baixe pelo extrato ([24.3](#243-baixar-pelo-extrato-quando-a-baixa-automática-para)).
 
-No mesmo bloco, **Aguardando o Itaú** conta as faturas cujo QR o Itaú ainda não confirmou; até lá, a fatura impressa diz "QR Code em preparação". Não há o que repetir: o Vela tenta de novo sozinho e consulta o Itaú antes de repetir. Quando uma delas fica com erro ou sem resposta do Itaú, aparece embaixo o bloco **Cobranças aguardando o Itaú**, com a fila e a linha em âmbar. Se ela não sai da lista, avise o suporte técnico.
+No mesmo bloco, **Aguardando o Itaú** conta as cobranças na fila do Itaú: a emissão do QR, que até ser confirmada faz a fatura impressa dizer "QR Code em preparação", e também a alteração e o cancelamento de uma cobrança. Não há o que repetir: o Vela tenta de novo sozinho e consulta o Itaú antes de repetir. Quando uma delas fica com erro ou sem resposta do Itaú, aparece embaixo o bloco **Cobranças aguardando o Itaú**, com a fila e a linha em âmbar. Se ela não sai da lista, avise o suporte técnico.
 
 Os blocos **Pix em análise**, **Exceções do extrato** e **Cobranças aguardando o Itaú** só aparecem quando têm o que tratar. No dia normal, a aba é o bloco **Cobrança Pix Itaú** e a lista dos Pix recebidos.
 

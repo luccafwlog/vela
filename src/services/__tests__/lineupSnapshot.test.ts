@@ -403,6 +403,30 @@ describe('fetchLineUpSnapshot', () => {
     expect(rows.find((row) => row.rowType === 'export')).toMatchObject({ exportTerminal: 'PORTMAC', pendingTerminalFronts: [] })
   })
 
+  // A frente cujo sentido não tem linha não some do filtro "Sem terminal": o
+  // Granito importado antes de declarar a exportação vai para a linha de
+  // importação, a única da escala.
+  it('frente de exportação sem exportação declarada fica na linha de importação', async () => {
+    const { fetchLineUpSnapshot } = await import('../lineup')
+    from.mockImplementation(byTable({
+      voyages: [VOYAGE],
+      bls: [{ id: 'BL1', voyage_id: 24, pod: 'BRVIX', cargo_mode: 'container', ce_mercante: 'CE1', bb_machine_qty: 0, bb_packages_qty: 0 }],
+      voyage_escala_operation_fronts: [
+        { voyage_id: 24, port: 'BRVIX', sentido: 'importacao', modalidade: 'carga_cheia', terminal_id: 'import-terminal' },
+      ],
+      voyage_escala_terminal_state: [
+        { voyage_id: 24, port: 'BRVIX', terminal_id: 'import-terminal', terminal_atb: null, terminal_atd: null, terminal_rtw: null, revision: 1 },
+      ],
+      depots: [{ id: 'import-terminal', code: 'TVV', active: true }],
+    }))
+    rpc.mockResolvedValueOnce({ data: [{ voyage_id: 24, port: 'BRVIX', fronts: ['exportacao:granito'] }], error: null })
+
+    const rows = (await fetchLineUpSnapshot()).rows.filter((row) => row.pod === 'BRVIX')
+
+    expect(rows.map((row) => row.rowType)).toEqual(['import'])
+    expect(rows[0]).toMatchObject({ importTerminal: 'TVV / TBC', pendingTerminalFronts: ['exportacao:granito'] })
+  })
+
   it('a falha da leitura das frentes sem terminal não derruba o Line-Up', async () => {
     const { fetchLineUpSnapshot } = await import('../lineup')
     from.mockImplementation(byTable({
