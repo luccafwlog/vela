@@ -378,6 +378,9 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
       expect(board(voyageOf('blCancelled'))[0]).toMatchObject({ division: 'travado', reason_code: 'bl_cancelado' })
     })
 
+    // Cadastrar o tipo refaz o status de todos os containers do banco
+    // (`_catalog_refresh_demurrage_status`, 515): no CI, depois das outras
+    // suítes, a conta passou de 5 s (PR #1211). O prazo maior não muda o que se confere.
     it('tipo sem tarifa entra desde a descarga; cadastrar o tipo tira de Travado e refaz o status (D27, D2)', () => {
       expect(board(voyageOf('noRate'))[0]).toMatchObject({ division: 'travado', reason_code: 'sem_tarifa', reason: 'Tipo R5HC sem tarifa de Demurrage.' })
       psql(`UPDATE public.bl_containers SET discharge_date = ${day(-30)} WHERE container_number = 'RQCU5140121'`)
@@ -388,7 +391,7 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
       // O Alerta do tipo sem tarifa (Administrativo) fecha pelo gatilho do cadastro.
       expect(psql(`SELECT count(*) FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
         WHERE i.item_type = 'demurrage_travado' AND i.status = 'active' AND a.entity_id = '${blPrefix}NORATE'`)).toBe('0')
-    })
+    }, 30_000)
   })
 
   describe('Alerta de Travado (migration 516; D25)', () => {
