@@ -21,7 +21,7 @@
   pode. Cancelar fatura sem pagamento passa a ser do Administrativo e do Financeiro; cancelar Invoice de Demurrage sem
   pagamento e mudar o intervalo da Régua, do Administrativo, do Financeiro e de Equipamentos. Liquidar Ajuste de COD,
   Informar PTAX/ROE e responder Disputa não mudam. A conta de integração da baixa automática Itaú precisa ser do
-  Financeiro. A matriz "O que cada setor pode" passa a 46 linhas
+  Financeiro, e desde a migration `586` o banco recusa tirá-la de lá. A matriz "O que cada setor pode" passa a 46 linhas
   ([Segurança](operations/seguranca.md#modelo-de-permissões-por-perfil)).
 - **Planilha do armador sem o container no free time (2026-11-03):** a aba **Demurrage** da Planilha do armador
   listava também o container devolvido dentro do free time, que a Invoice traz com US$ 0,00 (EXCESS 0). Ele sai da

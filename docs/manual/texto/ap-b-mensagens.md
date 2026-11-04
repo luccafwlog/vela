@@ -122,6 +122,7 @@ Quando o Vela não deixa excluir, ele diz o motivo de cada registro. Os motivos 
 | Mensagem | O que quer dizer | O que fazer |
 |---|---|---|
 | "Item de alerta não está ativo." | O alerta já fechou, ou outra pessoa o resolveu antes. | Abra **Alertas** de novo e confira ([20.2](20-alertas.md#202-resolver-um-alerta)). |
+| "A conta da baixa automática do Pix Itaú precisa ser do Financeiro: em outro setor, todo Pix pago fica em análise em vez de dar baixa." | Desde 2026-11-04, só a conta do {{Financeiro}} dá baixa; a conta **Integração** fica nele. | [25.5](25-administracao.md#255-desativar-ou-reativar-um-usuário) |
 | "… é o último usuário Administrativo ativo. Antes de mudar o setor ou desativar, ative ou cadastre outro usuário Administrativo." | O Vela não fica sem ninguém no {{Administrativo}}. | [25.3](25-administracao.md#253-trocar-a-equipe-de-um-usuário) |
 
 ## Quando o Vela não explica

@@ -29,10 +29,14 @@ function asUser(userId: string, sql: string) {
 }
 
 // Só as pessoas da fixture são Administrativas ativas; tudo desfeito no fim.
-function withOnlyFixtureAdmins(sql: string) {
+// `actorIsItau = false` tira a conta da baixa automática de app_settings, para
+// o caso exercitar só a regra do último Administrativo (a 586 recusa tirar do
+// Financeiro a conta que dá a baixa).
+function withOnlyFixtureAdmins(sql: string, { actorIsItau = true } = {}) {
   return spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `BEGIN;
     SET LOCAL session_replication_role = replica;
     UPDATE public.user_profiles SET active = false WHERE role = 'administrativo' AND id NOT IN (${idList});
+    ${actorIsItau ? '' : 'UPDATE public.app_settings SET itau_pix_settlement_actor = NULL WHERE id = 1;'}
     SET LOCAL session_replication_role = origin;
     ${sql}
     ROLLBACK;`], { encoding: 'utf8' })
@@ -162,7 +166,7 @@ describeLocal('440 — conta de integração (API ITAÚ) — PostgreSQL local', 
     // última pessoa Administrativa não é rebaixada nem desativada.
     for (const change of [`role = 'financeiro'`, 'active = false']) {
       const refused = withOnlyFixtureAdmins(`UPDATE public.user_profiles SET role = 'administrativo' WHERE id = '${itauId}';
-        UPDATE public.user_profiles SET ${change} WHERE id = '${personAdminId}';`)
+        UPDATE public.user_profiles SET ${change} WHERE id = '${personAdminId}';`, { actorIsItau: false })
       expect(refused.status, change).not.toBe(0)
       expect(refused.stderr, change).toContain('Pessoa Administrativa 440 é o último usuário Administrativo ativo')
     }
@@ -172,9 +176,25 @@ describeLocal('440 — conta de integração (API ITAÚ) — PostgreSQL local', 
     // Mudar a própria conta de integração não esbarra na regra.
     const integration = withOnlyFixtureAdmins(`UPDATE public.user_profiles SET role = 'administrativo' WHERE id = '${itauId}';
       UPDATE public.user_profiles SET role = 'financeiro' WHERE id = '${itauId}';
-      UPDATE public.user_profiles SET active = false WHERE id = '${itauId}';`)
+      UPDATE public.user_profiles SET active = false WHERE id = '${itauId}';`, { actorIsItau: false })
     expect(integration.stderr).toBe('')
     expect(integration.status).toBe(0)
+  })
+
+  // Migration 586: desde a 583 a baixa aceita só o Financeiro; a conta da baixa
+  // automática fora dele deixaria todo Pix em análise sem erro na troca.
+  it('a conta da baixa automática não sai do Financeiro; desativar e pôr no Financeiro seguem liberados', () => {
+    expect(psql(`SELECT role FROM public.user_profiles WHERE id = '${itauId}'`)).toBe('financeiro')
+    for (const role of ['administrativo', 'documentacao']) {
+      const refused = withOnlyFixtureAdmins(`UPDATE public.user_profiles SET role = '${role}' WHERE id = '${itauId}';`)
+      expect(refused.status, role).not.toBe(0)
+      expect(refused.stderr, role).toContain('A conta da baixa automática do Pix Itaú precisa ser do Financeiro')
+    }
+    const allowed = withOnlyFixtureAdmins(`UPDATE public.user_profiles SET full_name = 'API ITAÚ 586', role = 'financeiro' WHERE id = '${itauId}';
+      UPDATE public.user_profiles SET active = false WHERE id = '${itauId}';
+      UPDATE public.user_profiles SET role = 'documentacao' WHERE id = '${documentacaoId}';`)
+    expect(allowed.stderr).toBe('')
+    expect(allowed.status).toBe(0)
   })
 
   it('o sino não entrega aviso à conta de integração, nem no fallback crítico do Administrativo', () => {
@@ -189,7 +209,7 @@ describeLocal('440 — conta de integração (API ITAÚ) — PostgreSQL local', 
           '{"fixture": "conta-integracao-440"}'::jsonb, '/alertas') IS NOT NULL;
         SELECT 'RECIPIENTS=' || coalesce(string_agg(DISTINCT n.recipient_id::text, ',' ORDER BY n.recipient_id::text), '')
           FROM public.internal_notifications n JOIN public.alert_items i ON i.id = n.alert_item_id
-          WHERE i.metadata->>'fixture' = 'conta-integracao-440' AND n.recipient_id IN (${idList});`)
+          WHERE i.metadata->>'fixture' = 'conta-integracao-440' AND n.recipient_id IN (${idList});`, { actorIsItau: false })
       expect(result.stderr).toBe('')
       return result.stdout.split('\n').find((line) => line.startsWith('RECIPIENTS='))?.slice('RECIPIENTS='.length)
     }

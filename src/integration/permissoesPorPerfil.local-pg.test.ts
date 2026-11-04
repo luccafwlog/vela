@@ -964,6 +964,9 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
       // A marca só vale no Administrativo: outro setor com a marca continua recusado.
       psql(`UPDATE public.user_profiles SET is_dev = true WHERE id = '${PROFILES.documentacao}';`)
       expect(sqlstateAs('documentacao', `public.set_communications_enabled(true)`)).toBe('42501')
+      // Nem ganha a baixa e a Conciliação PIX da conta Dev (migration 583).
+      expect(runAs('documentacao', `SELECT public.is_financeiro_or_dev_user()`).output).toBe('f')
+      expect(runAs('administrativo', `SELECT public.is_financeiro_or_dev_user()`).output).toBe('t')
     } finally {
       psql(`UPDATE public.user_profiles SET is_dev = false WHERE id IN ('${PROFILES.administrativo}', '${PROFILES.documentacao}');
         UPDATE public.app_settings SET communications_enabled = ${before === 't'} WHERE id = 1;

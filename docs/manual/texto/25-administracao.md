@@ -101,7 +101,7 @@ Desativado, o usuário perde o acesso na hora: a sessão aberta cai e a próxima
 ::: atencao
 - Ninguém desativa o próprio acesso nem o último {{Administrativo}} ativo ([25.3](#253-trocar-a-equipe-de-um-usuário)).
 - Antes de desativar a última pessoa ativa de uma equipe, ative ou crie outra. Sem ninguém, os alertas dessa equipe não têm a quem avisar ([25.8](#258-acompanhar-as-falhas-de-entrega-de-alertas)).
-- Não desative a conta **Integração** nem a tire do {{Financeiro}}: é ela que dá a baixa automática dos Pix do Itaú, e desde 2026-11-04 só a conta do {{Financeiro}} dá baixa (antes, também a do {{Administrativo}}). Sem ela, os Pix das faturas de Taxas Locais e das avulsas deixam de baixar sozinhos e vão para análise (capítulo 24).
+- Não desative a conta **Integração** nem a tire do {{Financeiro}}: é ela que dá a baixa automática dos Pix do Itaú, e desde 2026-11-04 só a conta do {{Financeiro}} dá baixa (antes, também a do {{Administrativo}}). Sem ela, os Pix das faturas de Taxas Locais e das avulsas deixam de baixar sozinhos e vão para análise (capítulo 24). Trocar o setor dela é recusado ("A conta da baixa automática do Pix Itaú precisa ser do Financeiro: …").
 :::
 
 ## 25.6 Conferir o que cada equipe pode
