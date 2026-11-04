@@ -151,7 +151,7 @@ O Cliente acompanha a situação em **Minhas solicitações**; na **Correção p
 
 No alto do **Perfil**, a razão social e o CNPJ dizem em que conta o Cliente entrou. Ali ele cuida de três coisas, cada uma com o próprio botão:
 
-- **Quem recebe os comunicados**: abre com a tabela das caixas, como no Tutorial — cada caixa (**Documentação e Operação**, **Financeiro** e **Demurrage**), os comunicados que ela recebe e quem a recebe hoje —, seguida dos contatos do Cliente e das caixas de cada um. São os mesmos contatos da ficha do Cliente no Vela (capítulo 13), com as mesmas regras: um contato principal ativo, com e-mail. O que o Cliente salva aqui vale na hora no Vela.
+- **Quem recebe os comunicados**: abre com o quadro das caixas, como no Tutorial — cada caixa (**Documentação e Operação**, **Financeiro** e **Demurrage**), os comunicados que ela recebe e quem a recebe hoje —, seguida dos contatos do Cliente e das caixas de cada um. São os mesmos contatos da ficha do Cliente no Vela (capítulo 13), com as mesmas regras: um contato principal ativo, com e-mail. O que o Cliente salva aqui vale na hora no Vela.
 - **Endereço da empresa**: o endereço do cadastro, que sai nas faturas emitidas depois.
 - **E-mail de recuperação**: o Cliente troca o endereço informando a senha atual e o novo e-mail duas vezes. O novo só vale depois que ele clica no link de confirmação, que chega ao endereço novo e vale por 48 horas. Até lá, o antigo continua valendo e recebe um aviso do pedido.
 
