@@ -9,7 +9,7 @@ import { TabList } from '../components/ui/TabList'
 import { useToast } from '../components/ui/Toast'
 import { InvoiceDetailModal } from '../components/billing/InvoiceDetailModal'
 import { ReconciliationHistoryTable } from '../components/billing/ReconciliationHistoryTable'
-import { PixExtractPanel } from '../components/billing/PixExtractPanel'
+import { PixExtractModal } from '../components/billing/PixExtractModal'
 import { PixPendingPanel } from '../components/billing/PixPendingPanel'
 import { PixReceivedPanel } from '../components/billing/PixReceivedPanel'
 import { countPixPending } from '../components/billing/pixReconciliationPresentation'
@@ -39,8 +39,6 @@ export function Reconciliacao() {
 const TAB_LABELS: Record<ReconciliacaoTab, string> = {
   historico: 'Histórico de baixas',
   recebidos: 'Pix recebidos',
-  pendencias: 'Pendências',
-  extrato: 'Conciliar extrato',
 }
 
 type OpenedInvoice =
@@ -65,6 +63,7 @@ function ReconciliacaoContent() {
   const [reversing, setReversing] = useState<{ id: number; docNumber: string | null; datesChanged: { negotiated: boolean } | null } | null>(null)
   const [reverseError, setReverseError] = useState<string | null>(null)
   const [document, setDocument] = useState<{ id: number; type: 'invoice' | 'receipt' } | null>(null)
+  const [extractOpen, setExtractOpen] = useState(false)
 
   const monitorQuery = useItauPixMonitor()
   const exceptionsQuery = usePixExceptions()
@@ -134,8 +133,9 @@ function ReconciliacaoContent() {
             controls={visited.has(item) ? `${panelId}-${item}` : undefined}
             active={tab === item}
             label={TAB_LABELS[item]}
-            count={item === 'pendencias' ? pendingCount : undefined}
-            countLabel={item === 'pendencias' && pendingCount != null ? `${pendingCount} ${pendingCount === 1 ? 'pede' : 'pedem'} ação` : undefined}
+            // Só com algo a tratar: "Pix recebidos 0" leria como nenhum Pix recebido.
+            count={item === 'recebidos' && pendingCount ? pendingCount : undefined}
+            countLabel={item === 'recebidos' && pendingCount ? `${pendingCount} ${pendingCount === 1 ? 'pede' : 'pedem'} ação` : undefined}
             onClick={() => selectTab(item)}
           />
         ))}
@@ -143,12 +143,13 @@ function ReconciliacaoContent() {
 
       {tabs.filter((item) => visited.has(item)).map((item) => (
         <div key={item} id={`${panelId}-${item}`} role="tabpanel" aria-labelledby={`pix-tab-${item}`} hidden={tab !== item}>
-          {item === 'recebidos' ? <PixReceivedPanel onOpenInvoice={(source, id) => openInvoice(source, id)} /> : null}
-          {item === 'pendencias' ? (
-            <PixPendingPanel onOpenExtract={() => selectTab('extrato')} onOpenInvoice={(source, id) => openInvoice(source, id)} />
-          ) : null}
-          {item === 'extrato' ? (
-            <PixExtractPanel onOpenPending={() => selectTab('pendencias')} onOpenInvoice={(source, id) => openInvoice(source, id)} />
+          {/* Pix recebidos (opção A, 2026-11-04): o que pede ação aparece no topo só
+              quando existe; Conciliar extrato abre a janela de importação. */}
+          {item === 'recebidos' ? (
+            <div className="grid min-w-0 gap-4">
+              <PixPendingPanel onOpenExtract={() => setExtractOpen(true)} onOpenInvoice={(source, id) => openInvoice(source, id)} />
+              <PixReceivedPanel onOpenInvoice={(source, id) => openInvoice(source, id)} />
+            </div>
           ) : null}
           {item === 'historico' ? (
             <ReconciliationHistoryTable
@@ -158,6 +159,14 @@ function ReconciliacaoContent() {
           ) : null}
         </div>
       ))}
+
+      {extractOpen ? (
+        <PixExtractModal
+          onClose={() => setExtractOpen(false)}
+          // A fatura do resultado toma o lugar da janela: o lote já está no histórico de baixas.
+          onOpenInvoice={(source, id) => { setExtractOpen(false); openInvoice(source, id) }}
+        />
+      ) : null}
 
       <InvoiceDetailModal
         invoiceId={opened?.source === 'local' ? opened.invoiceId : null}

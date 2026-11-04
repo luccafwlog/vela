@@ -2,17 +2,23 @@ import { PAYMENT_METHODS, type ItauPixReceiptOrigin, type ItauPixReceiptSituatio
 
 // Estado de /reconciliacao na URL: aba, filtros do histórico de baixas e da
 // aba Pix recebidos. Sem `tab`, a tela abre no Histórico de baixas (lote 3 da
-// identidade, 2026-10-16); os Alertas de Pix levam a `?tab=pendencias`
-// (`alertEntityLink`).
+// identidade, 2026-10-16). Desde 2026-11-04 são duas abas: Pendências e
+// Conciliar extrato entraram em Pix recebidos (decisão do dono, opção A). Os
+// endereços antigos `?tab=pendencias` (destino dos Alertas de Pix, inclusive os
+// gravados no banco) e `?tab=extrato` abrem Pix recebidos.
 
-export type ReconciliacaoTab = 'pendencias' | 'extrato' | 'historico' | 'recebidos'
+export type ReconciliacaoTab = 'historico' | 'recebidos'
 
 /** Ordem das abas na tela. */
-export const RECONCILIACAO_TABS: readonly ReconciliacaoTab[] = ['historico', 'recebidos', 'pendencias', 'extrato']
+export const RECONCILIACAO_TABS: readonly ReconciliacaoTab[] = ['historico', 'recebidos']
+
+/** Abas que existiram até 2026-11-04 e o lugar novo do que elas mostravam. */
+const LEGACY_TABS: ReadonlyMap<string, ReconciliacaoTab> = new Map<string, ReconciliacaoTab>([['pendencias', 'recebidos'], ['extrato', 'recebidos']])
 
 export function reconciliacaoTabFromSearch(params: URLSearchParams): ReconciliacaoTab {
-  const tab = params.get('tab')
-  return RECONCILIACAO_TABS.includes(tab as ReconciliacaoTab) ? (tab as ReconciliacaoTab) : 'historico'
+  const tab = params.get('tab') ?? ''
+  if (RECONCILIACAO_TABS.includes(tab as ReconciliacaoTab)) return tab as ReconciliacaoTab
+  return LEGACY_TABS.get(tab) ?? 'historico'
 }
 
 export type HistorySortField = 'paidAt' | 'docNumber' | 'customerName' | 'blAmount' | 'amount' | 'totalAmount' | 'blId'
