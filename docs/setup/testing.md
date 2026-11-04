@@ -60,7 +60,7 @@ node --experimental-vm-modules scripts/perf/measure-page-load.mjs
 O harness depende de `build.manifest` habilitado em `vite.config.ts` para
 resolver o grafo de chunks de cada rota. Não roda no CI; é uma verificação
 manual para mudanças que afetem o peso do bundle (ex.: importar uma biblioteca
-pesada como `@e965/xlsx` deve usar `await import(...)` lazy, não import estático).
+pesada como `@e965/xlsx` ou `exceljs` deve usar `await import(...)` lazy, não import estático).
 
 ## Critério de "verde" antes de PR
 

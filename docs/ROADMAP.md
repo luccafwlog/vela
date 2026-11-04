@@ -85,7 +85,7 @@ substituem este baseline.
 - CI com documentação, lint, build e testes antes do merge, mais replay de todas as migrations num Postgres 16 real e as suítes `local-pg` ([testes](setup/testing.md));
 - deploy automatizado no Cloudflare Pages: Preview por PR e Production a cada merge na `main` ([deploy](setup/deploy.md); ADR 0076);
 - Sentry inicializado em produção, heartbeats do Better Stack nos runners e métrica agregada anônima no PostHog ([observabilidade](operations/observabilidade.md), [serviços externos](operations/servicos-externos.md));
-- `@e965/xlsx` para planilhas, com limite de upload antes do parsing;
+- `@e965/xlsx` para ler planilhas, com limite de upload antes do parsing; `exceljs` para escrever as exportadas (ADR 0120);
 - auditorias técnica, funcional e visual preservadas como snapshots.
 
 ## Em evolução

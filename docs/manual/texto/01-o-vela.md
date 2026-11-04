@@ -119,6 +119,8 @@ As listas do Vela (B/Ls, Containers, Clientes, faturas) funcionam do mesmo jeito
 - **A caixa do cabeçalho seleciona tudo o que o filtro achou,** em todas as páginas, não só a página da tela. Há seleção em Veículos e Vazios IMP; em Desbloqueio de CE, para a {{Documentação}} e o {{Administrativo}}; e, para o {{Administrativo}}, em B/Ls, Containers e Clientes.
 - **Exportar** (em Clientes, **Exportar base**) baixa uma planilha com tudo o que o filtro achou.
 
+Toda planilha exportada sai no mesmo padrão (desde 2026-11-03): no alto, a faixa com "Vela", o nome da tela, a data e a hora da exportação, quantas linhas vieram e os filtros usados; os títulos das colunas em azul-marinho, em português, congelados ao rolar e com o filtro do Excel já ligado; as colunas na largura do conteúdo; dinheiro com a moeda ("R$ 18.420,50"), data que o Excel ordena como data e "—" onde não há dado. A situação tem a mesma cor da tela: ✓ verde no que está pago ou atendido, âmbar no que aguarda, cinza no que foi cancelado. A última linha traz a quantidade e a soma das colunas de valor, que acompanha o que você filtrar ou apagar. A planilha que serve para importar de volta (**Exportar programação**, **Exportar base**) sai sem a faixa e sem o total, só com os títulos que a importação reconhece.
+
 ### Relatórios
 
 **Relatórios**, no menu, reúne os números da operação em quatro abas: **Operacional** (B/Ls, containers, peso), **Financeiro** (faturas emitidas e pagas), **Por Cliente** e **Demurrage** (a **Exposição** do que corre sem Invoice, as **Invoices** e os **Itens por container**). O período, a Viagem e o Cliente valem para todas as abas; a **Exposição** é o retrato de hoje e não usa o período.
