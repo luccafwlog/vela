@@ -181,7 +181,11 @@ export function AppLayout() {
     <>
       <TopNavLink {...painelNavItem} onNavigate={closeMobileMenus} />
 
-      {navGroups.map((group) => (
+      {navGroups.map((group) => group.items.length === 1 ? (
+        // Grupo de uma tela só (Alertas, desde 2026-11-04) é link direto, sem
+        // menu suspenso; a sub-tela dele (/alertas/regras) continua marcando o link.
+        <TopNavLink key={group.id} {...group.items[0]} onNavigate={closeMobileMenus} />
+      ) : (
         <TopNavDropdownMenu
           key={group.id}
           label={group.label}

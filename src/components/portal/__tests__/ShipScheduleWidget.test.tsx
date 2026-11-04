@@ -101,9 +101,9 @@ it('renderiza a programação projetada com data efetiva, previsão, omitida e s
   const headers = within(table).getAllByRole('columnheader').map((th) => th.textContent ?? '')
   expect(headers.findIndex((h) => h.endsWith('ETD'))).toBeLessThan(headers.findIndex((h) => h.endsWith('ETA')))
   expect(within(table).getByRole('columnheader', { name: 'Pecém ETA' })).toBeTruthy()
-  // Porto sem data em nenhum navio sai da tabela, com nota (regra 4).
+  // Porto sem data em nenhum navio sai da tabela (regra 4); no Portal, sem a nota (2026-11-04).
   expect(within(table).queryByRole('columnheader', { name: 'Ningbo ETD' })).toBeNull()
-  expect(screen.getByText(/sem data em nenhum navio/)).toBeTruthy()
+  expect(screen.queryByText(/sem data em nenhum navio/)).toBeNull()
 
   // O cartão do celular segue a mesma ordem e também deixa o porto sem data de fora.
   const card = within(screen.getByRole('list', { name: 'Chegadas e saídas' })).getByRole('listitem')
@@ -138,6 +138,8 @@ it('no Vela a previsão vencida fica em âmbar, com o motivo e a legenda', () =>
   expect(overdue.textContent).toContain('previsão a confirmar')
   expect(overdue.closest('.app-status-text--warning')).toBeTruthy()
   expect(screen.getByText('âmbar')).toBeTruthy()
+  // A nota dos portos fora da tabela fica só no Vela (2026-11-04).
+  expect(screen.getByText(/sem data em nenhum navio/)).toBeTruthy()
 })
 
 // Ponto 2 de 2026-10-23: atalho para os B/Ls do Cliente só no navio em que ele tem carga.

@@ -6,6 +6,16 @@
 
 ## 2026-11
 
+- **Ajustes de Clientes, Portal, menu e Desbloqueio de CE (2026-11-04, migration `590`; pedidos do dono):** a
+  planilha comum do Desbloqueio de CE traz a data e a hora em que cada requisito se cumpriu, no lugar de "Atendido";
+  **Regras de alertas** sai do menu (abre pelo botão da tela Alertas, que vira link direto) e **Desbloqueio de CE**
+  fica logo acima de **Revisão**; o Portal não mostra mais a nota dos portos sem data em Chegadas e Saídas; o B/L VIP
+  pago e entregue diz "Apto ao desbloqueio (VIP)" e manda conferir no SISCARGA, como a solicitação validada (a
+  solicitação automática foi estudada e descartada, [Desbloqueio de CE](modules/desbloqueio-ce.md)); **Meu perfil**
+  do Portal mostra as caixas de recebimento e o que cada uma recebe (a caixa Documentação e Operação passa a citar os avisos
+  do Desbloqueio de CE, que já recebia, também no Tutorial anexado ao convite); **Novo cliente** aceita contato sem nome; a lista
+  de Clientes ganha **Contatos** e **Espiadinha**, com a coluna Cliente mais estreita; a aba **Portal** ordena por nome;
+  e **O que cada setor pode** vem recolhido no Admin.
 - **B/L cancelado não pede terminal (2026-11-04, migration `588`; decisão do dono):** o B/L cancelado, ou cancelado
   no financeiro, deixa de criar frente de operação na escala. A carga que só ele trazia sai de **Escala sem
   terminal**, do TBC em âmbar do Painel e da trava do **Fechar ADR**, e Editar escala não a mostra mais em TBC.

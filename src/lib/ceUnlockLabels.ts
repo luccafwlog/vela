@@ -218,22 +218,27 @@ export function ceVipAnnualCovered(
   return !!item.vip_covered && (!item.request_id || (item.state === "draft" && item.source === "vip_annual"));
 }
 
+/** O mesmo próximo passo da solicitação validada (migration 466): o Cliente confere no SISCARGA. */
+export const CE_SISCARGA_STEP = "consulte o SISCARGA para verificar o desbloqueio";
+
 /**
  * Situação do B/L do Cliente VIP que segue sem solicitação (migration 581, ADR 0119):
- * o que ainda falta do Cliente ou, com tudo cumprido, a documentação validada. A
+ * o que ainda falta do Cliente ou, com tudo cumprido, que o B/L está apto ao
+ * desbloqueio e deve ser conferido no SISCARGA, como na solicitação validada
+ * (decisão do dono de 2026-11-04; antes, "Validação em até 5 minutos"). A
  * validação vem do banco (`sla_started_at`), na entrega do original ou em até 5
- * minutos depois da baixa feita fora do Desbloqueio.
+ * minutos depois da baixa feita fora do Desbloqueio; com ela, o prazo.
  */
 export function ceVipDirectStatus(
   item: Pick<CeUnlockItem, "paid" | "delivered" | "sla_started_at">,
-): { label: string; tone: "paid" | "warning" | "muted" } {
-  if (item.sla_started_at) return { label: "Documentação validada", tone: "paid" };
+): { ready: boolean; label: string; tone: "paid" | "warning" | "muted" } {
+  if (item.sla_started_at) return { ready: true, label: "Documentação validada", tone: "paid" };
   const missing = [
     ...(item.paid ? [] : ["pagar as taxas locais"]),
     ...(item.delivered ? [] : ["entregar o B/L original"]),
   ];
-  if (missing.length) return { label: `Falta ${missing.join(" e ")}`, tone: "warning" };
-  return { label: "Validação em até 5 minutos", tone: "muted" };
+  if (missing.length) return { ready: false, label: `Falta ${missing.join(" e ")}`, tone: "warning" };
+  return { ready: true, label: "Pagamento e entrega confirmados", tone: "paid" };
 }
 
 const BL_HISTORY_REQUIREMENT: Record<CeUnlockBlHistoryEvent["requirement"], string> = {

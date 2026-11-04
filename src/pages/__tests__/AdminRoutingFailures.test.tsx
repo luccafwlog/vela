@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -81,6 +81,8 @@ describe('Admin — Falhas de entrega de alertas', () => {
     renderAdmin()
 
     expect(screen.queryByText('Audiência de Alertas e Notificações')).toBeNull()
+    // "O que cada setor pode" abre recolhido (2026-11-04): abre para ler as linhas.
+    fireEvent.click(within(screen.getByRole('region', { name: 'O que cada setor pode' })).getByRole('button', { name: 'Mostrar' }))
     expect(document.body.textContent).not.toMatch(/fallback|Administrador\b/)
     expect(screen.getByText('Recebe os alertas do próprio setor')).toBeTruthy()
   })

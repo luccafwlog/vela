@@ -860,6 +860,8 @@ export const CAPTURAS = [
       await abrir(page, base, '/admin')
       const bloco = secao(page, 'O que cada setor pode')
       await bloco.waitFor()
+      // O quadro abre recolhido (decisão do dono de 2026-11-04).
+      await bloco.getByRole('button', { name: 'Mostrar' }).click()
       await page.waitForTimeout(800)
       // Só o começo da matriz: o capítulo explica as linhas em texto.
       const caixa = await bloco.boundingBox()

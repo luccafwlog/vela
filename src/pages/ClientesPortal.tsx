@@ -42,6 +42,16 @@ function matchesPreset(row: QueueRow, preset: Preset) {
   return row.account_situation === preset || row.provisioning_decision === preset
 }
 
+// Ordem da fila: prioridade (padrão) ou nome do Cliente, de A a Z ou de Z a A
+// (pedido do dono de 2026-11-04). Fica no endereço (`?ordem=`).
+type Order = 'prioridade' | 'az' | 'za'
+const nameCollator = new Intl.Collator('pt-BR', { sensitivity: 'base', numeric: true })
+function orderRows(order: Order) {
+  if (order === 'prioridade') return comparePriority
+  const direction = order === 'az' ? 1 : -1
+  return (a: QueueRow, b: QueueRow) => direction * nameCollator.compare(a.customer_name.trim(), b.customer_name.trim())
+}
+
 function situationTone(row: QueueRow) {
   if (row.account_situation === 'falha_no_envio') return 'danger' as const
   if (row.account_situation === 'ativo' || row.account_situation === 'convite_pendente') return 'default' as const
@@ -58,6 +68,8 @@ export function ClientesPortal() {
   const rawPreset = searchParams.get('filtro')
   const criticalOnly = searchParams.get('alerta') === 'critico' || rawPreset === 'criticas'
   const preset: Preset = isPreset(rawPreset) ? rawPreset : rawPreset === 'criticas' ? 'todos' : 'aguardando_analise'
+  const rawOrder = searchParams.get('ordem')
+  const order: Order = rawOrder === 'az' || rawOrder === 'za' ? rawOrder : 'prioridade'
   const selected = data.find((row) => row.customer_id === selectedCustomerId)
   const rowRefs = useRef(new Map<number, HTMLButtonElement>())
   const rows = useMemo(() => data.filter((row) => {
@@ -66,7 +78,7 @@ export function ClientesPortal() {
     return (text.includes(search.toLowerCase()) || (normalizedSearch.length >= 2 && row.cnpj_cpf.includes(normalizedSearch)))
       && matchesPreset(row, preset)
       && (!criticalOnly || row.hasCriticalAlert)
-  }).sort(comparePriority), [criticalOnly, data, preset, search])
+  }).sort(orderRows(order)), [criticalOnly, data, order, preset, search])
   const visibleRows = selected && !rows.some((row) => row.customer_id === selected.customer_id) ? [selected] : rows
   const presetCounts = useMemo(() => presets.reduce((counts, item) => {
     counts[item.value] = data.filter((row) => matchesPreset(row, item.value)).length
@@ -140,6 +152,15 @@ export function ClientesPortal() {
           })}>
             <option value="">Todos</option>
             <option value="critico">Com alerta crítico</option>
+          </Select>
+        </Field>
+        <Field label="Ordem">
+          <Select value={order} onChange={(event) => updateParams((next) => {
+            if (event.target.value === 'prioridade') next.delete('ordem'); else next.set('ordem', event.target.value)
+          })}>
+            <option value="prioridade">Prioridade</option>
+            <option value="az">Cliente, de A a Z</option>
+            <option value="za">Cliente, de Z a A</option>
           </Select>
         </Field>
         {hasFilters ? <div><Button variant="ghost" onClick={clearFilters}>Limpar filtros</Button></div> : null}

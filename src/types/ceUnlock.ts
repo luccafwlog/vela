@@ -182,6 +182,18 @@ export type CeUnlockBlHistory = {
   item: CeUnlockItem;
   events: CeUnlockBlHistoryEvent[];
 };
+/**
+ * Quando cada requisito do B/L se cumpriu (migration 590), para a planilha comum
+ * da aba Andamento dos B/Ls. Nulo quando a fonte não tem o fato; a planilha só
+ * mostra a data com o requisito atendido no item.
+ */
+export type CeUnlockRequirementDates = {
+  bl_id: string;
+  termo_at: string | null;
+  procuracao_at: string | null;
+  paid_at: string | null;
+  delivered_at: string | null;
+};
 export type CeUnlockPage<T> = {
   items: T[];
   total: number;

@@ -1,6 +1,7 @@
-import { Fragment, useState } from 'react'
-import { Check, Circle } from 'lucide-react'
+import { Fragment, useId, useState } from 'react'
+import { Check, ChevronDown, ChevronRight, Circle } from 'lucide-react'
 import { Block } from '../ui/Block'
+import { Button } from '../ui/Button'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { DEPARTMENT_LABELS } from '../../lib/departmentLabel'
 import {
@@ -21,18 +22,36 @@ const VIEW_OPTIONS = [
 /**
  * "O que cada setor pode" (lote 5b, opção A): a matriz do catálogo único
  * `permissionMatrix.ts`, que a bateria por perfil confere no banco. "Só
- * exclusivas" esconde as linhas em que os cinco setores podem.
+ * exclusivas" esconde as linhas em que os cinco setores podem. Abre recolhido
+ * (decisão do dono de 2026-11-04): **Mostrar** abre a matriz e **Recolher** a fecha.
  */
 export function PermissionMatrixBlock() {
   const [view, setView] = useState<MatrixView>('exclusivas')
+  const [open, setOpen] = useState(false)
+  const contentId = useId()
   const rows = view === 'todas' ? PERMISSION_MATRIX : PERMISSION_MATRIX.filter((row) => !isSharedByAll(row))
+  const toggle = (
+    <Button type="button" variant="secondary" className="app-btn--sm" aria-expanded={open} aria-controls={contentId} onClick={() => setOpen((current) => !current)}>
+      {open ? <ChevronDown size={14} aria-hidden="true" /> : <ChevronRight size={14} aria-hidden="true" />}
+      {open ? 'Recolher' : 'Mostrar'}
+    </Button>
+  )
 
   return (
     <Block
       title="O que cada setor pode"
-      aside={<SegmentedControl label="Ações mostradas" options={VIEW_OPTIONS} value={view} onChange={setView} />}
-      flush
+      aside={open ? <>
+        <SegmentedControl label="Ações mostradas" options={VIEW_OPTIONS} value={view} onChange={setView} />
+        {toggle}
+      </> : toggle}
+      flush={open}
     >
+      {!open ? (
+        <p id={contentId} className="m-0 text-sm text-[var(--app-muted)]">
+          A tabela das ações que cada setor pode fazer no sistema. Clique em Mostrar para abrir.
+        </p>
+      ) : (
+      <div id={contentId}>
       <div className="app-table-scroll">
         <table className="app-table">
           <caption className="sr-only">O que cada setor pode fazer no sistema</caption>
@@ -68,6 +87,8 @@ export function PermissionMatrixBlock() {
         A conta Dev (Administrativo · Dev) pode tudo o que qualquer setor pode. Nenhum setor pode desativar o último Administrativo ativo, escrever em nome de outra pessoa nem
         alterar fatura, cálculo ou pagamento fora das ações do sistema.
       </p>
+      </div>
+      )}
     </Block>
   )
 }

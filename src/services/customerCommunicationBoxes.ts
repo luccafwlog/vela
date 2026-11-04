@@ -6,7 +6,9 @@ export const CUSTOMER_COMMUNICATION_BOXES = [
   {
     code: 'documentacao_operacao',
     label: 'Documentação e Operação',
-    description: 'CE e Taxas, NOA, NOR e NOB.',
+    // Os avisos do Desbloqueio de CE (documentação validada, recusa) também vêm
+    // para esta caixa (CE_UNLOCK_BOX); o texto passou a dizer isso em 2026-11-04.
+    description: 'CE e Taxas, NOA, NOR, NOB e avisos do Desbloqueio de CE.',
   },
   {
     code: 'financeiro',

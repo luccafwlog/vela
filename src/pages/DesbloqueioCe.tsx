@@ -39,6 +39,7 @@ import {
   ceUnlockRead,
   downloadCeUnlockExport,
   fetchAllCeUnlockBls,
+  fetchCeUnlockRequirementDates,
   listCeUnlockExports,
 } from "../services/ceUnlockService";
 import { exportCeUnlockWorkbook } from "../services/exports";
@@ -264,7 +265,9 @@ export function DesbloqueioCe() {
   async function exportSheet() {
     setSheetBusy(true);
     try {
-      await exportCeUnlockWorkbook(await fetchAllCeUnlockBls(queryFilters));
+      const rows = await fetchAllCeUnlockBls(queryFilters);
+      // Data e hora de cada requisito atendido (migration 590).
+      await exportCeUnlockWorkbook(rows, await fetchCeUnlockRequirementDates(rows.map((row) => row.bl_id)));
     } catch (e) {
       showToast(e instanceof Error ? e.message : "Falha ao exportar a planilha", "error");
     } finally {

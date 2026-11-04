@@ -30,7 +30,7 @@ import { CeUnlockDeliveryAddresses } from "../components/ce-unlock/CeUnlockDeliv
 import { CeUnlockHistory } from "../components/ce-unlock/CeUnlockHistory";
 import { CeUnlockRequirementIcon } from "../components/ce-unlock/CeUnlockRequirements";
 import { CeUnlockVipCoveragePanel } from "../components/ce-unlock/CeUnlockVipCoveragePanel";
-import { ceDate, ceDocumentName, ceDocumentStatusText, cePortalRequestState, ceRequestOpenForMove, ceVipDirectStatus } from "../lib/ceUnlockLabels";
+import { ceDate, ceDocumentName, ceDocumentStatusText, cePortalRequestState, ceRequestOpenForMove, ceVipDirectStatus, CE_SISCARGA_STEP } from "../lib/ceUnlockLabels";
 import { coveredUntil } from "../lib/ceUnlockCoverage";
 import { formatDate } from "../lib/utils";
 import { ceUnlockDeadline, formatCeUnlockDeadline, latestSlaStart } from "../services/ceUnlockSla";
@@ -139,7 +139,7 @@ function vipFallbackReason(vip: CeUnlockVipCoverage, items: CeUnlockItem[]): str
 
 /** Próximo passo do Cliente em cada situação; o Portal nunca fala de envio à ZPT. */
 function nextStep(detail: CeUnlockRequest, validated: boolean): string | null {
-  if (validated) return "consulte o SISCARGA para verificar o desbloqueio";
+  if (validated) return CE_SISCARGA_STEP;
   const vipSource = detail.source === "vip_annual";
   switch (detail.state) {
     case "draft":
@@ -157,7 +157,7 @@ function nextStep(detail: CeUnlockRequest, validated: boolean): string | null {
       return refused.length ? `envie ${correctedDocs(refused)} e reenvie a solicitação` : "reenvie a solicitação";
     }
     case "completed":
-      return "consulte o SISCARGA para verificar o desbloqueio";
+      return CE_SISCARGA_STEP;
     case "cancelled":
       return [...detail.events].reverse().find((e) => e.action === "cancel")?.reason ?? null;
     default:
@@ -172,11 +172,14 @@ function includesText(value: string | null | undefined, term: string) {
 
 function VipDirectCell({ item }: { item: CeUnlockItem }) {
   const status = ceVipDirectStatus(item);
+  // Com tudo cumprido, o B/L está apto e o Cliente confere no SISCARGA, como na
+  // solicitação validada (decisão do dono de 2026-11-04).
   return (
     <>
-      {"Não precisa (VIP) · "}
+      {status.ready ? "Apto ao desbloqueio (VIP) · " : "Não precisa (VIP) · "}
       <StatusText tone={status.tone}>{status.label}</StatusText>
       {item.sla_started_at ? ` · prazo até ${formatCeUnlockDeadline(ceUnlockDeadline(item.sla_started_at))}` : null}
+      {status.ready ? ` · ${CE_SISCARGA_STEP}` : null}
     </>
   );
 }

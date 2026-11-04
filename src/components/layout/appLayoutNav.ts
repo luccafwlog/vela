@@ -8,7 +8,6 @@ import {
   Clock,
   FileSpreadsheet,
   Home,
-  ListChecks,
   MapPin,
   Megaphone,
   Monitor,
@@ -46,8 +45,9 @@ export const painelNavItem: NavItem = { to: '/painel', label: 'Painel', icon: Ho
 
 // Desde 2026-11-01 (decisão do dono), as telas que só abriam por botão dentro
 // de outra tela entram no grupo do seu assunto: Chegadas e Saídas e Tela TV
-// em Viagens; Portal e Comunicação em Clientes; Regras de alertas em Alertas;
-// Locais em Exportação. Tabelas de Taxas Locais e Tarifas de Demurrage
+// em Viagens; Portal e Comunicação em Clientes; Locais em Exportação.
+// Regras de alertas saiu do menu e abre só pelo botão da tela Alertas
+// (decisão do dono de 2026-11-04). Tabelas de Taxas Locais e Tarifas de Demurrage
 // voltaram a abrir só pelos botões de Taxas Locais e de Demurrage (decisão do
 // dono de 2026-11-02). Informações do Portal voltou a abrir só pelo botão da
 // tela Portal, que deixou de se chamar Provisionamento do Portal (decisão do
@@ -62,10 +62,11 @@ export const voyagesNavItems: NavItem[] = [
 export const importNavItems: NavItem[] = [
   { to: '/baplie', label: 'Baplie EDI', icon: FileSpreadsheet },
   { to: '/bls', label: 'B/Ls', icon: FileSpreadsheet },
-  { to: '/desbloqueio-ce', label: 'Desbloqueio de CE', icon: ShieldCheck },
   { to: '/containers', label: 'Containers', icon: ContainersIcon },
   { to: '/veiculos', label: 'Veículos', icon: Car },
   { to: '/vazios-importacao', label: 'Vazios IMP', icon: VaziosImpIcon },
+  // Logo acima de Revisão (decisão do dono de 2026-11-04).
+  { to: '/desbloqueio-ce', label: 'Desbloqueio de CE', icon: ShieldCheck },
   { to: '/revisao', label: 'Revisão', icon: AlertTriangle },
 ]
 
@@ -81,9 +82,9 @@ export const customersNavItems: NavItem[] = [
   { to: '/clientes/comunicacao', label: 'Comunicação', icon: Megaphone },
 ]
 
+// Um item só: a barra mostra o grupo como link direto (veja AppLayout).
 export const alertsNavItems: NavItem[] = [
   { to: '/alertas', label: 'Alertas', icon: Bell },
-  { to: '/alertas/regras', label: 'Regras de alertas', icon: ListChecks },
 ]
 
 // Aponta para a tela, não para uma de suas abas: /admin abre a

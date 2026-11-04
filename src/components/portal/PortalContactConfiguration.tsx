@@ -14,8 +14,9 @@ import {
 } from '../../services/customerCommunicationBoxes'
 import type { PortalContactDraft, PortalContactItem } from '../../services/portalContactConfiguration'
 import { isPortalReadOnly } from '../../services/portalScope'
-import { boxesWithoutRecipient, currentSuppressionReason, firstBoxWithoutContact, hasEligibleContactReplacement, normalizePrimaryContactBoxes } from '../../lib/customerContactDrafts'
+import { boxesWithoutRecipient, currentSuppressionReason, firstBoxWithoutContact, hasEligibleContactReplacement, isEligibleContact, normalizePrimaryContactBoxes } from '../../lib/customerContactDrafts'
 import { ProfileSaveBar } from './ProfileSaveBar'
+import { StatusText } from '../ui/StatusText'
 
 function formatOrigin(origin?: string): string {
   if (origin === 'bl_automatico') return 'Capturado do B/L'
@@ -311,6 +312,7 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
         )}
       </>}
     >
+      <BoxGuide drafts={drafts} />
       <form className="grid gap-4" onSubmit={handleSubmit}>
         {drafts.map((contact, index) => {
           const suppressionMsg = formatSuppression(currentSuppressionReason(contact))
@@ -424,5 +426,46 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
         </ProfileSaveBar>
       </form>
     </Block>
+  )
+}
+
+/**
+ * Caixas de recebimento à vista, como no Tutorial do Portal (pedido do dono de
+ * 2026-11-04): cada caixa, os comunicados que ela recebe e quem a recebe agora,
+ * pelos contatos da tela (ainda não salvos inclusive). Endereço bloqueado por
+ * devolução ou reclamação não recebe (o envio o recusa), então não conta como
+ * quem recebe (`isEligibleContact`, a mesma regra do aviso ao salvar). O texto
+ * de cada caixa vem de CUSTOMER_COMMUNICATION_BOXES.
+ */
+function BoxGuide({ drafts }: { drafts: readonly PortalContactDraft[] }) {
+  return (
+    <div className="app-table-scroll mb-4">
+      <table className="app-table app-table--compact">
+        <caption className="sr-only">Caixas de recebimento: o que cada uma recebe e quem recebe</caption>
+        <thead>
+          <tr>
+            <th scope="col">Caixa</th>
+            <th scope="col" className="app-table__text-head">Comunicados que recebe</th>
+            <th scope="col" className="app-table__text-head">Quem recebe</th>
+          </tr>
+        </thead>
+        <tbody>
+          {CUSTOMER_COMMUNICATION_BOXES.map((box) => {
+            const emails = drafts
+              .filter((contact) => isEligibleContact(contact) && contact.boxCodes.includes(box.code))
+              .map((contact) => (contact.email ?? '').trim())
+            return (
+              <tr key={box.code}>
+                <th scope="row" className="whitespace-nowrap font-semibold">{box.label}</th>
+                <td className="app-table__text">{box.description}</td>
+                <td className="app-table__text">
+                  {emails.length ? emails.join(', ') : <StatusText tone="warning">Nenhum e-mail apto a receber</StatusText>}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }

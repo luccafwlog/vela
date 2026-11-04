@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { customerExportEmails, exportCustomerBaseWorkbook, exportCustomerContainersWorkbook, exportFinancialReportWorkbook,
-  exportDemurrageReportWorkbook, exportInvoicesWorkbook, exportOperationalReportWorkbook, exportPortalBlsWorkbook, exportPortalContainersWorkbook, exportPortalLocalInvoicesWorkbook, exportVaziosImportacaoWorkbook } from '../exports'
+  exportDemurrageReportWorkbook, exportInvoicesWorkbook, exportOperationalReportWorkbook, exportPortalBlsWorkbook, exportPortalContainersWorkbook, exportPortalLocalInvoicesWorkbook, exportVaziosImportacaoWorkbook, ceUnlockWorkbookRows } from '../exports'
 import type { WorkbookSpec } from '../exportWorkbook'
 import type { PortalOperationBL } from '../portalOperation'
 import { flattenContainers } from '../../lib/portalOperationViews'
 import type { InvoiceListRow } from '../billing'
 import type { PortalInvoiceSummary } from '../portalBilling'
 import type { VaziosImportacaoContainerListItem } from '../../types/database'
+import type { CeUnlockItem } from '../../types/ceUnlock'
 
 // As linhas de cada tela são o contrato testado aqui; a aparência é do
 // `writeWorkbook`, coberto em exportWorkbook.test.ts contra o exceljs real.
@@ -298,5 +299,36 @@ describe('exportCustomerContainersWorkbook', () => {
     expect(rows[1]).toMatchObject({ Demurrage: 'A emitir', 'Demurrage (US$)': 420 })
     expect(rows[2]).toMatchObject({ Demurrage: 'Correndo', 'Demurrage (US$)': 2450 })
     expect(spec().fileName).toMatch(/^conteineres-acme-\d+\.xlsx$/)
+  })
+})
+
+// Migration 590 (pedido do dono de 2026-11-04): requisito atendido mostra quando se cumpriu.
+describe('ceUnlockWorkbookRows', () => {
+  const base = {
+    bl_id: 'BL-1', ce_mercante: '123', customer_id: 1, customer_name: 'Cliente', cnpj_cpf: '1', voyage_id: 1, voyage_number: '001',
+    vessel_name: 'Navio', pod: 'BRSSZ', request_id: 'r1', protocol: 'CE-0001', state: 'in_review', version: 1, vip: false,
+    termo: true, procuracao: false, paid: true, delivered: true, can_submit: false, can_export: false, confirmed: false,
+    reasons: [], source: 'request', delivery_version: 1,
+  } as CeUnlockItem
+  const dates = new Map([['BL-1', {
+    bl_id: 'BL-1', termo_at: '2026-11-02T13:15:00Z', procuracao_at: null, paid_at: '2026-11-03T17:45:00Z', delivered_at: '2026-11-03T19:20:00Z',
+  }]])
+
+  it('atendido vira data e hora de Brasília; pendente continua "Pendente"', () => {
+    const [row] = ceUnlockWorkbookRows([base], dates)
+    expect(row['Termo de devolução']).toBe('02/11/2026 10:15')
+    expect(row.Procuração).toBe('Pendente')
+    expect(row['Taxas locais']).toBe('03/11/2026 14:45')
+    expect(row['B/L original']).toBe('03/11/2026 16:20')
+  })
+
+  it('sem a data na fonte diz "Atendido"; isentas, dispensados e anual VIP dizem o que são', () => {
+    expect(ceUnlockWorkbookRows([base])[0]['Termo de devolução']).toBe('Atendido')
+    const exempt = ceUnlockWorkbookRows([{ ...base, paid_exempt: true }], dates)[0]
+    expect(exempt['Taxas locais']).toBe('Isentas')
+    const lcl = ceUnlockWorkbookRows([{ ...base, documents_dispensed: true }], dates)[0]
+    expect([lcl['Termo de devolução'], lcl.Procuração]).toEqual(['Dispensado', 'Dispensada'])
+    const vip = ceUnlockWorkbookRows([{ ...base, request_id: null, protocol: null, vip: true, vip_covered: true }], dates)[0]
+    expect(vip['Termo de devolução']).toBe('02/11/2026 10:15 · anual VIP')
   })
 })
