@@ -1615,9 +1615,13 @@ conta com a marca **Dev** a muda.
 
 **Marca Dev**
 Permissão especial acima do Administrativo, dada só por migration a uma conta
-do Administrativo; hoje só liga e desliga a chave de envio. Não é setor: a conta
-continua no Administrativo.
-→ Regra: [Clientes § Chave de envio de Comunicados](docs/modules/clientes.md#chave-de-envio-de-comunicados)
+do Administrativo. A conta Dev pode tudo o que qualquer setor pode; só ela, no
+Administrativo, liga e desliga a chave de envio e, desde a migration `583`
+(decisão do dono de 2026-11-04), registra e cancela baixa, confirma
+Restituição e concilia o Pix, que nos demais setores são só do Financeiro. Não
+é setor: a conta continua no Administrativo.
+→ Regra: [Clientes § Chave de envio de Comunicados](docs/modules/clientes.md#chave-de-envio-de-comunicados);
+[Segurança § Modelo de permissões por perfil](docs/operations/seguranca.md#modelo-de-permissões-por-perfil)
 
 ## Referências de verificação dos contratos
 

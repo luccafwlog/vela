@@ -254,9 +254,10 @@ VIA-020, VIA-025, VIA-048).
 - **O que o sistema faz:** recusa cancelar a Viagem enquanto algum B/L tem
   fatura viva (inclusive paga ou coberta), Invoice de Demurrage não cancelada
   ou baixa.
-- **O que você faz:** o Financeiro ou o Administrativo resolve B/L a B/L
-  (cancelar fatura, cancelar baixa, Restituição) e o Administrativo cancela a
-  Viagem depois.
+- **O que você faz:** resolva B/L a B/L: o Administrativo ou o Financeiro
+  cancela a fatura sem pagamento; o Financeiro cancela a baixa e confirma a
+  Restituição (desde 2026-11-04; antes, o Administrativo também). O
+  Administrativo cancela a Viagem depois.
 - **Regras:** VIA-021, FAT-156, DEM-118.
 
 #### S4.23 — A Viagem não pode ser excluída

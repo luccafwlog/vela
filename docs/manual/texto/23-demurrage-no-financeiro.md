@@ -98,7 +98,7 @@ O desconto sai do dólar, antes da conversão: a Invoice continua mostrando o to
 
 Os reais e o Pix mudam na hora, e o Cliente vê o valor novo no Portal. No exemplo de [23.1](#231-ler-a-invoice-de-demurrage), 10% de desconto levam a Invoice a US$ 405,00 e, com o ROE de 5,7510, a R$ 2.329,16. Para tirar o desconto, apague o valor em **Alterar desconto** e clique em **Tirar desconto**.
 
-O desconto que zera a Invoice a quita na hora: ela vira **Pago** sem pagamento, com o meio **Isenção (desconto integral)**, e sai da Régua e das pendências do Cliente. Para desfazer, o {{Administrativo}} cancela a baixa ([23.8](#238-cancelar-a-baixa-de-uma-invoice)) e alguém altera o desconto.
+O desconto que zera a Invoice a quita na hora: ela vira **Pago** sem pagamento, com o meio **Isenção (desconto integral)**, e sai da Régua e das pendências do Cliente. Para desfazer, o {{Financeiro}} cancela a baixa ([23.8](#238-cancelar-a-baixa-de-uma-invoice)) e alguém altera o desconto.
 
 ### Desconto, acordo, condição ou câmbio
 
@@ -117,7 +117,7 @@ O desconto é a única negociação que mexe numa Invoice já emitida. As outras
 
 ## 23.6 Acompanhar a Régua de Cobrança
 
-**Quem faz:** {{Todas as equipes}} · mudar o intervalo: {{Administrativo}}
+**Quem faz:** {{Todas as equipes}} · mudar o intervalo: {{Administrativo}}, {{Financeiro}} e {{Equipamentos}}
 
 A Régua de Cobrança é o e-mail que o Vela manda sozinho ao Cliente enquanto a Invoice está emitida e não paga, às caixas **Financeiro** e **Demurrage** ([13.6](13-cadastro-do-cliente.md#136-cuidar-dos-contatos-do-cliente)), com o dólar, os reais do dia e o link do Portal. Os horários estão em [19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio).
 
@@ -126,7 +126,7 @@ Na aba **Faturas**, a coluna **Régua de cobrança** diz onde cada Invoice está
 | A coluna diz "Pausada: …" | O que fazer |
 |---|---|
 | disputa aberta | Responder e decidir a Disputa ([9.8](09-containers-e-demurrage.md#98-responder-a-uma-disputa) e [9.9](09-containers-e-demurrage.md#99-decidir-a-disputa)). |
-| Pix em análise | O {{Financeiro}} ou o {{Administrativo}} decide o Pix na **Conciliação PIX** ([24.2](24-pagamento-e-restituicao.md#242-tratar-um-pix-em-análise)). |
+| Pix em análise | O {{Financeiro}} decide o Pix na **Conciliação PIX** ([24.2](24-pagamento-e-restituicao.md#242-tratar-um-pix-em-análise)). |
 | cliente sem contatos válidos, ou Cliente sem contato autorizado para a cobrança | Ligar um contato com e-mail à caixa **Financeiro** ou **Demurrage** ([13.6](13-cadastro-do-cliente.md#136-cuidar-dos-contatos-do-cliente)). |
 | e-mail recusado pelo provedor… | Corrigir o contato ([16.9](16-emails-e-comunicados.md#169-corrigir-o-contato-que-não-recebe)) e resolver o alerta **Cobrança de Demurrage recusada** ([20.9](20-alertas.md#209-demurrage)). |
 | datas alteradas, container passou a SOC ou divisão do container alterada, aguarda tratamento | Tratar a Invoice cujos containers mudaram ([23.9](#239-cancelar-uma-invoice-e-gerar-outra)). |
@@ -137,7 +137,7 @@ O intervalo padrão é de 7 dias. Para mudar:
 2. Em **Intervalo entre cobranças, em dias**, digite de 1 a 365.
 3. Clique em **Salvar intervalo** e confirme.
 
-O intervalo novo vale para todas as Invoices em aberto.
+O intervalo novo vale para todas as Invoices em aberto. Para as outras equipes, a janela diz "Só o Administrativo, o Financeiro e Equipamentos alteram o intervalo."; até 2026-11-04, só o {{Administrativo}} alterava.
 
 ::: atencao
 - A data de "próxima em" não pula fim de semana nem feriado: a cobrança sai na primeira rodada de dia útil a partir dela.
@@ -145,7 +145,7 @@ O intervalo novo vale para todas as Invoices em aberto.
 
 ## 23.7 Registrar o pagamento e imprimir o recibo
 
-**Quem faz:** registrar, {{Financeiro}} e {{Administrativo}} · imprimir, {{Todas as equipes}}
+**Quem faz:** registrar, {{Financeiro}} · imprimir, {{Todas as equipes}}
 
 O Pix pago no QR da Invoice dá baixa sozinho, com a cobrança pelo Itaú ligada ou com o QR estático: ela fica **Pago** na data do Pix e sai da Régua ([24.1](24-pagamento-e-restituicao.md#241-acompanhar-a-baixa-automática-do-pix)). Registre à mão só o pagamento que chegou por outro caminho, depois de conferir o extrato; o Pix feito sem o QR do Vela se baixa pela linha dele em **Pix recebidos** ([24.4](24-pagamento-e-restituicao.md#244-registrar-um-pagamento-à-mão)), que confere o valor e guarda o Pix.
 
@@ -154,6 +154,8 @@ O Pix pago no QR da Invoice dá baixa sozinho, com a cobrança pelo Itaú ligada
 3. Clique em **Registrar pagamento**.
 
 A baixa não tem campo de valor: o Vela grava os reais e o ROE da cotação que valia na data informada. Com uma data passada, o valor pode ser diferente do **BRL hoje**. A Invoice vai para **Pagas**, sai da Régua e aparece paga no Portal.
+
+Para as outras equipes, o detalhe diz "Registrar pagamento: Financeiro.". Até 2026-11-04, o {{Administrativo}} também registrava.
 
 **Ver recibo**, no detalhe da Invoice paga, abre o recibo ([24.9](24-pagamento-e-restituicao.md#249-imprimir-o-recibo)).
 
@@ -164,13 +166,15 @@ A baixa não tem campo de valor: o Vela grava os reais e o ROE da cotação que 
 
 ## 23.8 Cancelar a baixa de uma Invoice
 
-**Quem faz:** {{Administrativo}}
+**Quem faz:** {{Financeiro}}
 
 Cancelar a baixa desfaz um pagamento lançado por engano e não devolve dinheiro ([24.5](24-pagamento-e-restituicao.md#245-cancelar-uma-baixa)); para devolver, use a restituição excepcional ([24.7](24-pagamento-e-restituicao.md#247-autorizar-uma-restituição-excepcional)).
 
 1. No detalhe da Invoice paga, clique em **Cancelar baixa…**.
 2. Escreva a **Justificativa para cancelar a baixa**.
 3. Clique em **Cancelar baixa**.
+
+Para as outras equipes, o detalhe diz "Cancelar a baixa: Financeiro.". Até 2026-11-04, era só do {{Administrativo}}.
 
 A Invoice volta a **Faturado**, sem data de pagamento, e volta ao recálculo diário e à Régua. Até o recálculo das 14h, ela fica com os reais da baixa; para ter o valor do dia antes disso, use **Informar PTAX**. Se a baixa veio de um Pix do Itaú, o Pix volta para **Pix em análise**, com alerta, para o {{Financeiro}} decidir onde ele entra.
 
@@ -180,13 +184,15 @@ A Invoice volta a **Faturado**, sem data de pagamento, e volta ao recálculo di�
 
 ## 23.9 Cancelar uma Invoice e gerar outra
 
-**Quem faz:** cancelar, {{Administrativo}} · gerar de novo, {{Qualquer equipe}}
+**Quem faz:** cancelar, {{Administrativo}}, {{Financeiro}} e {{Equipamentos}} · gerar de novo, {{Qualquer equipe}}
 
 A Invoice emitida não se edita. Quando ela cobra errado e o Vela não corrige sozinho, cancela-se e gera-se outra. Mudar as datas, o SOC/COC ou a divisão de um container numa Invoice sem pagamento, sem desconto e sem Disputa aberta já cancela e reemite sozinho ([18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container)); a nova diz "Substitui a Invoice …".
 
 1. No detalhe, clique em **Cancelar Invoice…**, escreva o motivo e confirme. Invoice paga precisa antes ter a baixa cancelada ([23.8](#238-cancelar-a-baixa-de-uma-invoice)). Com Disputa aberta, ela é encerrada junto, e o Cliente lê o seu motivo no Portal ([9.9](09-containers-e-demurrage.md#99-decidir-a-disputa)).
 2. Em **Demurrage**, aba **Containers**, os containers voltam para **A emitir**, com "Invoice anterior DEM-… cancelada à mão: gere a nova". Nada os emite sozinho: clique em **Gerar Invoice** no fim da linha ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)).
 3. Se havia desconto, aplique-o de novo na Invoice nova ([23.5](#235-dar-um-desconto)).
+
+Para as outras equipes, o detalhe diz "Cancelar a Invoice: Administrativo, Financeiro ou Equipamentos.". Até 2026-11-04, cancelar a Invoice era só do {{Administrativo}}.
 
 A cancelada sai da Régua e do Portal; a nova sai com número novo e o câmbio do dia. Na aba **Canceladas**, o **Destino dos containers** diz onde cada container foi parar.
 

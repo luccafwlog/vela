@@ -17,7 +17,7 @@ O Vela tem cinco equipes, e cada pessoa pertence a uma só:
 | {{Operações}} | Escalas, terminais e atracação. |
 | {{Equipamentos}} | Containers, veículos, vazios, Granito e Demurrage. |
 | {{Financeiro}} | Pagamentos, conciliação do Pix e restituições. |
-| {{Administrativo}} | Usuários, cancelamentos e exclusões, e cobre qualquer equipe que faltar. |
+| {{Administrativo}} | Usuários, cancelamentos e exclusões, e cobre qualquer equipe que faltar, menos no dinheiro recebido: baixa, conciliação do Pix e restituição são só do {{Financeiro}}. |
 
 A coluna da direita é a rotina, não uma trava: o Vela deixa qualquer equipe importar arquivos, cadastrar Viagens, editar escalas, emitir faturas e muito mais. Quem cria os usuários e escolhe a equipe de cada um é o {{Administrativo}}.
 
@@ -35,17 +35,21 @@ Estas são as ações que o Vela reserva. Para as outras equipes, o botão não 
 |---|---|
 | Criar usuários, mudar a equipe, ativar e desativar | {{Administrativo}} |
 | Cancelar e reativar Viagem e B/L; excluir Viagem, escala, B/L, container, Embarque de vazios e Cliente | {{Administrativo}} |
-| Cancelar fatura ou Invoice de Demurrage e cancelar pagamento registrado; mudar o intervalo da Régua de Cobrança | {{Administrativo}} |
+| Cancelar fatura sem pagamento | {{Administrativo}} e {{Financeiro}} |
+| Cancelar Invoice de Demurrage sem pagamento; mudar o intervalo da Régua de Cobrança | {{Administrativo}}, {{Financeiro}} e {{Equipamentos}} |
 | Corrigir tabela de cobrança já usada; editar Condição de Cliente | {{Administrativo}} |
 | Desativar e reativar cadastros (tabela de cobrança, Local, serviço, tarifa, tipo de container) | {{Administrativo}} |
 | Liberação de faturamento sem Portal; desativar Cliente | {{Administrativo}} |
-| Registrar pagamento, confirmar restituição, conciliar o Pix | {{Financeiro}} e {{Administrativo}} |
+| Registrar pagamento, cancelar pagamento registrado, confirmar restituição, conciliar o Pix; preparar o cancelamento financeiro de um B/L de fatura paga | {{Financeiro}} |
+| Liquidar Ajuste de COD | {{Financeiro}} e {{Administrativo}} |
 | Informar a cotação do dólar (PTAX) | {{Financeiro}}, {{Equipamentos}} e {{Administrativo}} |
 | Responder ao Cliente na Disputa de Demurrage | {{Equipamentos}} e {{Administrativo}} |
 | Convidar o Cliente para o Portal e cuidar da conta dele | {{Documentação}} e {{Administrativo}} |
 | Gerir o Desbloqueio de CE | {{Documentação}} e {{Administrativo}} |
 | Editar contatos do Cliente; cadastrar Cliente pelo **Novo cliente** | {{Documentação}}, {{Equipamentos}} e {{Administrativo}} |
 | Remover uma atracação ou trocar o terminal dela | {{Operações}} e {{Administrativo}} |
+
+A conta do {{Administrativo}} com a marca Dev, da equipe de desenvolvimento, pode tudo o que qualquer equipe pode, inclusive o que é só do {{Financeiro}}. Desde 2026-11-04 (decisão do dono), o {{Administrativo}} comum não registra nem cancela pagamento, não confirma restituição e não concilia o Pix; antes, registrar, confirmar e conciliar eram também dele, e cancelar pagamento, só dele.
 
 No ADR de Saída, cada equipe assina a sua parte: {{Operações}} a escala, {{Documentação}} a carga e os vazios descarregados, {{Equipamentos}} a carga carregada, os veículos e o embarque de vazios. O {{Administrativo}} pode assinar por qualquer uma (capítulo 11).
 
@@ -68,7 +72,8 @@ Quando o botão não aparece para você, ou o Vela diz que a ação é de outra 
 | Você precisa… | Peça a |
 |---|---|
 | cancelar uma Viagem ou um B/L, ou excluir uma Viagem, um B/L, um container ou um Embarque de vazios | {{Administrativo}} |
-| cancelar uma fatura | {{Administrativo}} |
+| cancelar uma fatura sem pagamento | {{Administrativo}} ou {{Financeiro}} |
+| cancelar um pagamento registrado por engano | {{Financeiro}} |
 | registrar que um pagamento chegou | {{Financeiro}} |
 | devolver dinheiro ao Cliente | {{Financeiro}} |
 | ativar o Portal de um Cliente | {{Documentação}} |

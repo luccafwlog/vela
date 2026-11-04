@@ -362,8 +362,9 @@ corrigir, substituir, reemitir ou cancelar — B/L com CE se cancela
 ([Manifestos & EDI § B/L Cancelado e exclusão](../modules/manifesto-edi.md#bl-cancelado-e-exclusão)).
 Corrigir o CE mantém a trava. **Remover CE Mercante**, na ficha do B/L, solta a
 trava do CE: qualquer Departamento ativo, com motivo, e só sem fatura viva — com
-fatura emitida, o Administrativo cancela a fatura antes
-(`remove_bl_ce_mercante`, definição vigente na migration `209`; a ADR 0078
+fatura emitida, o Administrativo ou o Financeiro (desde a migration `583`,
+decisão do dono de 2026-11-04; antes, só o Administrativo) cancela a fatura
+antes (`remove_bl_ce_mercante`, definição vigente na migration `209`; a ADR 0078
 substituiu o item 5 da ADR 0071). Remover o CE ou cancelar o B/L também o tira
 do Manifesto Mercante, e reativar o recoloca; o B/L com CE que muda de rota abre
 o alerta "CE fora do Manifesto da rota" para a Documentação

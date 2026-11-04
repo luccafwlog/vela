@@ -139,6 +139,10 @@ BEGIN
        'public.is_admin()', 'public.is_financeiro_user()'),
       ('public.obsolete_consolidated_invoice(bigint,text,uuid)',
        'public.is_admin()', 'public.is_financeiro_user()'),
+      -- Recusa de Remover CE com fatura viva: quem cancela agora é Adm ou Fin.
+      ('public.remove_bl_ce_mercante(text,text,text)',
+       'O Administrativo precisa cancelar a fatura antes.',
+       'O Administrativo ou o Financeiro precisa cancelar a fatura antes.'),
       -- Cancelar Invoice de Demurrage: Administrativo, Financeiro ou Equipamentos.
       ('public.cancel_demurrage_invoice(uuid,bigint,text)',
        'AND (auth.uid() IS NULL OR NOT public.is_admin()) THEN',

@@ -101,7 +101,7 @@ A fatura avulsa cobra o que não está nas Taxas Locais do B/L: um serviço adic
 O item em dólar é convertido pelo câmbio do dia da emissão.
 
 ::: atencao
-- A avulsa sem pagamento só o {{Administrativo}} cancela ([22.9](#229-cancelar-uma-fatura)). Confira antes de emitir.
+- A avulsa sem pagamento só o {{Administrativo}} e o {{Financeiro}} cancelam ([22.9](#229-cancelar-uma-fatura)). Confira antes de emitir.
 - O Cliente desativado não recebe avulsa: reative-o antes ([13.10](13-cadastro-do-cliente.md#1310-desativar-ou-reativar-um-cliente)).
 :::
 
@@ -180,7 +180,7 @@ O valor menor numa fatura paga não abre este alerta: é abatido sozinho ([22.7]
 
 ## 22.9 Cancelar uma fatura
 
-**Quem faz:** {{Administrativo}}. As outras equipes pedem a ele.
+**Quem faz:** {{Administrativo}} e {{Financeiro}}. As outras equipes pedem a eles.
 
 Cancelar tira a fatura de cobrança de vez: ela fica no Vela, com o motivo, mas o saldo e o Pix deixam de valer. Para corrigir o valor ou o Cliente, corrija o B/L ([22.7](#227-quando-o-bl-muda-depois-da-fatura)). Cancele quando a cobrança não deve existir, por exemplo antes de cancelar o B/L, remover o CE ou cancelar a Viagem ([7.8](07-ficha-do-bl.md#78-cancelar-reativar-ou-excluir-um-bl), [6.6](06-importacao.md#66-corrigir-o-ce-ou-o-manifesto-de-um-bl) e [4.8](04-viagens-escalas.md#48-encerrar-cancelar-ou-excluir)).
 
@@ -188,13 +188,15 @@ Cancelar tira a fatura de cobrança de vez: ela fica no Vela, com o motivo, mas 
 2. No bloco **Cancelar fatura**, escreva o **Motivo**.
 3. Clique em **Cancelar fatura** e confirme.
 
+Até 2026-11-04, cancelar fatura era só do {{Administrativo}}; desde então (decisão do dono), o {{Financeiro}} também cancela a fatura sem pagamento. A fatura com pagamento não se cancela: primeiro o {{Financeiro}} cancela a baixa.
+
 No Portal, a fatura passa às canceladas e o B/L volta à **Validação**; a nova sai só pelo **Emitir** ([18.9](18-o-que-muda-sozinho.md#189-emitir-ou-cancelar-uma-fatura)). Cancelar não cancela o B/L nem devolve dinheiro. Na consolidada cancelada, as individuais dos mesmos B/Ls continuam valendo.
 
 Para cancelar a Viagem, resolva assim, B/L a B/L, cada fatura ou pagamento dela; a Invoice de Demurrage em aberto também segura (capítulo 23).
 
 | A fatura | Antes, faça |
 |---|---|
-| Tem pagamento lançado por engano | O {{Administrativo}} cancela a baixa (capítulo 24) e depois cancela a fatura. |
+| Tem pagamento lançado por engano | O {{Financeiro}} cancela a baixa (capítulo 24) e depois cancela a fatura. |
 | Tem pagamento verdadeiro, e a cobrança deve sair | Veja abaixo. A avulsa paga sai pela restituição excepcional (capítulo 24). |
 | É individual de um B/L numa consolidada aberta | Cancele antes a consolidada. |
 | É individual de um B/L pago em outro documento | Cancele a baixa naquele documento. |
@@ -204,7 +206,7 @@ Para cancelar a Viagem, resolva assim, B/L a B/L, cada fatura ou pagamento dela;
 
 Quando o Cliente pagou e a cobrança do B/L não deve existir (o B/L vai ser cancelado), o dinheiro volta antes:
 
-1. O {{Administrativo}}, no bloco **Ajustes pela correção do B/L**, escolhe o **B/L para cancelamento financeiro**, escreve o motivo e clica em **Preparar cancelamento financeiro**. O saldo do B/L é abatido e o recebido vira Restituição; os outros B/Ls de uma consolidada continuam cobrados.
+1. O {{Financeiro}}, no bloco **Ajustes pela correção do B/L**, escolhe o **B/L para cancelamento financeiro**, escreve o motivo e clica em **Preparar cancelamento financeiro**. O saldo do B/L é abatido e o recebido vira Restituição; os outros B/Ls de uma consolidada continuam cobrados.
 2. O {{Financeiro}} devolve o dinheiro e confirma a Restituição (capítulo 24).
 3. O {{Administrativo}} cancela o B/L na ficha ([7.8](07-ficha-do-bl.md#78-cancelar-reativar-ou-excluir-um-bl)).
 
