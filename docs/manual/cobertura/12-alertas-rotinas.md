@@ -181,13 +181,14 @@ Não há dispensa desde 2026-10-27 (ALE-014).
 
 ## Rotinas por horário
 
-As 16 rotinas agendadas no banco (`cron.job`), mais as duas que em produção são
+As 19 rotinas agendadas no banco (`cron.job`), mais as duas que em produção são
 agendadas à mão e não estão no banco local. Horários de Brasília.
 
 | Rotina | Quando roda | O que faz | Onde o operador vê o efeito | Destino |
 |---|---|---|---|---|
 | `rotina:alerts-foundation-detectors` | A cada 15 minutos (02, 17, 32 e 47 de cada hora) | Rodada dos alertas (ALE-038) e limpeza dos anexos de disputa que não viraram anexo (ALE-039). | Fila **Alertas**, sino, cartões do Painel | Op 15; Op 16 |
 | `rotina:billing-release-expiry-review` | Todo dia às 00:13 | Devolve à Revisão, com o motivo do Portal, os B/Ls não faturados dos Clientes cuja Liberação de faturamento sem Portal venceu nos últimos 7 dias sem outra Liberação nem Portal pronto, e recalcula os alertas da Revisão. | **Revisão**, alerta **Revisão de B/L — Portal não provisionado** | Op 15; Op 7 |
+| `rotina:cleanup-cron-run-details` | Todo dia às 03:45 | Apaga do registro interno de execuções das rotinas (`cron.job_run_details`) as execuções com mais de 14 dias (migration `589`). Não toca em nenhum dado de negócio. | Nenhum | Op 15 |
 | `rotina:cleanup-provision-rate-limit` | Todo dia às 00:30 | Apaga os registros de limite de provisionamento do Portal com mais de 2 dias. | Nenhum | Op 15 |
 | `rotina:container-demurrage-status` | Todo dia às 00:17 | Recalcula a situação de Demurrage gravada nos containers ainda sem devolução (por exemplo, quem passou do free time), que a ficha do B/L e a importação leem. | Ficha do B/L (**Demurrage**); a aba Containers e o aviso **N containers em atraso** leem a classificação do banco | Op 15; Op 8 |
 | `rotina:demurrage-travado-alerts` | A cada 15 minutos (04, 19, 34 e 49 de cada hora) | Reconcilia o alerta **Demurrage travada** em todas as Viagens: abre para o grupo que entrou em Travado sem passar por um gatilho (Portal do Cliente fechado, virada do dia) e fecha o que saiu. Desde a migration `525`, também põe na fila de emissão o grupo de **A emitir** parado (sem Invoice cancelada à mão nem emissão na fila), uma vez para as mesmas caixas (migration `526`); desde a `529`, refaz a reconciliação das Invoices que ficaram diferentes (datas, SOC, divisão do container) quando o gatilho falhou. | Fila **Alertas**, divisão **Travado** da Demurrage | Op 15; Op 8 |
