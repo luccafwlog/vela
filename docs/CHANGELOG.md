@@ -6,6 +6,15 @@
 
 ## 2026-11
 
+- **Terminal da escala cobrado antes da chegada (2026-11-04, migration `584`,
+  [ADR 0121](adr/0121-terminal-da-escala-cobrado-antes-da-chegada.md); decisões do dono sobre a
+  [revisão do vínculo de terminal](archive/audits/2026-11-04-revisao-vinculo-terminal-escala.md)):** o alerta
+  crítico **Escala sem terminal** avisa Operações cinco dias antes do ETA, e de novo no ATA, quando alguma frente de
+  operação está sem terminal; antes, o terminal só era cobrado no Fechar ADR. Com o ATA, cada terminal sem ETB é
+  cobrado. O Cliente cuja carga ficou sem terminal aparece em **Comunicado NOB pendente** e no aviso do Disparo, em
+  vez de ficar sem o NOB em silêncio. O banco recusa ATB anterior ao ATA; o ETB anterior ao ETA ganha aviso na
+  janela. O Painel mostra **TBC** em âmbar, com o filtro **Terminal** › **Sem terminal**, e a ficha da Viagem ganha
+  a coluna **Terminal** no Planejamento por escala ([Viagens](modules/viagens.md#escala-atracação-e-datas)).
 - **Baixa e Conciliação só do Financeiro e da conta Dev (2026-11-04, migration `583`; decisão do dono):** registrar
   e cancelar baixa (Taxas Locais e Demurrage), confirmar Restituição, preparar cancelamento financeiro de B/L e
   conciliar o Pix passam a ser do Financeiro e, no Administrativo, só da conta Dev, que pode tudo o que qualquer setor

@@ -5,6 +5,9 @@ export type LineUpCeFilter = 'all' | 'waiting' | 'received' | 'launching' | 'app
 // Viagem cancelada não entra no Line-Up (lineup.ts), então não há filtro para ela.
 export type LineUpStatusFilter = 'all' | 'active' | 'completed'
 export type LineUpPresenceFilter = 'all' | 'with' | 'without'
+// "Sem terminal": a linha com frente do seu sentido ainda sem terminal
+// (migration 584; revisão de 2026-11-04, D5).
+export type LineUpTerminalFilter = 'all' | 'pending'
 
 export type LineUpFilters = {
   search: string
@@ -18,6 +21,7 @@ export type LineUpFilters = {
   linked: LineUpPresenceFilter
   mty: LineUpPresenceFilter
   rtw: LineUpPresenceFilter
+  terminal: LineUpTerminalFilter
 }
 
 export function filterLineUpRows(rows: LineUpRow[], filters: LineUpFilters): LineUpRow[] {
@@ -31,6 +35,9 @@ export function filterLineUpRows(rows: LineUpRow[], filters: LineUpFilters): Lin
     if (filters.status !== 'all' && row.voyageStatus !== filters.status) return false
     if (search && !row.vesselName.toLowerCase().includes(search) && !row.voyageNumber.toLowerCase().includes(search)) return false
     if (filters.periodo === 'custom' && !isWithinPeriod(row.eta, filters.dataInicio, filters.dataFim)) return false
+    // O terminal é de cada sentido: vale para a linha de importação e para a
+    // de exportação, cada uma com as suas frentes.
+    if (filters.terminal === 'pending' && !(row.pendingTerminalFronts?.length)) return false
     // Os filtros de carga, CE e vínculo descrevem a importação: a linha de
     // exportação não some com eles.
     if (row.rowType === 'export') return true
@@ -68,6 +75,7 @@ export function countActiveLineUpFilters(filters: LineUpFilters): number {
   if (filters.search.trim() !== '') count += 1
   if (filters.status !== 'active') count += 1
   if (filters.periodo !== 'all') count += 1
+  if (filters.terminal !== 'all') count += 1
   if (filters.vehicles !== 'all') count += 1
   if (filters.bb !== 'all') count += 1
   if (filters.ces !== 'all') count += 1
@@ -85,6 +93,6 @@ export function countMoreLineUpFilters(filters: LineUpFilters): number {
 export function emptyLineUpFilters(): LineUpFilters {
   return {
     search: '', status: 'active', periodo: 'all', dataInicio: '', dataFim: '',
-    vehicles: 'all', bb: 'all', ces: 'all', linked: 'all', mty: 'all', rtw: 'all',
+    vehicles: 'all', bb: 'all', ces: 'all', linked: 'all', mty: 'all', rtw: 'all', terminal: 'all',
   }
 }

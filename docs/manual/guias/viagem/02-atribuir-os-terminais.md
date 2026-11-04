@@ -18,4 +18,4 @@ A frente de carga cheia no terminal TVV, com o ETB e o ETD.
 
 Escala que também embarca? Na mesma janela, em **Operação da escala**, escolha **Importação + exportação** e marque **Granito** ou **Embarque de vazios**.
 
-Frente sem terminal fica **TBC** ("terminal a confirmar"). A carga que chega depois desta etapa (vazios, carga solta, Granito) cria frente nova em **TBC — pendente**: volte aqui e escolha o terminal dela, senão ela fica fora do ADR de Saída e trava o **Fechar ADR**. Depois do ATA, a escala só grava com terminal em toda frente.
+Frente sem terminal fica **TBC** ("terminal a confirmar"). A carga que chega depois desta etapa (vazios, carga solta, Granito) cria frente nova em **TBC — pendente**: volte aqui e escolha o terminal dela, senão ela fica fora do Aviso de Atracação (NOB) ao Cliente e do ADR de Saída, e trava o **Fechar ADR**. Depois do ATA, a escala só grava com terminal em toda frente. Cinco dias antes do ETA, frente sem terminal abre o alerta **Escala sem terminal** para {{Operações}}, e o **Painel** mostra **TBC** em âmbar (filtro **Terminal** › **Sem terminal**).

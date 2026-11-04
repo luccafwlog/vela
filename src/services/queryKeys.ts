@@ -102,6 +102,10 @@ export const queryKeys = {
     vaziosExportPorts: (voyageId: number) => ['voyage-vazios-export-ports', voyageId] as const,
     escalaTerminal: (voyageId: number, port: string) => ['voyage-escala-terminal', voyageId, port] as const,
     escalaTerminalAll: () => ['voyage-escala-terminal'] as const,
+    /** Escalas com frente sem terminal (`escala_frentes_sem_terminal`, migration 584): Visão geral da Viagem. */
+    escalasSemTerminal: (voyageIds?: number[]) => voyageIds === undefined
+      ? (['voyage-escalas-sem-terminal'] as const)
+      : (['voyage-escalas-sem-terminal', voyageIds] as const),
     timeline: (voyageId: number) => ['voyage-timeline', String(voyageId)] as const,
     manifestosMercante: (voyageId: number) => ['manifestos-mercante', voyageId] as const,
   },

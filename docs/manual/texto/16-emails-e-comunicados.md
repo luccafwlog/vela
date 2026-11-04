@@ -127,6 +127,7 @@ Os e-mails saem um destinatário por vez, e o botão conta "Enviando N de M…" 
 - Não feche nem recarregue a página enquanto o botão conta "Enviando N de M…": o que falta não sai. O navegador pede confirmação antes de sair; se saiu, confira no **Histórico** quem recebeu.
 - O Cliente que já recebeu aquele aviso na mesma escala aparece com "Reenvio N", e o disparo só libera depois de você marcar **Confirmo o reenvio.** Ele recebe de novo.
 - A linha com um motivo em âmbar na **Situação**, como "Sem contato elegível", não pode ser marcada. No NOB, a atracação sem frente de operação atribuída não traz carga nenhuma: atribua a frente na escala ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)).
+- No NOB, o Cliente cuja carga não está em terminal nenhum fica fora da lista, e a conferência avisa acima dela: "Fora do NOB por falta de terminal: … Atribua o terminal da frente em Editar escala." ou, no B/L misto com carga cheia e carga solta em terminais diferentes, "Fora do NOB: … defina a exceção de terminal do B/L." ([7.7](07-ficha-do-bl.md#77-mudar-o-terminal-de-descarga-de-um-bl)). Depois de corrigir, o Cliente entra no NOB do terminal dele.
 :::
 
 ## 16.6 Escrever um Comunicado livre ou institucional

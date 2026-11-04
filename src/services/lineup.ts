@@ -10,6 +10,7 @@ import { supabase } from './supabase'
 import { chunkArray, isDateOnly, mapChunks } from '../lib/utils'
 import { normalizePortCode } from './portCode'
 import { listDepots } from './depots'
+import { escalaSemTerminalKey, fetchEscalasSemTerminal, pendingFrontsForDirection } from './escalaTerminalPendente'
 
 type VoyageStatus = 'active' | 'completed' | 'cancelled' | null
 
@@ -96,6 +97,13 @@ export type LineUpRow = {
   exportMovementsQty: number | null
   exportCeStatus: ExportCeStatus | null
   exportLinked: boolean | null
+  /**
+   * Frentes deste sentido ainda sem terminal (`importacao:*` na linha de
+   * importação, `exportacao:*` na de exportação), pela derivação do banco
+   * (migration 584). Com alguma, o terminal da linha leva "TBC", que o Painel
+   * mostra em âmbar e o filtro Terminal "Sem terminal" separa.
+   */
+  pendingTerminalFronts?: string[]
 }
 
 /** Vazios de importação cujo porto não tem linha de importação no Line-Up. */
@@ -234,6 +242,17 @@ export function projectLineUpTerminalDates({
   }
 }
 
+/**
+ * O "TBC" da linha também diz a frente derivada sem terminal: a escala com a
+ * carga cheia no TVV e a carga solta sem terminal mostra "TVV / TBC", e não só
+ * "TVV" (revisão de 2026-11-04, T2).
+ */
+export function withPendingTerminal(label: string, pendingFronts: readonly string[]): string {
+  if (!pendingFronts.length) return label
+  if (label.split(' / ').includes('TBC')) return label
+  return `${label} / TBC`
+}
+
 export function lineUpScheduleDates(schedule: { ata?: string | null; atb?: string | null; atd?: string | null } | undefined) {
   return {
     ata: schedule?.ata ?? null,
@@ -331,7 +350,7 @@ export async function fetchLineUpSnapshot(
   // resolucao de codigo dentro das duas projecoes de Atracacao; sem
   // compartilhar a promise seriam tres leituras por atualizacao do Line-Up.
   const depotsPromise = listDepots()
-  const [bls, vehicles, vaziosImportacaoMtyByVoyagePort, escalaSchedulesByVoyage, terminalStatesByVoyage, terminalFrontsByVoyage, depots] = await Promise.all([
+  const [bls, vehicles, vaziosImportacaoMtyByVoyagePort, escalaSchedulesByVoyage, terminalStatesByVoyage, terminalFrontsByVoyage, depots, escalasSemTerminal] = await Promise.all([
     fetchBlsByVoyageIds(voyageIds),
     fetchVehiclesByVoyageIds(voyageIds),
     fetchVaziosImportacaoMtyByVoyageIds(voyageIds),
@@ -339,6 +358,7 @@ export async function fetchLineUpSnapshot(
     listVoyageTerminalScaleStatesByVoyageIds(voyageIds, depotsPromise),
     fetchTerminalFrontsByVoyageIds(voyageIds),
     depotsPromise,
+    fetchEscalasSemTerminalOrEmpty(voyageIds),
   ])
 
   const terminalCodes = new Map(
@@ -396,18 +416,21 @@ export async function fetchLineUpSnapshot(
       const schedule = escalasByPort.get(pod)
       const terminalFronts = voyageTerminalFronts.filter((front) => normalizePort(front.port) === pod)
       const terminalStates = voyageTerminalStates.filter((state) => normalizePort(state.port) === pod)
-      const importTerminal = projectLineUpTerminals({
+      const pendingFronts = escalasSemTerminal.get(escalaSemTerminalKey(voyage.id, pod))
+      const importPendingFronts = pendingFrontsForDirection(pendingFronts, 'importacao')
+      const exportPendingFronts = pendingFrontsForDirection(pendingFronts, 'exportacao')
+      const importTerminal = withPendingTerminal(projectLineUpTerminals({
         fronts: terminalFronts,
         terminalStates,
         terminalCodes,
         direction: 'importacao',
-      })
-      const exportTerminal = projectLineUpTerminals({
+      }), importPendingFronts)
+      const exportTerminal = withPendingTerminal(projectLineUpTerminals({
         fronts: terminalFronts,
         terminalStates,
         terminalCodes,
         direction: 'exportacao',
-      })
+      }), exportPendingFronts)
       const importDates = projectLineUpTerminalDates({ fronts: terminalFronts, terminalStates, direction: 'importacao' })
       const exportDates = projectLineUpTerminalDates({ fronts: terminalFronts, terminalStates, direction: 'exportacao' })
       const hasExportSchedule = Boolean(schedule?.temExportacao)
@@ -477,6 +500,7 @@ export async function fetchLineUpSnapshot(
           exportMovementsQty: null,
           exportCeStatus: null,
           exportLinked: null,
+          pendingTerminalFronts: importPendingFronts,
         })
       }
 
@@ -511,6 +535,7 @@ export async function fetchLineUpSnapshot(
           exportMovementsQty: schedule?.movementsQty ?? null,
           exportCeStatus: schedule?.exportCeStatus ?? null,
           exportLinked: schedule?.linked ?? null,
+          pendingTerminalFronts: exportPendingFronts,
         })
       }
     }
@@ -572,6 +597,19 @@ async function fetchTerminalFrontsByVoyageIds(voyageIds: number[]) {
     result.set(row.voyage_id, fronts)
   }
   return result
+}
+
+// ponytail: o destaque da frente sem terminal não derruba o Line-Up (a TV
+// inclusive): sem a leitura (RPC ausente ou falha), a coluna mostra só as
+// frentes gravadas, como antes da migration 584. O alerta "Escala sem
+// terminal" continua cobrando pelo banco; mostrar um aviso de leitura parcial
+// no Painel é o próximo passo se a falha passar a ocorrer.
+async function fetchEscalasSemTerminalOrEmpty(voyageIds: number[]) {
+  try {
+    return await fetchEscalasSemTerminal(voyageIds)
+  } catch {
+    return new Map<string, string[]>()
+  }
 }
 
 function hasActiveEscalaScheduleData(schedule: {

@@ -89,6 +89,8 @@ A frente ainda sem terminal fica como **TBC** ("terminal a confirmar"). Pode fic
 
 As frentes nascem do que a escala tem: a importação e a exportação declaradas, os B/Ls (inclusive os que chegam em transbordo de uma escala omitida), os vazios de importação, o Granito importado e o Embarque de vazios. A carga que chega depois que os terminais foram escolhidos, como a carga solta ou os vazios importados mais tarde, cria a frente dela em TBC: volte à escala e escolha o terminal. Enquanto houver frente em TBC, o que ela traz fica fora do ADR de Saída, e nenhum ADR da escala fecha (capítulo 11).
 
+O Vela cobra o terminal: cinco dias antes do ETA da escala, se alguma frente está sem terminal, abre o alerta **Escala sem terminal** para {{Operações}}, que avisa de novo quando o ATA é registrado e a frente continua sem terminal ([20.4](20-alertas.md#204-viagem-e-datas)). Sem terminal, a carga fica fora do Aviso de Atracação (NOB) ao Cliente, do ADR de Saída e do EDI Mercante. Para achar essas escalas, o **Painel** mostra **TBC** em âmbar e tem o filtro **Terminal** › **Sem terminal** ([5.7](05-programacao.md#57-acompanhar-o-line-up-e-a-tela-tv)); na ficha da Viagem, a coluna **Terminal** do **Planejamento por escala** mostra os terminais da escala e o **TBC** em âmbar.
+
 ::: atencao
 - Depois que a escala foi salva, mudar o que já aconteceu (terminal de uma frente, ATB, ATD) pede uma justificativa. Ela fica no histórico.
 - Se o terminal já tem o ADR de Saída fechado, o Vela não deixa mudar a atracação. Reabra o ADR antes (capítulo 11). E a atracação de um terminal não sai, nem na troca de terminal, quando algum B/L desse terminal (ou ainda sem terminal) já tem CE Mercante ou fatura. A frente em TBC ganha terminal sem essa trava.
@@ -105,7 +107,9 @@ As datas mudam o tempo todo: o armador atrasa o navio, o navio chega, atraca, sa
 2. Mude o **ETA** ou, quando o navio chegar, informe o **ATA**. Atracação e saída vão no cartão do terminal ([4.3](#43-atribuir-os-terminais)).
 3. Clique em **Salvar escala**.
 
-Você não precisa avisar ninguém: a data nova chega sozinha ao Line-Up, a Chegadas e Saídas, ao Portal do Cliente e ao site fwlog.com.br (se a Viagem está publicada) e aos avisos de chegada e atracação que o Vela manda ao Cliente. E o Vela cobra o que falta: quando o ETA passa sem o ATA registrado, ou o ETB passa sem o ATB, abre um alerta para a equipe.
+Você não precisa avisar ninguém: a data nova chega sozinha ao Line-Up, a Chegadas e Saídas, ao Portal do Cliente e ao site fwlog.com.br (se a Viagem está publicada) e aos avisos de chegada e atracação que o Vela manda ao Cliente. E o Vela cobra o que falta: quando o ETA passa sem o ATA registrado, quando o ATA chega e um terminal ainda não tem ETB, ou quando o ETB passa sem o ATB, abre um alerta para a equipe.
+
+O navio atraca depois de chegar ao porto: o Vela recusa o ATB anterior ao ATA ("O ATB do terminal … não pode ser anterior ao ATA da escala."). Se uma das duas datas está errada, corrija as duas na mesma gravação. Já o ETB anterior ao ETA só ganha um aviso no cartão do terminal ("ETB anterior ao ETA da escala: confira se o armador mudou a chegada."): é o que acontece quando o armador atrasa o navio e o ETB ficou como estava. Salve normalmente depois de conferir.
 
 A **Próxima escala**, no alto da ficha, é a escala de menor ETA que ainda não teve chegada. Ela só passa a vez quando você registra o ATA: um ETA vencido continua ali, marcado "· vencido", para lembrar que falta registrar a chegada.
 

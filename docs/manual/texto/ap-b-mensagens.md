@@ -52,6 +52,7 @@ Quando o Vela recusa uma ação, a mensagem quase sempre diz o motivo com as pal
 | Mensagem | O que quer dizer | O que fazer |
 |---|---|---|
 | "Frente TBC impede o fechamento do ADR: …" | Uma frente da escala está sem terminal; a mensagem diz quais (carga solta, vazios de importação, Granito, embarque de vazios…). | Escolha o terminal em **Editar escala** ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)); no Embarque de vazios antigo, em **Definir terminal** ([10.5](10-veiculos-vazios-granito.md#105-registrar-o-embarque-de-vazios)). |
+| "O ATB do terminal … não pode ser anterior ao ATA da escala." (na janela da escala) ou "ATB anterior ao ATA da escala: o navio atraca depois de chegar ao porto. Corrija o ATA ou o ATB do terminal …." | A atracação num terminal ficou antes da chegada ao porto. Aparece ao salvar a escala ou ao confirmar a chegada em **Chegadas e Saídas** depois do ATB. | Confira qual data está errada e corrija em **Editar escala**: o ATA da escala ou o ATB no cartão do terminal. Os dois podem ser corrigidos na mesma gravação ([4.4](04-viagens-escalas.md#44-manter-as-datas-do-navio-em-dia)). |
 | "A escala … tem Embarque de vazios: a frente Vazios EXP não volta para TBC nem sai enquanto o embarque existir. Para trocar, escolha outro terminal." | Com o embarque, a frente de vazios da exportação fica com terminal. | Troque o terminal, se for o caso. Embarque criado na escala errada: o {{Administrativo}} o exclui, se ainda está vazio ([10.5](10-veiculos-vazios-granito.md#105-registrar-o-embarque-de-vazios)). |
 
 ## B/L e containers

@@ -53,6 +53,16 @@ describe('cache effects', () => {
     ])))
   })
 
+  // Revisão de 2026-11-04 (D5): o TBC em âmbar da Visão geral segue a gravação
+  // da escala e a carga importada depois (frente derivada sem terminal).
+  it('gravar a escala e importar carga relêem as frentes sem terminal da Visão geral', async () => {
+    for (const effect of [afterEscalaAlterada, afterManifestoImportado, afterViagemAlterada, afterEmbarqueVaziosNaEscala]) {
+      const { client, keys } = fakeQueryClient()
+      await effect(client, { voyageId: 24 })
+      expect(keys()).toContain(JSON.stringify(['voyage-escalas-sem-terminal']))
+    }
+  })
+
   it('embarque de vazios na escala relê a escala inteira e os portos do Embarque', async () => {
     const { client, keys } = fakeQueryClient()
     await afterEmbarqueVaziosNaEscala(client, { voyageId: 24 })
