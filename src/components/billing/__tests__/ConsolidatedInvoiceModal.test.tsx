@@ -38,6 +38,11 @@ vi.mock('../../../hooks/useBls', () => ({
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm }))
 
+const SECOND_BL = {
+  receivable_id: 93, bl_id: 'BL-93', balance_brl: 100, eligibility_status: 'eligible', receivable_status: 'open',
+  voyage_id: 7, vessel_name: 'Navio Azul', voyage_number: 'V7', individual_invoice_id: null, individual_invoice_number: null,
+}
+
 import { ConsolidatedInvoiceModal } from '../ConsolidatedInvoiceModal'
 
 afterEach(() => {
@@ -116,17 +121,18 @@ describe('ConsolidatedInvoiceModal — seletor de cliente', () => {
       voyage_number: 'V7',
       individual_invoice_id: null,
       individual_invoice_number: null,
-    }]
+    }, SECOND_BL]
     const user = userEvent.setup()
     const input = openModal()
     await chooseCustomer(user, input, 'gol', 'GOLDEN LOGISTICA INTERNACIONAL LTDA')
     await user.click(screen.getByRole('checkbox', { name: 'Selecionar B/L BL-91' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Selecionar B/L BL-93' }))
     await user.click(screen.getByRole('button', { name: 'Emitir consolidada' }))
 
     await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce())
     const options = mocks.confirm.mock.calls[0][0]
     const plain = (value: string) => value.replace(/\s/g, ' ')
-    expect(plain(options.message)).toContain('R$ 1.250,00')
+    expect(plain(options.message)).toContain('R$ 1.350,00')
     expect(options.affected.items.map(plain)).toContain('B/L BL-91 · R$ 1.250,00 · Navio Azul V7')
     expect(options.consequence).toContain('recebíveis selecionados')
     expect(mocks.create).not.toHaveBeenCalled()
@@ -136,12 +142,13 @@ describe('ConsolidatedInvoiceModal — seletor de cliente', () => {
     mocks.receivables = [{
       receivable_id: 92, bl_id: 'BL-92', balance_brl: 900, eligibility_status: 'eligible', receivable_status: 'open',
       voyage_id: 7, vessel_name: 'Navio Azul', voyage_number: 'V7', individual_invoice_id: null, individual_invoice_number: null,
-    }]
+    }, SECOND_BL]
     mocks.summaries = [{ bl_id: 'BL-92', manual_exempt: false, items: [{ charge_name: 'THD', excluded: false }] }]
     const user = userEvent.setup()
     const input = openModal()
     await chooseCustomer(user, input, 'gol', 'GOLDEN LOGISTICA INTERNACIONAL LTDA')
     await user.click(screen.getByRole('checkbox', { name: 'Selecionar B/L BL-92' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Selecionar B/L BL-93' }))
     await user.click(screen.getByRole('button', { name: 'Emitir consolidada' }))
 
     await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce())
@@ -163,15 +170,29 @@ describe('ConsolidatedInvoiceModal — seletor de cliente', () => {
       voyage_number: null,
       individual_invoice_id: null,
       individual_invoice_number: null,
-    }]
+    }, SECOND_BL]
     mocks.confirm.mockResolvedValue(true)
     mocks.create.mockResolvedValue({ invoice_number: 'CON-91', total_brl: 1250 })
     const user = userEvent.setup()
     const input = openModal()
     await chooseCustomer(user, input, 'gol', 'GOLDEN LOGISTICA INTERNACIONAL LTDA')
     await user.click(screen.getByRole('checkbox', { name: 'Selecionar B/L BL-91' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Selecionar B/L BL-93' }))
     await user.click(screen.getByRole('button', { name: 'Emitir consolidada' }))
 
-    await waitFor(() => expect(mocks.create).toHaveBeenCalledWith({ customerId: 2, receivableIds: [91] }))
+    await waitFor(() => expect(mocks.create).toHaveBeenCalledWith({ customerId: 2, receivableIds: [91, 93] }))
+  })
+
+  // Decisão do dono de 2026-11-04 (migration 591): com um B/L só, vale a fatura individual.
+  it('não emite a consolidada de um B/L só: o botão fica desligado e diz por quê', async () => {
+    mocks.receivables = [SECOND_BL]
+    const user = userEvent.setup()
+    const input = openModal()
+    await chooseCustomer(user, input, 'gol', 'GOLDEN LOGISTICA INTERNACIONAL LTDA')
+    await user.click(screen.getByRole('checkbox', { name: 'Selecionar B/L BL-93' }))
+
+    expect((screen.getByRole('button', { name: 'Emitir consolidada' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText('A fatura consolidada precisa de pelo menos dois B/Ls. Para um B/L só, use a fatura individual dele.')).toBeTruthy()
+    expect(mocks.confirm).not.toHaveBeenCalled()
   })
 })

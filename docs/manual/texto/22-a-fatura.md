@@ -116,6 +116,8 @@ A consolidada junta o saldo em aberto de vários B/Ls do mesmo Cliente numa fatu
 3. Marque os B/Ls. A coluna **Pode consolidar** diz por que um B/L não entra.
 4. Clique em **Emitir consolidada** e confirme.
 
+A consolidada pede pelo menos dois B/Ls. Com um B/L só marcado, **Emitir consolidada** fica apagado com "A fatura consolidada precisa de pelo menos dois B/Ls. Para um B/L só, use a fatura individual dele.", e o sistema recusa com a mesma frase. Vale também para o Cliente no Portal. As consolidadas de um B/L só emitidas antes dessa regra (2026-11-04) continuam valendo.
+
 O total é a soma dos saldos em aberto, não dos valores originais. O B/L ainda sem fatura também pode entrar: ele passa pelas mesmas conferências do **Emitir** e fica faturado.
 
 O pagamento decide o que acontece depois:

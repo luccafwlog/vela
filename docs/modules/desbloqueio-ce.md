@@ -59,12 +59,14 @@ Manifesto Mercante é regra de
   solicitação") e tabela limpa: B/L, CE Mercante, Navio / Viagem, POD,
   Taxas locais ("✓ Pagas", "Em aberto" em âmbar, que é o próprio link, em texto, sem borda nem ícone (desde 2026-11-02; antes, ícone "Ver faturas em aberto" ao lado) e abre Faturas filtrada no B/L e no status Emitida (`?tab=local&status=issued&bl=`, desde 2026-11-01), "Aguardando fatura" sem valor,
   "Isentas") e Solicitação (protocolo e situação; no veículo LCL isento, "Não precisa · entregue o B/L
-  original", sem caixa de seleção, e uma linha sob "O que o desbloqueio pede" explica a regra; no VIP
-  coberto, "Não precisa (VIP) · " com o que falta ("Falta pagar as taxas locais e entregar o B/L original"
-  em âmbar) e, pago e entregue, "Apto ao desbloqueio (VIP) · Pagamento e entrega confirmados" ou
-  "Apto ao desbloqueio (VIP) · Documentação validada · prazo até dd/mm, HH:MM", seguidos do mesmo
-  próximo passo da solicitação validada, "consulte o SISCARGA para verificar o desbloqueio" (decisão
-  do dono de 2026-11-04; antes, "Não precisa (VIP) · Validação em até 5 minutos"),
+  original" e, com a entrega registrada e o prazo dado, "B/L original entregue. Prazo para desbloqueio
+  até dd/mm, HH:MM. Consulte o SISCARGA." (pedido do dono de 2026-11-04; antes, a frase da entrega
+  pendente ficava mesmo com o B/L entregue), sem caixa de seleção, e uma linha sob "O que o desbloqueio
+  pede" explica a regra; no VIP coberto, "Não precisa (VIP) · " com o que falta ("Falta pagar as taxas
+  locais e entregar o B/L original" em âmbar) e, pago e entregue, "Pagamento e entrega confirmados.
+  Consulte o SISCARGA." ou "Documentação validada. Prazo para desbloqueio até dd/mm, HH:MM. Consulte o
+  SISCARGA." (decisões do dono de 2026-11-04; antes, "Não precisa (VIP) · Validação em até 5 minutos" e,
+  por algumas horas, "Apto ao desbloqueio (VIP) · … · consulte o SISCARGA para verificar o desbloqueio"),
   também sem caixa de seleção,
   [B/L dispensado de solicitação](#bl-dispensado-de-solicitação-veículo-lcl-isento-e-vip)). Além de "Buscar B/L ou CE", a barra **Filtros**
   (recolhida, como no resto do Portal) filtra por Navio e Viagem por texto contido, e os cartões contam esse recorte
@@ -369,7 +371,7 @@ comum). Pagas as Taxas Locais e entregue o original, ele fica apto, sem solicita
 - **Prazo.** Só depois da validação (ou da exportação), a partir do último fato: entrega,
   baixa, avulsa, aprovação dos anuais, habilitação do VIP ou a validação, até a exportação.
   Entre a baixa fora do módulo e a varredura, o B/L já é apto e ainda não tem prazo (o Portal
-  diz "Apto ao desbloqueio (VIP) · Pagamento e entrega confirmados", sem prazo).
+  diz "Pagamento e entrega confirmados. Consulte o SISCARGA.", sem prazo).
 - **Solicitação automática (estudo de 2026-11-04).** O dono pediu para estudar uma solicitação
   criada pelo sistema para o B/L VIP apto, para espelhar a comunicação da solicitação comum. A
   comunicação já é a mesma: na validação o Cliente recebe o aviso "documentação validada", no sino

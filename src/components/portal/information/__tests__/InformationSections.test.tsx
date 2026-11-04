@@ -101,6 +101,20 @@ describe('Central de Informações', () => {
     expect(screen.getByText('Salvador container')).toBeTruthy()
   })
 
+  // Pedido do dono de 2026-11-04: Vitória CNTR, Vitória Carga Solta, Salvador CNTR, Salvador Carga Solta.
+  it('ordena as tabelas por porto (Vitória antes de Salvador) e, em cada porto, Container antes de Carga Solta', () => {
+    const table = (id: number, name: string, pod: string, cargo_mode: string) => ({ ...information.local_tables[0], id, name, pod, cargo_mode, items: [] })
+    render(<LocalFeesSection information={{ ...information, local_tables: [
+      table(1, 'Salvador Carga Solta 2026', 'BRSSA', 'carga_solta'),
+      table(2, 'Vitoria Carga Solta 2026', 'BRVIX', 'carga_solta'),
+      table(3, 'Salvador CNTR 2026', 'BRSSA', 'container'),
+      table(4, 'Vitoria CNTR 2026', 'BRVIX', 'container'),
+    ] }} pod="" />)
+    expect(screen.getAllByRole('heading').map((heading) => heading.textContent)).toEqual([
+      'Vitoria CNTR 2026', 'Vitoria Carga Solta 2026', 'Salvador CNTR 2026', 'Salvador Carga Solta 2026',
+    ])
+  })
+
   it('mostra um bloco por tabela, com porto, modalidade e vigência na faixa e tabela limpa', async () => {
     render(<LocalFeesSection information={information} pod="BRSSA" />)
     expect(screen.queryByText('Vitória container')).toBeNull()

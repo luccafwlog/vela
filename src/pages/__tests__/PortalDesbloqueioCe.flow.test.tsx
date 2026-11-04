@@ -305,6 +305,24 @@ it("veículo LCL isento não entra na solicitação: basta entregar o B/L origin
   expect((screen.getByLabelText("Selecionar B/L BL-A") as HTMLInputElement).disabled).toBe(true);
 });
 
+// Pedido do dono de 2026-11-04: com a entrega registrada no Vela, o Portal deixava
+// "entregue o B/L original" como se ainda faltasse.
+it("veículo LCL isento com o B/L original entregue mostra o prazo e o SISCARGA, não a entrega pendente", async () => {
+  svc.listPortalCeUnlockBls.mockResolvedValue({
+    items: [
+      bl({ paid_exempt: true, documents_dispensed: true, direct: true, can_submit: false, delivered: true, sla_started_at: "2026-11-03T10:00:00-03:00" }),
+      bl({ bl_id: "BL-B", paid_exempt: true, documents_dispensed: true, direct: true, can_submit: false, delivered: false }),
+    ],
+    total: 2,
+  });
+  mount();
+  await screen.findByLabelText("Selecionar B/L BL-B");
+  const row = (id: string) => screen.getByLabelText(`Selecionar B/L ${id}`).closest("tr")!;
+  expect(row("BL-A").textContent).toMatch(/B\/L original entregue\. Prazo para desbloqueio até 03\/11, \d{2}:\d{2}\. Consulte o SISCARGA\.$/);
+  expect(row("BL-A").textContent).not.toContain("entregue o B/L original");
+  expect(row("BL-B").textContent).toContain("Não precisa · entregue o B/L original");
+});
+
 // Ponto 5 de 2026-10-23: o motivo da recusa que o operador do Vela escreveu
 // aparece inteiro no Portal, com as quebras de linha, na solicitação e na
 // lista de protocolos; antes o Portal cortava em 40 letras.

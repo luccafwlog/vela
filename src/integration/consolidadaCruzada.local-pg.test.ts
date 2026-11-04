@@ -86,8 +86,9 @@ describeLocal('356 — consolidada e individuais coerentes', () => {
   it('estorno revive só a consolidada obsoletada pelo próprio pagamento, quando ela não tem sucessora', () => {
     const [f] = issued(['F4'])
     const [k] = issued(['K4'])
-    const solo = w.consolidate([f.id])
-    const other = w.consolidate([k.id])
+    // Consolidadas de um B/L só, como as de antes da 591.
+    const solo = w.consolidateSolo(f.id)
+    const other = w.consolidateSolo(k.id)
     const paidF = w.pay(f.invoice, 100)
     expect(w.invoice(solo).status).toBe('obsolete')
     expect(w.successorOf(solo)).toBeNull()
@@ -100,9 +101,9 @@ describeLocal('356 — consolidada e individuais coerentes', () => {
   })
 
   it('um B/L fica em uma consolidada aberta só', () => {
-    const [m, n] = issued(['M5', 'N5'])
+    const [m, n, o] = issued(['M5', 'N5', 'O5'])
     w.consolidate([m.id, n.id])
-    const again = w.as('administrativo', `SELECT public.create_local_consolidated_invoice(${w.customerId}, ARRAY[${w.receivableId(m.id)}]::bigint[], NULL, '${w.actors.administrativo}'::uuid)`)
+    const again = w.as('administrativo', `SELECT public.create_local_consolidated_invoice(${w.customerId}, ARRAY[${w.receivableId(m.id)}, ${w.receivableId(o.id)}]::bigint[], NULL, '${w.actors.administrativo}'::uuid)`)
     expect(again.status).not.toBe(0)
     expect(again.stderr).toMatch(/consolidada aberta/)
   })
@@ -143,7 +144,8 @@ describeLocal('356 — consolidada e individuais coerentes', () => {
     w.calculate(u)
     // CE gravado sem a emissão do gatilho: o B/L fica sem individual.
     w.psql(`SET session_replication_role = replica; UPDATE public.bls SET ce_mercante = '936500000000001' WHERE id = '${u}'; SET session_replication_role = origin;`)
-    w.consolidate([u])
+    const [x, y] = issued(['X8', 'Y8'])
+    w.consolidate([u, x.id])
     expect(w.psql(`SELECT financial_status FROM public.bls WHERE id = '${u}'`)).toBe('invoiced')
     const emit = w.as('administrativo', `SELECT public.mark_bl_ready_and_create_invoice('${u}')`)
     expect(emit.status).not.toBe(0)
@@ -152,7 +154,19 @@ describeLocal('356 — consolidada e individuais coerentes', () => {
     // Sem CE, a consolidada é recusada como o Emitir.
     const v = w.createBl('V8')
     w.calculate(v)
-    const refused = w.as('administrativo', `SELECT public.create_local_consolidated_invoice(${w.customerId}, ARRAY[${w.receivableId(v)}]::bigint[], NULL, '${w.actors.administrativo}'::uuid)`)
+    const refused = w.as('administrativo', `SELECT public.create_local_consolidated_invoice(${w.customerId}, ARRAY[${w.receivableId(v)}, ${w.receivableId(y.id)}]::bigint[], NULL, '${w.actors.administrativo}'::uuid)`)
     expect(refused.status).not.toBe(0)
+    expect(refused.stderr).not.toMatch(/pelo menos dois B\/Ls/)
+  })
+
+  // Decisão do dono de 2026-11-04 (migration 591): consolidada só com dois B/Ls ou mais,
+  // no Vela e no Portal; dois recebíveis do mesmo B/L contam como um.
+  it('consolidada de um B/L só é recusada no Vela, e nada é emitido', () => {
+    const [z] = issued(['Z9'])
+    const before = w.psql(`SELECT count(*) FROM public.invoices WHERE invoice_type = 'consolidated' AND customer_id = ${w.customerId}`)
+    const refused = w.as('administrativo', `SELECT public.create_local_consolidated_invoice(${w.customerId}, ARRAY[${w.receivableId(z.id)}]::bigint[], NULL, '${w.actors.administrativo}'::uuid)`)
+    expect(refused.status).not.toBe(0)
+    expect(refused.stderr).toContain('A fatura consolidada precisa de pelo menos dois B/Ls. Para um B/L só, use a fatura individual dele.')
+    expect(w.psql(`SELECT count(*) FROM public.invoices WHERE invoice_type = 'consolidated' AND customer_id = ${w.customerId}`)).toBe(before)
   })
 })

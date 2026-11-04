@@ -3,7 +3,7 @@ import { Block } from '../../ui/Block'
 import { EmptyState } from '../../ui/Card'
 import { Field, Select } from '../../ui/Input'
 import { NoValue } from '../../ui/NoValue'
-import { isPortalServicePort, normalizeInformationPort } from '../../../services/informationPort'
+import { isPortalServicePort, normalizeInformationPort, portalServicePorts } from '../../../services/informationPort'
 import { cargoModeLabel } from '../../../lib/cargoMode'
 import { applicationBasisLabel } from '../../billing/conferenciaCalculo'
 import { formatBRL, formatDate, formatUSD } from '../../../lib/utils'
@@ -24,6 +24,23 @@ function itemValue(item: LocalReferenceItem) {
   return item.unit_value_usd == null ? 'Sob consulta' : formatUSD(item.unit_value_usd)
 }
 
+/**
+ * Ordem das tabelas (pedido do dono de 2026-11-04): por porto, na ordem dos portos
+ * atendidos (Vitória, Salvador, Suape), e em cada porto Container antes de Carga
+ * Solta. Empate fica na ordem que o banco mandou.
+ */
+const CARGO_MODE_ORDER = ['container', 'carga_solta']
+const rank = (list: readonly string[], value: string | null) => {
+  const index = value == null ? -1 : list.indexOf(value)
+  return index === -1 ? list.length : index
+}
+function sortLocalTables<T extends { pod: string | null; cargo_mode: string | null }>(tables: T[]): T[] {
+  const ports = portalServicePorts.map((port) => port.code)
+  return [...tables].sort((a, b) =>
+    rank(ports, normalizeInformationPort(a.pod)) - rank(ports, normalizeInformationPort(b.pod))
+    || rank(CARGO_MODE_ORDER, a.cargo_mode ?? 'container') - rank(CARGO_MODE_ORDER, b.cargo_mode ?? 'container'))
+}
+
 function validity(from: string, to: string | null) {
   return to ? `vigência ${formatDate(from)} a ${formatDate(to)}` : `vigente desde ${formatDate(from)}`
 }
@@ -34,7 +51,7 @@ export function LocalFeesSection({ information, pod, filters }: { information: P
   const [cargoMode, setCargoMode] = useState('')
   const supportedTables = information.local_tables.filter(table => isPortalServicePort(table.pod))
   const modes = [...new Set(supportedTables.map((table) => table.cargo_mode))]
-  const tables = supportedTables.filter((table) => (!pod || normalizeInformationPort(table.pod) === normalizeInformationPort(pod)) && (!cargoMode || table.cargo_mode === cargoMode))
+  const tables = sortLocalTables(supportedTables).filter((table) => (!pod || normalizeInformationPort(table.pod) === normalizeInformationPort(pod)) && (!cargoMode || table.cargo_mode === cargoMode))
   return <div className="grid gap-4">
     <FilterRow note="Valores oficiais das tabelas. O que foi cobrado do seu B/L está na fatura.">
       {filters}

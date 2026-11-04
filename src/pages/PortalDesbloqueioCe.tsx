@@ -170,18 +170,41 @@ function includesText(value: string | null | undefined, term: string) {
   return !needle || (value ?? "").toLowerCase().includes(needle);
 }
 
-function VipDirectCell({ item }: { item: CeUnlockItem }) {
-  const status = ceVipDirectStatus(item);
-  // Com tudo cumprido, o B/L está apto e o Cliente confere no SISCARGA, como na
-  // solicitação validada (decisão do dono de 2026-11-04).
+/**
+ * B/L sem solicitação com tudo cumprido: o que se cumpriu, o prazo (quando o banco já
+ * deu `sla_started_at`) e o SISCARGA. Frase curta (pedido do dono de 2026-11-04):
+ * "Documentação validada. Prazo para desbloqueio até 04/11, 12:00. Consulte o SISCARGA."
+ */
+function DirectReadyText({ label, slaStartedAt }: { label: string; slaStartedAt?: string | null }) {
   return (
     <>
-      {status.ready ? "Apto ao desbloqueio (VIP) · " : "Não precisa (VIP) · "}
-      <StatusText tone={status.tone}>{status.label}</StatusText>
-      {item.sla_started_at ? ` · prazo até ${formatCeUnlockDeadline(ceUnlockDeadline(item.sla_started_at))}` : null}
-      {status.ready ? ` · ${CE_SISCARGA_STEP}` : null}
+      <StatusText tone="paid">{label}.</StatusText>
+      {slaStartedAt ? ` Prazo para desbloqueio até ${formatCeUnlockDeadline(ceUnlockDeadline(slaStartedAt))}.` : null}
+      {" Consulte o SISCARGA."}
     </>
   );
+}
+
+function VipDirectCell({ item }: { item: CeUnlockItem }) {
+  const status = ceVipDirectStatus(item);
+  // Com tudo cumprido, o Cliente confere no SISCARGA, como na solicitação validada
+  // (decisões do dono de 2026-11-04: sem o "Apto ao desbloqueio (VIP)" na frente).
+  if (status.ready) return <DirectReadyText label={status.label} slaStartedAt={item.sla_started_at} />;
+  return (
+    <>
+      {"Não precisa (VIP) · "}
+      <StatusText tone={status.tone}>{status.label}</StatusText>
+    </>
+  );
+}
+
+/**
+ * Veículo LCL com Taxas Locais isentas (migration 575): só falta a entrega do B/L
+ * original. Entregue, o banco dá o prazo a partir da entrega; antes, o passo do Cliente.
+ */
+function DispensedCell({ item }: { item: CeUnlockItem }) {
+  if (item.delivered && item.sla_started_at) return <DirectReadyText label="B/L original entregue" slaStartedAt={item.sla_started_at} />;
+  return <StatusText tone="muted">{item.delivered ? "Não precisa · B/L original entregue" : "Não precisa · entregue o B/L original"}</StatusText>;
 }
 
 export function PortalDesbloqueioCe() {
@@ -779,7 +802,7 @@ export function PortalDesbloqueioCe() {
                             ) : i.documents_dispensed ? (
                               // Veículo LCL com Taxas Locais isentas não pede solicitação nem documentos:
                               // só a entrega do B/L original na agência (migration 575).
-                              <StatusText tone="muted">Não precisa · entregue o B/L original</StatusText>
+                              <DispensedCell item={i} />
                             ) : i.direct && i.vip_direct ? (
                               // VIP coberto pelos anuais: sem solicitação; o que falta ao Cliente ou a
                               // documentação validada, com o prazo (migration 581).
