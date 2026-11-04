@@ -24,16 +24,20 @@
 -- O job apaga, todo dia, só linhas de `cron.job_run_details` (registro interno
 -- do pg_cron: jobid, horário, situação e mensagem de cada execução) com
 -- `end_time` de mais de 14 dias. Nenhuma tabela de negócio (B/L, Viagem, Pix,
--- CE, Demurrage, Portal, `audit_logs`) nem Storage é tocada. As linhas apagadas
--- não ficam guardadas: são telemetria de execução, sem valor de negócio, e o
--- resultado de cada rotina continua no próprio efeito dela (Alertas,
--- `audit_logs`, tabelas de fila). Quem precisar de uma execução antiga deve
--- copiá-la antes do 14º dia. Conferir no dia seguinte ao deploy:
+-- CE, Demurrage, Portal, `audit_logs`) nem Storage é tocada. São telemetria de
+-- execução, sem valor de negócio; o resultado de cada rotina continua no próprio
+-- efeito dela (Alertas, `audit_logs`, tabelas de fila).
+-- Onde ficam os valores anteriores: em lugar nenhum, por decisão do dono. Em
+-- 2026-11-04 o dono aceitou perder o acumulado (~182 mil linhas, desde
+-- 2026-04-18) sem export, na revisão da PR desta migration; uma cópia dentro do
+-- banco anularia o ganho de disco que motivou a limpeza. Daqui em diante, quem
+-- precisar de uma execução antiga copia a linha antes do 14º dia.
+-- Conferir no dia seguinte ao deploy:
 --   SELECT status, return_message, start_time FROM cron.job_run_details
 --    WHERE jobid = (SELECT jobid FROM cron.job WHERE jobname = 'cleanup-cron-run-details')
 --    ORDER BY start_time DESC LIMIT 1;  -- succeeded
 --   SELECT min(start_time) FROM cron.job_run_details;  -- ~ now() - 14 days
--- Desfazer (para a limpeza; o que já foi apagado não volta):
+-- Desfazer (para a limpeza; o que já foi apagado não volta, perda aceita acima):
 --   SELECT cron.unschedule('cleanup-cron-run-details');
 
 DO $schedule_586$
