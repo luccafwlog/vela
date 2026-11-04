@@ -510,6 +510,8 @@ BEGIN
     JOIN public.customers AS c ON c.id = b.customer_id
     WHERE b.voyage_id = p_voyage_id
       AND b.cancelled_at IS NULL
+      -- Mesmo recorte dos alvos da régua (318): B/L cancelado no financeiro não recebe NOB.
+      AND COALESCE(b.financial_status, 'pending') <> 'cancelled'
       AND c.deactivated_at IS NULL
       AND public.normalize_port_code(b.pod) = v_port
       AND public.resolve_bl_terminal_id(b.id) IS NULL
