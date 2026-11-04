@@ -154,7 +154,7 @@ it('ALE-D05: "Consulta de Pix do Itaú parada" resolve com justificativa e mant�
 
   const row = rowOf('Consulta Itaú parada há 20 minutos')
   fireEvent.click(within(row).getByRole('button', { name: /^Abrir Conciliação/ }))
-  expect(navigate).toHaveBeenCalledWith('/reconciliacao?tab=pendencias')
+  expect(navigate).toHaveBeenCalledWith('/reconciliacao?tab=recebidos')
   fireEvent.click(within(row).getByRole('button', { name: /^Resolver / }))
   await waitFor(() => expect(confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({ title: 'Resolver com justificativa' })))
 })

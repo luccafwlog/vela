@@ -598,3 +598,13 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   - 17.11 com o aviso de que as páginas do site entram no ar com a publicação;
     capturas novas `prazo-do-adr` (25.9, com um ADR fechado no cenário) e
     `pix-itau-ligado` (24.1).
+- **Conciliação PIX em duas abas** (decisão do dono de 2026-11-04, opção A;
+  tela, sem migration): **Pendências** e **Conciliar extrato** entram em **Pix
+  recebidos**. O que pede ação fica no topo da aba e cada bloco só aparece com
+  o que tratar; o número da aba só aparece maior que zero; o extrato abre numa
+  janela no molde de importação, que pergunta antes de descartar linhas
+  prontas; o botão fica desativado, com a dica, para quem não concilia (19.6,
+  20.10, 24.1 a 24.3; REC-001 a REC-004, REC-006, REC-025, REC-033, REC-034,
+  REC-037, REC-039, REC-042, REC-043, REC-045, REC-047, REC-052, REC-053 e o
+  destino de `alerta:pix_unreconciled` na matriz 12; as capturas
+  `pix-recebidos` e `pix-itau-ligado` abrem o endereço novo).

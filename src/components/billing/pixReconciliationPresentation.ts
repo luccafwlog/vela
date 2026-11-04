@@ -118,7 +118,7 @@ export function pendingExceptionReason(exception: Pick<PixReconciliationExceptio
 
 /**
  * Motivo de uma linha do extrato que fica como exceção, com as mesmas
- * palavras de Pendências: linha sem identificador não é "nenhuma fatura usa".
+ * palavras de Exceções do extrato: linha sem identificador não é "nenhuma fatura usa".
  */
 export function extractLineReason(match: Pick<UnifiedPixMatch, 'transaction' | 'ambiguityReason' | 'source'>): string {
   if (!match.transaction.txid.trim()) return NO_TXID_REASON
@@ -239,13 +239,13 @@ export function historyRowStatus(row: Pick<ReconciliationHistoryRow, 'source' | 
   return { label: INVOICE_STATUS_LABELS[row.status] ?? (row.status || '—'), kind: 'other' }
 }
 
-/** O que a aba Pendências conta: só o que pede uma decisão de quem opera. */
+/** O que a aba Pix recebidos conta (antes, a aba Pendências): só o que pede uma decisão de quem opera. */
 export function countPixPending(monitor: Pick<ItauPixMonitor, 'receipts' | 'charges'> | undefined, exceptions: readonly unknown[] | undefined): number | null {
   if (!monitor || !exceptions) return null
   return monitor.receipts.length + exceptions.length + monitor.charges.filter((charge) => itauChargeState(charge).needsAction).length
 }
 
-// Aba Pix recebidos (ADR 0100).
+// Lista da aba Pix recebidos (ADR 0100).
 
 const RECEIPT_ORIGIN: Record<ItauPixReceiptOrigin, string> = {
   vela: 'Cobrança do Vela',
