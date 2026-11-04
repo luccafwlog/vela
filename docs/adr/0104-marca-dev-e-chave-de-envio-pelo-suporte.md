@@ -2,6 +2,8 @@
 
 > **Situação atual (2026-11-03).** Decisão do dono: o bloco **Canal de envio** em Comunicação com Clientes só aparece para a conta Dev; os demais setores deixam de ver o estado da chave (antes viam "Envio real" ou "Redirecionado ao suporte", sem a chave). A regra de quem troca a chave não muda. Regra vigente em [Clientes](../modules/clientes.md#chave-de-envio-de-comunicados).
 
+> **Situação atual (2026-11-04).** Decisão do dono: a conta Dev pode tudo o que qualquer setor pode (migration `583`). O item 5 previa que outras permissões especiais entrassem na marca depois; a primeira são as ações do Financeiro que saíram do Administrativo (baixa, cancelamento de baixa, Conciliação Pix e Restituição), por `is_financeiro_or_dev_user()`. A marca segue dada só por migration e com as mesmas condições (conta ativa, Administrativo e de pessoa). Regra vigente em [Segurança](../operations/seguranca.md#modelo-de-permissões-por-perfil).
+
 Status: aceito — 2026-10-27 (decisões do dono; lote 1 do
 [plano de correções](../archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md)).
 Implementada na migration `469` e nas Edge Functions de e-mail

@@ -1,4 +1,4 @@
--- 586: limpeza diária do histórico de execução do pg_cron (`cron.job_run_details`).
+-- 589: limpeza diária do histórico de execução do pg_cron (`cron.job_run_details`).
 --
 -- Contexto (produção, 2026-11-04): o disco do banco (~309 MB) inchou com
 -- tabelas internas, não com dados do Vela. `cron.job_run_details` tinha ~182 mil
@@ -40,17 +40,17 @@
 -- Desfazer (para a limpeza; o que já foi apagado não volta, perda aceita acima):
 --   SELECT cron.unschedule('cleanup-cron-run-details');
 
-DO $schedule_586$
+DO $schedule_589$
 BEGIN
   IF to_regclass('cron.job') IS NULL THEN
-    RAISE WARNING '586: pg_cron ausente; cleanup-cron-run-details não agendado.';
+    RAISE WARNING '589: pg_cron ausente; cleanup-cron-run-details não agendado.';
     RETURN;
   END IF;
 
   PERFORM cron.schedule(
     'cleanup-cron-run-details',
     '45 6 * * *',
-    $job_586$DELETE FROM cron.job_run_details WHERE end_time < now() - interval '14 days'$job_586$
+    $job_589$DELETE FROM cron.job_run_details WHERE end_time < now() - interval '14 days'$job_589$
   );
 END;
-$schedule_586$;
+$schedule_589$;

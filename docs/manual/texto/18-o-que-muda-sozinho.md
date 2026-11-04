@@ -118,7 +118,7 @@ A fatura emitida nunca é editada. Quando a correção muda o valor ou o Cliente
 |---|---|---|
 | Corrige peso, containers, veículos, destino ou tipo de carga de um B/L sem fatura | Recalcula as Taxas Locais na hora, com o preço fixado na importação. Se o cálculo falha, nada é gravado. | Ficha do B/L |
 | Corrige um B/L faturado, sem pagamento, e o valor muda | Cancela a fatura e a reemite, com número e Pix novos. | **Taxas Locais**; Portal: "Nova fatura emitida" |
-| O mesmo, com pagamento e valor menor | Abate o saldo em aberto. O que passar dele vira restituição ao Cliente e abre **Restituição pendente** para o {{Administrativo}} e o {{Financeiro}}. | **Alertas** |
+| O mesmo, com pagamento e valor menor | Abate o saldo em aberto. O que passar dele vira restituição ao Cliente e abre **Restituição pendente** para o {{Financeiro}}. | **Alertas** |
 | O mesmo, com pagamento e valor maior | Abre **Fatura desatualizada**. A diferença se cobra por fatura avulsa. | **Alertas** |
 | Inclui, altera ou tira carga de um B/L faturado | Devolve o B/L à Revisão como **Pendente**, com o motivo "Carga … após faturamento", até a fatura ser corrigida. | **Revisão** (capítulo 8) |
 | Muda o POL, o POD ou a Viagem do B/L | Tira o B/L do Manifesto Mercante. Se ele tem CE, abre **CE fora do Manifesto da rota** para a {{Documentação}}. | **Rotas e Manifestos**; **Alertas** |

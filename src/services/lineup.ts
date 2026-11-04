@@ -417,8 +417,19 @@ export async function fetchLineUpSnapshot(
       const terminalFronts = voyageTerminalFronts.filter((front) => normalizePort(front.port) === pod)
       const terminalStates = voyageTerminalStates.filter((state) => normalizePort(state.port) === pod)
       const pendingFronts = escalasSemTerminal.get(escalaSemTerminalKey(voyage.id, pod))
-      const importPendingFronts = pendingFrontsForDirection(pendingFronts, 'importacao')
-      const exportPendingFronts = pendingFrontsForDirection(pendingFronts, 'exportacao')
+      const hasExportSchedule = Boolean(schedule?.temExportacao)
+      const isExportOnly = !routeBls.length && hasExportSchedule && !schedule?.temImportacao
+      // Cada linha leva a frente sem terminal do seu sentido. A frente cujo
+      // sentido não tem linha (Granito importado sem exportação declarada, ou
+      // vazios de importação na escala só de exportação) vai para a linha que
+      // existe: senão o filtro "Sem terminal" não acha a escala que o alerta
+      // "Escala sem terminal" cobra (migration 584).
+      const importPendingFronts = hasExportSchedule
+        ? pendingFrontsForDirection(pendingFronts, 'importacao')
+        : [...(pendingFronts ?? [])]
+      const exportPendingFronts = isExportOnly
+        ? [...(pendingFronts ?? [])]
+        : pendingFrontsForDirection(pendingFronts, 'exportacao')
       const importTerminal = withPendingTerminal(projectLineUpTerminals({
         fronts: terminalFronts,
         terminalStates,
@@ -433,8 +444,6 @@ export async function fetchLineUpSnapshot(
       }), exportPendingFronts)
       const importDates = projectLineUpTerminalDates({ fronts: terminalFronts, terminalStates, direction: 'importacao' })
       const exportDates = projectLineUpTerminalDates({ fronts: terminalFronts, terminalStates, direction: 'exportacao' })
-      const hasExportSchedule = Boolean(schedule?.temExportacao)
-      const isExportOnly = !routeBls.length && hasExportSchedule && !schedule?.temImportacao
 
       const distinctContainers = new Map<string, { id: number }>()
 

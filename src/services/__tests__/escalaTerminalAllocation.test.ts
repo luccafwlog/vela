@@ -139,6 +139,38 @@ describe('escalaTerminalAllocation', () => {
     expect(state.tbcFronts[0]).toMatchObject({ section: 'carga_descarregada', terminalId: null })
   })
 
+  // Decisão do dono de 2026-11-04 (migration 588): o B/L cancelado não traz
+  // carga e não cria frente; o banco faz a mesma conta no alerta e no Fechar ADR.
+  it('B/L cancelado, ou cancelado no financeiro, não cria frente', async () => {
+    const makeQuery = (tableName: string) => {
+      const query: Record<string, unknown> & { byId?: boolean } = {}
+      query.select = () => query
+      query.eq = () => query
+      query.in = () => query
+      query.order = () => query
+      query.is = () => query
+      query.range = () => query
+      query.maybeSingle = () => Promise.resolve({ data: { revision: 0, port_id: 99 }, error: null })
+      query.then = (resolve: (value: unknown) => unknown) => Promise.resolve(
+        tableName === 'ports'
+          ? { data: [{ id: 99, locode: 'BRVIX' }], error: null }
+          : tableName === 'bls'
+            ? { data: [
+                { id: 'BL-1', cargo_mode: 'container', pod: 'BRVIX', cancelled_at: null, financial_status: 'invoiced' },
+                { id: 'BL-2', cargo_mode: 'carga_solta', pod: 'BRVIX', cancelled_at: '2026-11-02T10:00:00Z', financial_status: 'pending' },
+                { id: 'BL-3', cargo_mode: 'veiculo', pod: 'BRVIX', cancelled_at: null, financial_status: 'cancelled' },
+              ], error: null }
+            : { data: [], error: null },
+      ).then(resolve)
+      return query
+    }
+    fromMock.mockImplementation((tableName: string) => makeQuery(tableName))
+
+    const state = await fetchEscalaTerminalState(12, 'BRVIX')
+
+    expect(state.fronts.map((front) => `${front.sentido}:${front.modalidade}`)).toEqual(['importacao:carga_cheia'])
+  })
+
   it('deriva a frente de Granito do Granito importado no porto, sem a declaração de exportação', async () => {
     const makeQuery = (tableName: string) => {
       const query: Record<string, unknown> = {}

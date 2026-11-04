@@ -168,9 +168,9 @@ function LineUpCard({ row }: { row: LineUpRow }) {
 }
 
 /**
- * Terminal da linha. O "TBC" de uma frente com carga e sem terminal (migration
- * 584) fica em âmbar, com as frentes no título; o "TBC" da escala ainda sem
- * carga (planejamento) continua em texto comum.
+ * Terminal da linha. O "TBC" da frente sem terminal (migration 584), gravada em
+ * TBC ou derivada da carga, fica em âmbar, com as frentes no título; o "TBC" da
+ * escala ainda sem frente (planejamento) continua em texto comum.
  */
 function TerminalCell({ row }: { row: LineUpRow }) {
   const label = row.rowType === 'export' ? row.exportTerminal : row.importTerminal

@@ -102,7 +102,20 @@ export async function afterViagemAlterada(queryClient: QueryInvalidator, options
 }
 
 export async function afterEscalaAlterada(queryClient: QueryInvalidator, options: { voyageId: number | string }): Promise<void> {
-  await invalidate(queryClient, [...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS, voyageTimelineKey(options.voyageId), ['voyages'], queryKeys.voyages.detail(Number(options.voyageId)), ['baplie-reconciliation'], queryKeys.baplie.voyageContext(Number(options.voyageId)), ['bl-cockpit'], ['agency-report'], queryKeys.voyages.escalasSemTerminal(), ...LINEUP_KEYS])
+  await invalidate(queryClient, [...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS, voyageTimelineKey(options.voyageId), ['voyages'], queryKeys.voyages.detail(Number(options.voyageId)), ['baplie-reconciliation'], queryKeys.baplie.voyageContext(Number(options.voyageId)), ['bl-cockpit'], ['agency-report'], queryKeys.voyages.escalasSemTerminal(), ...LINEUP_KEYS,
+    // A gravação fecha ou abre, no fim da transação, "Escala sem terminal", as
+    // datas pendentes e o NOB sem terminal (migration 584): a fila de Alertas,
+    // os cartões de setor do Painel e a conferência do Disparo releem.
+    queryKeys.alerts.all(), queryKeys.alerts.departmentSummary(), queryKeys.customerCommunications.all()])
+}
+
+/**
+ * Exceção de terminal do B/L gravada ou retirada (ADR 0068): o B/L entra ou sai
+ * do NOB da Atracação. A conferência do Disparo, que avisa "Fora do NOB por
+ * falta de terminal", e as frentes sem terminal da escala releem.
+ */
+export async function afterTerminalDoBlAlterado(queryClient: QueryInvalidator, options: { blId: string }): Promise<void> {
+  await invalidate(queryClient, [queryKeys.bls.detail(options.blId), queryKeys.auditLogs.detail('bl', options.blId), queryKeys.customerCommunications.all(), queryKeys.voyages.escalasSemTerminal(), ...LINEUP_KEYS])
 }
 
 /**

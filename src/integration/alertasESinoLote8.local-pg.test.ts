@@ -89,7 +89,11 @@ describeLocal('Alertas e sino decididos pelo dono (migration 476)', () => {
       ${upsert('voyage_schedule_date_pending', 'voyage_pod_schedule', 'A476-ESCALA', 'operacoes')}
       ${upsert('review_portal_not_ready', 'customer', 'A476-PORTAL', 'documentacao')}`)
     // Antes iam também à Documentação e a Equipamentos (Pix) e à Documentação (escala).
-    expect(recipients('A476-PIX')).toBe('administrativo,financeiro')
+    // Desde a 587 o Pix é do setor Financeiro: o produtor ainda informa o
+    // Administrativo, mas o catálogo vence, e o sino vai só ao Financeiro.
+    expect(recipients('A476-PIX')).toBe('financeiro')
+    expect(psql(`SELECT i.department FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+      WHERE a.entity_id = 'A476-PIX' AND i.item_type = 'pix_unreconciled'`)).toBe('financeiro')
     expect(recipients('A476-ESCALA')).toBe('operacoes')
     // Antes ia também ao Administrativo.
     expect(recipients('A476-PORTAL')).toBe('documentacao')

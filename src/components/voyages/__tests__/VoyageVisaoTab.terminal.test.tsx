@@ -69,3 +69,27 @@ it('mostra a coluna Terminal com os terminais da escala e o TBC em âmbar das fr
   expect(sszCell.querySelector('.app-status-text--warning')).toBeNull()
   expect(sszCell.textContent).toContain('Sem terminal')
 })
+
+// A falha da leitura das frentes não parece "toda frente com terminal".
+it('diz que não conferiu as frentes quando a leitura falha', () => {
+  escalasSemTerminal.mockReturnValue({ data: undefined, isError: true })
+  render(
+    <VoyageVisaoTab
+      voyage={{ id: 7, status: 'planning', bls: [], granite_manifests: [], vazios_manifests: [] } as never}
+      voyageLabel="NAVIO / 01N"
+      escalaRows={[escala('BRVIX', [{ terminalId: 't-tvv', terminalCode: 'TVV', etb: null, atb: null }])] as never}
+      importBatches={[]}
+      exportSchedules={[]}
+      divergenceCount={0}
+      ceCoverage={{ filled: 0, total: 0 }}
+      onEditEscala={vi.fn()}
+      onOmitPod={vi.fn()}
+    />,
+  )
+
+  const table = screen.getByRole('table', { name: 'Planejamento por escala' })
+  const headers = Array.from(table.querySelectorAll('thead th')).map((th) => th.textContent)
+  const cell = screen.getByText('BRVIX').closest('tr')!.querySelectorAll('td')[headers.indexOf('Terminal')]!
+  expect(cell.textContent).toContain('TVV · não conferido')
+  expect(cell.querySelector('[title]')?.getAttribute('title')).toBe('Não foi possível conferir as frentes sem terminal agora; recarregue a página.')
+})

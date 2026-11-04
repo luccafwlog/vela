@@ -528,7 +528,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `ce-unlock-cleanup` | 06:00 (manual, 07/10, jobid 24) | expurga documentos vencidos do Desbloqueio de CE e expira rascunhos | — |
 | `billing-release-expiry-review` | 03:13 (00:13 de Brasília; `13 3 * * *`, migration `168`) | `reevaluate_expired_billing_releases()`: devolve à Revisão os B/Ls não faturados de Cliente cuja Liberação de faturamento sem Portal venceu nos últimos 7 dias | — |
 | `data-retention` | 06:30 (03:30 de Brasília) | `run_retention()` | — |
-| `cleanup-cron-run-details` | 06:45 (03:45 de Brasília; `45 6 * * *`, migration `586`) | apaga de `cron.job_run_details` as execuções terminadas há mais de 14 dias; não toca em tabela de negócio ([limpeza do lixo operacional](#limpeza-do-lixo-operacional-do-banco)) | — |
+| `cleanup-cron-run-details` | 06:45 (03:45 de Brasília; `45 6 * * *`, migration `589`) | apaga de `cron.job_run_details` as execuções terminadas há mais de 14 dias; não toca em tabela de negócio ([limpeza do lixo operacional](#limpeza-do-lixo-operacional-do-banco)) | — |
 | `container-demurrage-status` | 03:17 (00:17 de Brasília; `17 3 * * *`, migration `197`) | `refresh_containers_demurrage_status()`: grava `overdue` no container sem devolução cujo free time venceu desde a última gravação e tira do atraso o de B/L ou Viagem Cancelados (SQL puro; migration `200`) | — |
 | `demurrage-travado-alerts` | a cada 15 min, em :04/:19/:34/:49 (`4-59/15 * * * *`, migration `516`) | `reconcile_demurrage_travado_alerts()`: abre o Alerta `demurrage_travado` para o grupo de cobrança que entrou em Travado sem passar por um gatilho (Portal do Cliente fechado, virada do dia) e fecha o que saiu; setor pelo motivo (Documentação ou Administrativo, ADR 0112, D25); desde a migration `525`, põe na fila de emissão (`demurrage_billing`) o grupo de A emitir parado, menos o que espera Invoice cancelada à mão, com o iniciador do sistema e uma vez para as mesmas caixas (migration `526`); desde a `529`, refaz a reconciliação das Invoices que ficaram diferentes (datas, SOC, divisão da caixa) quando o gatilho falhou (`reconcile_demurrage_stale_invoices`); SQL puro, sem Vault nem Edge Function | — |
 | `demurrage-disputa-prazo` | a cada 15 min, em :07/:22/:37/:52 (`7-59/15 * * * *`, migration `520`) | `reconcile_demurrage_dispute_deadline_alerts()`: abre o Alerta `demurrage_disputa_prazo` para a Disputa de Demurrage que passou de 1 dia útil aguardando Equipamentos e fecha o que deixou de valer (ADR 0112, D18); SQL puro, sem Vault nem Edge Function | — |
@@ -650,7 +650,7 @@ por duas tabelas internas, não por dados do Vela: `net._http_response`
   `pg_net.ttl` (6 horas). Não baixe esse valor para menos de 1 hora: o
   `http-job-failures` lê a última hora. O espaço das linhas apagadas só volta
   ao disco com `VACUUM FULL`.
-- `cron.job_run_details`: desde a migration `586`, o job
+- `cron.job_run_details`: desde a migration `589`, o job
   `cleanup-cron-run-details` apaga todo dia as execuções terminadas há mais de
   14 dias (cobre a janela de 7 dias do `billing-release-expiry-review` com
   folga). Execução sem `end_time` fica. Para investigar uma rodada antiga,
@@ -1350,7 +1350,7 @@ Financeiro, com o e-mail em `portal_suppressed_emails`
 conta nova para a baixa precisa de Financeiro e de `account_kind = 'integracao'`
 gravado por migration ou `service_role`. Desde a migration `583` (decisão do
 dono de 2026-11-04) a baixa aceita só o Financeiro (e a conta Dev): uma conta
-Administrativa nessa função deixa o Pix em análise, e a `583` avisa no deploy. `ITAU_PIX_ADMIN_SECRET` cadastrado também no Vault;
+Administrativa nessa função deixa o Pix em análise, e a `583` avisa no deploy; desde a `586` o banco recusa tirar essa conta do Financeiro (em 2026-11-04 ela é do Financeiro, de integração e ativa em produção). `ITAU_PIX_ADMIN_SECRET` cadastrado também no Vault;
 chamada de diagnóstico pelo banco confirmou HTTP 200, Bearer, 300 s em 07/10.
 Job `itau-pix-queue` ativo a cada minuto (jobid 25), autorizado em 07/10;
 primeiro ciclo confirmou cron `succeeded`, Edge HTTP 200 e avanço do checkpoint,

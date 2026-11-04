@@ -89,9 +89,15 @@ describe('Regras de Alertas', () => {
     const terminal = ALERT_RULES.find((rule) => rule.type === 'voyage_terminal_date_pending')!
     const portal = ALERT_RULES.find((rule) => rule.type === 'review_portal_not_ready')!
 
-    // ALE-D03: um setor responsável; o Financeiro só é avisado.
-    expect(pix.responsibleDepartments).toEqual(['administrativo'])
-    expect(pix.notifiedDepartments).toEqual(['financeiro', 'administrativo'])
+    // ALE-D03: um setor responsável. Desde a 587 o Pix é do Financeiro e o
+    // Administrativo não é mais avisado; a Fatura desatualizada segue com ele.
+    const invoice = ALERT_RULES.find((rule) => rule.type === 'fatura_desatualizada')!
+    expect(pix.responsibleDepartments).toEqual(['financeiro'])
+    expect(pix.notifiedDepartments).toEqual(['financeiro'])
+    expect(invoice.responsibleDepartments).toEqual(['administrativo'])
+    expect(invoice.notifiedDepartments).toEqual(['financeiro', 'administrativo'])
+    expect(ALERT_RULES.filter((rule) => rule.responsibleDepartments.includes('financeiro')).map((rule) => rule.type).sort())
+      .toEqual(['itau_pix_consulta_parada', 'pix_unreconciled', 'restituicao_pendente'])
     expect(schedule.notifiedDepartments).toEqual(['operacoes'])
     expect(terminal.notifiedDepartments).toEqual(['operacoes'])
     expect(portal.notifiedDepartments).toEqual(['documentacao'])

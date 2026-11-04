@@ -66,7 +66,7 @@ O Vela abre no **Painel**. Ele responde às duas perguntas do começo do dia: o 
 O Painel: os atalhos no alto e um cartão de alertas por setor.
 :::
 
-- **Os cartões por setor** (Documentação, Equipamentos, Operações e Administrativo) mostram quantos alertas cada equipe tem abertos. Clique no da sua equipe para ver a lista (capítulo 20). O {{Financeiro}} não tem cartão próprio: os alertas dele contam no do {{Administrativo}} e chegam pelo sino. Um cartão **Sem setor**, que só aparece quando tem alerta, junta os antigos, de antes da divisão por equipe.
+- **Os cartões por setor** (Documentação, Equipamentos, Operações, Financeiro e Administrativo) mostram quantos alertas cada equipe tem abertos. Clique no da sua equipe para ver a lista (capítulo 20). O cartão do {{Financeiro}} existe desde 2026-11-04 e conta os alertas do Pix e da Restituição. Um cartão **Sem setor**, que só aparece quando tem alerta, junta os antigos, de antes da divisão por equipe.
 - **O Line-Up**, logo abaixo, mostra os navios atracados, os que estão chegando e a carga de cada porto (capítulo 5).
 - **Chegadas e Saídas** e **Tela TV** abrem a programação dos navios (capítulo 5).
 
