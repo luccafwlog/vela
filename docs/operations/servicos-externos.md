@@ -229,6 +229,14 @@ a uma branch GitHub. O painel informa custo de US$ 0,01344 por hora enquanto a
 branch existir, sem impostos; removê-la encerra essa cobrança. Branches novas
 não copiam dados de produção por padrão.
 
+**Reports do Project Overview:** cada bloco roda o SQL do snippet ligado a ele
+toda vez que a página abre, com o papel somente leitura. Não ponha snippet de
+escrita ali. Em 2026-11-03 um bloco "LIMPA TUDO" tentou 32 vezes esvaziar
+produção e foi removido pelo dono às 23:33; ele era o único bloco da seção.
+Em 2026-11-04 o dono apagou todos os snippets do SQL Editor do projeto (Shared,
+Favorites e Private vazios, conferido por ele)
+([relatório](../archive/reports/2026-11-04-tentativas-de-truncate-em-producao.md)).
+
 Para uma Preview pontual sem ligar Automatic branching: em Supabase → projeto
 Vela → Branching → Create branch, informe o nome da branch de Preview e a mesma
 branch GitHub da PR em "Sync with Git branch". A integração publica commits
