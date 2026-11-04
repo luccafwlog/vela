@@ -70,7 +70,7 @@ na exclusão, nada impediria o esvaziamento.
 - 2026-11-04: o dono apagou todos os snippets do SQL Editor do projeto,
   inclusive o "LIMPA TUDO"; Shared, Favorites e Private ficaram vazios
   (conferido por ele no dashboard).
-- Migration `584`: todo `TRUNCATE` em tabela de `public` passa a ser recusado,
+- Migration `585`: todo `TRUNCATE` em tabela de `public` passa a ser recusado,
   inclusive em cascata, salvo na sessão que rodou
   `SET vela.limpeza_banco_descartavel = 'confirmo'`
   ([reset do ambiente](../../operations/reset-ambiente.md)). Teste:
@@ -78,7 +78,7 @@ na exclusão, nada impediria o esvaziamento.
 
 ## Pendências na data
 
-- Aplicar a migration `584` em produção pelo fluxo normal (`staging` → `main`).
+- Aplicar a migration `585` em produção pelo fluxo normal (`staging` → `main`).
 - Backups na data: o diário do Supabase (físico, não baixável) mais recente era
   de 2026-11-03 08:02, antes do primeiro dia com dados reais; o backup lógico
   diário no R2 roda às 09:00 no computador Windows

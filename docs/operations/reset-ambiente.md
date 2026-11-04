@@ -42,7 +42,7 @@ Travas, todas antes de apagar qualquer coisa:
   tabela desprotegida);
 - tabela preservada com chave estrangeira para uma tabela que seria esvaziada
   → erro (o `CASCADE` a apagaria junto);
-- desde a migration `584`, o próprio banco recusa `TRUNCATE` em qualquer tabela
+- desde a migration `585`, o próprio banco recusa `TRUNCATE` em qualquer tabela
   de `public`, inclusive em cascata, na sessão sem a mesma confirmação; ela
   vale também para quem tentar uma limpeza fora deste script, como o bloco
   "LIMPA TUDO" do dashboard em 2026-11-03

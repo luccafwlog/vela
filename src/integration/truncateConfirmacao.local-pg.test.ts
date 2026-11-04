@@ -1,7 +1,7 @@
 import { execPsql } from './localPsql'
 import { describe, expect, it } from 'vitest'
 
-// Migration 584: TRUNCATE em public só na sessão que confirmou banco
+// Migration 585: TRUNCATE em public só na sessão que confirmou banco
 // descartável. Incidente de origem: docs/archive/reports/2026-11-04-tentativas-de-truncate-em-producao.md.
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
@@ -29,7 +29,7 @@ BEGIN
   EXECUTE 'TRUNCATE TABLE ' || v_tables || ' RESTART IDENTITY CASCADE';
 END $$`
 
-describeLocal('migration 584 — TRUNCATE só com a confirmação de banco descartável', () => {
+describeLocal('migration 585 — TRUNCATE só com a confirmação de banco descartável', () => {
   it('toda tabela de public tem a trava, menos app_settings, que tem a da 156', () => {
     const missing = localPsql(`
       SELECT coalesce(string_agg(c.relname, ', ' ORDER BY c.relname), '')
@@ -40,7 +40,7 @@ describeLocal('migration 584 — TRUNCATE só com a confirmação de banco desca
           SELECT 1 FROM pg_trigger t
           WHERE t.tgrelid = c.oid AND t.tgname = 'truncate_requires_confirmation' AND t.tgenabled = 'O'
         )`)
-    // Tabela nova em public: crie o gatilho na mesma migration, como na 584.
+    // Tabela nova em public: crie o gatilho na mesma migration, como na 585.
     expect(missing).toBe('')
   })
 

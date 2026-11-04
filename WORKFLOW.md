@@ -508,7 +508,7 @@ plano; não autoriza perda de dados.
 - tabela nova em `public` recebe, na própria migration, o gatilho que recusa
   `TRUNCATE` sem a confirmação de banco descartável:
   `CREATE TRIGGER truncate_requires_confirmation BEFORE TRUNCATE ON public.<tabela> FOR EACH STATEMENT EXECUTE FUNCTION public.truncate_requires_disposable_confirmation();`
-  (migration `584`, [reset do ambiente](./docs/operations/reset-ambiente.md)).
+  (migration `585`, [reset do ambiente](./docs/operations/reset-ambiente.md)).
   A suíte local-pg `truncateConfirmacao` falha com tabela sem ele;
 - grants pré-autenticação para `anon` exigem decisão explícita, controles contra
   abuso e teste focado;

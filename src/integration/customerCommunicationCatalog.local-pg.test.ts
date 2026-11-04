@@ -43,7 +43,7 @@ describeLocal('Comunicados — recuperação do catálogo estrutural', () => {
     const result = execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
       BEGIN;
       SET request.jwt.claim.role = 'service_role';
-      -- Banco descartável: a 584 recusa TRUNCATE sem esta confirmação.
+      -- Banco descartável: a 585 recusa TRUNCATE sem esta confirmação.
       SET LOCAL vela.limpeza_banco_descartavel = 'confirmo';
       TRUNCATE public.customer_communication_kinds CASCADE;
       RESET vela.limpeza_banco_descartavel;

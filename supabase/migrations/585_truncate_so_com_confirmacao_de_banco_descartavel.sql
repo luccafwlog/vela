@@ -1,4 +1,4 @@
--- 584: TRUNCATE em tabela de public só com a confirmação de banco descartável.
+-- 585: TRUNCATE em tabela de public só com a confirmação de banco descartável.
 --
 -- Em 2026-11-03 um bloco "LIMPA TUDO" nos Reports do Project Overview do
 -- dashboard tentou, a cada abertura da página, esvaziar cerca de 150 tabelas
