@@ -154,7 +154,7 @@ Como ler o quadro:
 - A ordem é a do porto: primeiro os navios atracados, depois os que chegaram, os previstos, os que já saíram e, no fim, as escalas omitidas.
 - A faixa verde marca o navio atracado. O ✓ marca a data que já aconteceu.
 - O âmbar pede ação da documentação: **CEs** em **Aguardando** ou **Vinculada** em **Não**.
-- **TBC** na coluna do terminal quer dizer frente sem terminal. Em âmbar, a carga da escala já pede o terminal: passe o mouse para ver quais frentes faltam e escolha o terminal em **Editar escala** ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)). Uma escala pode mostrar "TVV / TBC": uma frente no TVV e outra ainda sem terminal. **TBC** sem cor é a escala sem carga, ainda em planejamento.
+- **TBC** na coluna do terminal quer dizer frente sem terminal. Em âmbar, a escala tem frente sem terminal, declarada em **Editar escala** ou vinda da carga: passe o mouse para ver quais frentes faltam e escolha o terminal em **Editar escala** ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)). Uma escala pode mostrar "TVV / TBC": uma frente no TVV e outra ainda sem terminal. **TBC** sem cor é a escala ainda sem frente, em planejamento. Se a frente sem terminal é de um sentido que não tem linha (o Granito importado antes de declarar a exportação), o **TBC** em âmbar aparece na linha que a escala tem.
 - Cada número abre a lista correspondente, já filtrada.
 
 A **Tela TV** mostra as escalas que ainda não terminaram, em letras grandes, e desliza sozinha quando há mais de oito linhas.

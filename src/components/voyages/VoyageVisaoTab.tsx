@@ -83,7 +83,7 @@ export function VoyageVisaoTab({
 
   const { data: timelineSources } = useVoyageTimeline(voyage.id)
   // Frentes sem terminal de cada escala, pela derivação do banco (migration 584).
-  const { data: escalasSemTerminal } = useEscalasSemTerminal([voyage.id])
+  const { data: escalasSemTerminal, isError: escalasSemTerminalFailed } = useEscalasSemTerminal([voyage.id])
   const timelineEvents = useMemo(
     () =>
       buildVoyageTimeline({
@@ -298,7 +298,7 @@ export function VoyageVisaoTab({
                       </td>
                       <td className="app-table__text hidden lg:table-cell">{escalaOperationText(row) ?? <NoValue label="Sem operação declarada" />}</td>
                       <td className="app-table__text">
-                        <EscalaTerminalCell row={row} pendingFronts={escalasSemTerminal?.get(escalaSemTerminalKey(voyage.id, row.port)) ?? []} />
+                        <EscalaTerminalCell row={row} pendingFronts={escalasSemTerminal?.get(escalaSemTerminalKey(voyage.id, row.port)) ?? []} unchecked={escalasSemTerminalFailed && !escalasSemTerminal} />
                       </td>
                       <td className="tabular-nums">{row.eta ? formatDate(row.eta) : <NoValue label="Sem ETA" />}</td>
                       <td className="tabular-nums hidden lg:table-cell">{row.ata ? formatDate(row.ata) : <NoValue label="Sem ATA" />}</td>
@@ -397,18 +397,27 @@ export function VoyageVisaoTab({
 
 /**
  * Terminais das atracações da escala, na ordem delas, e "TBC" em âmbar quando
- * alguma frente com carga ainda não tem terminal (o título diz quais). É o
+ * alguma frente, gravada em TBC ou derivada da carga, ainda não tem terminal
+ * (o título diz quais). É o
  * mesmo recorte que trava o Fechar ADR e abre o alerta "Escala sem terminal".
+ * Se a leitura das frentes falhou (`unchecked`), a célula diz que não conferiu,
+ * em vez de parecer que toda frente tem terminal.
  */
-function EscalaTerminalCell({ row, pendingFronts }: { row: VoyageEscalaSchedule; pendingFronts: readonly string[] }) {
+function EscalaTerminalCell({ row, pendingFronts, unchecked = false }: { row: VoyageEscalaSchedule; pendingFronts: readonly string[]; unchecked?: boolean }) {
   const codes = [...new Set((row.atracacoes ?? [])
     .filter((atracacao) => atracacao.terminalId)
     .map((atracacao) => atracacao.terminalCode?.trim() || '—'))]
-  if (!codes.length && !pendingFronts.length) return <NoValue label="Sem terminal" />
+  const uncheckedNote = unchecked ? (
+    <span className="text-[var(--app-muted)]" title={UNCHECKED_FRONTS_TITLE}>
+      {codes.length ? ' · ' : null}não conferido<span className="sr-only"> ({UNCHECKED_FRONTS_TITLE})</span>
+    </span>
+  ) : null
+  if (!codes.length && !pendingFronts.length) return unchecked ? uncheckedNote : <NoValue label="Sem terminal" />
   const title = pendingFronts.length ? pendingFrontsTitle(pendingFronts) : null
   return (
     <>
       {codes.join(' / ')}
+      {uncheckedNote}
       {title ? (
         <>
           {codes.length ? ' / ' : null}
@@ -421,6 +430,8 @@ function EscalaTerminalCell({ row, pendingFronts }: { row: VoyageEscalaSchedule;
     </>
   )
 }
+
+const UNCHECKED_FRONTS_TITLE = 'Não foi possível conferir as frentes sem terminal agora; recarregue a página.'
 
 // ponytail: coluna "Opera" mostra só a natureza da operação (imp/exp);
 // granito é modalidade de carga da exportação, não uma operação à parte.

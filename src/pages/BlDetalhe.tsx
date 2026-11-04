@@ -24,7 +24,7 @@ import { useBlDetail } from '../hooks/useBls'
 import { useBlEditForm } from '../hooks/useBlEditForm'
 import { useBlCockpit } from '../hooks/useBlCockpit'
 import { useAuth } from '../hooks/useAuth'
-import { afterBlEstadoAlterado } from '../services/cacheEffects'
+import { afterBlEstadoAlterado, afterTerminalDoBlAlterado } from '../services/cacheEffects'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { cancelBl, reactivateBl } from '../services/blState'
@@ -194,10 +194,7 @@ export function BlDetalhe() {
       changedBy: user?.id,
     }),
     onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(bl?.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.auditLogs.detail('bl', bl?.id) }),
-      ])
+      if (bl?.id) await afterTerminalDoBlAlterado(queryClient, { blId: bl.id })
     },
   })
   const cargoMode = useMemo(() => resolveCargoMode(bl), [bl])
