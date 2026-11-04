@@ -136,6 +136,10 @@ uma rotina de minuto travada chega a isso) e 30 ou mais chamadas paradas em
 horário, status e id da requisição, e a rotina se acha pelo horário em
 `cron.job_run_details`.
 
+O histórico de `cron.job_run_details` guarda 14 dias: desde a migration `586`
+o job `cleanup-cron-run-details` apaga, às 03:45 de Brasília, as execuções
+terminadas antes disso ([limpeza do lixo operacional](servicos-externos.md#limpeza-do-lixo-operacional-do-banco)).
+
 A ausência de linha em `net._http_response` (ou de log da Edge Function) não
 prova que a chamada não aconteceu: a tabela é expurgada depois de ~6 horas, um
 disparo sem Vault (`ops.dispatch_edge_job` com `WARNING`) não gera requisição, e
