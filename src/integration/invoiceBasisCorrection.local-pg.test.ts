@@ -162,8 +162,9 @@ describeLocal('128 — correção do B/L sempre automática', () => {
     const customers = [[customerId, 128001], [otherCustomerId, 128009]] as const
     psql(`
       INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'basis-128@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${actorId}', 'Administrativo 128', 'administrativo', true)
-        ON CONFLICT (id) DO UPDATE SET role = 'administrativo', active = true;
+      -- Conta Dev: baixa e cancelamento de baixa são do Financeiro e da conta Dev (migration 583).
+      INSERT INTO public.user_profiles (id, full_name, role, active, is_dev) VALUES ('${actorId}', 'Administrativo 128', 'administrativo', true, true)
+        ON CONFLICT (id) DO UPDATE SET role = 'administrativo', active = true, is_dev = true;
       ${customers.map(([id, ns]) => `
         INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${id}, '${syntheticCnpj(ns)}', 'Cliente ${ns}');
         INSERT INTO public.customer_contacts (customer_id, name, email, purpose, is_primary)

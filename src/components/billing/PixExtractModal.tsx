@@ -67,9 +67,9 @@ const sourceLabel = (source: 'local' | 'demurrage' | 'unmatched') => (source ===
  * arquivo, ler (nada é baixado), conferir o que entra no lote e o que fica como
  * exceção, confirmar o lote (tudo ou nada) e ver o resultado que o banco
  * devolveu. Desde 2026-11-04 abre pelo botão Conciliar extrato da aba Pix
- * recebidos; antes era uma aba própria. Quem abre é o Financeiro ou o
- * Administrativo: a página desativa o botão para os demais, e as RPCs recusam
- * (ADR 0085, D5; migration 247).
+ * recebidos; antes era uma aba própria. Quem abre é o Financeiro ou a conta
+ * Dev: a página desativa o botão para os demais, e as RPCs recusam
+ * (decisão do dono de 2026-11-04; migration 583).
  */
 export function PixExtractModal({ onClose, onOpenInvoice }: { onClose: () => void; onOpenInvoice: OpenInvoice }) {
   const queryClient = useQueryClient()

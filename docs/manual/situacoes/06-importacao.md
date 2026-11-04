@@ -237,8 +237,8 @@ Administrativo: excluir, cancelar e reativar B/L (BLR-015, BLR-102).
   1. B/L antigo **sem CE Mercante**: o Administrativo exclui o antigo pela
      lista BLs.
   2. B/L antigo **com CE Mercante**: antes, resolva o que impede o
-     cancelamento (fatura em aberto: o Administrativo cancela; pagamento: o
-     Financeiro ou o Administrativo registra a Restituição). Depois o
+     cancelamento (fatura em aberto: o Administrativo ou o Financeiro cancela;
+     pagamento: o Financeiro registra a Restituição). Depois o
      Administrativo usa **Mais ações › Cancelar B/L** ("Use quando a carga não
      embarcou ou o armador reemitiu o documento com outro número."). O
      cancelamento libera o CE.

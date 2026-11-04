@@ -2,16 +2,22 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ corrections: [] as Array<Record<string, unknown>>, pending: [] as string[], isAdmin: true, retry: vi.fn() }))
+const mocks = vi.hoisted(() => ({
+  corrections: [] as Array<Record<string, unknown>>, pending: [] as string[], receivables: [] as Array<Record<string, unknown>>,
+  role: 'financeiro' as 'administrativo' | 'financeiro' | 'operacoes', isDev: false, retry: vi.fn(),
+}))
 vi.mock('../../../hooks/useBillingLedger', () => ({
   useRetryInvoiceBasisChanges: () => ({ mutate: mocks.retry, isPending: false }),
   usePrepareBlFinancialCancellation: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useInvoiceCorrectionSummary: () => ({ data: { receivables: [], corrections: mocks.corrections, pending_bl_ids: mocks.pending } }),
+  useInvoiceCorrectionSummary: () => ({ data: { receivables: mocks.receivables, corrections: mocks.corrections, pending_bl_ids: mocks.pending } }),
 }))
 vi.mock('../../ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn() }))
-vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: mocks.isAdmin }) }))
+vi.mock('../../../hooks/useAuth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../hooks/useAuth')>()
+  return { useAuth: () => ({ can: (permission: Parameters<typeof actual.roleHasPermission>[1]) => actual.roleHasPermission(mocks.role, permission, mocks.isDev) }) }
+})
 import { InvoiceCorrectionPanel } from '../InvoiceCorrectionPanel'
-afterEach(() => { cleanup(); mocks.pending = []; mocks.isAdmin = true; mocks.retry.mockReset() })
+afterEach(() => { cleanup(); mocks.pending = []; mocks.receivables = []; mocks.role = 'financeiro'; mocks.isDev = false; mocks.retry.mockReset() })
 
 it('sem ajuste registrado, não mostra nada nem oferece correção digitada', () => {
   mocks.corrections = []
@@ -43,11 +49,24 @@ it('recupera pendência do B/L sem pedir valor manual', () => {
 it('qualquer Departamento tenta aplicar a correção (ADR 0085, D3)', () => {
   mocks.corrections = []
   mocks.pending = ['BL-RECOVERY']
-  mocks.isAdmin = false
+  mocks.role = 'operacoes'
   render(<InvoiceCorrectionPanel invoiceId={9} />)
   expect(screen.getByText(/BL-RECOVERY/)).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: 'Tentar aplicar correção' }))
   expect(mocks.retry).toHaveBeenCalledWith('BL-RECOVERY')
-  // Preparar cancelamento financeiro segue do Administrativo.
+  // Preparar cancelamento financeiro é do Financeiro e da conta Dev (migration 583).
   expect(screen.queryByRole('button', { name: 'Preparar cancelamento financeiro' })).toBeNull()
+})
+
+it.each([
+  ['financeiro', false, true],
+  ['administrativo', true, true],
+  ['administrativo', false, false],
+] as const)('preparar cancelamento financeiro do B/L pago: %s (conta Dev: %s) vê o formulário: %s (migration 583)', (role, isDev, visible) => {
+  mocks.corrections = []
+  mocks.receivables = [{ bl_id: 'BL-PAGO', corrected_brl: 500, paid_brl: 500 }]
+  mocks.role = role
+  mocks.isDev = isDev
+  render(<InvoiceCorrectionPanel invoiceId={9} />)
+  expect(Boolean(screen.queryByRole('button', { name: 'Preparar cancelamento financeiro' }))).toBe(visible)
 })

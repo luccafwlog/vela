@@ -29,7 +29,8 @@ const mocks = vi.hoisted(() => ({
   sheetWarnings: vi.fn(),
   navigate: vi.fn(),
 }))
-const authState = vi.hoisted(() => ({ isAdmin: true, role: 'administrativo' }))
+// Conciliar é do Financeiro e da conta Dev (migration 583): o padrão dos casos é o Financeiro.
+const authState = vi.hoisted(() => ({ isAdmin: false, role: 'financeiro', isDev: false }))
 
 vi.mock('react-router-dom', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react-router-dom')>()),
@@ -63,13 +64,16 @@ vi.mock('../../services/reconciliacao', () => ({
 vi.mock('../../services/demurrage/demurrageInvoices', () => ({
   getInvoiceDetail: mocks.getDemurrageDetail,
 }))
-vi.mock('../../hooks/useAuth', () => ({
-  useAuth: () => ({
-    isAdmin: authState.isAdmin,
-    effectiveRole: authState.role,
-    can: (permission: string) => permission === 'settle_financial_adjustments' && ['administrativo', 'financeiro'].includes(authState.role),
-  }),
-}))
+vi.mock('../../hooks/useAuth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../hooks/useAuth')>()
+  return {
+    useAuth: () => ({
+      isAdmin: authState.isAdmin,
+      effectiveRole: authState.role,
+      can: (permission: Parameters<typeof actual.roleHasPermission>[1]) => actual.roleHasPermission(authState.role as 'financeiro', permission, authState.isDev),
+    }),
+  }
+})
 vi.mock('../../hooks/useFinancialRefunds', () => ({
   useFinancialRefunds: () => ({ data: { pending: 0, settled: 0 }, error: null }),
 }))
@@ -194,8 +198,9 @@ describe('Conciliação PIX', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    authState.isAdmin = true
-    authState.role = 'administrativo'
+    authState.isAdmin = false
+    authState.role = 'financeiro'
+    authState.isDev = false
     mocks.parse.mockResolvedValue({ transactions: [transaction], ignored: 0, errors: [] })
     mocks.match.mockResolvedValue([safeMatch, ambiguousMatch, unmatchedMatch])
     mocks.sheetNotices.mockResolvedValue({ warnings: [], firstSheetHiddenRows: 0 })
@@ -656,7 +661,7 @@ describe('Conciliação PIX', () => {
     expect(screen.queryByText('Descartar a leitura?')).toBeNull()
   })
 
-  it('qualquer Departamento lê a Conciliação; conciliar o extrato é do Financeiro e do Administrativo (ADR 0085, D5)', async () => {
+  it('qualquer Departamento lê a Conciliação; conciliar o extrato é do Financeiro e da conta Dev (migration 583)', async () => {
     authState.isAdmin = false
     authState.role = 'operacoes'
     renderPage()
@@ -668,7 +673,7 @@ describe('Conciliação PIX', () => {
     expect(screen.queryByRole('button', { name: /Marcar como tratado/ })).toBeNull()
     const extract = screen.getByRole('button', { name: 'Conciliar extrato' }) as HTMLButtonElement
     expect(extract.disabled).toBe(true)
-    expect(extract.title).toBe('Conciliar extrato é do Financeiro e do Administrativo')
+    expect(extract.title).toBe('Conciliar extrato é do Financeiro')
   })
 
   it('o Financeiro concilia', async () => {
@@ -678,6 +683,19 @@ describe('Conciliação PIX', () => {
     renderPage()
     const dialog = await openExtract(user)
     expect(within(dialog).getByText('Colunas lidas')).toBeTruthy()
+  })
+
+  it('o Administrativo comum não concilia; a conta Dev concilia (migration 583)', async () => {
+    authState.isAdmin = true
+    authState.role = 'administrativo'
+    renderPage()
+    const extract = (await screen.findByRole('button', { name: 'Conciliar extrato' })) as HTMLButtonElement
+    expect(extract.disabled).toBe(true)
+    expect(extract.title).toBe('Conciliar extrato é do Financeiro')
+    cleanup()
+    authState.isDev = true
+    renderPage()
+    expect(((await screen.findByRole('button', { name: 'Conciliar extrato' })) as HTMLButtonElement).disabled).toBe(false)
   })
   describe('aba Pix recebidos (ADR 0100)', () => {
     const receipt = {

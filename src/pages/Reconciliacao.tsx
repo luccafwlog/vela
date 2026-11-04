@@ -30,8 +30,8 @@ import { reverseDemurragePayment } from '../services/reconciliacao'
 import { demurrageInvoiceHref } from './demurrageListState'
 import { RECONCILIACAO_TABS, reconciliacaoTabFromSearch, withReconciliacaoTab, type ReconciliacaoTab } from './reconciliacaoState'
 
-// Ler a Conciliação é de todos; tratar e baixar é do Financeiro e do
-// Administrativo, conferido nos painéis e nas RPCs (ADR 0085, D5; migration 247).
+// Ler a Conciliação é de todos; tratar e baixar é do Financeiro e da conta
+// Dev, conferido nos painéis e nas RPCs (decisão do dono de 2026-11-04; migration 583).
 export function Reconciliacao() {
   return <ReconciliacaoContent />
 }
@@ -47,7 +47,7 @@ type OpenedInvoice =
 
 function ReconciliacaoContent() {
   const queryClient = useQueryClient()
-  const { isAdmin, can, effectiveRole } = useAuth()
+  const { can, effectiveRole } = useAuth()
   const navigate = useNavigate()
   const { showToast } = useToast()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -177,7 +177,7 @@ function ReconciliacaoContent() {
 
       <DemurrageInvoiceDetailModal
         invoiceId={opened?.source === 'demurrage' ? opened.invoiceId : null}
-        permissions={{ canSettle: can('settle_financial_adjustments'), canAdmin: isAdmin, canAnswerDispute: canAnswerDemurrageDispute(effectiveRole), canManageRoe: canManageManualRoe(effectiveRole) }}
+        permissions={{ canSettle: can('manage_payments'), canReversePayment: can('manage_payments'), canCancelInvoice: can('cancel_demurrage_invoices'), canAnswerDispute: canAnswerDemurrageDispute(effectiveRole), canManageRoe: canManageManualRoe(effectiveRole) }}
         cancelling={false}
         onClose={() => setOpened(null)}
         onOpenInvoice={(id) => openInvoice('demurrage', id)}

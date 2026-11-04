@@ -281,9 +281,9 @@ function ReceiptRow({ receipt, columns, open, onToggle, onOpenInvoice }: {
 
 function ReceiptDetail({ receipt, onOpenInvoice }: { receipt: ItauPixReceipt; onOpenInvoice: OpenInvoice }) {
   const { can } = useAuth()
-  // Conciliar é do Financeiro e do Administrativo (ADR 0085, D5; migration 442).
+  // Conciliar é do Financeiro e da conta Dev (decisão do dono de 2026-11-04; migration 583).
   // O Pix de cobrança do Vela sem baixa (baixa cancelada) não recebe baixa por aqui.
-  const canSettle = can('settle_financial_adjustments') && receipt.situation === 'received' && receipt.origin !== 'vela'
+  const canSettle = can('manage_payments') && receipt.situation === 'received' && receipt.origin !== 'vela'
   const extra = bankExtraFields(receipt.raw)
   const mono = 'font-[var(--app-font-mono)] break-all'
   return (

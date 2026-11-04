@@ -67,7 +67,8 @@ describeLocal('242 — plano B do extrato acha Invoice de Demurrage e avulsa pel
     cleanup()
     psql(`
       INSERT INTO auth.users (id, email) VALUES ('${ADMIN}', 'adm-a242@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${ADMIN}', 'Administrativo A242', 'administrativo', true);
+      -- Conta Dev: baixa e cancelamento de baixa são do Financeiro e da conta Dev (migration 583).
+      INSERT INTO public.user_profiles (id, full_name, role, active, is_dev) VALUES ('${ADMIN}', 'Administrativo A242', 'administrativo', true, true);
       SET session_replication_role = replica;
       INSERT INTO public.customers (id, name, cnpj_cpf) VALUES (${CUSTOMER_ID}, 'CLIENTE A242 LTDA', '${syntheticCnpj(242001)}');
       -- Invoice de Demurrage com QR estático (TXID = número) e com QR Itaú.

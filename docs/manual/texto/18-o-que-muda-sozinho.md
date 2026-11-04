@@ -170,7 +170,7 @@ A descarga e a devolução são do container físico, e é por elas que corre a 
 
 ## 18.9 Emitir ou cancelar uma fatura
 
-**Quem faz:** emitir, {{Qualquer equipe}}, em **Taxas Locais** › **Validação**; cancelar, o {{Administrativo}} (capítulo 22).
+**Quem faz:** emitir, {{Qualquer equipe}}, em **Taxas Locais** › **Validação**; cancelar, o {{Administrativo}} ou o {{Financeiro}} (capítulo 22).
 
 A fatura de Taxas Locais normalmente sai sozinha com o CE ([18.1](#181-vincular-o-ce-ao-bl)). Seja automática, seja pelo **Emitir**, os efeitos são os mesmos.
 

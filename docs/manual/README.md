@@ -194,6 +194,27 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   B/L original entregue, sem solicitação; vale o anual vigente entre o pagamento
   e a entrega e a exportação (migration `582`); aviso "documentação validada" por B/L, no sino e por e-mail; o Portal
   explica a regra e mostra por B/L o que falta (DCE-091, DCE-111, DCE-113).
+- **Baixa e Conciliação só do Financeiro e da conta Dev** (decisão do dono de
+  2026-11-04, migration `583`; regra em
+  [Segurança](../operations/seguranca.md#modelo-de-permissões-por-perfil)):
+  registrar e cancelar baixa (Taxas Locais e Demurrage), confirmar
+  Restituição, preparar cancelamento financeiro de B/L e conciliar o Pix
+  passam a ser do Financeiro e, no Administrativo, só da conta Dev, que pode
+  tudo o que qualquer setor pode; cancelar fatura sem pagamento passa a ser do
+  Administrativo e do Financeiro; cancelar Invoice de Demurrage sem pagamento e
+  mudar o intervalo da Régua, do Administrativo, do Financeiro e de
+  Equipamentos. A matriz da tela tem 46 linhas, com `permissao:cancelar-baixa`
+  e `permissao:cancelar-baixa-invoice` novas (ACE-080, ACE-102, ACE-104,
+  ACE-107, ACE-110, ACE-112, ACE-131, ACE-132), e a conta de integração da
+  baixa automática precisa ser do Financeiro (REC-093). Texto: capítulos 2, 22,
+  23 e 24, e as menções em 4, 6, 9, 13, 18, 19, 25 e nos Apêndices A a C;
+  matriz: REC-002 e as linhas de conciliação, baixa, cancelamento de baixa e
+  Restituição de 10-recebimento, BLR-103, BLR-107, BLR-145, CEB-027, VIA-021,
+  FAT-037, FAT-085, FAT-092, FAT-124, FAT-146, FAT-153, DEM-062 a DEM-096,
+  DEM-116 e as mensagens novas da recusa do preparo do cancelamento financeiro e
+  da Régua. O aviso de **Cancelar B/L** e a recusa de **Remover CE** passaram a
+  dizer que o Administrativo ou o Financeiro cancela a fatura (BLR-103, BLR-107 e
+  CEB-027).
 - **Pix do QR estático e Histórico de baixas** (achado do dono no staging em
   2026-10-30, [ADR 0115](../adr/0115-qr-estatico-do-vela-e-historico-por-baixa.md),
   migrations `552` e `553`): o Pix do QR estático deixa de aparecer como ZPT

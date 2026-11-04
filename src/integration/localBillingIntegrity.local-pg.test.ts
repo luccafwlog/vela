@@ -41,8 +41,9 @@ describeLocal('S10 — ledger local conserva saldo residual de um centavo', () =
       DELETE FROM public.audit_logs WHERE changed_by = '${actorId}';
       DELETE FROM auth.users WHERE id = '${actorId}';
       INSERT INTO auth.users (id, email) VALUES ('${actorId}', 's10-ledger@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active)
-      VALUES ('${actorId}', 'S10 Ledger', 'administrativo', true);
+      -- Conta Dev: baixa e cancelamento de baixa são do Financeiro e da conta Dev (migration 583).
+      INSERT INTO public.user_profiles (id, full_name, role, active, is_dev)
+      VALUES ('${actorId}', 'S10 Ledger', 'administrativo', true, true);
       INSERT INTO public.customers (id, cnpj_cpf, name)
       VALUES (${customerId}, '19101901000191', 'Cliente S10');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier S10');

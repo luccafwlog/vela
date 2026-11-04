@@ -89,7 +89,7 @@ describeLocal('376 — Lote 4 da frente financeira', () => {
     const payment = w.pay(b.invoice, 1100)
     const refund = w.psql(`SELECT id FROM public.invoice_refunds WHERE payment_id = ${payment.payment_id}`)
     w.asOk('financeiro', `SELECT public.confirm_invoice_refund(${refund}, 'DEV9313-47', 'Cliente FF9313', now() - interval '1 minute')`)
-    expect(w.as('administrativo', `SELECT public.reverse_invoice_payment(${payment.payment_id}, 'Estorno indevido')`).stderr).toMatch(/já foi devolvido/)
+    expect(w.as('financeiro', `SELECT public.reverse_invoice_payment(${payment.payment_id}, 'Estorno indevido')`).stderr).toMatch(/já foi devolvido/)
   })
 
   it('F-51: consolidada com pagamento não vira obsoleta', () => {

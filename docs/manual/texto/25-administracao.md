@@ -101,7 +101,7 @@ Desativado, o usuário perde o acesso na hora: a sessão aberta cai e a próxima
 ::: atencao
 - Ninguém desativa o próprio acesso nem o último {{Administrativo}} ativo ([25.3](#253-trocar-a-equipe-de-um-usuário)).
 - Antes de desativar a última pessoa ativa de uma equipe, ative ou crie outra. Sem ninguém, os alertas dessa equipe não têm a quem avisar ([25.8](#258-acompanhar-as-falhas-de-entrega-de-alertas)).
-- Não desative a conta **Integração** nem a passe para uma equipe que não seja {{Financeiro}} ou {{Administrativo}}: é ela que dá a baixa automática dos Pix do Itaú. Sem ela, os Pix das faturas de Taxas Locais e das avulsas deixam de baixar sozinhos e vão para análise (capítulo 24).
+- Não desative a conta **Integração** nem a tire do {{Financeiro}}: é ela que dá a baixa automática dos Pix do Itaú, e desde 2026-11-04 só a conta do {{Financeiro}} dá baixa (antes, também a do {{Administrativo}}). Sem ela, os Pix das faturas de Taxas Locais e das avulsas deixam de baixar sozinhos e vão para análise (capítulo 24).
 :::
 
 ## 25.6 Conferir o que cada equipe pode
@@ -173,7 +173,7 @@ O Vela tem poucas configurações com tela, e cada uma fica no seu assunto:
 | Configuração | Onde | Quem muda |
 |---|---|---|
 | **Envio real** dos e-mails ao Cliente | **Clientes** › **Comunicação**, bloco **Canal de envio** ([16.2](16-emails-e-comunicados.md#162-saber-se-os-e-mails-saem-de-verdade)) | Só a conta do {{Administrativo}} com a marca Dev |
-| Intervalo da Régua de Cobrança da Demurrage | **Demurrage**, botão **Régua de cobrança** (capítulo 23) | {{Administrativo}} |
+| Intervalo da Régua de Cobrança da Demurrage | **Demurrage**, botão **Régua de cobrança** (capítulo 23) | {{Administrativo}}, {{Financeiro}} e {{Equipamentos}} |
 
 A marca Dev é dada pela equipe de desenvolvimento, nunca pela tela; na lista de usuários, a conta aparece como "Administrativo · Dev". Cada troca da chave e do intervalo fica no **Histórico de ações**, assunto **Configuração do sistema**.
 
