@@ -104,7 +104,7 @@ Uma rotina a cada minuto cuida do Pix das faturas:
 - **separa o que não é seguro**: o Pix com valor diferente, ou de uma fatura já paga ou cancelada, vai para **Pix em análise** e abre **PIX sem conciliação segura** para o {{Financeiro}} e o {{Administrativo}}; quem trata é o {{Financeiro}} (capítulo 24). O do QR estático que não pode ser baixado fica **Sem baixa**, sem alerta.
 
 ::: atencao
-Se a consulta para, os Pix pagos deixam de ser baixados e abre um alerta (capítulo 20). Enquanto isso, o {{Financeiro}} usa **Conciliar extrato**, em **Conciliação PIX**.
+Se a consulta para, os Pix pagos deixam de ser baixados e abre um alerta (capítulo 20). Enquanto isso, o {{Financeiro}} usa **Conciliar extrato**, em **Conciliação PIX** › **Pix recebidos**.
 :::
 
 ## 19.7 O Desbloqueio de CE

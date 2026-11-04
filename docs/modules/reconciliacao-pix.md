@@ -1,6 +1,6 @@
 # Reconciliação PIX
 
-> **Status:** ativo · **Atualizado:** 2026-11-04 · **Rotas:** `/reconciliacao` (leitura de todos, conciliar do Financeiro e da conta Dev; [matriz de permissões](../operations/seguranca.md#conciliação-pix); abas Histórico de baixas (padrão, sem `?tab`), `?tab=recebidos`, `?tab=pendencias` e `?tab=extrato`); `/demurrage/reconciliacao` redireciona para esta rota
+> **Status:** ativo · **Atualizado:** 2026-11-04 · **Rotas:** `/reconciliacao` (leitura de todos, conciliar do Financeiro e da conta Dev; [matriz de permissões](../operations/seguranca.md#conciliação-pix); abas Histórico de baixas (padrão, sem `?tab`) e Pix recebidos (`?tab=recebidos`); os endereços antigos `?tab=pendencias` e `?tab=extrato` abrem Pix recebidos); `/demurrage/reconciliacao` redireciona para esta rota
 
 ## Propósito e escopo
 
@@ -11,18 +11,18 @@ restituição estão no Manual do Operador, capítulo
 A baixa de rotina é automática pela API do Itaú: a cobrança Pix de cada fatura
 é emitida no banco e o recebimento é consultado a cada minuto e baixado sem
 intervenção (job `itau-pix-queue`, migrations 151–154 e 219). A Conciliação
-acompanha essa baixa (aba Pendências), mostra o histórico de baixas e permite
+acompanha essa baixa (no topo da aba Pix recebidos), mostra o histórico de baixas e permite
 cancelar uma baixa. Todo Pix que o Itaú informa na consulta fica gravado e
 aparece na aba **Pix recebidos**, inclusive o que não veio de uma cobrança do
 Vela ([ADR 0100](../adr/0100-todo-pix-recebido-fica-gravado.md)); só o Pix de
 cobrança do Vela que não deu baixa sozinho pede decisão humana, no bloco
-**Pix em análise** de Pendências (e o Pix cuja baixa automática foi cancelada,
+**Pix em análise**, no topo da aba Pix recebidos (e o Pix cuja baixa automática foi cancelada,
 inclusive o do QR estático; ver [Cancelar baixa](#cancelar-baixa)). O Pix do QR
 estático do Vela também dá baixa sozinho, pela mesma consulta de recebimentos,
 onde o QR estático está ligado ([ADR 0115](../adr/0115-qr-estatico-do-vela-e-historico-por-baixa.md),
 migration `552`).
 
-A conciliação pelo extrato (aba Conciliar extrato) é **plano B**, decidido pelo
+A conciliação pelo extrato (botão **Conciliar extrato**, que abre a janela de importação) é **plano B**, decidido pelo
 responsável em 2026-10-13: fica para quando a API do Itaú ou a consulta de
 recebimentos falhar, e para o Pix que a consulta não baixou com segurança.
 Com a cobrança Itaú desligada as faturas mostram o QR estático, mas desde a
@@ -40,9 +40,11 @@ na irmã aberta do mesmo B/L. Limite conhecido do plano B: uma fatura local sem 
 pode aparecer pronta e ter o lote recusado (`no_match`).
 
 - A rota interna está em `src/AppInterno.tsx` e a composição em
-  `src/pages/Reconciliacao.tsx` (abas e detalhes); as abas são
-  `src/components/billing/ReconciliationHistoryTable.tsx`, `PixReceivedPanel.tsx`,
-  `PixPendingPanel.tsx` e `PixExtractPanel.tsx`, com leituras puras em
+  `src/pages/Reconciliacao.tsx` (abas, janela do extrato e detalhes); o
+  Histórico de baixas é `src/components/billing/ReconciliationHistoryTable.tsx`;
+  a aba Pix recebidos junta `PixPendingPanel.tsx` (o que pede ação) e
+  `PixReceivedPanel.tsx` (a lista); a janela do extrato é `PixExtractModal.tsx`
+  (até 2026-11-04, a aba `PixExtractPanel.tsx`), com leituras puras em
   `pixReconciliationPresentation.ts` e o estado da URL em
   `src/pages/reconciliacaoState.ts`.
 - `src/services/demurrage/demurrageKpis.ts` é o dono do parser da planilha.
@@ -55,36 +57,45 @@ pode aparecer pronta e ter o lote recusado (`no_match`).
   do Administrativo, desde a migration `583`, decisão do dono de 2026-11-04; antes,
   `can('settle_financial_adjustments')`, Financeiro e Administrativo) e nas RPCs
   críticas (`is_financeiro_or_dev_user()`). Para os demais perfis, inclusive o
-  Administrativo comum, só a aba Conciliar extrato troca o upload e o matching
-  pelo aviso "Conciliar extrato é do Financeiro"; nenhuma pendência PIX fica apenas em
+  Administrativo comum, o botão **Conciliar extrato** fica desativado, com a dica
+  "Conciliar extrato é do Financeiro"; nenhuma pendência PIX fica apenas em
   memória do browser.
 
 ## Anatomia das telas
 
 A tela separa três coisas que a operação confundia: **Pix recebido** (o dinheiro
 entrou no banco), **baixa confirmada** (a RPC gravou o pagamento na fatura) e
-**exceção pendente** (um Pix sem baixa segura, salvo até alguém tratar). Cada
-uma tem a sua aba (Pix recebidos, Histórico de baixas e Pendências), mais a aba
-Conciliar extrato do plano B; a aba fica na URL (`?tab=`) e as abas já abertas
-continuam montadas, então a leitura do extrato e os recortes do histórico e dos
-Pix recebidos não se perdem ao trocar de aba. Pela [matriz de permissões](../operations/seguranca.md#conciliação-pix)
+**exceção pendente** (um Pix sem baixa segura, salvo até alguém tratar). São
+duas abas: **Histórico de baixas** e **Pix recebidos**, que começa pelo que pede
+ação e mostra a exceção só quando ela existe; o extrato do plano B abre numa
+janela. Até 2026-11-04 eram quatro abas (Pendências e Conciliar extrato à
+parte); com a cobrança e a baixa automáticas, as duas ficavam vazias quase
+sempre, e o dono escolheu juntá-las em Pix recebidos (opção A da proposta de
+2026-11-04). A aba fica na URL (`?tab=`) e as abas já abertas continuam
+montadas, então os recortes do histórico e dos Pix recebidos não se perdem ao
+trocar de aba. Pela [matriz de permissões](../operations/seguranca.md#conciliação-pix)
 ([ADR 0085](../adr/0085-modelo-de-permissoes-por-perfil.md), item D5), todos
 leem a tela e o Financeiro e a conta Dev conciliam e cancelam baixa (desde a
 migration `583`, decisão do dono de 2026-11-04; antes, Financeiro e Administrativo conciliavam e
 cancelar baixa era só do Administrativo). Desde a migration `247` a tela abre para todos: quem não
 concilia não vê **Marcar como tratado**, **Tentar de novo**, **Baixar nesta
-fatura** nem **Encerrar exceção**, e a aba **Conciliar extrato** explica que
-ler o extrato e confirmar é do Financeiro (ler o extrato já grava as
-exceções).
+fatura** nem **Encerrar exceção**, e o botão **Conciliar extrato** fica
+desativado com a dica de que ler o extrato e confirmar é do Financeiro (ler o
+extrato já grava as exceções).
 
 ### Monitoramento das cobranças Itaú
 
 A tela abre no **Histórico de baixas**; as abas ficam na ordem Histórico de
-baixas, Pix recebidos, Pendências (com contagem) e Conciliar extrato (identidade
-visual, lote 3, aprovado em 2026-10-16; Pix recebidos pedida pelo responsável em
-2026-10-23, [ADR 0100](../adr/0100-todo-pix-recebido-fica-gravado.md)). Os Alertas de Pix (`pix_unreconciled`, inclusive os
+baixas e Pix recebidos (identidade visual, lote 3, aprovado em 2026-10-16; Pix
+recebidos pedida pelo responsável em 2026-10-23,
+[ADR 0100](../adr/0100-todo-pix-recebido-fica-gravado.md); Pendências e
+Conciliar extrato incorporadas em 2026-11-04). A aba Pix recebidos mostra a
+contagem do que pede ação só quando ela é maior que zero ("Pix recebidos 0"
+leria como nenhum Pix recebido). Os Alertas de Pix (`pix_unreconciled`, inclusive os
 gravados com destino `/reconciliacao` pelas migrations 152, 153 e 247) abrem em
-`/reconciliacao?tab=pendencias` (`alertEntityLink`, `PIX_PENDING_HREF`). Na
+`/reconciliacao?tab=recebidos` (`alertEntityLink`, `PIX_PENDING_HREF`); o
+endereço antigo `?tab=pendencias`, que o catálogo e os Alertas usavam, e o
+`?tab=extrato` abrem a mesma aba (`reconciliacaoTabFromSearch`). Na
 tela, o código da cobrança (`VELA…`) se chama **Identificador do Pix** nas
 listas do extrato (nome da coluna no extrato do Itaú) e **Identificador da
 cobrança** em Pix em análise, em Cobranças aguardando o Itaú e em Pix
@@ -93,15 +104,17 @@ o que a baixa manual usa como referência bancária. Ele vem encurtado em letra 
 mouse e na linha aberta; motivos gravados pelo matching com "TXID" são
 reescritos na tela (`pendingExceptionReason`, `extractLineReason`).
 
-A aba **Pendências** começa pelo bloco **Cobrança Pix Itaú**
-(`itau_pix_monitor`, migration 154, relido a cada minuto), com Conciliar
-extrato na faixa. Se o checkpoint de recebimentos
+A aba **Pix recebidos** começa pelo bloco **Cobrança Pix Itaú**
+(`itau_pix_monitor`, migration 154, relido a cada minuto), com o botão
+**Conciliar extrato** na faixa (desativado, com a dica, para quem não
+concilia). Se o checkpoint de recebimentos
 (`app_settings.itau_pix_polled_until`) não avança há 15 min ou mais, o dado
 principal é "Consulta parada há N min" em âmbar, com a frase de que Pix pagos
 depois daquele horário não deram baixa automática e de avisar quem cuida da
 integração (limite fixo da tela, `ITAU_POLL_STALE_MINUTES`); senão, "Baixa
 automática ligada". Os fatos são Baixa automática, Recebimentos consultados até
-(em Brasília) e Cobranças ativas. Com a chave desligada (`static`), o Pix do QR
+(em Brasília), Cobranças ativas e Aguardando o Itaú (quantas cobranças estão na
+fila do banco, ou "Nenhuma"). Com a chave desligada (`static`), o Pix do QR
 estático dá baixa pela mesma consulta de recebimentos, que roda com qualquer
 valor da chave (migration `552`); por isso a tela mostra a idade e a parada da
 consulta do mesmo jeito (decisão do dono de 2026-11-03). O dado principal é
@@ -114,8 +127,13 @@ QR estático) e Recebimentos consultados até. O Alerta
 `itau_pix_consulta_parada` também abre e fecha com as duas chaves (migration
 `574`, `reconcile_itau_pix_checkpoint_alert_core_425`).
 
-Abaixo vêm três blocos com tabela limpa, cada um com a contagem e uma frase na
-faixa; a situação vai em texto, âmbar só no que pede ação:
+Abaixo vêm até três blocos com tabela limpa, cada um com a contagem e uma
+frase na faixa, e por último a lista **Pix recebidos**. Cada bloco só aparece
+quando tem o que tratar: no dia normal a aba é a faixa do Itaú e a lista. O
+bloco que acabou de ficar vazio por uma ação continua à vista com a resposta
+dela (por exemplo "INV-…: baixa confirmada pelo banco" e "Nenhuma exceção
+pendente."), e o erro de consulta das exceções aparece em vez de sumir. A
+situação vai em texto, âmbar só no que pede ação:
 
 - **Pix em análise** (`itau_pix_receipts` em análise: Pix de cobrança do
   Vela desde a migration `442`, e o do QR estático cuja baixa automática foi
@@ -142,25 +160,28 @@ faixa; a situação vai em texto, âmbar só no que pede ação:
   de 5 caracteres, como a `itau_pix_mark_receipt_handled`), com a recusa do
   banco junto do campo; Voltar devolve o foco ao botão.
 - **Exceções do extrato** (abaixo).
-- **Cobranças aguardando o Itaú**: Fatura (abre o detalhe), Origem, Valor,
+- **Cobranças aguardando o Itaú**, só quando alguma cobrança está com erro ou
+  sem resposta do banco (a fila que só aguarda é a contagem Aguardando o Itaú
+  da faixa); então mostra a fila inteira: Fatura (abre o detalhe), Origem, Valor,
   Situação, Tentativas e Próxima tentativa; resposta incerta e erro vêm
   primeiro e em âmbar ("Alteração sem resposta do banco", "Emissão com erro"),
   o que só aguarda o banco fica na tinta normal. A seta abre a resposta do
   banco, o identificador inteiro e a última tentativa. Não há ação: a fila
   tenta de novo sozinha e consulta antes de repetir uma resposta incerta.
 
-A contagem da aba soma o que pede decisão: Pix em análise, exceções e cobranças
-com resposta incerta ou erro. Pix recebido que não é de cobrança do Vela não
+A contagem da aba Pix recebidos soma o que pede decisão: Pix em análise,
+exceções e cobranças com resposta incerta ou erro. Pix recebido que não é de cobrança do Vela não
 entra na contagem (ADR 0100).
 
 ### Pix recebidos
 
-Aba **Pix recebidos** (`?tab=recebidos`, `PixReceivedPanel.tsx`; ADR 0100,
+Lista **Pix recebidos**, abaixo desses blocos (`?tab=recebidos`, `PixReceivedPanel.tsx`; ADR 0100,
 migrations `442` a `446`): todo Pix que o Itaú informou na consulta de
 recebimentos, inclusive o feito digitando a chave (sem identificador da
 cobrança), o do QR estático do Vela, o do QR de outro sistema que usa a mesma
 chave e o de teste. Nada aqui abre Alerta; só o Pix de cobrança do Vela em
-análise pede ação, e ela é feita em Pendências.
+análise pede ação, e ela é feita no bloco Pix em análise, acima da lista (a
+linha aberta desse Pix diz isso).
 
 **QR estático do Vela** ([ADR 0115](../adr/0115-qr-estatico-do-vela-e-historico-por-baixa.md),
 migration `552`): o identificador do QR estático é o número da fatura ou da
@@ -270,10 +291,17 @@ Alerta `pix_unreconciled` na lista, no Financeiro e no cabeçalho.
 
 ### Upload e matching
 
-A aba **Conciliar extrato** usa as peças comuns de importação
-(`ImportGuide`, `ImportFilePicker`, `ImportNotice`): colunas lidas,
+O botão **Conciliar extrato** abre a janela **Conciliar extrato Pix do Itaú**
+(`PixExtractModal.tsx`), no molde de importação do lote 6a: passos Arquivo ·
+Prévia · Resultado (`ImportSteps`), bloco Arquivo (`ImportFileBlock`, com o
+modelo `.xlsx` na faixa, `ImportGuide` e `ImportFilePicker`), as seções da
+conferência e o rodapé com a frase de estado e os botões. Colunas lidas,
 arquivo `.xlsx`/`.xls` por clique ou arraste, limite de tamanho e o aviso de
-linhas e abas ocultas do próprio seletor. A leitura mostra o andamento e diz
+linhas e abas ocultas do próprio seletor. Enquanto lê ou baixa o lote, o X, o
+Escape e Voltar não fecham a janela (como nas outras importações). Com linhas
+prontas ainda não baixadas, fechar pede confirmação (**Descartar a leitura?**,
+**Continuar conferindo** ou **Descartar leitura**); sem elas, fecha direto,
+porque as exceções já estão salvas e continuam na aba. A leitura mostra o andamento e diz
 que nada é baixado nesta fase; as linhas sem baixa segura já ficam salvas como
 exceção. Falha de leitura fica na tela ("Nada foi baixado"), não em toast.
 
@@ -300,7 +328,8 @@ as linhas visíveis entram na conciliação
 
 ### Revisão do resultado
 
-O bloco **Conferência do extrato** (linhas lidas na faixa) tem como dado
+A seção **Prévia** (linhas lidas na faixa; até 2026-11-04, bloco
+"Conferência do extrato") tem como dado
 principal "N prontas para baixa" com o total do lote, os fatos Ficam como
 exceção (âmbar quando há) e Linhas ocultas fora da leitura, e duas tabelas
 limpas:
@@ -310,12 +339,15 @@ limpas:
   linha tem nota: uma Invoice de Demurrage paga com a cotação anterior diz que
   a janela das duas PTAX foi aceita.
 - **Ficam como exceção**: Linha, Pago em, Valor do Pix, Identificador do Pix e
-  Motivo (as mesmas palavras de Pendências, com a fatura indicada e o valor dela); já estão salvas em Pendências.
+  Motivo (as mesmas palavras de Exceções do extrato, com a fatura indicada e o
+  valor dela); a faixa diz "Já estão salvas em Exceções do extrato".
 
 O rodapé diz que nada foi baixado ainda e, com mais de uma linha, que o lote é
-gravado junto. **Ver Pendências** aparece quando há exceção; **Confirmar N
-baixas** só aparece ativo com linha pronta; **Descartar leitura** não apaga as
-exceções já salvas.
+gravado junto; com exceção, que elas já estão salvas em Exceções do extrato.
+**Confirmar N baixas** só aparece ativo com linha pronta; **Descartar leitura**
+volta ao passo Arquivo e não apaga as exceções já salvas. Com valor ou data
+ilegível, a Prévia diz "Nada foi lido nem salvo", lista os erros e não há
+Confirmar.
 
 Transações sem documento candidato geram um `UnifiedPixMatch` com
 `source = unmatched`. Elas permanecem visíveis para conferência, são contadas
@@ -323,13 +355,16 @@ separadamente e nunca entram na confirmação.
 
 ### Confirmação e resultado por item
 
-Recusa do lote fica na conferência: "Nenhuma baixa foi gravada", a mensagem do
+Recusa do lote fica na janela, sob a Prévia: "Nenhuma baixa foi gravada", a mensagem do
 banco e o lembrete de que uma linha recusada impede as demais. Com sucesso, o
-resultado é uma tabela só com o que a RPC devolveu (Fatura, Origem, Cliente,
-Pago em, Valor do Pix, Identificador do Pix e a situação "Baixa confirmada" em
-texto); o número abre o detalhe. Se a resposta vier com
+resultado (seção **Resultado**) é uma tabela só com o que a RPC devolveu
+(Fatura, Origem, Cliente, Pago em, Valor do Pix, Identificador do Pix e a
+situação "Baixa confirmada" em texto); o número fecha a janela e abre o
+detalhe. Se a resposta vier com
 menos itens que o enviado, a tela manda conferir o histórico em vez de
-prometer a baixa. As linhas que não entraram apontam para Pendências (botão **Ver Pendências**).
+prometer a baixa. O rodapé diz quantas linhas não entraram e estão em Exceções
+do extrato; **Conciliar outro extrato** volta ao passo Arquivo e **Concluir**
+fecha a janela.
 
 ### Histórico, filtros e exportação
 
@@ -402,17 +437,17 @@ consolidada, não apareciam):
 
 | Tela / ação | Pré-condições | Origem | Orquestração | Persistência | Efeitos e cache | Falhas | Evidência |
 |---|---|---|---|---|---|---|---|
-| `/reconciliacao?tab=extrato` · escolher a planilha | Financeiro ou conta Dev (migration `583`; antes, Financeiro ou Administrativo, migration `247`) e arquivo `.xlsx`/`.xls` dentro do limite | `ImportFilePicker` (clique ou arraste) → `chooseFile` em `PixExtractPanel` | `readMutation`: `parsePixExtractFile` e `readSpreadsheetNotices` em paralelo, depois `matchUnifiedPixTransactions` e `persistUnresolvedPixMatches`; linhas e abas ocultas ficam fora da leitura e o aviso aparece na conferência, antes de Confirmar | RPC `upsert_pix_reconciliation_exceptions` (definição vigente na migration `509`; origem na migration arquivada `328`): linhas sem baixa segura ficam salvas por importação/linha e abrem `pix_unreconciled`, tratado pelo Administrativo desde a migration `078` | Nova leitura limpa a anterior e o resultado; com exceção gravada, `afterPendenciaPixAlterada` (exceções, monitor Itaú e Alerta) | Perfil que não concilia vê na aba o aviso “Conciliar extrato é do Financeiro”, sem o seletor; arquivo grande, formato, cabeçalho inválido ou extrato sem transação aparece na aba com “Nada foi baixado” | **Código:** `src/components/billing/PixExtractPanel.tsx`, `src/services/reconciliacao.ts` · **Teste:** `src/pages/__tests__/Reconciliacao.behavior.test.tsx` · **Runtime local** (etapa 12) |
+| `/reconciliacao?tab=recebidos` · **Conciliar extrato** → escolher a planilha | Financeiro ou conta Dev (migration `583`; antes, Financeiro ou Administrativo, migration `247`) e arquivo `.xlsx`/`.xls` dentro do limite | `ImportFilePicker` (clique ou arraste) → `chooseFile` em `PixExtractModal` | `readMutation`: `parsePixExtractFile` e `readSpreadsheetNotices` em paralelo, depois `matchUnifiedPixTransactions` e `persistUnresolvedPixMatches`; linhas e abas ocultas ficam fora da leitura e o aviso aparece na conferência, antes de Confirmar | RPC `upsert_pix_reconciliation_exceptions` (definição vigente na migration `509`; origem na migration arquivada `328`): linhas sem baixa segura ficam salvas por importação/linha e abrem `pix_unreconciled`, tratado pelo Administrativo desde a migration `078` | Nova leitura limpa a anterior e o resultado; com exceção gravada, `afterPendenciaPixAlterada` (exceções, monitor Itaú e Alerta) | Perfil que não concilia vê o botão desativado, com a dica “Conciliar extrato é do Financeiro e do Administrativo”; arquivo grande, formato, cabeçalho inválido ou extrato sem transação aparece na janela com “Nada foi baixado” | **Código:** `src/components/billing/PixExtractModal.tsx`, `src/services/reconciliacao.ts` · **Teste:** `src/pages/__tests__/Reconciliacao.behavior.test.tsx` · **Runtime local** (etapa 12) |
 | Parser · extrair linhas bancárias | Cabeçalho `identificador` e coluna `valor pago` | `parsePixExtractFile` | `assertUploadFile` (tamanho e extensão) → `readPixExtract` → `readSheet` de `importCore` (carrega `@e965/xlsx` sob demanda) | Nenhuma persistência | Retorna `{txid, cnpj, date, amount, lineNumber}`; preserva TXID vazio, ignora lançamento zerado ou negativo (tarifas e saídas, inclusive "(10,00)", "10,00-" e "10,00 D") e conta quantos (mostrado na conferência; linha sem valor e sem identificador, ou o rodapé "Total", não conta; identificador sem valor é erro), aceita o símbolo "R$" e recusa coluna repetida no cabeçalho | Cabeçalho ausente ou coluna repetida lança erro; valor pago ilegível ou "pago em" preenchido e ilegível é erro que recusa o extrato inteiro antes de procurar faturas ou salvar exceções (ADR 0092); "pago em" vazio vira string vazia | **Código:** `src/services/demurrage/demurrageKpis.ts` · **Teste:** `src/services/__tests__/demurrageKpis.test.ts` (inclui o arquivo de exemplo) |
 | Matching · carregar documentos locais e Demurrage | Transações parseadas | `matchUnifiedPixTransactions` | `list_pix_txid_candidates` resolve no servidor cada TXID do extrato nas faturas abertas (`_pix_txid_open_candidates`: versão de cobrança local, TXID gravado, avulsa e Invoice de Demurrage pelo número do documento, que é o TXID do QR estático, ou pela cobrança Itaú), depois o histórico de recálculo das Invoices de Demurrage candidatas; normalização alfanumérica maiúscula | RPC `list_pix_txid_candidates` (migration `242`) e `SELECT demurrage_invoice_history` | Sem cache React Query; monta mapa único de TXID para os dois domínios | Erro de qualquer leitura aborta o matching | **Código:** `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
 | Matching/confirmar · invoice avulsa | Invoice `manual` emitida e PIX compatível com o saldo total; sem requisito de B/L. O matching acha a avulsa aberta pelo número (QR estático) ou pela cobrança Itaú (migration `242`) | Matching e confirmação unificada em `/reconciliacao` | `confirm_unified_pix_matches` → `reconcile_invoice_payment_by_txid` (migration `130`), que sem versão de cobrança cai no caminho da migration `097` → ramo genérico `register_invoice_payment` | `payments` e agregados da invoice; não cria `ledger_settlements` nem liquida B/L | Invalida invoices, detalhe e histórico da reconciliação | TXID ausente, ambíguo, valor divergente ou invoice já paga é rejeitado | **Código:** migrations `097` e `130`, `src/services/reconciliacao.ts`; **Teste:** `src/services/__tests__/reconciliationInvoiceType.test.ts`; **Teste local-pg:** `src/integration/manualInvoice.local-pg.test.ts` |
-| Matching · classificar sem match | TXID sem candidato aberto | Loop de `matchUnifiedPixTransactions` | `txidMap.get(key)` retorna vazio | Exceção salva na leitura (linha acima) | Linha `source = unmatched` (motivo “Nenhuma fatura aberta com este identificador”, ou “Linha sem identificador no extrato” sem identificador) na tabela **Ficam como exceção** e na contagem; nunca entra na confirmação | Nenhum documento é alterado; a linha é tratada em Pendências | **Código:** `src/services/reconciliacao.ts`, `src/components/billing/PixExtractPanel.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts`, `src/pages/__tests__/Reconciliacao.behavior.test.tsx` |
-| Matching · classificar ambiguidade de documento/TXID | Mais de um documento com TXID normalizado ou TXID repetido no extrato | Mesmo loop | `entries.length > 1` ou `seenTxids` | Exceção salva na leitura | `ambiguous = true`, motivo e `candidateCount`; a linha vai para **Ficam como exceção** com o motivo em âmbar | A escolha da fatura não é feita na conferência: é feita em Pendências (seta da linha → **Baixar nesta fatura**) | **Código:** `src/services/reconciliacao.ts`, `src/components/billing/PixExtractPanel.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
+| Matching · classificar sem match | TXID sem candidato aberto | Loop de `matchUnifiedPixTransactions` | `txidMap.get(key)` retorna vazio | Exceção salva na leitura (linha acima) | Linha `source = unmatched` (motivo “Nenhuma fatura aberta com este identificador”, ou “Linha sem identificador no extrato” sem identificador) na tabela **Ficam como exceção** e na contagem; nunca entra na confirmação | Nenhum documento é alterado; a linha é tratada em Exceções do extrato | **Código:** `src/services/reconciliacao.ts`, `src/components/billing/PixExtractModal.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts`, `src/pages/__tests__/Reconciliacao.behavior.test.tsx` |
+| Matching · classificar ambiguidade de documento/TXID | Mais de um documento com TXID normalizado ou TXID repetido no extrato | Mesmo loop | `entries.length > 1` ou `seenTxids` | Exceção salva na leitura | `ambiguous = true`, motivo e `candidateCount`; a linha vai para **Ficam como exceção** com o motivo em âmbar | A escolha da fatura não é feita na conferência: é feita em Exceções do extrato (seta da linha → **Baixar nesta fatura**) | **Código:** `src/services/reconciliacao.ts`, `src/components/billing/PixExtractModal.tsx` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
 | Matching · classificar divergência de valor | Diferença absoluta maior que `0,01` ou valor esperado não numérico | Mesmo loop | Compara transação com saldo local ou `current_total_brl` | Sem persistência | Marca como ambíguo; local e Demurrage recebem motivos distintos | Não existe pagamento parcial por PIX neste fluxo | **Código:** `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts` |
-| `/reconciliacao` · confirmar somente não ambíguos | Ao menos um match seguro; data parseada | `confirmMutation` | Filtra `!ambiguous`; `confirmUnifiedPixReconciliation` refiltra e monta JSON | RPC `confirm_unified_pix_matches` | Em sucesso `afterPixConciliado` (`cacheEffects.ts`): famílias da base de faturamento (ledger, faturas, B/Ls, Cliente, Portal), da Invoice de Demurrage, histórico, exceções, monitor Itaú e alertas | Data vazia falha antes da RPC; erro do lote fica na conferência (“Nenhuma baixa foi gravada”) | **Código:** `src/components/billing/PixExtractPanel.tsx`, `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts`, `Reconciliacao.behavior.test.tsx`, `cacheEffects.test.ts` · **Runtime local** (etapa 12: recusa `no_match`; a baixa de Demurrage só passou depois de gravar o TXID na Invoice emitida à mão; desde a migration `242` (A16) o TXID é resolvido nas faturas abertas, ver [Notas e divergências](#notas-e-divergências)) |
+| `/reconciliacao` · confirmar somente não ambíguos | Ao menos um match seguro; data parseada | `confirmMutation` | Filtra `!ambiguous`; `confirmUnifiedPixReconciliation` refiltra e monta JSON | RPC `confirm_unified_pix_matches` | Em sucesso `afterPixConciliado` (`cacheEffects.ts`): famílias da base de faturamento (ledger, faturas, B/Ls, Cliente, Portal), da Invoice de Demurrage, histórico, exceções, monitor Itaú e alertas | Data vazia falha antes da RPC; erro do lote fica na conferência (“Nenhuma baixa foi gravada”) | **Código:** `src/components/billing/PixExtractModal.tsx`, `src/services/reconciliacao.ts` · **Teste:** `src/services/__tests__/reconciliacao.test.ts`, `Reconciliacao.behavior.test.tsx`, `cacheEffects.test.ts` · **Runtime local** (etapa 12: recusa `no_match`; a baixa de Demurrage só passou depois de gravar o TXID na Invoice emitida à mão; desde a migration `242` (A16) o TXID é resolvido nas faturas abertas, ver [Notas e divergências](#notas-e-divergências)) |
 | RPC unificada · conciliar item local | `source = local`, data presente, TXID resolve uma única cobrança local pagável e o valor é exatamente o dessa cobrança | `confirm_unified_pix_matches` | `reconcile_invoice_payment_by_txid` → `register_ledger_invoice_payment` | `payments`, `ledger_settlements`, `bl_receivables`, links, invoice, B/Ls e eventos | Item `{source: local, status: ok}`; transação inteira aborta se um item falhar | Sem match, ambíguo no domínio local, já conciliado ou valor inexato gera falha do lote | **Código:** `confirm_unified_pix_matches` na migration `002` (SECURITY DEFINER desde a `329`) e `reconcile_invoice_payment_by_txid` na migration `130` (sem EXECUTE para `authenticated` desde a `329`; definições vigentes; origem nas migrations arquivadas `103` e `111`) |
 | RPC unificada · conciliar item Demurrage | `source = demurrage`, invoice existente e valor na janela das duas PTAX (`event_date <= pagamento`, tol. `0,01`) | Mesma RPC | Valida pela janela (`get_demurrage_recent_values`, ADR 0015), congela o valor casado e acumula lote para `confirm_demurrage_pix_matches` → `register_demurrage_payment` | `UPDATE demurrage_invoices`: `paid`, `paid_at`, `pix_txid`, `conciliated_by_extract`, `current_total_brl` casado + foto `source='payment'` no histórico | Item `{source: demurrage, status: ok}` | Documento ausente, valor fora da janela ou contagem atualizada diferente aborta o lote | **Código:** migrations `002` (`confirm_unified_pix_matches`), `012` (`confirm_demurrage_pix_matches`) e `027` (`register_demurrage_payment`); origem da janela na migration arquivada `158` |
-| Resultado · exibir retorno por fonte/item | Confirmação concluída | `confirmMutation.onSuccess` | `describeConfirmation` completa cada item devolvido com o que foi enviado | Sem nova persistência | Lista só os itens devolvidos, conta os enviados que não voltaram e aponta as exceções para Pendências | Shape sem itens vira array vazio e a tela diz que nenhuma baixa voltou | **Código:** `src/components/billing/PixExtractPanel.tsx`, `pixReconciliationPresentation.ts` · **Teste:** `pixReconciliationPresentation.test.ts` |
+| Resultado · exibir retorno por fonte/item | Confirmação concluída | `confirmMutation.onSuccess` | `describeConfirmation` completa cada item devolvido com o que foi enviado | Sem nova persistência | Lista só os itens devolvidos, conta os enviados que não voltaram e aponta as exceções para Exceções do extrato | Shape sem itens vira array vazio e a tela diz que nenhuma baixa voltou | **Código:** `src/components/billing/PixExtractModal.tsx`, `pixReconciliationPresentation.ts` · **Teste:** `pixReconciliationPresentation.test.ts` |
 | Histórico · listar/filtrar/ordenar/paginar | Sessão interna | `ReconciliationHistoryTable`; estado na URL por `reconciliacaoState.ts` | `useQuery` → `listReconciliationHistory` → RPC `list_payment_history` (migration `553`) | Uma linha por baixa e B/L, com a forma da baixa decidida no banco; Cliente na RPC, demais filtros, ordenação e página no cliente | Query `['reconciliation-history', filters]`, `staleTime` 15 s; data, valor e `paymentId` são da baixa da linha | Erro da RPC falha a tabela inteira, com Tentar novamente e sem lista vazia; sem sessão interna ativa a RPC recusa | **Código:** `src/components/billing/ReconciliationHistoryTable.tsx`, `src/services/reconciliacao.ts`, migration `553` · **Teste:** `reconciliationHistoryPagination.test.ts`, `reconciliationHistorySummary.test.ts`, `ReconciliationHistoryTable.behavior.test.tsx` · **Teste local-pg:** `baixaDoQrEstatico.local-pg.test.ts` |
 | Histórico · exportar | Filtros atuais e ao menos um registro | Botão “Exportar planilha” | `exportReconciliationHistoryExcel` consulta com página única ampla e escreve por `writeWorkbook` (`exceljs`, padrão da [ADR 0120](../adr/0120-padrao-visual-das-planilhas-exportadas.md)) | Arquivo local `conciliacao-<timestamp>.xlsx` | Sem invalidação; neutraliza prefixos de fórmula em strings | Falha exibe toast dedicado e encerra o estado de processamento | **Código:** `src/components/billing/ReconciliationHistoryTable.tsx`, `src/services/reconciliacao.ts` |
 | Histórico · abrir detalhe local | Linha local; invoice/payment IDs disponíveis | `onSelectLocalInvoice` | `InvoiceDetailModal` → `useInvoiceDetail`/`useInvoiceRefunds`, com a baixa da linha escolhida | Leituras do faturamento | Queries de detalhe/refund | `paymentId = null` permite detalhe, mas não cancelamento da baixa | **Código:** `src/pages/Reconciliacao.tsx`, `src/components/billing/ReconciliationHistoryTable.tsx` |
@@ -429,10 +464,11 @@ consolidada, não apareciam):
 
 - URL: aba (`?tab=`) e filtros, ordem, página e tamanho do histórico
   (`reconciliacaoState.ts`).
-- Aba Conciliar extrato: arquivo escolhido, leitura (`matches` e linhas ocultas
-  da aba lida) e resultado do lote.
-- Aba Pendências: formulário de tratamento do Pix por linha e exceção com as
-  faturas abertas.
+- Janela do extrato: arquivo escolhido, leitura (`matches` e linhas ocultas
+  da aba lida) e resultado do lote; fechar a janela descarta tudo isso (as
+  exceções já estão salvas).
+- Aba Pix recebidos, blocos do que pede ação: formulário de tratamento do Pix
+  por linha, exceção com as faturas abertas e a resposta da última ação.
 - Página: detalhe aberto (local com `paymentId` ou Demurrage), cancelamento de
   baixa e documento de Demurrage, com volta ao detalhe.
 
@@ -654,7 +690,7 @@ com 10 min de sobreposição e janelas de até 6 h para recuperar atraso. O Ita�
 de produção só encontra a janela pedida em `-03:00` e devolve horários de
 Brasília com `Z` indevido; o cliente envia a janela em Brasília e grava tudo em
 UTC. Se o banco passar a mandar UTC verdadeiro, travas de horário param a
-consulta sem baixa nem avanço do checkpoint; na aba Pendências isso aparece,
+consulta sem baixa nem avanço do checkpoint; na aba Pix recebidos isso aparece,
 depois de 15 min, como **Consulta parada há N min** em âmbar ("Pix pagos depois
 de … não deram baixa automática. Avise quem cuida da integração antes de baixar
 à mão."), e o job SQL `itau-pix-checkpoint-health` (a cada 5 min) abre o
@@ -755,7 +791,10 @@ cancelamento de baixa de Demurrage.
   Brasília e consulta parada (também com o QR estático: idade e parada), Pix tratado com motivo e foco, leitura com
   exceções salvas, linhas ocultas, lote recusado, resultado parcial honesto,
   exceção por Tentar de novo e pela lista de faturas da linha aberta (com falha depois da baixa),
-  detalhes, cancelamento de baixa de Demurrage, aba na URL e acesso restrito.
+  detalhes, cancelamento de baixa de Demurrage, aba na URL, endereços antigos
+  `?tab=pendencias` e `?tab=extrato`, dia normal sem blocos vazios, resposta
+  que fica com o bloco já vazio, confirmação ao fechar a janela do extrato com
+  linhas prontas e botão Conciliar extrato desativado para quem não concilia.
 - `src/components/billing/__tests__/pixReconciliationPresentation.test.ts` e
   `src/pages/__tests__/reconciliacaoState.test.ts`: leituras puras e estado na URL.
 - `src/components/billing/__tests__/ReconciliationHistoryTable.behavior.test.tsx`:
@@ -843,7 +882,7 @@ Estes testes verificam texto de migrations, não um banco aplicado:
 
 - **Pendências PIX são persistidas — Código.** `persistUnresolvedPixMatches`
   conserva linhas sem candidata e ambíguas por importação/linha, inclusive sem
-  TXID. O Financeiro e a conta Dev as tratam em Pendências com **Tentar de novo**,
+  TXID. O Financeiro e a conta Dev as tratam em Exceções do extrato, no topo da aba Pix recebidos, com **Tentar de novo**,
   a seta da linha e **Baixar nesta fatura** (ou **Encerrar exceção**, quando
   a baixa já existe); a resolução exige prova de baixa autoritativa. Essas
   linhas não entram automaticamente no lote seguro.

@@ -3,12 +3,23 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Loader2 } from 'lucide-react'
 import { Block, Fact, FactList, LeadValue } from '../ui/Block'
 import { Button } from '../ui/Button'
+import { Modal } from '../ui/Modal'
 import { NoValue } from '../ui/NoValue'
 import { StatusText } from '../ui/StatusText'
-import { ImportFilePicker, ImportFootnote, ImportGuide, ImportNotice, ImportTemplateLinks } from '../shared/ImportParts'
+import { useConfirm } from '../ui/ConfirmDialog'
+import {
+  ImportFileBlock,
+  ImportFilePicker,
+  ImportFootnote,
+  ImportGuide,
+  ImportNotice,
+  ImportSection,
+  ImportSteps,
+  ImportTemplateLinks,
+  type ImportStep,
+} from '../shared/ImportParts'
 import { ImportIssuesPanel } from '../shared/ImportIssuesPanel'
 import type { ImportIssue } from '../../services/importValidation'
-import { useAuth } from '../../hooks/useAuth'
 import { afterPendenciaPixAlterada, afterPixConciliado } from '../../services/cacheEffects'
 import { parsePixExtractFile } from '../../services/demurrage/demurrageKpis'
 import { readSpreadsheetNotices } from '../../services/importCore'
@@ -46,20 +57,26 @@ type ReadResult = {
   errors: ImportIssue[]
 }
 
+type Outcome = { sent: UnifiedPixMatch[]; result: UnifiedPixConfirmationResult; exceptions: number }
+
 const sourceLabel = (source: 'local' | 'demurrage' | 'unmatched') => (source === 'demurrage' ? 'Demurrage' : 'Taxas Locais')
 
 /**
- * Conciliação pelo extrato "QR Codes recebidos" do Itaú: escolher o arquivo,
- * ler (nada é baixado), conferir o que entra no lote e o que fica como exceção,
- * confirmar o lote (tudo ou nada) e ver o resultado que o banco devolveu.
+ * Conciliação pelo extrato "QR Codes recebidos" do Itaú, na janela de
+ * importação (molde do lote 6a: Arquivo · Prévia · Resultado): escolher o
+ * arquivo, ler (nada é baixado), conferir o que entra no lote e o que fica como
+ * exceção, confirmar o lote (tudo ou nada) e ver o resultado que o banco
+ * devolveu. Desde 2026-11-04 abre pelo botão Conciliar extrato da aba Pix
+ * recebidos; antes era uma aba própria. Quem abre é o Financeiro ou a conta
+ * Dev: a página desativa o botão para os demais, e as RPCs recusam
+ * (decisão do dono de 2026-11-04; migration 583).
  */
-export function PixExtractPanel({ onOpenPending, onOpenInvoice }: { onOpenPending: () => void; onOpenInvoice: OpenInvoice }) {
-  const { can } = useAuth()
-  const canReconcile = can('manage_payments')
+export function PixExtractModal({ onClose, onOpenInvoice }: { onClose: () => void; onOpenInvoice: OpenInvoice }) {
   const queryClient = useQueryClient()
+  const confirm = useConfirm()
   const [file, setFile] = useState<File | null>(null)
   const [read, setRead] = useState<ReadResult | null>(null)
-  const [outcome, setOutcome] = useState<{ sent: UnifiedPixMatch[]; result: UnifiedPixConfirmationResult; exceptions: number } | null>(null)
+  const [outcome, setOutcome] = useState<Outcome | null>(null)
 
   const readMutation = useMutation({
     mutationFn: async (chosen: File): Promise<ReadResult> => {
@@ -79,7 +96,7 @@ export function PixExtractPanel({ onOpenPending, onOpenInvoice }: { onOpenPendin
         throw new Error(`Nenhuma transação Pix encontrada no extrato${ignored ? ` (${pluralize(ignored, 'lançamento zerado ou negativo ignorado', 'lançamentos zerados ou negativos ignorados')})` : ''}. Confira se é o relatório "QR Codes recebidos" e se as linhas estão visíveis.`)
       }
       const [importKey, found] = await Promise.all([createPixImportKey(chosen), matchUnifiedPixTransactions(transactions)])
-      // As linhas sem baixa segura ficam salvas já na leitura: sair da tela não as perde.
+      // As linhas sem baixa segura ficam salvas já na leitura: fechar a janela não as perde.
       const persisted = await persistUnresolvedPixMatches(importKey, found)
       const idsByLine = new Map(persisted.map((item) => [item.lineNumber, item.id]))
       return {
@@ -123,47 +140,74 @@ export function PixExtractPanel({ onOpenPending, onOpenInvoice }: { onOpenPendin
   }
 
   const busy = readMutation.isPending || confirmMutation.isPending
+  const lines = read && !read.errors.length ? splitExtractLines(read.matches) : null
+  const readyCount = lines?.ready.length ?? 0
+  const exceptionCount = lines?.exceptions.length ?? 0
+  const step: ImportStep = outcome ? 'resultado' : read || readMutation.error ? 'previa' : 'arquivo'
 
-  // Ler o extrato já grava as exceções e confirmar baixa: conciliar é do
-  // Financeiro e da conta Dev (decisão do dono de 2026-11-04; migration 583).
-  if (!canReconcile) {
-    return (
-      <div className="grid min-w-0 gap-4 pt-1">
-        <Block title="Extrato Pix do Itaú">
-          <ImportNotice tone="info" role="status" title="Conciliar extrato é do Financeiro">
-            <p>Você acompanha as pendências e o histórico de baixas; a leitura do extrato registra exceções e baixa faturas.</p>
-          </ImportNotice>
-        </Block>
-      </div>
-    )
+  // Leitura ou baixa em andamento: X, Escape e Voltar não fecham, como nas
+  // outras importações (fechar desmontaria a janela com a gravação seguindo sem
+  // tela). Com linhas prontas ainda não baixadas, fechar pede confirmação; as
+  // exceções já estão salvas e continuam na aba.
+  async function requestClose() {
+    if (busy) return
+    if (readyCount) {
+      const discard = await confirm({
+        title: 'Descartar a leitura?',
+        message: `${pluralize(readyCount, 'linha pronta para baixa não será baixada', 'linhas prontas para baixa não serão baixadas')}. Para baixar depois, leia o extrato de novo.`,
+        consequence: exceptionCount ? 'As exceções do extrato já estão salvas e continuam na aba Pix recebidos.' : undefined,
+        confirmLabel: 'Descartar leitura',
+        cancelLabel: 'Continuar conferindo',
+        tone: 'danger',
+      })
+      if (!discard) return
+    }
+    onClose()
+  }
+
+  let footnote: { text: string; tone: 'default' | 'warning' | 'success' } | null = null
+  if (outcome) {
+    footnote = outcome.exceptions
+      ? { text: `${pluralize(outcome.exceptions, 'linha não entrou no lote e está', 'linhas não entraram no lote e estão')} em Exceções do extrato.`, tone: 'default' }
+      : null
+  } else if (read?.errors.length) {
+    footnote = { text: 'Com valor ou data ilegível no extrato, nada é baixado nem salvo. Corrija e escolha o arquivo de novo.', tone: 'warning' }
+  } else if (lines) {
+    const base = readyCount > 1
+      ? `Nada foi baixado ainda. As ${readyCount.toLocaleString('pt-BR')} baixas são gravadas juntas: se uma for recusada, nenhuma é gravada.`
+      : readyCount ? 'Nada foi baixado ainda.' : 'Nada para baixar neste extrato.'
+    footnote = { text: `${base}${exceptionCount ? ' As exceções já estão salvas em Exceções do extrato.' : ''}`, tone: readyCount ? 'default' : 'warning' }
   }
 
   return (
-    <div className="grid min-w-0 gap-4 pt-1">
-      <Block title="Extrato Pix do Itaú" aside={'Relatório "QR Codes recebidos", .xlsx ou .xls'} bodyClassName="grid gap-3">
-        <p>Para Pix que não deu baixa automática ou faturas com QR estático. A fatura é encontrada só pelo identificador do Pix; CNPJ e valor não localizam fatura.</p>
-        <ImportGuide
-          requiredLabel="Colunas lidas"
-          required={<>Identificador do Pix e Valor pago</>}
-          optional={<>CPF/CNPJ e Pago em</>}
-          details={(
-            <p>
-              Use o relatório "QR Codes recebidos" (.xlsx ou .xls). A leitura começa na linha que tem a coluna Identificador e
-              ignora lançamentos zerados ou negativos (tarifas e saídas, inclusive em forma contábil, como "(10,00)" ou
-              "10,00 D"), com a contagem na conferência. Valor pago ou data de pagamento ilegível impede a leitura do
-              extrato inteiro. Linhas e abas ocultas ficam de fora.
-            </p>
-          )}
-          templates={<ImportTemplateLinks baseName="extrato-pix-exemplo" extensions={['xlsx']} />}
-        />
-        <ImportFilePicker
-          accept=".xlsx,.xls"
-          label="Extrato"
-          files={file ? [file] : []}
-          onFiles={([chosen]) => chooseFile(chosen)}
-          disabled={busy}
-          disabledReason={readMutation.isPending ? 'Aguarde a leitura terminar.' : confirmMutation.isPending ? 'Aguarde a baixa do lote terminar.' : undefined}
-        />
+    <Modal open onClose={() => void requestClose()} title="Conciliar extrato Pix do Itaú">
+      <div className="app-import">
+        <ImportSteps current={step} />
+        <ImportFileBlock templates={<ImportTemplateLinks baseName="extrato-pix-exemplo" extensions={['xlsx']} />}>
+          <p>Relatório "QR Codes recebidos" (.xlsx ou .xls), para Pix que não deu baixa automática ou faturas com QR estático. A fatura é encontrada só pelo identificador do Pix; CNPJ e valor não localizam fatura.</p>
+          <ImportGuide
+            requiredLabel="Colunas lidas"
+            required={<>Identificador do Pix e Valor pago</>}
+            optional={<>CPF/CNPJ e Pago em</>}
+            details={(
+              <p>
+                A leitura começa na linha que tem a coluna Identificador e ignora lançamentos zerados ou negativos
+                (tarifas e saídas, inclusive em forma contábil, como "(10,00)" ou "10,00 D"), com a contagem na
+                conferência. Valor pago ou data de pagamento ilegível impede a leitura do extrato inteiro. Linhas e abas
+                ocultas ficam de fora.
+              </p>
+            )}
+          />
+          <ImportFilePicker
+            accept=".xlsx,.xls"
+            label="Extrato"
+            files={file ? [file] : []}
+            onFiles={([chosen]) => chooseFile(chosen)}
+            disabled={busy}
+            disabledReason={readMutation.isPending ? 'Aguarde a leitura terminar.' : confirmMutation.isPending ? 'Aguarde a baixa do lote terminar.' : undefined}
+          />
+        </ImportFileBlock>
+
         {readMutation.isPending ? (
           <div className="app-import-reading" role="status" aria-live="polite">
             <Loader2 size={18} className="app-import-reading__spinner animate-spin" aria-hidden="true" />
@@ -179,46 +223,51 @@ export function PixExtractPanel({ onOpenPending, onOpenInvoice }: { onOpenPendin
             <p>{extractErrorText(readMutation.error)} Nada foi baixado.</p>
           </ImportNotice>
         ) : null}
-      </Block>
 
-      {read ? (
-        <ExtractReview
-          read={read}
-          confirming={confirmMutation.isPending}
-          confirmError={confirmMutation.error ? extractErrorText(confirmMutation.error) : null}
-          onConfirm={(ready) => confirmMutation.mutate(ready)}
-          onDiscard={reset}
-          onOpenPending={onOpenPending}
-        />
-      ) : null}
+        {read ? <ExtractReview read={read} /> : null}
 
-      {outcome ? (
-        <ConfirmationResult
-          outcome={outcome}
-          onOpenInvoice={onOpenInvoice}
-          onOpenPending={onOpenPending}
-          onReset={reset}
-        />
-      ) : null}
-    </div>
+        {confirmMutation.error ? (
+          <ImportNotice tone="danger" role="alert" title="Nenhuma baixa foi gravada">
+            <p>{extractErrorText(confirmMutation.error)}</p>
+            <p>O lote é tudo ou nada: uma linha recusada impede as demais. Confira a linha no histórico de baixas antes de enviar de novo.</p>
+          </ImportNotice>
+        ) : null}
+
+        {outcome ? <ConfirmationResult outcome={outcome} onOpenInvoice={onOpenInvoice} /> : null}
+
+        <div className="app-modal__actions">
+          {footnote ? <ImportFootnote tone={footnote.tone}>{footnote.text}</ImportFootnote> : null}
+          {outcome ? (
+            <>
+              <Button variant="secondary" onClick={reset}>Conciliar outro extrato</Button>
+              <Button onClick={onClose}>Concluir</Button>
+            </>
+          ) : (
+            <>
+              {read ? (
+                <Button variant="secondary" disabled={busy} onClick={reset}>Descartar leitura</Button>
+              ) : (
+                <Button variant="secondary" disabled={busy} onClick={() => void requestClose()}>Voltar</Button>
+              )}
+              {read?.errors.length ? null : (
+                <Button
+                  disabled={!readyCount}
+                  loading={confirmMutation.isPending}
+                  loadingLabel="Baixando…"
+                  onClick={() => lines && confirmMutation.mutate(lines.ready)}
+                >
+                  {readyCount ? `Confirmar ${pluralize(readyCount, 'baixa', 'baixas')}` : 'Confirmar baixas'}
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </Modal>
   )
 }
 
-function ExtractReview({
-  read,
-  confirming,
-  confirmError,
-  onConfirm,
-  onDiscard,
-  onOpenPending,
-}: {
-  read: ReadResult
-  confirming: boolean
-  confirmError: string | null
-  onConfirm: (ready: UnifiedPixMatch[]) => void
-  onDiscard: () => void
-  onOpenPending: () => void
-}) {
+function ExtractReview({ read }: { read: ReadResult }) {
   const lines = splitExtractLines(read.matches)
   const readyCount = lines.ready.length
   const exceptionCount = lines.exceptions.length
@@ -226,35 +275,33 @@ function ExtractReview({
 
   if (read.errors.length) {
     return (
-      <Block title="Conferência do extrato" aside="Nada foi lido nem salvo" bodyClassName="grid gap-4">
+      <ImportSection title="Prévia" aside="Nada foi lido nem salvo">
         <ImportIssuesPanel issues={read.errors} filename="extrato-pix-erros.csv" />
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <ImportFootnote tone="warning">Com valor ou data ilegível no extrato, nada é baixado nem salvo em Pendências. Corrija e escolha o arquivo de novo.</ImportFootnote>
-          <Button variant="ghost" onClick={onDiscard}>Descartar leitura</Button>
-        </div>
-      </Block>
+      </ImportSection>
     )
   }
 
   return (
-    <Block title="Conferência do extrato" aside={pluralize(read.matches.length, 'linha lida', 'linhas lidas')} bodyClassName="grid gap-4">
-      <LeadValue detail={readyCount ? `${formatBRL(lines.readyTotal)} no lote` : 'Nenhuma linha tem uma fatura aberta com o mesmo identificador e um valor aceito.'}>
-        {readyCount ? `${readyCount.toLocaleString('pt-BR')} ${readyCount === 1 ? 'pronta' : 'prontas'} para baixa` : 'Nenhuma pronta para baixa'}
-      </LeadValue>
-      <FactList columns={2}>
-        <Fact label="Ficam como exceção">
-          {exceptionCount ? <StatusText tone="warning">{exceptionCount.toLocaleString('pt-BR')}</StatusText> : 'Nenhuma'}
-        </Fact>
-        <Fact label="Lançamentos zerados ou negativos ignorados" detail={read.ignored ? 'Tarifas e saídas não são recebimentos: ficam fora da conciliação.' : undefined}>
-          {read.ignored ? read.ignored.toLocaleString('pt-BR') : 'Nenhum'}
-        </Fact>
-        <Fact
-          label="Linhas ocultas fora da leitura"
-          detail={hidden ? 'Só as linhas visíveis entram. Reexiba as ocultas e envie de novo se elas também devem entrar.' : undefined}
-        >
-          {hidden ? <StatusText tone="warning">{hidden.toLocaleString('pt-BR')}</StatusText> : 'Nenhuma'}
-        </Fact>
-      </FactList>
+    <>
+      <ImportSection title="Prévia" aside={pluralize(read.matches.length, 'linha lida', 'linhas lidas')}>
+        <LeadValue detail={readyCount ? `${formatBRL(lines.readyTotal)} no lote` : 'Nenhuma linha tem uma fatura aberta com o mesmo identificador e um valor aceito.'}>
+          {readyCount ? `${readyCount.toLocaleString('pt-BR')} ${readyCount === 1 ? 'pronta' : 'prontas'} para baixa` : 'Nenhuma pronta para baixa'}
+        </LeadValue>
+        <FactList columns={2}>
+          <Fact label="Ficam como exceção">
+            {exceptionCount ? <StatusText tone="warning">{exceptionCount.toLocaleString('pt-BR')}</StatusText> : 'Nenhuma'}
+          </Fact>
+          <Fact label="Lançamentos zerados ou negativos ignorados" detail={read.ignored ? 'Tarifas e saídas não são recebimentos: ficam fora da conciliação.' : undefined}>
+            {read.ignored ? read.ignored.toLocaleString('pt-BR') : 'Nenhum'}
+          </Fact>
+          <Fact
+            label="Linhas ocultas fora da leitura"
+            detail={hidden ? 'Só as linhas visíveis entram. Reexiba as ocultas e envie de novo se elas também devem entrar.' : undefined}
+          >
+            {hidden ? <StatusText tone="warning">{hidden.toLocaleString('pt-BR')}</StatusText> : 'Nenhuma'}
+          </Fact>
+        </FactList>
+      </ImportSection>
 
       {readyCount ? (
         <Block title={`Prontas para baixa · ${readyCount.toLocaleString('pt-BR')}`} headingLevel={3} flush>
@@ -263,39 +310,11 @@ function ExtractReview({
       ) : null}
 
       {exceptionCount ? (
-        <Block title={`Ficam como exceção · ${exceptionCount.toLocaleString('pt-BR')}`} headingLevel={3} flush aside="Já estão salvas em Pendências">
+        <Block title={`Ficam como exceção · ${exceptionCount.toLocaleString('pt-BR')}`} headingLevel={3} flush aside="Já estão salvas em Exceções do extrato">
           <ExceptionLines lines={lines.exceptions} />
         </Block>
       ) : null}
-
-      {confirmError ? (
-        <ImportNotice tone="danger" role="alert" title="Nenhuma baixa foi gravada">
-          <p>{confirmError}</p>
-          <p>O lote é tudo ou nada: uma linha recusada impede as demais. Confira a linha no histórico de baixas antes de enviar de novo.</p>
-        </ImportNotice>
-      ) : null}
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <ImportFootnote tone={readyCount ? 'default' : 'warning'}>
-          {readyCount > 1
-            ? `Nada foi baixado ainda. As ${readyCount.toLocaleString('pt-BR')} baixas são gravadas juntas: se uma for recusada, nenhuma é gravada.`
-            : readyCount ? 'Nada foi baixado ainda.' : 'Nada para baixar neste extrato.'}
-          {exceptionCount ? ' As exceções já estão em Pendências.' : ''}
-        </ImportFootnote>
-        <div className="flex flex-wrap gap-2">
-          {exceptionCount ? <Button variant="secondary" disabled={confirming} onClick={onOpenPending}>Ver Pendências</Button> : null}
-          <Button variant="ghost" disabled={confirming} onClick={onDiscard}>Descartar leitura</Button>
-          <Button
-            disabled={!readyCount}
-            loading={confirming}
-            loadingLabel="Baixando…"
-            onClick={() => onConfirm(lines.ready)}
-          >
-            {readyCount ? `Confirmar ${pluralize(readyCount, 'baixa', 'baixas')}` : 'Confirmar baixas'}
-          </Button>
-        </div>
-      </div>
-    </Block>
+    </>
   )
 }
 
@@ -379,22 +398,13 @@ function ExceptionLines({ lines }: { lines: UnifiedPixMatch[] }) {
   )
 }
 
-function ConfirmationResult({
-  outcome,
-  onOpenInvoice,
-  onOpenPending,
-  onReset,
-}: {
-  outcome: { sent: UnifiedPixMatch[]; result: UnifiedPixConfirmationResult; exceptions: number }
-  onOpenInvoice: OpenInvoice
-  onOpenPending: () => void
-  onReset: () => void
-}) {
+
+function ConfirmationResult({ outcome, onOpenInvoice }: { outcome: Outcome; onOpenInvoice: OpenInvoice }) {
   const { items, missing } = describeConfirmation(outcome.sent, outcome.result)
   const total = items.reduce((sum, item) => sum + (item.amount ?? 0), 0)
 
   return (
-    <Block title="Resultado da baixa" bodyClassName="grid gap-4">
+    <ImportSection title="Resultado">
       <div role="status">
         <LeadValue
           tone={missing ? 'warning' : 'default'}
@@ -439,17 +449,6 @@ function ConfirmationResult({
           </table>
         </div>
       ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p>
-          {outcome.exceptions
-            ? `${pluralize(outcome.exceptions, 'linha não entrou no lote e está', 'linhas não entraram no lote e estão')} em Pendências.`
-            : ''}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {outcome.exceptions ? <Button variant="secondary" onClick={onOpenPending}>Ver Pendências</Button> : null}
-          <Button variant="secondary" onClick={onReset}>Conciliar outro extrato</Button>
-        </div>
-      </div>
-    </Block>
+    </ImportSection>
   )
 }

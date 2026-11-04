@@ -19,6 +19,14 @@
 > baixa e sem Alerta, como os demais. Regra vigente em
 > [Reconciliação PIX](../modules/reconciliacao-pix.md#pix-recebidos).
 
+> **Situação atual (2026-11-04).** A decisão 6 vale pelo conteúdo, não pelo
+> lugar: a aba **Pendências** deixou de existir. O que ela mostrava (Pix em
+> análise, exceções do extrato e cobranças que aguardam o Itaú) fica no topo
+> da aba **Pix recebidos**, cada bloco só quando tem o que tratar, e o extrato
+> do plano B abre numa janela a partir dela (decisão do dono de 2026-11-04,
+> opção A). Regra vigente em
+> [Reconciliação PIX](../modules/reconciliacao-pix.md#anatomia-das-telas).
+
 Status: supersedida parcialmente (decisão 2, no Pix do QR estático, pela ADR 0115) — aceita em 2026-10-23 (pedido do responsável, ao saber que a consulta da
 API Pix Recebimentos traz também transferências que não vieram de uma cobrança
 do Vela). Implementada nas migrations `442` a `446`, na Edge `itau-pix` e na
