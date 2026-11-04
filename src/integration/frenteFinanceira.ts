@@ -166,6 +166,14 @@ export function financeWorld(ns: number) {
       `SELECT public.create_local_consolidated_invoice(${customer}, ARRAY[${blIds.map(receivableId).join(',')}]::bigint[], NULL, '${actors.administrativo}'::uuid)`).invoice_id
   }
 
+  /**
+   * Consolidada de um B/L só, como as emitidas antes da migration 591: as portas de
+   * criação recusam, e só o núcleo (reemissão automática) ainda a cria.
+   */
+  function consolidateSolo(blId: string, customer = customerId): number {
+    return Number(JSON.parse(psql(`SELECT public.create_local_consolidated_invoice_core(${customer}, ARRAY[${receivableId(blId)}]::bigint[], '${actors.administrativo}'::uuid, 'internal')`)).invoice_id)
+  }
+
   // Cancelar a baixa é do Financeiro e da conta Dev (migration 583).
   function reversePayment(paymentId: number, reason = 'Estorno do teste') {
     return json<Record<string, unknown>>('financeiro', `SELECT public.reverse_invoice_payment(${paymentId}, '${reason}')`)
@@ -261,6 +269,6 @@ export function financeWorld(ns: number) {
   return {
     ns, actors, customerId, otherCustomerId, voyageId, pod, prefix,
     container, psql, as, asOk, json, bl, setup, cleanup, table, createBl, calculate, calcTotal, boundTable,
-    closeGate, openGate, cancelBl, issueByCe, liveInvoice, invoice, successorOf, receivableId, pay, consolidate, reversePayment, activeInvoiceAlerts,
+    closeGate, openGate, cancelBl, issueByCe, liveInvoice, invoice, successorOf, receivableId, pay, consolidate, consolidateSolo, reversePayment, activeInvoiceAlerts,
   }
 }

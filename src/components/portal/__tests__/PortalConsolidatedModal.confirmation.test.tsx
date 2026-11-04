@@ -39,6 +39,18 @@ beforeEach(() => {
     individual_invoice_id: null,
     individual_invoice_number: null,
     eligibility_reason: null,
+  }, {
+    receivable_id: 42,
+    bl_id: 'BL-PORTAL-42',
+    balance_brl: 330,
+    eligibility_status: 'eligible',
+    receivable_status: 'open',
+    voyage_id: 8,
+    vessel_name: 'Navio Sul',
+    voyage_number: 'V8',
+    individual_invoice_id: null,
+    individual_invoice_number: null,
+    eligibility_reason: null,
   }]
   mocks.confirm.mockReset().mockResolvedValue(false)
   mocks.create.mockReset().mockResolvedValue({ invoice_id: 14 })
@@ -57,6 +69,7 @@ describe('PortalConsolidatedModal — confirmação da consolidação', () => {
     renderModal()
 
     await user.click(screen.getByRole('checkbox', { name: 'Selecionar B/L BL-PORTAL-41' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Selecionar B/L BL-PORTAL-42' }))
     await user.click(screen.getByRole('button', { name: 'Consolidar e emitir' }))
 
     await waitFor(() => expect(mocks.confirm).toHaveBeenCalledOnce())
@@ -72,10 +85,31 @@ describe('PortalConsolidatedModal — confirmação da consolidação', () => {
     const user = userEvent.setup()
     renderModal()
     await user.click(screen.getByRole('checkbox', { name: 'Selecionar B/L BL-PORTAL-41' }))
+    await user.click(screen.getByRole('checkbox', { name: 'Selecionar B/L BL-PORTAL-42' }))
     await user.click(screen.getByRole('button', { name: 'Consolidar e emitir' }))
 
-    await waitFor(() => expect(mocks.create).toHaveBeenCalledWith({ receivableIds: [41] }))
+    await waitFor(() => expect(mocks.create).toHaveBeenCalledWith({ receivableIds: [41, 42] }))
     expect(mocks.onCreated).toHaveBeenCalledWith(14)
+  })
+
+  // Decisão do dono de 2026-11-04 (migration 591): com um B/L só, vale a fatura individual.
+  it('não consolida um B/L só: o botão fica desligado e diz por quê', async () => {
+    const user = userEvent.setup()
+    renderModal()
+    await user.click(screen.getByRole('checkbox', { name: 'Selecionar B/L BL-PORTAL-41' }))
+
+    expect((screen.getByRole('button', { name: 'Consolidar e emitir' }) as HTMLButtonElement).disabled).toBe(true)
+    expect(screen.getByText('A fatura consolidada precisa de pelo menos dois B/Ls. Para um B/L só, use a fatura individual dele.')).toBeTruthy()
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    expect(mocks.create).not.toHaveBeenCalled()
+  })
+
+  it('dois recebíveis do mesmo B/L contam como um B/L só', async () => {
+    mocks.receivables = [mocks.receivables[0], { ...mocks.receivables[1], bl_id: 'BL-PORTAL-41' }]
+    const user = userEvent.setup()
+    renderModal()
+    await user.click(screen.getByRole('checkbox', { name: 'Marcar todos os B/Ls mostrados' }))
+    expect((screen.getByRole('button', { name: 'Consolidar e emitir' }) as HTMLButtonElement).disabled).toBe(true)
   })
 })
 

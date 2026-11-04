@@ -11,7 +11,7 @@ import { NoValue } from '../ui/NoValue'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { usePortalConsolidatableReceivables, usePortalCreateConsolidation } from '../../hooks/usePortalBilling'
-import { isReceivableSelectable } from '../billing/consolidatedInvoiceSelection'
+import { CONSOLIDATION_MIN_BLS, CONSOLIDATION_MIN_BLS_MESSAGE, countSelectedBls, isReceivableSelectable } from '../billing/consolidatedInvoiceSelection'
 import { formatBRL, voyageDisplayName } from '../../lib/utils'
 import { usePortalScope } from '../../hooks/usePortalScope'
 import { isPortalReadOnly } from '../../services/portalScope'
@@ -78,6 +78,7 @@ export function PortalConsolidatedModal({ open, onClose, onCreated }: Props) {
   const selectedRows = eligibleRows.filter((row) => selected.includes(row.receivable_id))
   const selectedTotal = selectedRows.reduce((total, row) => total + Number(row.balance_brl ?? 0), 0)
   const hiddenSelected = selectedRows.filter((row) => !matches(row)).length
+  const tooFewBls = selectedRows.length > 0 && countSelectedBls(selectedRows) < CONSOLIDATION_MIN_BLS
   const allVisibleSelected = visibleEligible.length > 0 && visibleEligible.every((row) => selected.includes(row.receivable_id))
 
   function toggle(id: number) {
@@ -110,6 +111,10 @@ export function PortalConsolidatedModal({ open, onClose, onCreated }: Props) {
     }
     if (selectedRows.length !== selected.length) {
       showToast('A seleção mudou. Atualize a lista e selecione novamente os B/Ls elegíveis.', 'error')
+      return
+    }
+    if (tooFewBls) {
+      showToast(CONSOLIDATION_MIN_BLS_MESSAGE, 'error')
       return
     }
     const confirmed = await confirm({
@@ -264,13 +269,14 @@ export function PortalConsolidatedModal({ open, onClose, onCreated }: Props) {
           <p className="text-sm" aria-live="polite">
             <strong>{blCount(selectedRows.length)} · {formatBRL(selectedTotal)}</strong>
             {hiddenSelected > 0 ? <span className="text-[var(--app-muted)]"> · {hiddenSelected === 1 ? '1 marcado fora do filtro' : `${hiddenSelected} marcados fora do filtro`}</span> : null}
+            {tooFewBls ? <span className="block text-[var(--app-muted)]">{CONSOLIDATION_MIN_BLS_MESSAGE}</span> : null}
           </p>
           <div className="ml-auto flex gap-2">
             <Button variant="secondary" onClick={close}>Voltar</Button>
             <Button
               onClick={() => void submit()}
               loading={createMutation.isPending}
-              disabled={selectedRows.length === 0 || readOnly}
+              disabled={selectedRows.length === 0 || tooFewBls || readOnly}
               title={readOnly ? 'Ação do cliente — indisponível em Modo Inspeção' : undefined}
             >
               <FilePlus2 size={16} />

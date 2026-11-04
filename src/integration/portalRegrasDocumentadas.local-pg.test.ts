@@ -87,6 +87,31 @@ describeLocal('428 — Portal segue a regra documentada', () => {
     expect(foreign).toBe(missing)
   })
 
+  // Decisão do dono de 2026-11-04 (migration 591). A elegibilidade do Portal fica
+  // substituída nesta transação (desfeita no ROLLBACK) para isolar a regra nova.
+  it('consolidada de um B/L só é recusada no Portal; dois recebíveis do mesmo B/L contam como um', () => {
+    const rows = scenario(`
+      INSERT INTO public.bls (id, voyage_id, customer_id, ce_mercante) VALUES ('${BL_B}-A', ${VOYAGE}, ${CUSTOMER_A}, 'CE416A');
+      INSERT INTO public.bl_receivables (id, bl_id, customer_id, original_amount_brl, balance_brl, source) VALUES
+        (${RECEIVABLE_B + 1}, '${BL_B}-A', ${CUSTOMER_A}, 10, 10, 'local_charges'),
+        (${RECEIVABLE_B + 2}, '${BL_B}-A', ${CUSTOMER_A}, 5, 5, 'local_charges_archived:${RECEIVABLE_B + 2}');
+      CREATE OR REPLACE FUNCTION public._portal_list_consolidatable_receivables_core(p_customer_id bigint)
+        RETURNS TABLE(receivable_id bigint, bl_id text, customer_id bigint, customer_name text, customer_cnpj_cpf text, voyage_id bigint,
+          vessel_name text, voyage_number text, individual_invoice_id bigint, individual_invoice_number text, balance_brl numeric,
+          original_amount_brl numeric, receivable_status text, eligibility_status text, eligibility_reason text)
+        LANGUAGE sql AS $f$ SELECT r.id, r.bl_id, r.customer_id, NULL::text, NULL::text, NULL::bigint, NULL::text, NULL::text, NULL::bigint,
+          NULL::text, r.balance_brl, r.original_amount_brl, 'open', 'eligible', NULL::text
+          FROM public.bl_receivables r WHERE r.customer_id = p_customer_id $f$;
+      ${as(PORTAL_A)}
+      ${try_(`SELECT public.portal_create_consolidation(ARRAY[${RECEIVABLE_B + 1}]::bigint[])`)}
+      ${try_(`SELECT public.portal_create_consolidation(ARRAY[${RECEIVABLE_B + 1}, ${RECEIVABLE_B + 2}]::bigint[])`)}
+      ${asOwner}
+      SELECT count(*) FROM public.invoices WHERE customer_id = ${CUSTOMER_A} AND invoice_type = 'consolidated' AND id NOT IN (${DRAFT}, ${ISSUED});
+    `)
+    const message = '22023 A fatura consolidada precisa de pelo menos dois B/Ls. Para um B/L só, use a fatura individual dele.'
+    expect(rows.slice(-3)).toEqual([message, message, '0'])
+  })
+
   it('troca assistida do e-mail invalida também o convite pendente', () => {
     expect(scenario(`
       INSERT INTO public.portal_invites (account_id, purpose, token_hash, sent_to_email, expires_at)

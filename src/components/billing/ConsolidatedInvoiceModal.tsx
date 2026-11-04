@@ -14,7 +14,7 @@ import { listBillingCustomers } from '../../services/billing'
 import { formatBRL, formatCnpjCpf } from '../../lib/utils'
 import { userFacingErrorMessage } from '../../lib/errors'
 import { useConsolidatableReceivables, useCreateConsolidatedInvoice } from '../../hooks/useBillingLedger'
-import { isReceivableSelectable, summarizeConsolidation } from './consolidatedInvoiceSelection'
+import { CONSOLIDATION_MIN_BLS, CONSOLIDATION_MIN_BLS_MESSAGE, countSelectedBls, isReceivableSelectable, summarizeConsolidation } from './consolidatedInvoiceSelection'
 import { listBlChargeAdjustmentSummaries } from '../../services/charges/chargeOperationsService'
 
 const fmtBRL = (value: number | null | undefined) => formatBRL(value)
@@ -43,6 +43,10 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
   const summary = summarizeConsolidation(rows, selected)
   const selectedTotal = summary.total
   const eligibleCount = summary.eligibleCount
+  // Marcado fora da busca atual conta como B/L à parte: o envio confere a seleção de novo.
+  const visibleSelected = rows.filter((row) => selected.includes(row.receivable_id))
+  const selectedBls = countSelectedBls(visibleSelected) + (selected.length - visibleSelected.length)
+  const tooFewBls = selected.length > 0 && selectedBls < CONSOLIDATION_MIN_BLS
 
   function reset() {
     setCustomerId(null)
@@ -80,6 +84,10 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
     const selectedRows = rows.filter((row) => selected.includes(row.receivable_id) && isReceivableSelectable(row))
     if (selectedRows.length !== selected.length) {
       setError('A seleção mudou. Atualize a lista e selecione novamente os B/Ls elegíveis.')
+      return
+    }
+    if (countSelectedBls(selectedRows) < CONSOLIDATION_MIN_BLS) {
+      setError(CONSOLIDATION_MIN_BLS_MESSAGE)
       return
     }
     // ADR 0111: o aviso da taxa alterada à mão vai por B/L. A leitura que falha
@@ -248,6 +256,7 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
         <div className="invoice-create-modal__footer" data-testid="consolidated-invoice-footer">
           <p className="app-manual-invoice__total" aria-live="polite">
             <span>{selected.length} de {eligibleCount} B/Ls que podem ser consolidados</span>
+            {tooFewBls ? <span>{CONSOLIDATION_MIN_BLS_MESSAGE}</span> : null}
             <strong className="app-manual-invoice__num">{fmtBRL(selectedTotal)}</strong>
           </p>
           <div className="app-manual-invoice__actions">
@@ -259,7 +268,7 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
               onClick={submit}
               loading={createMutation.isPending}
               loadingLabel="Emitindo…"
-              disabled={selected.length === 0 || Boolean(receivablesError)}
+              disabled={selected.length === 0 || tooFewBls || Boolean(receivablesError)}
             >
               Emitir consolidada
             </Button>

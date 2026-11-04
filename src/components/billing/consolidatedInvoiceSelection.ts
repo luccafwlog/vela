@@ -6,6 +6,19 @@ export function isReceivableSelectable(r: Pick<ConsolidatableReceivable, 'eligib
   return r.eligibility_status === 'eligible'
 }
 
+/**
+ * Consolidada só com dois B/Ls ou mais (decisão do dono de 2026-11-04, migration 591):
+ * com um B/L só, vale a fatura individual dele. O banco recusa também; a tela só
+ * desliga o botão antes.
+ */
+export const CONSOLIDATION_MIN_BLS = 2
+export const CONSOLIDATION_MIN_BLS_MESSAGE = 'A fatura consolidada precisa de pelo menos dois B/Ls. Para um B/L só, use a fatura individual dele.'
+
+/** B/Ls distintos da seleção: um B/L pode ter mais de um recebível. */
+export function countSelectedBls(rows: Pick<ConsolidatableReceivable, 'bl_id'>[]): number {
+  return new Set(rows.map((row) => row.bl_id)).size
+}
+
 export type ConsolidationSummary = {
   selectedCount: number
   eligibleCount: number

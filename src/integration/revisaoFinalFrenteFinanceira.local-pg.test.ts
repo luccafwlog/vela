@@ -90,10 +90,14 @@ describeLocal('385 — revisão final da frente financeira', () => {
   })
 
   it('consolidada cancelada solta o B/L que ela faturava sem individual; a nova só sai pelo Emitir', () => {
-    const id = w.createBl('CONS')
-    w.calculate(id)
-    w.psql(`SET session_replication_role = replica; UPDATE public.bls SET ce_mercante = '931900000000090' WHERE id = '${id}'; SET session_replication_role = origin;`)
-    const consolidated = w.consolidate([id])
+    // Dois B/Ls sem individual: a consolidada pede dois ou mais (migration 591).
+    const [id, other] = ['CONS', 'CONS2'].map((name, index) => {
+      const bl = w.createBl(name)
+      w.calculate(bl)
+      w.psql(`SET session_replication_role = replica; UPDATE public.bls SET ce_mercante = '93199000000009${index}' WHERE id = '${bl}'; SET session_replication_role = origin;`)
+      return bl
+    })
+    const consolidated = w.consolidate([id, other])
     expect(w.psql(`SELECT financial_status FROM public.bls WHERE id = '${id}'`)).toBe('invoiced')
     w.asOk('administrativo', `SELECT public.cancel_invoice(${consolidated}, 'Consolidada emitida por engano', '${w.actors.administrativo}'::uuid)`)
     expect(w.psql(`SELECT financial_status FROM public.bls WHERE id = '${id}'`)).toBe('pending')

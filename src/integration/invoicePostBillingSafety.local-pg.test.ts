@@ -129,6 +129,11 @@ function consolidate(blIds: string[]) {
   ).invoice_id
 }
 
+/** Consolidada de um B/L só, como as de antes da migration 591: só o núcleo ainda a cria. */
+function consolidateSolo(blId: string) {
+  return Number(JSON.parse(psql(`SELECT public.create_local_consolidated_invoice_core(${customerId}, ARRAY[${receivableId(blId)}]::bigint[], '${actorId}'::uuid, 'internal')`)).invoice_id)
+}
+
 function successor(invoiceId: number) {
   return psql(`SELECT coalesce(string_agg(id || '|' || total_brl || '|' || status, ','), '') FROM public.invoices WHERE replaces_invoice_id = ${invoiceId}`)
 }
@@ -394,7 +399,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     psql(`INSERT INTO public.bl_containers(bl_id,container_number,type) VALUES ('${bl.soc}','RCCU8390003','22G1')`);
     const ind=issueByCe(bl.soc,'839000000000003');
     adminJson(`SELECT public.register_ledger_invoice_payment(${ind},600)`);
-    const con=consolidate([bl.soc]);
+    const con=consolidateSolo(bl.soc);
     adminJson(`SELECT public.register_ledger_invoice_payment(${con},600)`);
     psql(`DELETE FROM public.bl_containers WHERE bl_id='${bl.soc}' AND container_number='RCCU8390003'; UPDATE public.bl_containers SET ownership='SOC' WHERE bl_id='${bl.soc}'`);
     const row=psql(`SELECT original_amount_brl || '|' || correction_amount_brl FROM public.bl_receivables WHERE bl_id='${bl.soc}'`);
