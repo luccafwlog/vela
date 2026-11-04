@@ -8,8 +8,12 @@
 --    - termo de devolução e procuração: `reviewed_at` do documento aprovado que
 --      conta para o B/L. Com solicitação enviada e ativa, os documentos dela
 --      (na solicitação VIP enviada antes da 581, os anuais que ela referencia);
---      sem ela (rascunho, cancelada, nenhuma, VIP direto), o anual VIP que
---      cobre o B/L (`annual_for_bl`).
+--      sem ela (rascunho, cancelada, nenhuma, VIP direto), o par de anuais VIP
+--      que `ce_unlock_private.item` usa (582): `annuals_between` do dia do
+--      último ato do Cliente (`direct_day`, com pago e entregue ou exportado;
+--      antes, hoje) até a exportação (antes dela, hoje). Assim o B/L pago e
+--      entregue em dezembro e exportado em janeiro mostra a aprovação do anual
+--      de dezembro, não a do ano novo.
 --    - Taxas Locais: a última baixa (`ledger_settlements`) dos recebíveis de
 --      Taxas Locais vigentes do B/L ou o último pagamento de fatura avulsa do
 --      B/L, o que vier depois (o fato que completou o pagamento).
@@ -36,6 +40,7 @@ CREATE OR REPLACE FUNCTION ce_unlock_private.requirement_dates(p_bl text)
  SET search_path TO 'public', 'pg_temp'
 AS $function$
 DECLARE b public.bls; i public.ce_unlock_request_bls; r public.ce_unlock_requests; v_termo uuid; v_procuracao uuid;
+ dx public.ce_unlock_direct_exports; v_item jsonb; v_day date;
 BEGIN
  SELECT * INTO b FROM public.bls WHERE id=p_bl;
  IF b.id IS NULL THEN RETURN NULL; END IF;
@@ -46,8 +51,15 @@ BEGIN
  IF r.id IS NOT NULL AND coalesce(i.active,false) AND r.state NOT IN('draft','cancelled') THEN
    v_termo:=i.termo_document_id; v_procuracao:=i.procuracao_document_id;
  ELSIF b.customer_id IS NOT NULL THEN
-   v_termo:=ce_unlock_private.annual_for_bl(b.customer_id,'termo',p_bl);
-   v_procuracao:=ce_unlock_private.annual_for_bl(b.customer_id,'procuracao',p_bl);
+   -- O mesmo intervalo e a mesma escolha do par de `ce_unlock_private.item` (581/582).
+   -- ponytail: relê o item para saber se está pago e entregue (O(item) por B/L).
+   -- Upgrade: o item expor os anuais que usou, se a planilha ficar lenta.
+   SELECT * INTO dx FROM public.ce_unlock_direct_exports WHERE bl_id=p_bl AND ce_mercante IS NOT DISTINCT FROM b.ce_mercante;
+   v_item:=ce_unlock_private.item(p_bl);
+   v_day:=CASE WHEN (coalesce((v_item->>'paid')::boolean,false) AND coalesce((v_item->>'delivered')::boolean,false)) OR dx.exported_at IS NOT NULL
+     THEN ce_unlock_private.direct_day(p_bl,dx.exported_at) ELSE ce_unlock_private.today() END;
+   SELECT a.termo,a.procuracao INTO v_termo,v_procuracao FROM ce_unlock_private.annuals_between(b.customer_id,v_day,
+     coalesce((dx.exported_at AT TIME ZONE 'America/Sao_Paulo')::date,ce_unlock_private.today())) a;
  END IF;
  RETURN jsonb_build_object(
    'bl_id',p_bl,

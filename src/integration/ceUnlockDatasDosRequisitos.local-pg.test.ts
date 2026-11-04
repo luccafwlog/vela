@@ -50,6 +50,9 @@ function scenario({ state = 'in_review', delivered = true, paid = true, termoApp
 
 local('desbloqueio CE — data e hora de cada requisito para a planilha (migration 590)', () => {
   const cleanup = () => sql(`SET session_replication_role=replica;
+    DELETE FROM public.ce_unlock_direct_exports WHERE bl_id LIKE 'CE590-%';
+    DELETE FROM public.ce_unlock_exports WHERE id='${request}';
+    DELETE FROM public.ce_unlock_vip_customers WHERE customer_id=${customer};
     DELETE FROM public.ce_unlock_request_bls WHERE bl_id LIKE 'CE590-%';
     DELETE FROM public.ce_unlock_documents WHERE customer_id=${customer};
     DELETE FROM public.ce_unlock_requests WHERE customer_id=${customer};
@@ -96,6 +99,34 @@ local('desbloqueio CE — data e hora de cada requisito para a planilha (migrati
     const [row] = scenario({ state: 'draft' })
     expect(row).toMatchObject({ termo_at: null, procuracao_at: null })
     expect(row.paid_at).not.toBeNull()
+  })
+
+  // Achado da revisão da PR (2026-11-04): o VIP direto usa os anuais que `item` usa
+  // (582, `annuals_between` do pagamento e entrega até a exportação), não os de hoje.
+  it('VIP sem solicitação, pago e entregue em dezembro e exportado em janeiro: a aprovação do anual daquele ano', () => {
+    const out = sql(`BEGIN;
+      SET LOCAL session_replication_role=replica;
+      INSERT INTO public.ce_unlock_vip_customers(customer_id,enabled) VALUES(${customer},true);
+      INSERT INTO public.ce_unlock_documents(id,customer_id,type,source,status,storage_path,file_name,size_bytes,hash,uploaded_by,reviewed_at,coverage_year,valid_from,valid_until) VALUES
+        ('${termo}',${customer},'termo','vip_annual','approved','p590/at','t.pdf',10,repeat('a',64),'${client}','2025-03-10 09:00:00-03',2025,'2025-01-01','2025-12-31'),
+        ('${procuracao}',${customer},'procuracao','vip_annual','approved','p590/ap','p.pdf',10,repeat('b',64),'${client}','2025-03-11 15:30:00-03',2025,'2025-01-01','2025-12-31');
+      INSERT INTO public.bls(id,voyage_id,customer_id,ce_mercante) VALUES('CE590-V',${customer},${customer},'998590000000201');
+      INSERT INTO public.bl_receivables(id,bl_id,customer_id,source,original_amount_brl,settled_amount_brl,balance_brl,status)
+        VALUES(998590,'CE590-V',${customer},'local_charges',100,100,0,'settled');
+      INSERT INTO public.ledger_settlements(receivable_id,amount_brl,source,created_at) VALUES(998590,100,'manual','2025-12-18 10:00:00-03');
+      INSERT INTO public.ce_unlock_bl_deliveries(bl_id,delivered,updated_at) VALUES('CE590-V',true,'2025-12-20 11:00:00-03');
+      INSERT INTO public.ce_unlock_exports(id,rows,snapshot,created_by,created_at) VALUES('${request}','[]','[]','${admin}','2026-01-02 09:00:00-03');
+      INSERT INTO public.ce_unlock_direct_exports(bl_id,ce_mercante,exported_at,export_id) VALUES('CE590-V','998590000000201','2026-01-02 09:00:00-03','${request}');
+      SET LOCAL session_replication_role=origin;
+      SET LOCAL request.jwt.claim.sub='${admin}';
+      SELECT jsonb_build_object('item', ce_unlock_private.item('CE590-V'),
+        'dates', public.ce_unlock_read('requirement_dates', '{"bl_ids":["CE590-V"]}'::jsonb)->0);
+      ROLLBACK;`)
+    const { item, dates } = JSON.parse(out.split('\n').at(-1) ?? 'null') as { item: { termo: boolean; procuracao: boolean }; dates: Dates }
+    // O item conta o anual de 2025 como atendido; a planilha mostra a aprovação dele.
+    expect(item).toMatchObject({ termo: true, procuracao: true })
+    expect(Date.parse(dates.termo_at!)).toBe(Date.parse('2025-03-10T09:00:00-03:00'))
+    expect(Date.parse(dates.procuracao_at!)).toBe(Date.parse('2025-03-11T15:30:00-03:00'))
   })
 
   it('recusa lista que não é array ou com mais de 500 B/Ls', () => {
