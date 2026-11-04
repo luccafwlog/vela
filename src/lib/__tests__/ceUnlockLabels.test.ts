@@ -35,10 +35,11 @@ it('Portal: situação da solicitação no feminino, âmbar no que pede ação d
 
 it('581: o B/L VIP sem solicitação diz o que falta ao Cliente e, cumprido, a documentação validada', () => {
   expect(ceVipDirectStatus({ paid: false, delivered: false, sla_started_at: null }))
-    .toEqual({ label: 'Falta pagar as taxas locais e entregar o B/L original', tone: 'warning' })
+    .toEqual({ ready: false, label: 'Falta pagar as taxas locais e entregar o B/L original', tone: 'warning' })
   expect(ceVipDirectStatus({ paid: true, delivered: false, sla_started_at: null }).label).toBe('Falta entregar o B/L original')
-  expect(ceVipDirectStatus({ paid: true, delivered: true, sla_started_at: null })).toEqual({ label: 'Validação em até 5 minutos', tone: 'muted' })
-  expect(ceVipDirectStatus({ paid: true, delivered: true, sla_started_at: '2026-11-03T15:00:00Z' })).toEqual({ label: 'Documentação validada', tone: 'paid' })
+  // 2026-11-04: pago e entregue, o B/L já está apto, mesmo antes da validação da varredura.
+  expect(ceVipDirectStatus({ paid: true, delivered: true, sla_started_at: null })).toEqual({ ready: true, label: 'Pagamento e entrega confirmados', tone: 'paid' })
+  expect(ceVipDirectStatus({ paid: true, delivered: true, sla_started_at: '2026-11-03T15:00:00Z' })).toEqual({ ready: true, label: 'Documentação validada', tone: 'paid' })
   expect(ceBlHistoryText({ at: '', requirement: 'solicitacao', event: 'vip_validated', detail: null, amount: null, actor: null, reason: null }))
     .toEqual({ requirement: 'Solicitação', text: 'Documentação validada pela condição VIP, sem solicitação' })
 })

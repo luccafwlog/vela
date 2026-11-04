@@ -53,7 +53,7 @@ A conta do {{Administrativo}} com a marca Dev, da equipe de desenvolvimento, pod
 
 No ADR de Saída, cada equipe assina a sua parte: {{Operações}} a escala, {{Documentação}} a carga e os vazios descarregados, {{Equipamentos}} a carga carregada, os veículos e o embarque de vazios. O {{Administrativo}} pode assinar por qualquer uma (capítulo 11).
 
-As equipes que não usam o **Novo cliente** trazem o Cliente pelo **Importar base**, em **Clientes**, ou pela Revisão. O {{Administrativo}} vê a lista ação por ação em **Admin** › **Usuários**, no quadro **O que cada setor pode** (escolha **Todas as ações** para ver todas).
+As equipes que não usam o **Novo cliente** trazem o Cliente pelo **Importar base**, em **Clientes**, ou pela Revisão. O {{Administrativo}} vê a lista ação por ação em **Admin** › **Usuários**, no quadro **O que cada setor pode** (clique em **Mostrar** para abrir e escolha **Todas as ações** para ver todas).
 
 ::: tela matriz-setores
 O quadro O que cada setor pode, na Administração.

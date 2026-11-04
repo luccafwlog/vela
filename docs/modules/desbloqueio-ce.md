@@ -61,7 +61,10 @@ Manifesto Mercante é regra de
   "Isentas") e Solicitação (protocolo e situação; no veículo LCL isento, "Não precisa · entregue o B/L
   original", sem caixa de seleção, e uma linha sob "O que o desbloqueio pede" explica a regra; no VIP
   coberto, "Não precisa (VIP) · " com o que falta ("Falta pagar as taxas locais e entregar o B/L original"
-  em âmbar), "Validação em até 5 minutos" ou "Documentação validada · prazo até dd/mm, HH:MM",
+  em âmbar) e, pago e entregue, "Apto ao desbloqueio (VIP) · Pagamento e entrega confirmados" ou
+  "Apto ao desbloqueio (VIP) · Documentação validada · prazo até dd/mm, HH:MM", seguidos do mesmo
+  próximo passo da solicitação validada, "consulte o SISCARGA para verificar o desbloqueio" (decisão
+  do dono de 2026-11-04; antes, "Não precisa (VIP) · Validação em até 5 minutos"),
   também sem caixa de seleção,
   [B/L dispensado de solicitação](#bl-dispensado-de-solicitação-veículo-lcl-isento-e-vip)). Além de "Buscar B/L ou CE", a barra **Filtros**
   (recolhida, como no resto do Portal) filtra por Navio e Viagem por texto contido, e os cartões contam esse recorte
@@ -178,7 +181,7 @@ invalida a família `ce-unlock` e a ficha do Cliente (`customer-detail`,
 | Andamento dos B/Ls · **Histórico do B/L** (relógio no fim da linha) | Todos os setores com `ce_unlock_read`; qualquer B/L com CE, com ou sem solicitação | `DesbloqueioCe.tsx`, `CeUnlockBlHistory.tsx` | `useCeUnlockBlHistory` → `ceUnlockRead('bl_history')` | Só leitura: `ce_unlock_private.bl_history` (migration `577`) | Nenhum | "Falha ao consultar o histórico do B/L."; sem registro, "Nenhum registro de requisito para este B/L ainda." | **Teste:** `DesbloqueioCe.test.tsx`, `ceUnlockVip.local-pg.test.ts` |
 | Andamento dos B/Ls · caixa **B/L original** (**Registrar entrega** / **Desmarcar entrega**) | Gestão; B/L com CE, com ou sem pedido; desmarcar exige motivo | `DesbloqueioCe.tsx` | `useCeUnlock` → `ceUnlockCommand('delivery')` | `ce_unlock_bl_deliveries` com versão; evento; reavalia a conclusão do pedido ativo; no B/L VIP sem solicitação que fica apto, grava a validação e o aviso ao Cliente (`validate_direct`, migration `581`) | Registrar, se completa os quatro requisitos, inicia o prazo; desmarcar tira o prazo (se o B/L ainda não foi exportado), tira o B/L dos aptos e reabre a conclusão | "Entrega alterada; atualize a página" (`40001`); "Motivo obrigatório" | **Teste:** `DesbloqueioCe.test.tsx`, `ceUnlock.local-pg.test.ts`; **Runtime:** produção, 2026-10-13 (entrega parcial) |
 | Andamento dos B/Ls · seleção · **Registrar entrega de N B/Ls** | Gestão; B/Ls selecionados sem a entrega do original (os que já têm ficam de fora); confirmação lista os B/Ls | `DesbloqueioCe.tsx` | `ceUnlockCommand('delivery')` um B/L por vez, em sequência; depois `afterCeUnlockChanged` | O mesmo de registrar a entrega de um B/L | Cada B/L gravado que completa os quatro requisitos ganha prazo | Não é atômico: a mensagem diz quantos gravaram e quais falharam (com o motivo), e os que falharam continuam selecionados | **Teste:** `DesbloqueioCe.test.tsx` |
-| Andamento dos B/Ls · **Exportar planilha** | Leitura (`ce_unlock_read`) | `DesbloqueioCe.tsx` | `fetchAllCeUnlockBls` (todas as páginas do recorte, quatro por vez, sem repetir B/L) → `exportCeUnlockWorkbook` (`src/services/exports.ts`) | Não escreve | Baixa `desbloqueio-ce-<data>.xlsx` com B/L, CE, Cliente, CNPJ/CPF, Navio, Viagem, POD, Solicitação, Situação, requisitos, Prazo e Na ZPT | Falha de leitura em mensagem | **Código** |
+| Andamento dos B/Ls · **Exportar planilha** | Leitura (`ce_unlock_read`) | `DesbloqueioCe.tsx` | `fetchAllCeUnlockBls` (todas as páginas do recorte, quatro por vez, sem repetir B/L) → `fetchCeUnlockRequirementDates` (leitura `requirement_dates`, migration `590`, 500 B/Ls por chamada) → `exportCeUnlockWorkbook` (`ceUnlockWorkbookRows`, `src/services/exports.ts`) | Não escreve | Baixa `desbloqueio-ce-<data>.xlsx` com B/L, CE, Cliente, CNPJ/CPF, Navio, Viagem, POD, Solicitação, Situação, requisitos, Prazo e Na ZPT. Requisito atendido traz a data e a hora em que se cumpriu, no horário de Brasília (desde 2026-11-04, pedido do dono; antes, "Atendido"): aprovação do termo e da procuração que contam para o B/L (da solicitação enviada ou, sem ela, do anual VIP, com "· anual VIP"), última baixa das Taxas Locais ou pagamento da avulsa, e a entrega do original; sem o fato na fonte, "Atendido". Pendente segue "Pendente"; isentas, "Isentas"; veículo LCL, "Dispensado"/"Dispensada" | Falha de leitura em mensagem | **Código** |
 | Pedido · **Versões anteriores** · abrir a versão (o nome do arquivo é o link) | Gestão; pedido não VIP com termo ou procuração substituídos | `CeUnlockRequestDetail.tsx` (`OpenDocument`, sem ações de análise) | `downloadCeUnlockDocument` → `ce-unlock-document-download` | Não escreve | — | Cada versão diz "…enviada em dd/mm/aaaa…" (só a data), com a situação e o motivo; versão já expurgada mostra o nome com "(arquivo removido pela regra de retenção)" no lugar do link (`purged`, migration `282`); reivindicada pelo expurgo e ainda não removida, "(arquivo em remoção pela regra de retenção)" (`cleanup_pending`) | **Teste:** `CeUnlockRequestDetail.test.tsx`, `ceUnlock.local-pg.test.ts` |
 | Pedido · **Reconferir CE** | Gestão; B/L com o motivo "CE alterado: reconferência necessária"; motivo ("Como o CE foi conferido") | `CeUnlockRequestDetail.tsx` | `ceUnlockCommand('reconfirm_ce')` | O item passa a usar o CE atual; aprovações de termo e procuração do item voltam a pendentes; o envio volta à fila (`export_id` fica) | Reavalia a conclusão | "B/L não pertence ao pedido"; "Motivo obrigatório" | **Código:** `ce_unlock_private.command` (`161`); matriz de CE corrigido incompleta (ver plano) |
 | Pedido VIP · **Aplicar renovação VIP** | Gestão; pedido VIP aberto, fora de rascunho; CNPJ VIP com termo e procuração anuais aprovados que cubram cada B/L (desbloqueio solicitado dentro da vigência, migrations `479` e `487`) | `CeUnlockRequestDetail.tsx` | `ceUnlockCommand('apply_vip')` | Itens pendentes passam a apontar o anual que cobre cada B/L; histórico preservado | Reavalia a conclusão | "Cobertura VIP indisponível"; "Cobertura anual incompleta" (algum B/L sem anual que o cubra) | **Código:** `161`, `449` |
@@ -197,7 +200,7 @@ invalida a família `ce-unlock` e a ficha do Cliente (`customer-detail`,
 
 Migrations `139`–`149`, `160`, `161`, `173`, `220`, `279` (requisito de
 pagamento), `280` (retenção), `281` (lote com hash e imutável), `282` (documento
-expurgado na projeção), `575` (veículo LCL isento sem solicitação), `576` (VIP coberto no B/L sem solicitação), `577` (busca, filtros e histórico do B/L), `578` (envio de rascunho antigo recusa o veículo LCL isento), `579` (rascunho VIP coberto pelo anual), `581` (VIP sem solicitação, validação e aviso por B/L) e `582` (anual VIP vigente até a exportação); a `177` redefine `ce_unlock_reconcile` (chave
+expurgado na projeção), `575` (veículo LCL isento sem solicitação), `576` (VIP coberto no B/L sem solicitação), `577` (busca, filtros e histórico do B/L), `578` (envio de rascunho antigo recusa o veículo LCL isento), `579` (rascunho VIP coberto pelo anual), `581` (VIP sem solicitação, validação e aviso por B/L), `582` (anual VIP vigente até a exportação) e `590` (data e hora dos requisitos para a planilha comum, `ce_unlock_private.requirement_dates` e a leitura `requirement_dates`); a `177` redefine `ce_unlock_reconcile` (chave
 do CE) e a `181`/`195`/`230`/`277` o alerta `ce_trocado_com_desbloqueio`. Tabelas `ce_unlock_*` (`ce_unlock_requests`,
 `ce_unlock_request_bls`, `ce_unlock_documents`, `ce_unlock_vip_customers`,
 `ce_unlock_bl_deliveries`, `ce_unlock_events`, `ce_unlock_exports`,
@@ -366,7 +369,15 @@ comum). Pagas as Taxas Locais e entregue o original, ele fica apto, sem solicita
 - **Prazo.** Só depois da validação (ou da exportação), a partir do último fato: entrega,
   baixa, avulsa, aprovação dos anuais, habilitação do VIP ou a validação, até a exportação.
   Entre a baixa fora do módulo e a varredura, o B/L já é apto e ainda não tem prazo (o Portal
-  diz "Validação em até 5 minutos").
+  diz "Apto ao desbloqueio (VIP) · Pagamento e entrega confirmados", sem prazo).
+- **Solicitação automática (estudo de 2026-11-04).** O dono pediu para estudar uma solicitação
+  criada pelo sistema para o B/L VIP apto, para espelhar a comunicação da solicitação comum. A
+  comunicação já é a mesma: na validação o Cliente recebe o aviso "documentação validada", no sino
+  e por e-mail à caixa Documentação e Operação, com o prazo e "Consulte o SISCARGA"; e a coluna
+  Solicitação do Portal passou a dizer, como a solicitação validada, que o B/L está apto e deve ser
+  conferido no SISCARGA. A solicitação automática acrescentaria só o protocolo e a linha em Minhas
+  solicitações, e desfaria a escolha (b) da [ADR 0119](../adr/0119-vip-desbloqueia-sem-solicitacao.md)
+  sobre dados reais. O dono decidiu ficar sem solicitação e trocar só a mensagem.
 - **Perda da cobertura.** Revogado o VIP ou um anual antes da exportação, o B/L volta ao fluxo
   comum. Depois da exportação, o envio fica (`ce_unlock_direct_exports` com o CE atual mantém o
   caminho direto) e o B/L não passa a pedir solicitação.

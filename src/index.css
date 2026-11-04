@@ -9284,18 +9284,19 @@ td.app-cargo-num {
 
 .app-customer-table {
   width: 100%;
-  min-width: 1040px;
+  min-width: 1160px;
   table-layout: fixed;
 }
 
-/* Layout fixo: as oito colunas somam 100% (mais a seleção); coluna sem
-   largura aqui ficaria espremida a zero. */
+/* Layout fixo: as dez colunas somam 100% (mais a seleção); coluna sem
+   largura aqui ficaria espremida a zero. Desde 2026-11-04 (pedido do dono)
+   o nome tem 30% menos (21% → 14,7%) e entram Contatos e Espiadinha. */
 .app-customer-table__select {
   width: 44px;
 }
 
 .app-customer-table__name {
-  width: 21%;
+  width: 14.7%;
 }
 
 .app-customer-table__document {
@@ -9303,19 +9304,21 @@ td.app-cargo-num {
 }
 
 .app-customer-table__city {
-  width: 11%;
+  width: 9%;
 }
 
 .app-customer-table__contact {
-  width: 18%;
+  width: 13.3%;
 }
 
+/* Colunas curtas de número: Contatos (2026-11-04) e B/Ls. */
+.app-customer-table__contacts,
 .app-customer-table__bls {
   width: 7%;
 }
 
 .app-customer-table__charges {
-  width: 10%;
+  width: 9%;
 }
 
 .app-customer-table__balance {
@@ -9323,8 +9326,10 @@ td.app-cargo-num {
   text-align: right;
 }
 
-.app-customer-table__portal {
-  width: 9%;
+/* Portal e Espiadinha (2026-11-04), lado a lado. */
+.app-customer-table__portal,
+.app-customer-table__peek {
+  width: 8%;
 }
 
 .app-customer-table th.app-customer-table__balance .app-table__sort {
@@ -9356,6 +9361,7 @@ td.app-cargo-num {
 }
 
 .app-customer-cell__truncate {
+  display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

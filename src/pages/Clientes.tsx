@@ -184,9 +184,9 @@ export function Clientes() {
       (contact) => contact.name.trim() || contact.email.trim() || contact.phone.trim(),
     )
     const primaryContact = activeContacts.find((contact) => contact.is_primary)
-    if (activeContacts.some((contact) => !contact.name.trim())) {
-      fieldErrors.contacts = 'Informe o nome de todo contato preenchido.'
-    } else if (!primaryContact || !primaryContact.email?.trim() || !primaryContact.email.includes('@')) {
+    // O nome do contato é opcional (decisão do dono de 2026-11-04): o banco aceita
+    // contato sem nome desde a migration 557; o e-mail continua obrigatório.
+    if (!primaryContact || !primaryContact.email?.trim() || !primaryContact.email.includes('@')) {
       fieldErrors.contacts = 'O contato principal precisa de um e-mail válido.'
     } else if (activeContacts.some((contact) => !contact.email.trim().includes('@'))) {
       // D01 de 2026-10-27: o banco grava só contato com e-mail; o sem e-mail
@@ -203,7 +203,7 @@ export function Clientes() {
       confirmLabel: 'Cadastrar cliente',
       affected: {
         summary: `${createForm.name.trim()} · CNPJ ${formatCnpjCpf(createForm.cnpjCpf)} · ${formatCountLabel(activeContacts.length, 'contato', 'contatos')}`,
-        items: activeContacts.map((c) => `${c.name} (${c.email})${c.is_primary ? ' · principal' : ''}`),
+        items: activeContacts.map((c) => `${c.name.trim() ? `${c.name.trim()} (${c.email})` : c.email}${c.is_primary ? ' · principal' : ''}`),
       },
       consequence: 'O cliente entra no cadastro ativo, pode ser vinculado a B/Ls e aparece na fila de Clientes › Portal como "Aguardando análise". Nenhum convite é enviado.',
       reversibility: 'Os dados podem ser editados na ficha; cadastros sem vínculos operacionais podem ser desativados ou excluídos pelo Administrativo.',

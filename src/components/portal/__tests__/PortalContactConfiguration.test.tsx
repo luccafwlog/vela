@@ -371,6 +371,31 @@ describe('PortalContactConfiguration', () => {
     is_primary: false, box_codes: ['financeiro'],
   }
 
+  it('mostra as caixas de recebimento, o que cada uma recebe e quem recebe, como no Tutorial (2026-11-04)', async () => {
+    const user = userEvent.setup()
+    getContactConfig.mockResolvedValueOnce({
+      boxes: [],
+      contacts: [
+        { id: 1, name: 'Mariana', email: 'mariana@cliente.com', phone: null, is_primary: true, active: true, origin: 'portal', box_codes: ['documentacao_operacao', 'financeiro', 'demurrage'], suppression_reason: null, sendable: true },
+        { id: 2, name: 'João', email: 'joao@cliente.com', phone: null, is_primary: false, active: true, origin: 'portal', box_codes: ['financeiro'], suppression_reason: null, sendable: true },
+      ],
+    })
+    renderComponent()
+    await screen.findByDisplayValue('mariana@cliente.com')
+
+    const guide = screen.getByRole('table', { name: /Caixas de recebimento/ })
+    const row = (box: string) => within(guide).getByRole('rowheader', { name: box }).closest('tr')!
+    expect(row('Documentação e Operação').textContent).toContain('CE e Taxas, NOA, NOR e NOB.')
+    expect(row('Documentação e Operação').textContent).not.toContain('joao@cliente.com')
+    expect(row('Financeiro').textContent).toContain('CE e Taxas e Cobranças de Demurrage.')
+    expect(row('Financeiro').textContent).toContain('mariana@cliente.com, joao@cliente.com')
+    expect(row('Demurrage').textContent).toContain('Cobranças de Demurrage')
+
+    // Acompanha a tela antes de salvar: desativar João tira ele da caixa.
+    await user.click(screen.getAllByRole('button', { name: 'Desativar contato' })[1])
+    expect(row('Financeiro').textContent).not.toContain('joao@cliente.com')
+  })
+
   it('marca as três caixas ao carregar principal sem vínculos', async () => {
     getContactConfig.mockResolvedValueOnce({ boxes: [], contacts: [{ ...principal, box_codes: [] }] })
     renderComponent()

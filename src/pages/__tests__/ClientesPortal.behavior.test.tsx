@@ -60,6 +60,20 @@ describe('ClientesPortal', () => {
     expect(screen.getByText('Crítico').classList.contains('app-status-text--danger')).toBe(true)
   })
 
+  it('reordena a fila pelo nome do Cliente, de A a Z e de Z a A, e volta à prioridade (2026-11-04)', () => {
+    render(<MemoryRouter><ClientesPortal /></MemoryRouter>)
+    // Abre em Aguardando análise: Portal, Crítico e Aguardando.
+    const names = () => screen.getAllByRole('row').slice(1).map((tr) => tr.querySelector('td.app-table__text button')?.textContent)
+    // Prioridade: o crítico primeiro.
+    expect(names()[0]).toBe('Cliente Crítico')
+    fireEvent.change(screen.getByLabelText('Ordem'), { target: { value: 'az' } })
+    expect(names()).toEqual(['Cliente Aguardando', 'Cliente Crítico', 'Cliente Portal'])
+    fireEvent.change(screen.getByLabelText('Ordem'), { target: { value: 'za' } })
+    expect(names()).toEqual(['Cliente Portal', 'Cliente Crítico', 'Cliente Aguardando'])
+    fireEvent.change(screen.getByLabelText('Ordem'), { target: { value: 'prioridade' } })
+    expect(names()[0]).toBe('Cliente Crítico')
+  })
+
   it('mostra só o e-mail gravado e diz o que falta na ação; Espiadinha abre a inspeção em outra aba (A4)', () => {
     render(<MemoryRouter><ClientesPortal /></MemoryRouter>)
     const critical = screen.getByText('Cliente Crítico').closest('tr') as HTMLElement

@@ -242,6 +242,36 @@ describe('Clientes page behaviours', () => {
     expect((screen.getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('')
   })
 
+  // Decisão do dono de 2026-11-04: o nome do contato principal não é obrigatório.
+  it('cadastra o cliente com o contato principal sem nome, só com o e-mail', async () => {
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
+    await user.type(screen.getByLabelText(/^Razão social/), 'Cliente Novo')
+    await user.type(within(screen.getByRole('dialog')).getByLabelText(/^E-mail/), 'novo@example.com')
+    await user.click(screen.getByRole('button', { name: 'Cadastrar cliente' }))
+
+    await waitFor(() => expect(mocks.createCustomer).toHaveBeenCalledWith(expect.objectContaining({
+      contacts: [expect.objectContaining({ name: '', email: 'novo@example.com', is_primary: true })],
+    })))
+    expect(screen.queryByText(/Informe o nome/)).toBeNull()
+  })
+
+  it('a lista mostra quantos contatos ativos o Cliente tem e a Espiadinha do Portal em outra aba (2026-11-04)', () => {
+    renderPage()
+    const table = screen.getByRole('table', { name: 'Clientes filtrados' })
+    const headers = within(table).getAllByRole('columnheader').map((th) => th.textContent)
+    expect(headers.indexOf('Contatos')).toBe(headers.indexOf('Contato principal') + 1)
+    const row = within(table).getByRole('link', { name: 'Cliente Teste' }).closest('tr')!
+    const cells = within(row).getAllByRole('cell')
+    expect(cells[headers.indexOf('Contatos')].textContent).toBe('1')
+    const peek = within(row).getByRole('link', { name: 'Espiadinha: ver o Portal como Cliente Teste vê' })
+    expect(peek.getAttribute('href')).toBe('/clientes/portal/inspecao/42?origem=ficha&aba=nova')
+    expect(peek.getAttribute('target')).toBe('_blank')
+  })
+
   it('normalizes a pasted alphanumeric CNPJ immediately', async () => {
     const user = userEvent.setup()
     renderPage()

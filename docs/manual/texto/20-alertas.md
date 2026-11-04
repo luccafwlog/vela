@@ -26,7 +26,7 @@ A fila de Alertas, com os críticos no alto.
 
 Os críticos vêm primeiro e, dentro de cada gravidade, os mais recentes.
 
-**Regras de alertas**, no menu **Alertas** ou no botão do alto da fila, abre a lista de todos os alertas do Vela, com quando cada um abre, quem recebe e como se resolve.
+**Regras de alertas**, no botão do alto da fila de **Alertas**, abre a lista de todos os alertas do Vela, com quando cada um abre, quem recebe e como se resolve.
 
 ::: atencao
 - **Busca**, **Registro** e **Gravidade** filtram só a página carregada. Com mais de 100 alertas, filtre antes pelo cartão do setor, que vale para a fila inteira, ou troque de página.
