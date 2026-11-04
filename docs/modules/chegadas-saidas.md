@@ -149,7 +149,7 @@ acontecem; data efetiva (ATD no POL, ATA no POD) com o `✓` verde e a data em
 tinta normal; previsão sem marca; previsão já passada sem data efetiva, de saída
 ou de chegada, em âmbar, com o motivo ao passar o mouse, **só no Vela** (`audience="internal"`, revisão de 2026-10-22): no Portal só existem previsão e data efetiva, e a previsão vencida aparece como previsão, sem âmbar nem legenda dele (`ScheduleTable`/`ScheduleLegend` com `audience`, padrão `portal`); escala omitida como
 "Omitida" em cinza e porto sem data como "—", cada estado também em texto para
-leitor de tela. Porto sem data em nenhum navio sai da tabela, com uma nota. A
+leitor de tela. Porto sem data em nenhum navio sai da tabela; no Vela, com uma nota ("N portos sem data em nenhum navio não aparecem."), e no Portal sem nota desde 2026-11-04 (decisão do dono). A
 posição do navio no MarineTraffic (pelo IMO cadastrado) é o botão **Ver no
 mapa**, na ponta da linha (desde 2026-10-23 `ghost`, com a borda clara da regra 9
 da identidade, nas duas telas); navio sem IMO não tem o botão. No Vela, **Editar**

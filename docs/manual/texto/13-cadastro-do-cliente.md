@@ -52,7 +52,7 @@ O CNPJ é a identidade do Cliente: um Cliente por CNPJ, numérico ou alfanuméri
 
 1. Em **Clientes**, busque o CNPJ: o Cliente pode já existir. Se não existe, clique em **Novo cliente**.
 2. Preencha **CNPJ** e **Razão social**. O endereço não é obrigatório, mas é o que sai na fatura.
-3. Em **Contatos**, preencha **Nome** e **E-mail** do **Contato principal**, que recebe todas as caixas. Para outro contato, clique em **Adicionar contato** e marque as caixas dele ([13.6](#136-cuidar-dos-contatos-do-cliente)).
+3. Em **Contatos**, preencha o **E-mail** do **Contato principal**, que recebe todas as caixas; o **Nome** é opcional. Para outro contato, clique em **Adicionar contato** e marque as caixas dele ([13.6](#136-cuidar-dos-contatos-do-cliente)).
 4. Clique em **Cadastrar cliente** e confirme.
 
 A ficha do novo Cliente abre. Ele já pode ser vinculado a B/Ls, e o B/L importado depois com o CNPJ dele se vincula sozinho (capítulo 6). Em **Clientes** › **Portal**, ele aparece como **Aguardando análise**: nenhum convite sai sem alguém enviar (capítulo 14).

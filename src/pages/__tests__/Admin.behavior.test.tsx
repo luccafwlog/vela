@@ -338,6 +338,13 @@ it('não troca o setor quando a confirmação é recusada', async () => {
 it('mostra "O que cada setor pode" sem o papel extinto, com as ações exclusivas por padrão', () => {
   renderAdmin()
   const matrix = screen.getByRole('region', { name: 'O que cada setor pode' })
+  // Abre recolhido (decisão do dono de 2026-11-04).
+  const toggle = within(matrix).getByRole('button', { name: 'Mostrar' })
+  expect(toggle.getAttribute('aria-expanded')).toBe('false')
+  expect(within(matrix).queryByRole('table')).toBeNull()
+  expect(within(matrix).queryByRole('radio', { name: 'Todas as ações' })).toBeNull()
+  fireEvent.click(toggle)
+  expect(within(matrix).getByRole('button', { name: 'Recolher' }).getAttribute('aria-expanded')).toBe('true')
   expect(within(matrix).getByText('Cancelar e reativar Viagem e B/L, com motivo')).toBeTruthy()
   expect(within(matrix).queryByText('Importar arquivos (B/L, CE, Baplie, veículos, Vazios, Granito, datas, Clientes)')).toBeNull()
   fireEvent.click(within(matrix).getByRole('radio', { name: 'Todas as ações' }))
@@ -575,6 +582,7 @@ it('Histórico de ações: contagem acima do teto diz "Mais de 10.000 registros"
 it('"O que cada setor pode": grupo e ação são cabeçalhos da linha', () => {
   renderAdmin()
   const matrix = screen.getByRole('region', { name: 'O que cada setor pode' })
+  fireEvent.click(within(matrix).getByRole('button', { name: 'Mostrar' }))
   const action = within(matrix).getByRole('rowheader', { name: 'Cancelar e reativar Viagem e B/L, com motivo' })
   expect(action.getAttribute('scope')).toBe('row')
   const group = matrix.querySelector('th[scope="rowgroup"]') as HTMLElement

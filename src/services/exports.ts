@@ -28,8 +28,8 @@ import type { PortalOperationBL } from './portalOperation'
 import { blReturnSummary, localChargesView, type PortalFlatContainer } from '../lib/portalOperationViews'
 import type { QueueRow } from './portalProvisioning'
 import { portalProvisioningExportRow } from '../lib/portalProvisioningViewModel'
-import type { CeUnlockItem } from '../types/ceUnlock'
-import { ceStateLabel, ceUnlockZptText, ceVipAnnualCovered } from '../lib/ceUnlockLabels'
+import type { CeUnlockItem, CeUnlockRequirementDates } from '../types/ceUnlock'
+import { ceDateTime, ceStateLabel, ceUnlockZptText, ceVipAnnualCovered } from '../lib/ceUnlockLabels'
 import { ceUnlockDeadline, formatCeUnlockDeadline } from './ceUnlockSla'
 import { blTotalCbm, blTotalWeightKg, cargoModeLabel, isBreakbulkCargoMode } from '../lib/cargoMode'
 import { describeChargeAdjustments } from '../lib/chargeAdjustmentSummary'
@@ -489,13 +489,21 @@ export async function exportDemurrageScreenWorkbook(sheetName: string, fileSlug:
   await writeWorkbook(vela(`Demurrage · ${sheetName}`, `demurrage-${fileSlug}`, [sheet(sheetName, rows)]))
 }
 
-/** Planilha comum do recorte inteiro do Desbloqueio de CE (aba Andamento dos B/Ls); a planilha da ZPT é outra. */
-export async function exportCeUnlockWorkbook(rows: CeUnlockItem[]) {
-  const met = (ok: boolean) => (ok ? 'Atendido' : 'Pendente')
-  // Sem solicitação ou em rascunho VIP, o VIP coberto pelos anuais (migrations 576 e 579) aparece como tal, não "Atendido".
-  const doc = (row: CeUnlockItem, ok: boolean) =>
-    ceVipAnnualCovered(row) && ok ? 'Coberto pelo anual VIP' : met(ok)
-  const exportRows = rows.map((row) => ({
+/**
+ * Linhas da planilha comum do Desbloqueio de CE. Requisito atendido mostra a data
+ * e a hora em que se cumpriu (migration 590, pedido do dono de 2026-11-04; antes,
+ * "Atendido"); sem a data na fonte, "Atendido". Pendente, dispensado e isento
+ * seguem em texto.
+ */
+export function ceUnlockWorkbookRows(rows: CeUnlockItem[], dates: ReadonlyMap<string, CeUnlockRequirementDates> = new Map()) {
+  const when = (value: string | null | undefined) => (value ? ceDateTime(value).replace(', ', ' ') : 'Atendido')
+  const met = (ok: boolean, at: string | null | undefined) => (ok ? when(at) : 'Pendente')
+  // Sem solicitação ou em rascunho VIP, o VIP coberto pelos anuais (migrations 576 e 579) diz que é o anual.
+  const doc = (row: CeUnlockItem, ok: boolean, at: string | null | undefined) =>
+    ceVipAnnualCovered(row) && ok ? `${when(at)} · anual VIP` : met(ok, at)
+  return rows.map((row) => {
+    const at = dates.get(row.bl_id)
+    return {
     'B/L': row.bl_id,
     'CE Mercante': row.ce_mercante ?? '',
     Cliente: row.customer_name ?? '',
@@ -506,13 +514,20 @@ export async function exportCeUnlockWorkbook(rows: CeUnlockItem[]) {
     Solicitação: row.protocol ?? (row.documents_dispensed ? 'Dispensada · veículo LCL' : row.direct && row.vip_direct ? 'Dispensada · VIP' : ''),
     Situação: ceStateLabel(row.state),
     // Veículo LCL isento (migration 575): termo e procuração dispensados, não "atendidos".
-    'Termo de devolução': row.documents_dispensed ? 'Dispensado' : doc(row, row.termo),
-    Procuração: row.documents_dispensed ? 'Dispensada' : doc(row, row.procuracao),
-    'Taxas locais': met(row.paid),
-    'B/L original': met(row.delivered),
+    'Termo de devolução': row.documents_dispensed ? 'Dispensado' : doc(row, row.termo, at?.termo_at),
+    Procuração: row.documents_dispensed ? 'Dispensada' : doc(row, row.procuracao, at?.procuracao_at),
+    // Taxas Locais isentas (migration 279): atendido sem pagamento, sem data.
+    'Taxas locais': row.paid && row.paid_exempt ? 'Isentas' : met(row.paid, at?.paid_at),
+    'B/L original': met(row.delivered, at?.delivered_at),
     Prazo: row.sla_started_at ? formatCeUnlockDeadline(ceUnlockDeadline(row.sla_started_at)) : '',
     'Na ZPT': ceUnlockZptText(row).text,
-  }))
+    }
+  })
+}
+
+/** Planilha comum do recorte inteiro do Desbloqueio de CE (aba Andamento dos B/Ls); a planilha da ZPT é outra. */
+export async function exportCeUnlockWorkbook(rows: CeUnlockItem[], dates?: ReadonlyMap<string, CeUnlockRequirementDates>) {
+  const exportRows = ceUnlockWorkbookRows(rows, dates)
   await writeWorkbook(vela('Desbloqueio de CE', 'desbloqueio-ce', [
     sheet('Desbloqueio de CE', exportRows, {
       unit: 'B/Ls',

@@ -194,4 +194,11 @@ describe('AppLayout (navegação visível)', () => {
     renderLayout()
     expect(screen.getByRole('link', { name: 'Alertas, 4 pendentes' })).toBeTruthy()
   })
+
+  it('Alertas é link direto, sem menu suspenso nem Regras de alertas (2026-11-04)', () => {
+    renderLayout()
+    expect(screen.getByRole('link', { name: 'Alertas, 4 pendentes' }).getAttribute('href')).toBe('/alertas')
+    expect(screen.queryByRole('button', { name: /^Alertas/ })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Regras de alertas' })).toBeNull()
+  })
 })

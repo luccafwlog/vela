@@ -147,7 +147,9 @@ export function ScheduleTable({ vessels, caption, actions, audience = 'portal', 
           </tbody>
         </table>
       </div>
-      {hidden > 0 ? <p className="app-schedule-legend [contain:inline-size]">{hidden === 1 ? '1 porto sem data em nenhum navio não aparece.' : `${hidden} portos sem data em nenhum navio não aparecem.`}</p> : null}
+      {/* A nota dos portos fora da tabela é só do Vela: no Portal ela saiu
+          (decisão do dono de 2026-11-04); o porto sem data continua fora. */}
+      {hidden > 0 && audience === 'internal' ? <p className="app-schedule-legend [contain:inline-size]">{hidden === 1 ? '1 porto sem data em nenhum navio não aparece.' : `${hidden} portos sem data em nenhum navio não aparecem.`}</p> : null}
     </>
   )
 }

@@ -24,9 +24,15 @@ describe('telas que só abriam por botão entram no grupo do seu assunto (2026-1
     // Tabelas e Tarifas abrem pelos botões das suas telas, não pelo menu (2026-11-02).
     expect(groups.financeiro).not.toContain('/taxas-locais/tabelas')
     expect(groups.financeiro).not.toContain('/demurrage/taxas')
-    expect(groups.alertas).toContain('/alertas/regras')
+    // Regras de alertas abre pelo botão da tela Alertas, não pelo menu (2026-11-04).
+    expect(groups.alertas).toEqual(['/alertas'])
     // Informações do Portal abre pelo botão da tela Portal, não pelo menu (2026-11-03).
     expect(groups.clientes).not.toContain('/clientes/informacoes')
+  })
+
+  it('Desbloqueio de CE fica logo acima de Revisão (2026-11-04)', () => {
+    const importacao = importNavItems.map((item) => item.to)
+    expect(importacao.indexOf('/desbloqueio-ce')).toBe(importacao.indexOf('/revisao') - 1)
   })
 
   it('a tela de contas do Portal se chama só Portal no menu (2026-11-03)', () => {

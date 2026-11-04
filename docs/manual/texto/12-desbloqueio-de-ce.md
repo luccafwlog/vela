@@ -50,7 +50,7 @@ Em **Importação** › **Desbloqueio de CE**, a página tem duas abas.
 
 O botão do relógio no fim da linha abre o **Histórico do B/L**: quando e por quem cada requisito foi cumprido ou desfeito, mesmo sem solicitação. Ali você vê, por exemplo, quem registrou a entrega do B/L original e a que horas, quem a desmarcou e por quê, quando as Taxas locais foram baixadas e quem aprovou o termo e a procuração. Baixa estornada e isenção de Taxas Locais não aparecem no histórico.
 
-**Exportar planilha** baixa a lista do filtro, para qualquer equipe; ela não é a planilha da ZPT.
+**Exportar planilha** baixa a lista do filtro, para qualquer equipe; ela não é a planilha da ZPT. Em cada requisito cumprido, a planilha traz a data e a hora em que ele se cumpriu (a aprovação do termo e da procuração, a baixa das Taxas locais, a entrega do B/L original); o que falta aparece como "Pendente".
 
 ## 12.3 Analisar os documentos de uma solicitação
 

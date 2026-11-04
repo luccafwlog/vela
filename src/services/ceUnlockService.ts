@@ -15,6 +15,7 @@ import type {
   CeUnlockPage,
   CeUnlockReconcileSummary,
   CeUnlockRequest,
+  CeUnlockRequirementDates,
   CeUnlockReviewRow,
   CeUnlockVipCoverage,
 } from "../types/ceUnlock";
@@ -80,6 +81,16 @@ export const getCeUnlockRequest = (id: string) =>
 /** Histórico dos requisitos de um B/L, com ou sem solicitação (migration 577). */
 export const getCeUnlockBlHistory = (blId: string) =>
   ceUnlockRead<CeUnlockBlHistory>("bl_history", { bl_id: blId });
+/** Leitura aceita até 500 B/Ls por chamada (migration 590). */
+const REQUIREMENT_DATES_BATCH = 500;
+/** Data e hora de cada requisito dos B/Ls, para a planilha comum (migration 590), em lotes de 500. */
+export async function fetchCeUnlockRequirementDates(blIds: string[]): Promise<Map<string, CeUnlockRequirementDates>> {
+  const unique = [...new Set(blIds)];
+  const batches = Array.from({ length: Math.ceil(unique.length / REQUIREMENT_DATES_BATCH) }, (_, n) =>
+    unique.slice(n * REQUIREMENT_DATES_BATCH, (n + 1) * REQUIREMENT_DATES_BATCH));
+  const results = await Promise.all(batches.map((bl_ids) => ceUnlockRead<CeUnlockRequirementDates[]>("requirement_dates", { bl_ids })));
+  return new Map(results.flat().map((row) => [row.bl_id, row]));
+}
 export const getCeUnlockVip = (customerId: number) =>
   ceUnlockRead<CeUnlockVipCoverage>("vip", { customer_id: customerId });
 export const ceUnlockCommand = <T>(

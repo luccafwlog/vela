@@ -1,7 +1,8 @@
 import type { ComponentProps, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye } from 'lucide-react'
 import { CopyValue } from '../ui/CopyValue'
+import { RowActionLink } from '../ui/RowActionLink'
 import { NoValue } from '../ui/NoValue'
 import { StatusText } from '../ui/StatusText'
 import { Card } from '../ui/Card'
@@ -129,10 +130,12 @@ export function CustomerTable({
                 <th scope="col" className="app-customer-table__document">CNPJ</th>
                 <th scope="col" className="app-customer-table__city">Cidade</th>
                 <th scope="col" className="app-customer-table__contact app-table__text-head">Contato principal</th>
+                <th scope="col" className="app-customer-table__contacts">Contatos</th>
                 {sortHeader('bls', 'B/Ls', 'app-customer-table__bls')}
                 <th scope="col" className="app-customer-table__charges">Taxas locais</th>
                 {sortHeader('pendingBalance', 'Saldo pendente', 'app-customer-table__balance')}
                 <th scope="col" className="app-customer-table__portal app-table__text-head">Portal</th>
+                <th scope="col" className="app-customer-table__peek">Espiadinha</th>
               </tr>
             </thead>
             <tbody>
@@ -231,7 +234,41 @@ function NameBlock({ row, facts }: { row: CustomerListItem; facts: ReturnType<ty
 /** Só o e-mail, com copiar (no lugar de "Copiar e-mail" do menu). */
 function ContactBlock({ contacts }: { contacts: ReturnType<typeof summarizeContactsForDisplay> }) {
   if (!contacts.primaryEmail) return <StatusText tone="warning">Sem e-mail</StatusText>
-  return <span className="app-customer-cell__truncate" title={contacts.primaryEmail}><CopyValue value={contacts.primaryEmail} label="e-mail" /></span>
+  // O e-mail longo corta com reticências e o botão de copiar continua à vista
+  // (a coluna ficou mais estreita em 2026-11-04, com Contatos e Espiadinha).
+  return (
+    <span title={contacts.primaryEmail}>
+      <CopyValue value={contacts.primaryEmail} label="e-mail">
+        <span className="app-customer-cell__truncate">{contacts.primaryEmail}</span>
+      </CopyValue>
+    </span>
+  )
+}
+
+/**
+ * Quantos contatos ativos o Cliente tem, cadastrados no Vela, capturados do
+ * B/L ou informados pelo próprio Cliente no Portal (pedido do dono de 2026-11-04).
+ */
+function ContactCount({ contacts }: { contacts: ReturnType<typeof summarizeContactsForDisplay> }) {
+  if (contacts.count === 0) return <StatusText tone="warning">Nenhum</StatusText>
+  return <span title={formatCountLabel(contacts.count, 'contato ativo', 'contatos ativos')}>{contacts.count}</span>
+}
+
+/**
+ * Espiadinha (pedido do dono de 2026-11-04): o Portal como o Cliente vê, em
+ * outra aba, como na tela Portal; "Fechar inspeção" fecha a aba.
+ */
+function PeekLink({ row }: { row: CustomerListItem }) {
+  return (
+    <RowActionLink
+      to={`/clientes/portal/inspecao/${row.id}?origem=ficha&aba=nova`}
+      target="_blank"
+      rel="noreferrer"
+      title="Ver o Portal como o Cliente vê"
+      label={`Espiadinha: ver o Portal como ${row.name} vê`}
+      icon={Eye}
+    />
+  )
 }
 
 function CustomerTableRow({
@@ -259,10 +296,12 @@ function CustomerTableRow({
       <td className="tabular-nums">{facts.document ? <CopyValue value={facts.document} label="CNPJ/CPF" /> : <NoValue label="Sem CNPJ" />}</td>
       <td>{facts.place || <NoValue label="Sem cidade" />}</td>
       <td className="app-table__text"><ContactBlock contacts={facts.contacts} /></td>
+      <td className="tabular-nums"><ContactCount contacts={facts.contacts} /></td>
       <td className="tabular-nums">{facts.blCount === 0 ? 'Nenhum' : facts.blCount}</td>
       <td><ChargesText facts={facts} /></td>
       <td className="app-customer-table__balance"><BalanceValue row={row} /></td>
       <td className="app-table__text"><PortalSituation row={row} portalRow={portalRow} status={handlers.portalStatus} /></td>
+      <td className="app-customer-table__peek"><PeekLink row={row} /></td>
     </tr>
   )
 }
@@ -295,6 +334,10 @@ function CustomerCard({
           <dd><ContactBlock contacts={facts.contacts} /></dd>
         </div>
         <div>
+          <dt>Contatos</dt>
+          <dd><ContactCount contacts={facts.contacts} /></dd>
+        </div>
+        <div>
           <dt>B/Ls</dt>
           <dd>{facts.blCount === 0 ? 'Nenhum' : facts.blCount} · <ChargesText facts={facts} /></dd>
         </div>
@@ -305,6 +348,10 @@ function CustomerCard({
         <div>
           <dt>Portal</dt>
           <dd><PortalSituation row={row} portalRow={portalRow} status={handlers.portalStatus} /></dd>
+        </div>
+        <div>
+          <dt>Espiadinha</dt>
+          <dd><PeekLink row={row} /></dd>
         </div>
       </dl>
     </li>

@@ -108,7 +108,7 @@ Desativado, o usuário perde o acesso na hora: a sessão aberta cai e a próxima
 
 **Quem faz:** {{Administrativo}}
 
-Abaixo da lista de usuários, o quadro **O que cada setor pode** tem uma linha por ação, agrupada por assunto, e uma coluna por equipe. Ele abre em **Só exclusivas**, as ações que nem toda equipe faz; **Todas as ações** mostra também as que todas fazem.
+Abaixo da lista de usuários, o quadro **O que cada setor pode** tem uma linha por ação, agrupada por assunto, e uma coluna por equipe. Ele vem recolhido: **Mostrar** abre o quadro e **Recolher** o fecha. Aberto, começa em **Só exclusivas**, as ações que nem toda equipe faz; **Todas as ações** mostra também as que todas fazem.
 
 O quadro descreve o que o Vela confere a cada gravação, não só o que a tela mostra ([2.2](02-equipes-e-permissoes.md#22-o-que-é-reservado-a-algumas-equipes)). Quando alguém diz que um botão não aparece, procure a ação no quadro: se ela é de outra equipe, o caminho é passar o pedido ([2.3](02-equipes-e-permissoes.md#23-a-quem-passar-cada-pedido)), não trocar a equipe da pessoa.
 
