@@ -172,10 +172,11 @@ describeLocal('S13/S15/S17 — bateria financeira adversarial no Postgres local'
         ('${portalUserId}', 'financial-battery-portal@example.test'),
         ('${equipmentUserId}', 'financial-battery-equipment@example.test')
       ON CONFLICT (id) DO UPDATE SET email = EXCLUDED.email;
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
-        ('${actorId}', 'Financial Battery Admin', 'administrativo', true),
-        ('${equipmentUserId}', 'Financial Battery Equipamentos', 'equipamentos', true)
-      ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, active = true;
+      -- Conta Dev: baixa e cancelamento de baixa são do Financeiro e da conta Dev (migration 583).
+      INSERT INTO public.user_profiles (id, full_name, role, active, is_dev) VALUES
+        ('${actorId}', 'Financial Battery Admin', 'administrativo', true, true),
+        ('${equipmentUserId}', 'Financial Battery Equipamentos', 'equipamentos', true, false)
+      ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, active = true, is_dev = EXCLUDED.is_dev;
       INSERT INTO public.customers (id, cnpj_cpf, name)
       VALUES (${customerId}, '${customerCnpj}', 'Cliente Financial Battery')
       ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, cnpj_cpf = EXCLUDED.cnpj_cpf;
