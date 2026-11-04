@@ -12,13 +12,11 @@ import {
 import { REPORT_LOCAL_CHARGES_STATE_LABELS, reportLocalChargesState } from '../lib/chargeStatus'
 import { getInvoiceBls, getInvoicePaymentDate, invoiceTypeLabel, type InvoiceListRow } from './billing'
 import { invoiceStatusLabel } from '../pages/faturamentoInvoiceStatus'
-import { DEMURRAGE_INVOICE_STATUS_LABELS, INVOICE_STATUS_LABELS, statusLabel } from '../lib/statusLabels'
+import { DEMURRAGE_INVOICE_STATUS_LABELS, FINANCIAL_STATUS_LABELS, INVOICE_STATUS_LABELS, REVIEW_STATUS_LABELS, simNao, statusLabel } from '../lib/statusLabels'
 import type { DemurrageExposureRow, DemurrageItemReportRow, DemurrageReportRow } from './reports'
 import { DEMURRAGE_DIVISION_LABELS } from './demurrage/demurrageDivisions'
 import { boxShareLabel } from './demurrage/demurragePresentation'
-import { formatDate } from '../lib/utils'
 import { arrivalDisplay } from '../lib/escalaState'
-import { sanitizeSheetRows } from '../lib/spreadsheetSafe'
 import type { LineUpRow } from './lineup'
 import type { PortalScheduleVoyage } from './portalScheduleVoyages'
 import { scheduleExportRows, scheduleTemplateColumns } from './portalScheduleBulkImport'
@@ -32,52 +30,56 @@ import { ceStateLabel, ceUnlockZptText, ceVipAnnualCovered } from '../lib/ceUnlo
 import { ceUnlockDeadline, formatCeUnlockDeadline } from './ceUnlockSla'
 import { blTotalCbm, blTotalWeightKg, cargoModeLabel, isBreakbulkCargoMode } from '../lib/cargoMode'
 import { describeChargeAdjustments } from '../lib/chargeAdjustmentSummary'
+import { exportTimestamp, writeWorkbook, type SheetSpec, type WorkbookSpec } from './exportWorkbook'
 
-function toSheet<T extends Record<string, unknown>>(
-  XLSX: typeof import('@e965/xlsx'),
-  rows: T[],
-) {
-  const safeRows = sanitizeSheetRows(rows)
-  return XLSX.utils.json_to_sheet(safeRows)
-}
+// Toda planilha sai por `writeWorkbook` (src/services/exportWorkbook.ts), o
+// dono da aparência (ADR 0120). Aqui ficam só as linhas de cada tela, com o
+// rótulo em português que vira o cabeçalho, e o que o rótulo não diz sozinho
+// (tipo da coluna, grupos, substantivo da faixa). Data sai como está no banco
+// (ISO) e vira data de verdade na célula; a formatada só onde é texto.
+
+const sheet = (name: string, rows: Record<string, unknown>[], extra: Omit<SheetSpec, 'name' | 'rows'> = {}): SheetSpec => ({ name, rows, ...extra })
+const vela = (title: string, fileSlug: string, sheets: SheetSpec[], filters?: string[]): WorkbookSpec =>
+  ({ product: 'vela', title, sheets, filters, fileName: `${fileSlug}-${exportTimestamp()}.xlsx` })
+const portal = (title: string, fileSlug: string, sheets: SheetSpec[]): WorkbookSpec =>
+  ({ product: 'portal', title, sheets, fileName: `${fileSlug}-${exportTimestamp()}.xlsx` })
 
 export async function exportManifestWorkbook(rows: BLListItem[]) {
-  const XLSX = await import('@e965/xlsx')
   const manifestRows = rows.map((row) => ({
-    BL: row.id,
-    CEMercante: row.ce_mercante ?? '',
+    'B/L': row.id,
+    'CE Mercante': row.ce_mercante ?? '',
     Modalidade: cargoModeLabel(row.cargo_mode),
     Armador: row.voyage?.vessel?.carrier?.name ?? '',
     SCAC: row.voyage?.vessel?.carrier?.scac ?? '',
     Navio: row.voyage?.vessel?.name ?? '',
     Viagem: row.voyage?.voyage_number ?? '',
-    Consignatario: row.customer?.name ?? row.consignee ?? '',
+    Consignatário: row.customer?.name ?? row.consignee ?? '',
     CNPJ: row.customer?.cnpj_cpf ?? '',
     POL: row.pol ?? '',
     POD: row.pod ?? '',
     'Containers distintos': countDistinctContainerNumbers(row.bl_containers),
     'Containers OOG distintos': countDistinctContainerNumbersBy(row.bl_containers, (container) => Boolean(container.is_oog)),
     'Containers IMO distintos': countDistinctContainerNumbersBy(row.bl_containers, (container) => Boolean(container.is_imo)),
-    PesoKg: blTotalWeightKg(row),
+    'Peso (kg)': blTotalWeightKg(row),
     CBM: blTotalCbm(row),
-    Revisao: row.review_status ?? '',
-    Financeiro: row.financial_status ?? '',
+    Revisão: statusLabel(REVIEW_STATUS_LABELS, row.review_status, ''),
+    Financeiro: statusLabel(FINANCIAL_STATUS_LABELS, row.financial_status, ''),
   }))
 
   const containerRows = rows.flatMap((row) =>
     (row.bl_containers ?? []).map((container) => ({
       Container: container.container_number,
-      BL: row.id,
-      CEMercante: row.ce_mercante ?? '',
+      'B/L': row.id,
+      'CE Mercante': row.ce_mercante ?? '',
       Tipo: container.type ?? '',
-      Seal: container.seal_number ?? '',
-      PesoBrutoKg: container.gross_weight_kg ?? '',
+      Lacre: container.seal_number ?? '',
+      'Peso bruto (kg)': container.gross_weight_kg ?? '',
       CBM: container.cbm ?? '',
-      OOG: container.is_oog ? 'SIM' : 'NAO',
-      IMO: container.is_imo ? 'SIM' : 'NAO',
-      IMOClass: container.imo_class ?? '',
-      UNNumber: container.un_number ?? '',
-      Consignatario: row.customer?.name ?? row.consignee ?? '',
+      OOG: simNao(Boolean(container.is_oog)),
+      IMO: simNao(Boolean(container.is_imo)),
+      'Classe IMO': container.imo_class ?? '',
+      'UN Number': container.un_number ?? '',
+      Consignatário: row.customer?.name ?? row.consignee ?? '',
       CNPJ: row.customer?.cnpj_cpf ?? '',
       Armador: row.voyage?.vessel?.carrier?.name ?? '',
       Navio: row.voyage?.vessel?.name ?? '',
@@ -87,6 +89,7 @@ export async function exportManifestWorkbook(rows: BLListItem[]) {
     })),
   )
 
+  // Mesmas colunas do molde de importação do manifesto de carga solta: sai plana, para voltar como veio.
   const breakbulkRows = rows
     .filter((row) => isBreakbulkCargoMode(row.cargo_mode))
     .map((row) => ({
@@ -107,60 +110,76 @@ export async function exportManifestWorkbook(rows: BLListItem[]) {
       Viagem: row.voyage?.voyage_number ?? '',
     }))
 
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, manifestRows), 'Manifestos')
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, containerRows), 'Containers')
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, breakbulkRows), 'CargaSolta')
-  XLSX.writeFile(workbook, `manifestos-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(vela('B/Ls', 'manifestos', [
+    sheet('Manifestos', manifestRows, {
+      unit: 'B/Ls',
+      groups: [
+        { label: 'B/L', from: 'B/L', to: 'Modalidade' },
+        { label: 'Viagem', from: 'Armador', to: 'Viagem' },
+        { label: 'Cliente', from: 'Consignatário', to: 'CNPJ' },
+        { label: 'Carga', from: 'POL', to: 'CBM' },
+        { label: 'Situação', from: 'Revisão', to: 'Financeiro' },
+      ],
+    }),
+    sheet('Containers', containerRows, { unit: 'containers' }),
+    sheet('CargaSolta', breakbulkRows, { unit: 'B/Ls', plain: true, types: { 'WEIGHT (TON)': 'decimal', 'CBM (M3)': 'cbm' } }),
+  ]))
 }
 
+/** Molde de reimportação de Chegadas e Saídas: cabeçalhos do importador, sem faixa nem total. */
 export async function exportScheduleWorkbook(voyages: PortalScheduleVoyage[]): Promise<void> {
-  const XLSX = await import('@e965/xlsx')
-  const workbook = XLSX.utils.book_new()
-  const sheet = XLSX.utils.json_to_sheet(sanitizeSheetRows(scheduleExportRows(voyages)), { header: scheduleTemplateColumns() })
-  XLSX.utils.book_append_sheet(workbook, sheet, 'Programacao')
-  XLSX.writeFile(workbook, `programacao-navios-${makeTimestamp()}.xlsx`)
+  const columns = scheduleTemplateColumns()
+  const rows = scheduleExportRows(voyages).map((row) => Object.fromEntries(columns.map((column) => [column, row[column] ?? ''])))
+  await writeWorkbook(vela('Programação de navios', 'programacao-navios', [
+    sheet('Programacao', rows, { unit: 'viagens', plain: true, types: Object.fromEntries(columns.map((column) => [column, 'text' as const])) }),
+  ]))
 }
 
 export async function exportPortalProvisioningWorkbook(rows: QueueRow[]): Promise<void> {
-  const XLSX = await import('@e965/xlsx')
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, rows.map(portalProvisioningExportRow)), 'Provisionamento')
-  XLSX.writeFile(workbook, `portal-clientes-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(vela('Portal do Cliente', 'portal-clientes', [
+    sheet('Provisionamento', rows.map(portalProvisioningExportRow), { unit: 'Clientes' }),
+  ]))
 }
 
 export async function exportContainerWorkbook(rows: ContainerListItem[]) {
-  const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     Container: row.container_number,
-    BL: row.bl?.id ?? '',
+    'B/L': row.bl?.id ?? '',
     Armador: row.bl?.voyage?.vessel?.carrier?.name ?? '',
     Navio: row.bl?.voyage?.vessel?.name ?? '',
     Viagem: row.bl?.voyage?.voyage_number ?? '',
-    Consignatario: row.bl?.customer?.name ?? row.bl?.consignee ?? '',
+    Consignatário: row.bl?.customer?.name ?? row.bl?.consignee ?? '',
     CNPJ: row.bl?.customer?.cnpj_cpf ?? '',
     POL: row.bl?.pol ?? '',
     POD: row.bl?.pod ?? '',
     Tipo: row.type ?? '',
-    Seal: row.seal_number ?? '',
-    PesoBrutoKg: row.gross_weight_kg ?? '',
+    Lacre: row.seal_number ?? '',
+    'Peso bruto (kg)': row.gross_weight_kg ?? '',
     CBM: row.cbm ?? '',
-    OOG: row.is_oog ? 'SIM' : 'NAO',
-    IMO: row.is_imo ? 'SIM' : 'NAO',
-    IMOClass: row.imo_class ?? '',
-    UNNumber: row.un_number ?? '',
+    OOG: simNao(Boolean(row.is_oog)),
+    IMO: simNao(Boolean(row.is_imo)),
+    'Classe IMO': row.imo_class ?? '',
+    'UN Number': row.un_number ?? '',
     'SOC/COC': containerOwnershipLabel(row.ownership),
-    RevisaoBL: row.bl?.review_status ?? '',
-    FinanceiroBL: row.bl?.financial_status ?? '',
+    // Rótulos da tela, sem código cru (EQU-006 até 2026-11-03 saía "pending_review").
+    'Revisão do B/L': statusLabel(REVIEW_STATUS_LABELS, row.bl?.review_status, ''),
+    'Financeiro do B/L': statusLabel(FINANCIAL_STATUS_LABELS, row.bl?.financial_status, ''),
   }))
 
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Containers')
-  XLSX.writeFile(workbook, `containers-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(vela('Containers', 'containers', [
+    sheet('Containers', exportRows, {
+      unit: 'containers',
+      groups: [
+        { label: 'Container', from: 'Container', to: 'Viagem' },
+        { label: 'Cliente', from: 'Consignatário', to: 'CNPJ' },
+        { label: 'Carga', from: 'POL', to: 'SOC/COC' },
+        { label: 'B/L', from: 'Revisão do B/L', to: 'Financeiro do B/L' },
+      ],
+    }),
+  ]))
 }
 
 export async function exportVehicleWorkbook(rows: VehicleListItem[]) {
-  const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     Chassi: row.chassis,
     Marca: row.brand ?? '',
@@ -170,17 +189,13 @@ export async function exportVehicleWorkbook(rows: VehicleListItem[]) {
     Container: row.container?.container_number ?? '',
     'Tipo Container': row.container?.type ?? '',
     Lacre: row.container?.seal_number ?? '',
-    BL: row.bl?.id ?? '',
+    'B/L': row.bl?.id ?? '',
     'Local desova': (row.container as (typeof row.container & { unpacking_location?: string | null }) | null)?.unpacking_location ?? '',
   }))
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Veiculos')
-  XLSX.writeFile(workbook, `veiculos-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(vela('Veículos', 'veiculos', [sheet('Veiculos', exportRows, { unit: 'veículos', types: { Chassi: 'code', Cubagem: 'cbm' } })]))
 }
 
 export async function exportInvoicesWorkbook(rows: InvoiceListRow[]) {
-  const XLSX = await import('@e965/xlsx')
-
   const invoiceRows = rows.map((row) => {
     const bls = getInvoiceBls(row)
     const navios = Array.from(new Set(bls.map((bl) => bl.vessel_name).filter(Boolean))).join(' / ')
@@ -199,17 +214,17 @@ export async function exportInvoicesWorkbook(rows: InvoiceListRow[]) {
       Cliente: row.customer?.name ?? '',
       CNPJ: row.customer?.cnpj_cpf ?? '',
       Tipo: invoiceTypeLabel(row.invoice_type),
-      Status: invoiceStatusLabel(row.status),
-      Emissao: row.issued_at ? formatDate(row.issued_at) : '',
-      DataPagamento: getInvoicePaymentDate(row) ? formatDate(getInvoicePaymentDate(row)) : '',
-      QtdBLs: bls.length,
+      Situação: invoiceStatusLabel(row.status),
+      Emissão: row.issued_at ?? '',
+      Pagamento: getInvoicePaymentDate(row) ?? '',
+      'Qtd. B/Ls': bls.length,
       'B/Ls': bls.map((bl) => bl.bl_id).join(' • '),
       Navio: navios,
       Viagem: viagens,
       POD: pods,
-      TotalBRL: Number(row.total_brl ?? 0),
-      PagoBRL: Number(row.total_paid_brl ?? 0),
-      SaldoBRL: Number(row.balance_brl ?? 0),
+      'Total (R$)': Number(row.total_brl ?? 0),
+      'Pago (R$)': Number(row.total_paid_brl ?? 0),
+      'Saldo (R$)': Number(row.balance_brl ?? 0),
     }
   })
 
@@ -219,38 +234,48 @@ export async function exportInvoicesWorkbook(rows: InvoiceListRow[]) {
       Cliente: row.customer?.name ?? '',
       CNPJ: row.customer?.cnpj_cpf ?? '',
       Tipo: invoiceTypeLabel(row.invoice_type),
-      BL: bl.bl_id,
+      'B/L': bl.bl_id,
       Navio: bl.vessel_name ?? '',
       Viagem: bl.voyage_number ?? '',
       POD: bl.pod ?? '',
-      Emissao: row.issued_at ? formatDate(row.issued_at) : '',
-      DataPagamento: getInvoicePaymentDate(row) ? formatDate(getInvoicePaymentDate(row)) : '',
-      Status: invoiceStatusLabel(row.status),
-      TotalBRL: Number(row.total_brl ?? 0),
-      PagoBRL: Number(row.total_paid_brl ?? 0),
-      SaldoBRL: Number(row.balance_brl ?? 0),
+      Emissão: row.issued_at ?? '',
+      Pagamento: getInvoicePaymentDate(row) ?? '',
+      Situação: invoiceStatusLabel(row.status),
+      'Total (R$)': Number(row.total_brl ?? 0),
+      'Pago (R$)': Number(row.total_paid_brl ?? 0),
+      'Saldo (R$)': Number(row.balance_brl ?? 0),
     })),
   )
 
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, invoiceRows), 'Faturas')
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, blRows), 'BLs')
-  XLSX.writeFile(workbook, `faturas-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(vela('Faturas · Taxas Locais', 'faturas', [
+    sheet('Faturas', invoiceRows, {
+      unit: 'faturas',
+      groups: [
+        { label: 'Fatura', from: 'Fatura', to: 'Situação' },
+        { label: 'Datas', from: 'Emissão', to: 'Pagamento' },
+        { label: 'Operação', from: 'Qtd. B/Ls', to: 'POD' },
+        { label: 'Financeiro', from: 'Total (R$)', to: 'Saldo (R$)' },
+      ],
+    }),
+    // Uma linha por B/L da fatura: o total é o da fatura, não se soma.
+    sheet('BLs', blRows, { unit: 'B/Ls', totals: false }),
+  ]))
 }
 
-/** Filtro aplicado no relatório, uma linha por filtro na aba "Filtros" da planilha. */
+/** Filtro aplicado no relatório, uma linha por filtro na aba "Filtros" da planilha e na faixa de identidade. */
 export type ReportFilterLine = { Filtro: string; Valor: string }
 
-function appendFiltersSheet(XLSX: typeof import('@e965/xlsx'), workbook: import('@e965/xlsx').WorkBook, filters: ReportFilterLine[]) {
+function filtersSheet(filters: ReportFilterLine[]): SheetSpec {
   const rows = filters.length ? filters : [{ Filtro: 'Filtros', Valor: 'Nenhum' }]
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, rows), 'Filtros')
+  return sheet('Filtros', rows, { plain: true, types: { Filtro: 'long', Valor: 'long' } })
 }
 
-/** Colunas da planilha do relatório com os mesmos rótulos e datas da tela, sem código cru. */
+const filterLines = (filters: ReportFilterLine[]) => filters.map((line) => `${line.Filtro} = ${line.Valor}`)
+
+/** Colunas da planilha do relatório com os mesmos rótulos da tela, sem código cru. */
 export async function exportOperationalReportWorkbook(rows: OperationalReportRow[], filters: ReportFilterLine[] = []) {
-  const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
-    // Rótulos e datas da tela (ACE-D08).
+    // Rótulos da tela (ACE-D08).
     'B/L': row.id,
     Modalidade: cargoModeLabel(row.cargo_mode),
     Armador: row.voyage?.vessel?.carrier?.name ?? '',
@@ -265,35 +290,33 @@ export async function exportOperationalReportWorkbook(rows: OperationalReportRow
     CBM: blTotalCbm(row),
     Revisão: reportReviewLabel(row.review_status),
     'Taxas locais': REPORT_LOCAL_CHARGES_STATE_LABELS[reportLocalChargesState(row.charge_status, row.financial_status, row.cancelled_at)],
-    'Criação do B/L': row.created_at ? formatDate(row.created_at) : '',
+    'Criação do B/L': row.created_at ?? '',
   }))
 
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Operacional')
-  appendFiltersSheet(XLSX, workbook, filters)
-  XLSX.writeFile(workbook, `relatorio-operacional-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(vela('Relatório operacional', 'relatorio-operacional', [
+    sheet('Operacional', exportRows, { unit: 'B/Ls', types: { 'Taxas locais': 'status' } }),
+    filtersSheet(filters),
+  ], filterLines(filters)))
 }
 
 export async function exportFinancialReportWorkbook(rows: FinancialReportRow[], filters: ReportFilterLine[] = []) {
-  const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     Fatura: row.invoice_number ?? `INV-${row.id}`,
     Cliente: row.customer?.name ?? '',
     CNPJ: row.customer?.cnpj_cpf ?? '',
-    Emissão: row.issued_at ? formatDate(row.issued_at) : '',
+    Emissão: row.issued_at ?? '',
     'Total (R$)': Number(row.total_brl ?? 0),
     'Saldo (R$)': Number(row.balance_brl ?? 0),
     Situação: statusLabel(INVOICE_STATUS_LABELS, row.status, ''),
   }))
 
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Financeiro')
-  appendFiltersSheet(XLSX, workbook, filters)
-  XLSX.writeFile(workbook, `relatorio-financeiro-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(vela('Relatório financeiro', 'relatorio-financeiro', [
+    sheet('Financeiro', exportRows, { unit: 'faturas' }),
+    filtersSheet(filters),
+  ], filterLines(filters)))
 }
 
 export async function exportCustomerReportWorkbook(rows: CustomerReportRow[], filters: ReportFilterLine[] = []) {
-  const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     Cliente: row.name,
     CNPJ: row.cnpj_cpf,
@@ -305,14 +328,13 @@ export async function exportCustomerReportWorkbook(rows: CustomerReportRow[], fi
     'Em aberto (R$)': row.totalBalance,
   }))
 
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Clientes')
-  appendFiltersSheet(XLSX, workbook, filters)
-  XLSX.writeFile(workbook, `relatorio-clientes-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(vela('Relatório por Cliente', 'relatorio-clientes', [
+    sheet('Clientes', exportRows, { unit: 'Clientes', types: { 'B/Ls': 'int' }, totals: ['B/Ls', 'Faturas'] }),
+    filtersSheet(filters),
+  ], filterLines(filters)))
 }
 
 const usdCell = (value: number | string | null | undefined) => (value == null ? '' : Number(value))
-const dateCell = (value: string | null | undefined) => (value ? formatDate(value) : '')
 
 /** Colunas da Exposição (ADR 0112, D13): a mesma da tela e da aba Containers. */
 export function demurrageExposureSheetRows(rows: readonly DemurrageExposureRow[]) {
@@ -324,8 +346,8 @@ export function demurrageExposureSheetRows(rows: readonly DemurrageExposureRow[]
     'B/L': row.bl_id,
     Container: row.container_number,
     Tipo: row.type ?? '',
-    Descarga: dateCell(row.discharge_date),
-    Devolução: row.return_date ? dateCell(row.return_date) : 'Fora',
+    Descarga: row.discharge_date ?? '',
+    Devolução: row.return_date ? row.return_date : 'Fora',
     Dias: row.total_days ?? '',
     'Free time': row.free_days ?? '',
     'US$ previsto': row.state === 'no_rate' ? 'Tipo sem tarifa' : usdCell(row.usd),
@@ -340,12 +362,12 @@ export function demurrageInvoiceSheetRows(rows: readonly DemurrageReportRow[]) {
     'Navio / Viagem': [row.bl?.voyage?.vessel?.name, row.bl?.voyage?.voyage_number].filter(Boolean).join(' / '),
     Cliente: row.customer?.name ?? '',
     CNPJ: row.customer?.cnpj_cpf ?? '',
-    Emissão: dateCell(row.billed_at),
+    Emissão: row.billed_at ?? '',
     'USD líquido': row.net_usd,
     'Desconto US$': row.discount_usd,
     'R$ hoje': row.status === 'issued' || row.status === 'overdue' ? Number(row.current_total_brl ?? 0) : '',
     'R$ pago': row.status === 'paid' ? Number(row.current_total_brl ?? 0) : '',
-    'Paga em': dateCell(row.paid_at),
+    'Paga em': row.paid_at ?? '',
     Disputa: row.dispute_open ? 'Aberta' : '',
     Situação: statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, row.status, ''),
   }))
@@ -355,14 +377,14 @@ export function demurrageItemSheetRows(rows: readonly DemurrageItemReportRow[]) 
   return rows.map((row) => ({
     Invoice: row.invoice.doc_number,
     Situação: statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, row.invoice.status, ''),
-    Emissão: dateCell(row.invoice.billed_at),
+    Emissão: row.invoice.billed_at ?? '',
     Cliente: row.invoice.customer?.name ?? '',
     'Navio / Viagem': [row.invoice.bl?.voyage?.vessel?.name, row.invoice.bl?.voyage?.voyage_number].filter(Boolean).join(' / '),
     'B/L': row.invoice.bl_id,
     Container: row.container_number,
     Tipo: row.container_type ?? '',
-    Descarga: dateCell(row.discharge_date),
-    Devolução: dateCell(row.return_date),
+    Descarga: row.discharge_date ?? '',
+    Devolução: row.return_date ?? '',
     Dias: row.total_days ?? '',
     'Free time': row.free_days ?? '',
     '1º período (dias)': row.days_p1 ?? '',
@@ -379,26 +401,22 @@ export async function exportDemurrageReportWorkbook(
   report: { exposure: readonly DemurrageExposureRow[]; invoices: readonly DemurrageReportRow[]; items: readonly DemurrageItemReportRow[] },
   filters: ReportFilterLine[] = [],
 ) {
-  const XLSX = await import('@e965/xlsx')
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, demurrageExposureSheetRows(report.exposure)), 'Exposição')
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, demurrageInvoiceSheetRows(report.invoices)), 'Invoices')
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, demurrageItemSheetRows(report.items)), 'Itens por container')
-  appendFiltersSheet(XLSX, workbook, filters)
-  XLSX.writeFile(workbook, `relatorio-demurrage-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(vela('Relatório de Demurrage', 'relatorio-demurrage', [
+    sheet('Exposição', demurrageExposureSheetRows(report.exposure), { unit: 'containers' }),
+    sheet('Invoices', demurrageInvoiceSheetRows(report.invoices), { unit: 'Invoices' }),
+    // A tarifa por dia não se soma; o subtotal em US$ sim.
+    sheet('Itens por container', demurrageItemSheetRows(report.items), { unit: 'containers', types: { '1º período (US$/dia)': 'decimal', '2º período (US$/dia)': 'decimal' } }),
+    filtersSheet(filters),
+  ], filterLines(filters)))
 }
 
 /** Exportar de uma aba da central de Demurrage (D14): o que está na tela, com as colunas da tela. */
 export async function exportDemurrageScreenWorkbook(sheetName: string, fileSlug: string, rows: Array<Record<string, unknown>>) {
-  const XLSX = await import('@e965/xlsx')
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, rows), sheetName.slice(0, 31))
-  XLSX.writeFile(workbook, `demurrage-${fileSlug}-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(vela(`Demurrage · ${sheetName}`, `demurrage-${fileSlug}`, [sheet(sheetName, rows)]))
 }
 
 /** Planilha comum do recorte inteiro do Desbloqueio de CE (aba Andamento dos B/Ls); a planilha da ZPT é outra. */
 export async function exportCeUnlockWorkbook(rows: CeUnlockItem[]) {
-  const XLSX = await import('@e965/xlsx')
   const met = (ok: boolean) => (ok ? 'Atendido' : 'Pendente')
   // Sem solicitação ou em rascunho VIP, o VIP coberto pelos anuais (migrations 576 e 579) aparece como tal, não "Atendido".
   const doc = (row: CeUnlockItem, ok: boolean) =>
@@ -421,9 +439,17 @@ export async function exportCeUnlockWorkbook(rows: CeUnlockItem[]) {
     Prazo: row.sla_started_at ? formatCeUnlockDeadline(ceUnlockDeadline(row.sla_started_at)) : '',
     'Na ZPT': ceUnlockZptText(row).text,
   }))
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Desbloqueio de CE')
-  XLSX.writeFile(workbook, `desbloqueio-ce-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(vela('Desbloqueio de CE', 'desbloqueio-ce', [
+    sheet('Desbloqueio de CE', exportRows, {
+      unit: 'B/Ls',
+      groups: [
+        { label: 'B/L', from: 'B/L', to: 'POD' },
+        { label: 'Desbloqueio', from: 'Solicitação', to: 'Situação' },
+        { label: 'Requisitos', from: 'Termo de devolução', to: 'B/L original' },
+        { label: 'ZPT', from: 'Prazo', to: 'Na ZPT' },
+      ],
+    }),
+  ]))
 }
 
 export function customerExportEmails(contacts: CustomerListItem['customer_contacts']) {
@@ -432,8 +458,8 @@ export function customerExportEmails(contacts: CustomerListItem['customer_contac
   return Array.from(new Set(ordered.map((contact) => String(contact.email).trim()))).join('; ')
 }
 
+/** Base de Clientes no formato da importação: cabeçalhos do importador, sem faixa nem total, para corrigir e importar de volta. */
 export async function exportCustomerBaseWorkbook(rows: CustomerListItem[]) {
-  const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     CNPJ: row.cnpj_cpf ?? '',
     'Razao Social': row.name ?? '',
@@ -446,9 +472,9 @@ export async function exportCustomerBaseWorkbook(rows: CustomerListItem[]) {
     CEP: row.zip ?? '',
   }))
 
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'BaseClientes')
-  XLSX.writeFile(workbook, `base-clientes-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(vela('Base de Clientes', 'base-clientes', [
+    sheet('BaseClientes', exportRows, { unit: 'Clientes', plain: true, types: { CNPJ: 'text', CEP: 'text' } }),
+  ]))
 }
 
 const VAZIO_NATUREZA_LABELS: Record<string, string> = { cama: 'Cama', cover_plate: 'Cover plate' }
@@ -459,7 +485,6 @@ const VAZIO_NATUREZA_LABELS: Record<string, string> = { cama: 'Cama', cover_plat
  * rota, que quem chama resolve (`vazioManifestoNumero`).
  */
 export async function exportVaziosImportacaoWorkbook(rows: Array<VaziosImportacaoContainerListItem & { manifesto_numero?: string | null }>) {
-  const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     Container: row.container_number,
     Tipo: row.container_type ?? '',
@@ -470,19 +495,18 @@ export async function exportVaziosImportacaoWorkbook(rows: Array<VaziosImportaca
     Navio: row.manifest?.voyage?.vessel?.name ?? '',
     Viagem: row.manifest?.voyage?.voyage_number ?? '',
     'Manifesto Mercante': row.manifesto_numero ?? '',
-    'Importado em': row.manifest?.imported_at ? formatDate(row.manifest.imported_at) : '',
+    'Importado em': row.manifest?.imported_at ?? '',
   }))
 
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'VaziosImportacao')
-  XLSX.writeFile(workbook, `vazios-importacao-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(vela('Vazios de importação', 'vazios-importacao', [
+    sheet('VaziosImportacao', exportRows, { unit: 'containers', types: { Natureza: 'text', 'Manifesto Mercante': 'text' } }),
+  ]))
 }
 
 export async function exportBaplieWorkbook(rows: BaplieContainer[]) {
-  const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     Container: row.container_number,
-    Status: row.status === 'empty' ? 'Vazio' : row.status === 'full' ? 'Cheio' : (row.status ?? ''),
+    Situação: row.status === 'empty' ? 'Vazio' : row.status === 'full' ? 'Cheio' : (row.status ?? ''),
     Tipo: row.size_type ?? '',
     POL: row.pol ?? '',
     POD: row.pod ?? '',
@@ -490,18 +514,16 @@ export async function exportBaplieWorkbook(rows: BaplieContainer[]) {
     'B/L ref': row.bl_ref ?? '',
     'Destino final': row.final_dest ?? '',
     Perfil: row.is_imo ? 'IMO' : row.is_oog ? 'OOG' : 'Padrão',
-    IMO: row.is_imo ? 'SIM' : 'NAO',
+    IMO: simNao(Boolean(row.is_imo)),
     'Classe IMO': row.imo_class ?? '',
     'UN Number': row.un_number ?? '',
-    OOG: row.is_oog ? 'SIM' : 'NAO',
+    OOG: simNao(Boolean(row.is_oog)),
     'SOC/COC': containerOwnershipLabel(row.ownership),
     'Peso (kg)': row.weight_kg ?? '',
-    'Importado em': row.imported_at ? formatDate(row.imported_at) : '',
+    'Importado em': row.imported_at ?? '',
   }))
 
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Baplie EDI')
-  XLSX.writeFile(workbook, `baplie-edi-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(vela('Baplie EDI', 'baplie-edi', [sheet('Baplie EDI', exportRows, { unit: 'containers', types: { Perfil: 'text' } })]))
 }
 
 // --- Portal do cliente ---------------------------------------------------
@@ -509,47 +531,49 @@ export async function exportBaplieWorkbook(rows: BaplieContainer[]) {
 // cliente autenticado. Sempre .xlsx, nunca CSV.
 
 export async function exportPortalLocalInvoicesWorkbook(rows: PortalInvoiceSummary[]) {
-  const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     'B/L': (row.bls ?? []).join(' • '),
     Fatura: row.invoice_number ?? `INV-${row.id}`,
     Tipo: invoiceTypeLabel(row.invoice_type),
     'Navio/Viagem': (row.vessel_voyages ?? []).join(' / '),
     POD: (row.pods ?? []).join(' / '),
-    Emissao: row.issued_at ? formatDate(row.issued_at) : '',
-    TotalBRL: Number(row.total_brl ?? 0),
-    PagoBRL: Number(row.total_paid_brl ?? 0),
-    SaldoBRL: Number(row.balance_brl ?? 0),
-    Status: row.status ?? '',
+    Emissão: row.issued_at ?? '',
+    'Total (R$)': Number(row.total_brl ?? 0),
+    'Pago (R$)': Number(row.total_paid_brl ?? 0),
+    'Saldo (R$)': Number(row.balance_brl ?? 0),
+    Situação: row.status ?? '',
   }))
 
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'TaxasLocais')
-  XLSX.writeFile(workbook, `faturas-taxas-locais-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(portal('Faturas de Taxas locais', 'faturas-taxas-locais', [
+    sheet('TaxasLocais', exportRows, {
+      unit: 'faturas',
+      groups: [
+        { label: 'Fatura', from: 'B/L', to: 'Tipo' },
+        { label: 'Operação', from: 'Navio/Viagem', to: 'Emissão' },
+        { label: 'Financeiro', from: 'Total (R$)', to: 'Situação' },
+      ],
+    }),
+  ]))
 }
 
 export async function exportPortalDemurrageWorkbook(rows: PortalDemurrageInvoice[]) {
-  const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     Documento: row.doc_number,
     'B/L': row.bl_id,
     'Navio/Viagem': [row.vessel_name, row.voyage_number].filter(Boolean).join(' / '),
     POL: row.pol ?? '',
     POD: row.pod ?? '',
-    Emissao: formatDate(row.billed_at ?? row.doc_date) ?? '',
-    Vencimento: formatDate(row.due_date) ?? '',
-    TotalUSD: Number(row.total_usd ?? 0),
-    TotalBRL: row.current_total_brl != null ? Number(row.current_total_brl) : '',
-    Status: row.status ?? '',
+    Emissão: row.billed_at ?? row.doc_date ?? '',
+    Vencimento: row.due_date ?? '',
+    'Total (US$)': Number(row.total_usd ?? 0),
+    'Total (R$)': row.current_total_brl != null ? Number(row.current_total_brl) : '',
+    Situação: row.status ?? '',
   }))
 
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Demurrage')
-  XLSX.writeFile(workbook, `faturas-demurrage-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(portal('Faturas de Demurrage', 'faturas-demurrage', [sheet('Demurrage', exportRows, { unit: 'Invoices' })]))
 }
 
 export async function exportPortalBlsWorkbook(rows: PortalOperationBL[]) {
-  const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     'B/L': row.bl_id,
     'CE Mercante': row.ce_mercante ?? '',
@@ -560,16 +584,24 @@ export async function exportPortalBlsWorkbook(rows: PortalOperationBL[]) {
     Containers: row.container_count,
     Devolvidos: row.containers_returned,
     // Mesma regra da tela: sem SOC e sem container ainda não descarregado.
-    'Sem devolucao': blReturnSummary(row).awaiting,
+    'Sem devolução': blReturnSummary(row).awaiting,
     'Em demurrage': row.containers_in_demurrage,
     // Mesma conta da coluna Demurrage da tela (observação de 2026-11-01).
     'Devolvidos com demurrage': blReturnSummary(row).returnedWithDemurrage,
     ...portalBlLocalChargesColumns(row),
   }))
 
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'BLs')
-  XLSX.writeFile(workbook, `bls-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(portal('B/Ls', 'bls', [
+    sheet('BLs', exportRows, {
+      unit: 'B/Ls',
+      types: { 'Taxas locais': 'brl', Pagamento: 'status', 'Em demurrage': 'int' },
+      groups: [
+        { label: 'B/L', from: 'B/L', to: 'POD' },
+        { label: 'Containers', from: 'Containers', to: 'Devolvidos com demurrage' },
+        { label: 'Taxas locais', from: 'Taxas locais', to: 'Pagamento' },
+      ],
+    }),
+  ]))
 }
 
 // Taxas locais e Pagamento com a mesma regra da tela: valores só de fatura
@@ -583,7 +615,6 @@ function portalBlLocalChargesColumns(row: PortalOperationBL) {
 }
 
 export async function exportPortalContainersWorkbook(rows: PortalFlatContainer[]) {
-  const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     Container: row.container_number,
     Tipo: row.type ?? '',
@@ -593,26 +624,31 @@ export async function exportPortalContainersWorkbook(rows: PortalFlatContainer[]
     Viagem: row.voyage_number ?? '',
     POL: row.pol ?? '',
     POD: row.pod ?? '',
-    Descarga: formatDate(row.discharge_date) ?? '',
-    Devolucao: row.return_date ? formatDate(row.return_date) : '',
+    Descarga: row.discharge_date ?? '',
+    Devolução: row.return_date ?? '',
     'Dias de uso': row.usage_days ?? '',
     'Free time': row.free_time_days ?? '',
     'Dias em demurrage': row.demurrage_days ?? '',
-    Status: row.status,
+    Situação: row.status,
   }))
 
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Containers')
-  XLSX.writeFile(workbook, `containers-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(portal('Containers', 'containers', [
+    sheet('Containers', exportRows, {
+      unit: 'containers',
+      groups: [
+        { label: 'Container', from: 'Container', to: 'POD' },
+        { label: 'Demurrage', from: 'Descarga', to: 'Situação' },
+      ],
+    }),
+  ]))
 }
 
 export async function exportLineUpWorkbook(rows: LineUpRow[]) {
-  const XLSX = await import('@e965/xlsx')
   const exportRows = rows.map((row) => ({
     Navio: row.vesselName,
     Viagem: row.voyageNumber,
     POD: row.pod,
-    Status: row.voyageStatus === 'completed' ? 'Concluída' : row.voyageStatus === 'cancelled' ? 'Cancelada' : row.voyageStatus === 'active' ? 'Ativa' : row.voyageStatus ?? '',
+    Situação: row.voyageStatus === 'completed' ? 'Concluída' : row.voyageStatus === 'cancelled' ? 'Cancelada' : row.voyageStatus === 'active' ? 'Ativa' : row.voyageStatus ?? '',
     ETA: arrivalDisplay({ eta: row.eta, ata: row.ata }).value ?? '',
     ETB: row.etb ?? '',
     VIN: row.vin,
@@ -627,26 +663,13 @@ export async function exportLineUpWorkbook(rows: LineUpRow[]) {
     CEs: row.rowType === 'export' ? row.exportCeStatus ?? 'waiting' : row.ceStatus,
     Linked: (row.rowType === 'export' ? row.exportLinked : row.linked) ? 'Sim' : 'Não',
   }))
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Line-Up')
-  XLSX.writeFile(workbook, `painel-lineup-${makeTimestamp()}.xlsx`)
-}
-
-function makeTimestamp() {
-  const now = new Date()
-  const parts = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-    String(now.getHours()).padStart(2, '0'),
-    String(now.getMinutes()).padStart(2, '0'),
-  ]
-  return parts.join('')
+  await writeWorkbook(vela('Line-Up', 'painel-lineup', [
+    sheet('Line-Up', exportRows, { unit: 'escalas', types: { VIN: 'int', Total: 'int', CEs: 'text' }, totals: ['VIN', 'VIN CNTR', 'CG', 'Total', 'MTY', 'BB Máquinas', 'BB Pacotes', 'BB Total'] }),
+  ]))
 }
 
 /** Aba Containers da ficha do Cliente: a lista filtrada, em português, sem campos de sistema. */
 export async function exportCustomerContainersWorkbook(customerName: string, rows: Array<{ row: import('./demurrage/demurrageContainers').DemurrageContainerRow; view: import('./demurrage/customerContainers').CustomerContainerView }>) {
-  const XLSX = await import('@e965/xlsx')
   const demurrageText = (view: import('./demurrage/customerContainers').CustomerContainerView) => {
     const d = view.demurrage
     if (d.kind === 'soc') return 'Não se aplica (SOC)'
@@ -664,18 +687,18 @@ export async function exportCustomerContainersWorkbook(customerName: string, row
     'Navio / Viagem': row.bl?.voyage ? `${row.bl.voyage.vessel?.name ?? ''} / ${row.bl.voyage.voyage_number ?? ''}` : '',
     Tipo: row.type ?? '',
     'COC/SOC': containerOwnershipLabel(row.ownership),
-    Descarga: row.discharge_date ? formatDate(row.discharge_date) : '',
-    'Devolução': row.return_date ? formatDate(row.return_date) : '',
+    Descarga: row.discharge_date ?? '',
+    'Devolução': row.return_date ?? '',
     Dias: view.days ?? '',
     'Free time (dias)': view.freeTimeDays ?? '',
     'Origem do free time': view.freeTimeSourceLabel ?? '',
     'Demurrage (US$)': view.demurrage.kind === 'running' || view.demurrage.kind === 'to_bill' ? view.demurrage.usd : '',
     Demurrage: demurrageText(view),
   }))
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, exportRows), 'Containers')
   const slug = customerName.normalize('NFD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 40)
-  XLSX.writeFile(workbook, `conteineres-${slug || 'cliente'}-${makeTimestamp()}.xlsx`)
+  await writeWorkbook(vela(`Containers · ${customerName}`, `conteineres-${slug || 'cliente'}`, [
+    sheet('Containers', exportRows, { unit: 'containers', types: { Demurrage: 'status' }, tones: { 'nao se aplica (soc)': 'muted', 'cobranca dispensada': 'muted' } }),
+  ]))
 }
 
 /**
@@ -707,7 +730,7 @@ export function buildValidacaoSheetRows(
       'Modo de carga': cargoModeLabel(row.cargo_mode),
       Motivo: block.label,
       'Detalhe do motivo': block.detail,
-      'Último cálculo': row.charges_calculated_at ? formatDate(row.charges_calculated_at) : '',
+      'Último cálculo': row.charges_calculated_at ?? '',
       Subtotal: Number(Number(row.totals.total_brl ?? 0).toFixed(2)),
       // ADR 0038: o rateio por container tem contraparte em outro B/L da Viagem.
       'Container compartilhado': sharedContainers.get(row.id) ?? '',
@@ -722,8 +745,16 @@ export async function exportValidacaoWorkbook(
   rows: Array<{ row: LocalChargeOperationalRow; block: { label: string; detail: string } }>,
   totals: import('./charges/chargeOperationsService').ValidacaoExportData,
 ) {
-  const XLSX = await import('@e965/xlsx')
-  const workbook = XLSX.utils.book_new()
-  XLSX.utils.book_append_sheet(workbook, toSheet(XLSX, buildValidacaoSheetRows(rows, totals)), 'Validação')
-  XLSX.writeFile(workbook, `validacao-taxas-locais-${new Date().toLocaleDateString('en-CA')}.xlsx`)
+  const sheetRows = buildValidacaoSheetRows(rows, totals)
+  // Toda coluna de taxa é dinheiro: a sem "(US$)" é em real, mesmo com o nome que o cadastro der.
+  const fixed = new Set(['B/L', 'Cliente', 'CNPJ', 'Navio / Viagem', 'Trecho', 'Modo de carga', 'Motivo', 'Detalhe do motivo', 'Último cálculo', 'Subtotal', 'Container compartilhado', 'Taxas alteradas à mão'])
+  const chargeTypes = Object.fromEntries(
+    Object.keys(sheetRows[0] ?? {}).filter((key) => !fixed.has(key)).map((key) => [key, key.endsWith('(US$)') ? 'usd' as const : 'brl' as const]),
+  )
+  await writeWorkbook({
+    product: 'vela',
+    title: 'Validação de Taxas Locais',
+    sheets: [sheet('Validação', sheetRows, { unit: 'B/Ls', types: { Motivo: 'status', Subtotal: 'brl', 'Container compartilhado': 'long', ...chargeTypes } })],
+    fileName: `validacao-taxas-locais-${new Date().toLocaleDateString('en-CA')}.xlsx`,
+  })
 }

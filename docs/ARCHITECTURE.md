@@ -296,7 +296,9 @@ de importação/exportação diretamente. Novas mudanças devem reutilizar o men
 dono existente da operação, sem criar uma segunda implementação.
 
 As páginas são carregadas sob demanda (`React.lazy`) e bibliotecas pesadas como
-`@e965/xlsx` entram por `await import(...)`, fora do grafo estático da rota. Cada
+`@e965/xlsx` (leitura de planilhas) e `exceljs` (escrita das exportações,
+[ADR 0120](./adr/0120-padrao-visual-das-planilhas-exportadas.md)) entram por
+`await import(...)`, fora do grafo estático da rota. Cada
 rota tem um orçamento de **50 ms** de parse/compile de JS, verificável por
 `scripts/perf/measure-page-load.mjs` — ver [setup/testing.md](./setup/testing.md#orçamento-de-carga-das-rotas-performance).
 
@@ -438,7 +440,7 @@ flowchart LR
 - Granito mantém tabelas próprias e só totaliza a carga do navio (sem Cliente, taxa nem CE desde o lote 5b); alimenta o ADR de Saída e a Exportação da Viagem.
 - Veículos são importados por planilha e vinculados a B/L/container.
 - CE Mercante e datas operacionais têm importadores específicos.
-- Arquivos de planilha usam `@e965/xlsx` e devem passar pelo limite de upload antes do parsing. B/L em PDF usa `pdfjs-dist` (import dinâmico, chunk próprio) e B/L em `.docx` é descompactado por `src/lib/zipEntry.ts`, sem dependência de zip no bundle.
+- Arquivos de planilha são lidos com `@e965/xlsx` e devem passar pelo limite de upload antes do parsing; toda planilha exportada é escrita por `src/services/exportWorkbook.ts` com `exceljs`, no padrão de [Planilhas exportadas](./identidade-visual.md#planilhas-exportadas). B/L em PDF usa `pdfjs-dist` (import dinâmico, chunk próprio) e B/L em `.docx` é descompactado por `src/lib/zipEntry.ts`, sem dependência de zip no bundle.
 
 ### Revisão e auto-faturamento
 

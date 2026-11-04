@@ -171,6 +171,33 @@ responsável em 2026-10-15 a partir de uma simulação aprovada:
 - **TV do Line-Up:** quadro próprio que imita o quadro físico (decisão do responsável de 2026-10-08), fora das peças comuns; segue as regras 4, 5 e 8.
 - **Documentos impressos:** fora das peças comuns, com a identidade própria mantida por decisão do responsável de 2026-10-13: marca Transhipping, cabeçalho de tabela azul-marinho, título centralizado com filete, bloco de dados do Cliente em tabela e bloco Pix (um redesenho em papel branco, tinta preta e azul-marinho foi reprovado). Kit em `src/components/shared/InvoiceDocumentKit.tsx` e `invoiceFormat.ts`; regras de impressão em `src/index.css` (`@media print`) e `src/lib/printDocument.ts`. Lote 6b (2026-10-20), sem trocar a identidade: nada abaixo de 12px (o Pix Copia e Cola quebra em várias linhas); TOTAL em caixa âmbar compacta à direita, logo abaixo da tabela (`InvoiceTotalBox`), no lugar da faixa na largura da tabela, com o vencimento da Demurrage sem fundo embaixo ("VENCIMENTO: DD/MM/AAAA"); ROE da Demurrage em caixa azul-marinho; vírgula decimal (USD/Dia, quantidade); rótulos "POL:"/"POD:", "B/L" e "Navio / Viagem:"; aviso da baixa do Pix (`PIX_SETTLEMENT_NOTE`) logo após a frase do QR Code, sem repetir o valor ("Saldo a pagar" só em fatura parcialmente paga); Taxas Locais sem divisão por tipo de carga; avulsa com título "FATURA"/"RECIBO"; resumo de Demurrage por consignatário com logo escura, CNPJ com máscara, "US$" e "Emitido em" no canto do número.
 
+## Planilhas exportadas
+
+Decisão do dono de 2026-11-03 ([ADR 0120](adr/0120-padrao-visual-das-planilhas-exportadas.md)):
+a planilha que sai do botão **Exportar**, no Vela e no Portal, é uma
+superfície da identidade, com um dono só (`src/services/exportWorkbook.ts`).
+Cada exportação em `src/services/exports.ts` monta as linhas e declara o que o
+rótulo não diz sozinho; nenhuma tela estiliza a própria planilha.
+
+| Peça da planilha | Regra |
+|---|---|
+| Faixa de identidade (linhas 1 e 2) | Produto e tela em azul-marinho: "Vela" em dourado (única aparição do dourado fora da navegação) ou "Portal Fwlog" em branco sobre o azul da FWLOG; embaixo, na faixa azulada dos blocos, "Exportado em dd/mm/aaaa hh:mm · N linhas · Filtros: …". |
+| Faixa de grupos | Como `th.app-table__group`: na faixa azulada, título centralizado, traço azul-marinho embaixo; só onde a exportação declara os grupos. |
+| Cabeçalho | Azul-marinho do produto, texto branco em negrito, centralizado; linha congelada e filtro automático ligado. Rótulo em português, com espaço e acento ("Total (R$)", "Emissão", "Qtd. B/Ls"). |
+| Tipos de coluna | Real `R$ #.##0,00` e dólar `US$ #.##0,00` à direita, negativo em vermelho; inteiro (dias, quantidade) centralizado; peso `#.##0 "kg"` e CBM `0,000` à direita; data de verdade `dd/mm/aaaa` centralizada; código (container, B/L, CE, lacre) em Consolas, centralizado (regra 8); texto curto centralizado e texto longo (Cliente, descrição) à esquerda, largura até 42 (regra 6). |
+| Situação (regra 5) | ✓ verde no que encerrou pago ou atendido; âmbar com fundo âmbar claro no que está em curso ou aguarda (Em aberto, Pendente, Correndo, A emitir); vermelho no que venceu ou bloqueia ("Fora" na devolução); cinza itálico no que encerrou sem efeito, com a linha inteira em cinza na cancelada. Os rótulos estão em `STATUS_TONES`. |
+| Ausência (regra 4) | "—" em cinza; nunca "0" nem texto repetido. |
+| Linhas | Alternadas no cinza do fundo, traço fino embaixo, sem linha vertical e sem a grade do Excel. |
+| Total | Última linha na faixa azulada com traço azul-marinho em cima: "Total · N faturas" e `SOMA()` viva nas colunas de dinheiro e peso (e nas que a exportação pedir). |
+| Impressão | Paisagem, ajustada à largura da página, cabeçalho repetido em cada página, rodapé com produto, tela e "Página N de M". |
+| Molde de reimportação | Programação de navios, Base de Clientes e a aba de carga solta do manifesto mantêm os cabeçalhos do importador e saem planos: cabeçalho, larguras e filtro, sem faixa, grupos nem total. |
+| Letra | Calibri (vem com todo Excel) e Consolas nos códigos; DM Sans e IBM Plex Mono ficam nas telas. |
+
+Os separadores de milhar e decimal seguem o Excel de quem abre (em português,
+`18.420,50`). A neutralização de fórmula de `src/lib/spreadsheetSafe.ts`
+continua valendo em valores e cabeçalhos. Verificação: `npm test` cobre o
+dono contra o exceljs real (`src/services/__tests__/exportWorkbook.test.ts`).
+
 ## Como uma tela muda
 
 1. **Tela existente:** a mudança é proposta com a captura de hoje, a proposta e
