@@ -42,8 +42,13 @@ Travas, todas antes de apagar qualquer coisa:
   tabela desprotegida);
 - tabela preservada com chave estrangeira para uma tabela que seria esvaziada
   → erro (o `CASCADE` a apagaria junto);
-- a migration `156` faz o banco recusar o `TRUNCATE` de `app_settings`: se ela
-  sair da lista, a limpeza inteira falha. Foi a ausência dela na limpeza manual
+- desde a migration `584`, o próprio banco recusa `TRUNCATE` em qualquer tabela
+  de `public`, inclusive em cascata, na sessão sem a mesma confirmação; ela
+  vale também para quem tentar uma limpeza fora deste script, como o bloco
+  "LIMPA TUDO" do dashboard em 2026-11-03
+  ([relatório](../archive/reports/2026-11-04-tentativas-de-truncate-em-producao.md));
+- a migration `156` faz o banco recusar o `TRUNCATE` de `app_settings` mesmo
+  com a confirmação: se ela sair da lista, a limpeza inteira falha. Foi a ausência dela na limpeza manual
   usada até 2026-10-06 que apagou a configuração duas vezes (restaurada pelas
   migrations `104` e `155`).
 

@@ -82,7 +82,9 @@ describeLocal('migration 156 — singleton app_settings não pode ser apagado', 
   it('recusa DELETE, TRUNCATE e TRUNCATE em cascata de user_profiles', () => {
     expect(attempt('DELETE FROM public.app_settings WHERE id = 1')).toMatch(/não pode ser apagada \(DELETE\)/)
     expect(attempt('TRUNCATE public.app_settings')).toMatch(/não pode ser apagada \(TRUNCATE\)/)
-    expect(attempt('TRUNCATE public.user_profiles CASCADE')).toMatch(/não pode ser apagada \(TRUNCATE\)/)
+    // Com a confirmação de banco descartável, a 584 deixa passar; a 156 ainda recusa.
+    expect(attempt(`SET LOCAL vela.limpeza_banco_descartavel = 'confirmo'; TRUNCATE public.user_profiles CASCADE`))
+      .toMatch(/não pode ser apagada \(TRUNCATE\)/)
     expect(localPsql('SELECT count(*) FROM public.app_settings WHERE id = 1')).toBe('1')
   })
 

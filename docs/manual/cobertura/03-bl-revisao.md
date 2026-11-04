@@ -179,6 +179,7 @@ existem na tela; as demais são as mensagens do sistema, copiadas sem mudança.
 | `O cliente do manifesto não está cadastrado e o manifesto não traz e-mail. Cadastre-o em Clientes e vincule pela busca.` | **Vincular este cliente** sem Cliente cadastrado e sem e-mail no manifesto (BLR-084); a tela recusa antes e o banco confere de novo. | Ap. B |
 | `O manifesto do B/L % não traz o Cliente (razão social e CNPJ).` | Nunca chega a uma pessoa: **Vincular este cliente** só aparece com o Cliente declarado no manifesto. | Fora |
 | `app_settings é configuração única do sistema; não pode ser apagada (%).` | Nunca chega a uma pessoa: guarda técnica contra apagar a configuração única do sistema; nenhuma tela apaga essa configuração. | Fora |
+| `TRUNCATE recusado em %.%: produção tem dados reais.` | Nunca chega a uma pessoa: guarda técnica contra esvaziar tabelas do banco (migration 584); nenhuma tela esvazia tabela. | Fora |
 | `Assinatura do arquivo inválida: escolha o arquivo de novo.` | Ao gravar uma importação de B/L, Manifesto BB ou B/L avulso, ou ao conferir "Arquivo já importado", quando a assinatura calculada no navegador veio fora do formato. Escolha o arquivo de novo. | Ap. B |
 | `Ator inativo para faturamento automático.` | Como motivo no Alerta de faturamento automático ou de passo bloqueado, quando o faturamento pelo CE roda em nome de alguém que deixou de estar ativo no meio do processo. | Ap. B |
 | `B/L % cancelado é somente leitura: reative o B/L pela ficha para alterar containers ou veículos.` | Ao tentar incluir, alterar ou tirar container ou veículo de B/L cancelado (por exemplo, mover veículo ou editar datas em Containers). Reative o B/L pela ficha (Administrativo). | Ap. B |
@@ -304,6 +305,7 @@ existem na tela; as demais são as mensagens do sistema, copiadas sem mudança.
 |---|---|
 | `funcao:list_import_effects` | Consulta do andamento dos passos pós-importação. Só o painel de resultado de importação a usa, e nenhuma tela monta esse painel (ver BLR-D10). O operador acompanha o passo bloqueado pelo Alerta (BLR-140). |
 | `gatilho:app_settings_block_removal` | Guarda técnica que impede apagar a configuração única do sistema; nenhuma tela apaga essa configuração. |
+| `gatilho:truncate_requires_disposable_confirmation` | Guarda técnica que recusa esvaziar tabelas do banco fora de banco descartável (migration 584); nenhuma tela esvazia tabela. |
 | `gatilho:prevent_import_effect_attempt_mutation` | Mantém sem alteração o registro de cada tentativa dos passos pós-importação; esse registro não aparece em nenhuma tela. |
 | `gatilho:validate_bl_breakbulk_item_parent` | Confere que o item de carga solta pertence a um B/L com modalidade válida. As importações sempre gravam o B/L antes do item e a modalidade só tem três valores, então a recusa não chega ao operador. |
 | `restricao:import_batches.import_batches_status_check` | Situação interna do registro de importação (em processamento, concluída, parcial, com falha); nenhuma tela a mostra. O que o operador vê do registro está em BLR-069. |
