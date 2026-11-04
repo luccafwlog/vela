@@ -31,10 +31,12 @@ import type { DemurrageInvoiceItem } from '../../types/database'
 export type DemurrageDetailInvoice = DemurrageInvoiceListItem & DemurrageInvoiceRow
 
 export type DemurrageDetailPermissions = {
-  /** Baixa manual: Financeiro ou Administrativo (`is_financeiro_user`). O desconto é de qualquer Departamento (migration 247). */
+  /** Baixa manual: Financeiro e conta Dev (`is_financeiro_or_dev_user`, migration 583). O desconto é de qualquer Departamento (migration 247). */
   canSettle: boolean
-  /** Cancelar Invoice e cancelar baixa: Administrativo (`is_admin`). */
-  canAdmin: boolean
+  /** Cancelar a baixa: Financeiro e conta Dev (`is_financeiro_or_dev_user`, migration 583). */
+  canReversePayment: boolean
+  /** Cancelar a Invoice sem pagamento: Administrativo, Financeiro e Equipamentos (migration 583). */
+  canCancelInvoice: boolean
   /** Conversa de Disputas: Equipamentos e Administrativo. */
   canAnswerDispute: boolean
   /** Tirar o ROE manual: Financeiro, Administrativo e Equipamentos (migration 435). */
@@ -177,8 +179,9 @@ function DetailBody({
   const itemsTotal = items.reduce((sum, item) => sum + Number(item.subtotal_usd ?? 0), 0)
   const hasDispute = Boolean(invoice.dispute_subject || invoice.dispute_reason || invoice.dispute_notes)
   const restrictions = [
-    issued && !permissions.canSettle ? 'Registrar pagamento: Financeiro ou Administrativo.' : null,
-    (issued || paid) && !permissions.canAdmin ? (issued ? 'Cancelar a Invoice: Administrativo.' : 'Cancelar a baixa: Administrativo.') : null,
+    issued && !permissions.canSettle ? 'Registrar pagamento: Financeiro.' : null,
+    issued && !permissions.canCancelInvoice ? 'Cancelar a Invoice: Administrativo, Financeiro ou Equipamentos.' : null,
+    paid && !permissions.canReversePayment ? 'Cancelar a baixa: Financeiro.' : null,
   ].filter(Boolean)
 
   return (
@@ -226,10 +229,10 @@ function DetailBody({
         ) : null}
         <Button variant="secondary" onClick={() => onOpenDocument(invoice.id, 'invoice')}><FileText size={16} aria-hidden="true" />Ver fatura</Button>
         {hasReceipt ? <Button variant="secondary" onClick={() => onOpenDocument(invoice.id, 'receipt')}><Receipt size={16} aria-hidden="true" />Ver recibo</Button> : null}
-        {paid && permissions.canAdmin ? (
+        {paid && permissions.canReversePayment ? (
           <Button variant="danger" onClick={() => onReversePayment(invoice)}><RotateCcw size={16} aria-hidden="true" />Cancelar baixa…</Button>
         ) : null}
-        {issued && permissions.canAdmin ? (
+        {issued && permissions.canCancelInvoice ? (
           <Button variant="danger" loading={cancelling} loadingLabel="Cancelando…" onClick={() => onCancelInvoice(invoice)}><Ban size={16} aria-hidden="true" />Cancelar Invoice…</Button>
         ) : null}
       </div>

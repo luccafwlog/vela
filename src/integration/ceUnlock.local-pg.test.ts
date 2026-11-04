@@ -396,7 +396,8 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       ${portalReady}
       SET LOCAL session_replication_role=origin;
       ${flags}
-      SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${admin}';
+      -- Baixa é do Financeiro (migration 583).
+      SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${finance}';
       SELECT public.register_verified_invoice_payment(998871,50,'ted',now(),NULL,'00000000-0000-0000-0000-000000557871','CE557-AVULSA-TED')->>'status';
       RESET ROLE;
       ${flags}
@@ -720,10 +721,12 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       SET LOCAL session_replication_role=origin;
       SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${admin}';
       SELECT public.create_local_consolidated_invoice(998557,ARRAY[998861,998862]::bigint[],NULL,NULL)->>'invoice_type';
+      -- Baixa é do Financeiro (migration 583).
+      SET LOCAL request.jwt.claim.sub='${finance}';
       SELECT public.register_ledger_invoice_payment(${consolidated},100,'ted',now(),NULL,'manual','Parcial da consolidada',NULL)->>'status';
       SET LOCAL request.jwt.claim.sub='${client}';
       ${paidFlags}
-      SET LOCAL request.jwt.claim.sub='${admin}';
+      SET LOCAL request.jwt.claim.sub='${finance}';
       SELECT public.register_ledger_invoice_payment(${consolidated},100,'ted',now(),NULL,'manual','Saldo da consolidada',NULL)->>'status';
       SET LOCAL request.jwt.claim.sub='${client}';
       ${paidFlags}`)
@@ -745,13 +748,13 @@ local('desbloqueio CE — SQL real, autorização e requisitos',()=>{
       ${portalReady}
       SET session_replication_role=origin;`)
     try {
-      // Baixa e cancelamento da baixa pelos comandos reais do financeiro, não por alteração direta do recebível.
-      const payment = JSON.parse(sql(`SELECT public.register_ledger_invoice_payment(${reversalId},100,'ted',now(),NULL,'manual','Baixa do teste CE',NULL);`, admin))
+      // Baixa e cancelamento da baixa pelos comandos reais do Financeiro (migration 583), não por alteração direta do recebível.
+      const payment = JSON.parse(sql(`SELECT public.register_ledger_invoice_payment(${reversalId},100,'ted',now(),NULL,'manual','Baixa do teste CE',NULL);`, finance))
       const draft = command('draft', { bl_ids: [reversalBl], request_key: crypto.randomUUID() }, client)
       sql(`INSERT INTO public.ce_unlock_documents(customer_id,request_id,type,source,status,file_name,storage_path,size_bytes,hash,uploaded_by) VALUES
         (998557,'${draft.id}','termo','request','uploaded','rev-term.pdf','reversal/term-${draft.id}',10,'hash','${client}'),
         (998557,'${draft.id}','procuracao','request','uploaded','rev-proc.pdf','reversal/proc-${draft.id}',10,'hash','${client}');`)
-      const worker = await heldTransaction(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${admin}'; SELECT public.reverse_invoice_payment(${payment.payment_id},'Cancelamento de baixa concorrente ao envio',NULL); SELECT 'LOCKED'; SELECT pg_sleep(1.5); COMMIT;`)
+      const worker = await heldTransaction(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${finance}'; SELECT public.reverse_invoice_payment(${payment.payment_id},'Cancelamento de baixa concorrente ao envio',NULL); SELECT 'LOCKED'; SELECT pg_sleep(1.5); COMMIT;`)
       try { expect(() => command('submit', { request_id: draft.id, expected_version: draft.version, request_key: crypto.randomUUID() }, client)).toThrow(`B/L ${reversalBl} perdeu elegibilidade`) }
       finally { await worker.done }
       expect(sql(`SELECT state FROM public.ce_unlock_requests WHERE id='${draft.id}';`)).toBe('draft')

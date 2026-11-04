@@ -57,15 +57,16 @@ type InvoiceDetailModalProps = {
  * Detalhe interno da fatura de Taxas Locais (Vela), usado por `/taxas-locais`
  * e pela Conciliação. Um bloco por assunto (ADR 0081): Saldo, Fatura
  * desatualizada, B/Ls (consolidada), Itens, Pagamentos, Restituições, Ajustes
- * pela correção do B/L e Cancelar fatura (só o Administrativo); a
+ * pela correção do B/L e Cancelar fatura (Administrativo e Financeiro); a
  * impressão troca o conteúdo do mesmo modal (sem modal sobre modal) e as
  * confirmações de devolução e de cancelamento de baixa abrem dentro da seção.
- * As ações que o banco restringe por perfil aparecem só para quem pode: baixa
- * para Financeiro e Administrativo; cancelamento da fatura e da baixa só para o
- * Administrativo (matriz de permissões; migration 247). Os demais leem o motivo.
+ * As ações que o banco restringe por perfil aparecem só para quem pode: baixa,
+ * cancelamento da baixa e devolução para o Financeiro e a conta Dev;
+ * cancelamento da fatura sem pagamento para Administrativo e Financeiro
+ * (decisão do dono de 2026-11-04; migration 583). Os demais leem o motivo.
  */
 export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, paymentId }: InvoiceDetailModalProps) {
-  const { user, isAdmin, can } = useAuth()
+  const { user, can } = useAuth()
   const { showToast } = useToast()
   const confirm = useConfirm()
   const queryClient = useQueryClient()
@@ -126,8 +127,11 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   const refundsQuery = useInvoiceRefunds(invoiceId)
   const refunds = refundsQuery.data ?? []
   const settleRefundMutation = useSettleInvoiceRefund()
-  // Financeiro e Administrativo: devolução confirmada e baixa manual (ADR 0085, D4).
-  const canSettleRefund = typeof can === 'function' ? can('settle_financial_adjustments') : isAdmin
+  // Financeiro e conta Dev: baixa manual, cancelar baixa e devolução confirmada (migration 583).
+  const canManagePayments = typeof can === 'function' ? can('manage_payments') : false
+  const canSettleRefund = canManagePayments
+  // Administrativo e Financeiro: cancelar fatura sem pagamento (migration 583).
+  const canCancelInvoice = typeof can === 'function' ? can('cancel_invoices') : false
   const detail = detailQuery.data ?? null
   const detailInvoice = detail?.invoice ?? null
   const detailIsManual = isManualInvoice(detailInvoice)
@@ -154,7 +158,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   const ledgerBalance = Number(detailInvoice?.balance_brl ?? detailInvoice?.total_brl ?? 0)
   const reversalPayment = payments.find((payment) => payment.id === (selectedPaymentId ?? paymentId))
   const reversalPaymentId = reversalPayment?.id ?? null
-  const reversalFormVisible = isAdmin && payments.length > 0 && (Boolean(enablePaymentReversal) || reversalOpen)
+  const reversalFormVisible = canManagePayments && payments.length > 0 && (Boolean(enablePaymentReversal) || reversalOpen)
   // Valor em pt-BR ("1.234,56"), como no registro do pagamento.
   const parsedPayment = parseImportNumber(paymentAmount, 'pt-BR')
   const typedPayment = parsedPayment.kind === 'value' ? Number(parsedPayment.decimal) : 0
@@ -366,10 +370,10 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
   const paymentFormVisible = mayRegisterPayment && (paymentFormOpen || Boolean(paymentAttempt))
   const customerLink = detailInvoice?.customer_cnpj_cpf ? `/clientes/${encodeURIComponent(detailInvoice.customer_cnpj_cpf)}` : null
   const paymentsNote = enablePaymentReversal
-    ? (!isAdmin && payments.length > 0 ? 'Somente o Administrativo cancela a baixa de um pagamento.' : null)
+    ? (!canManagePayments && payments.length > 0 ? 'Somente o Financeiro cancela a baixa de um pagamento.' : null)
     : !canRegisterPayment
       ? 'Esta fatura não aceita registro de pagamento na situação atual.'
-      : !canSettleRefund ? 'Somente o Financeiro e o Administrativo registram recebimentos. Pix com identificador entra pela Conciliação.' : null
+      : !canSettleRefund ? 'Somente o Financeiro registra recebimentos. Pix com identificador entra pela Conciliação.' : null
 
   return (
     <Modal open={Boolean(invoiceId)} onClose={onClose} title={title}>
@@ -519,7 +523,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                           {showRegistrar ? <th scope="col">Registrado por</th> : null}
                           {showPaymentNotes ? <th scope="col" className="app-table__text-head">Observação</th> : null}
                           <th scope="col">Valor</th>
-                          {isAdmin ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
+                          {canManagePayments ? <th scope="col"><span className="sr-only">Ações</span></th> : null}
                         </tr>
                       </thead>
                       <tbody>
@@ -531,7 +535,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                             {showRegistrar ? <td>{payment.registered_by_name || <NoValue label="Sem responsável pelo registro" />}</td> : null}
                             {showPaymentNotes ? <td className="app-table__text app-table__text--wrap">{payment.notes || <NoValue label="Sem observação" />}</td> : null}
                             <td className="whitespace-nowrap tabular-nums">{formatBRL(payment.amount_brl)}</td>
-                            {isAdmin ? (
+                            {canManagePayments ? (
                               <td className="app-invoice-detail__row-action">
                                 <RowActionButton variant="ghost" label={`Cancelar baixa de ${formatBRL(payment.amount_brl)} em ${formatDate(payment.paid_at)}`} icon={Undo2} onClick={() => openReversal(payment.id)} />
                               </td>
@@ -687,7 +691,7 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
               ) : null}
               {detailIsManual ? <FinancialRefundsPanel source="manual" invoiceId={Number(invoiceId)} variant="authorization" /> : null}
 
-              {!enablePaymentReversal && !isCancelled && isAdmin ? (
+              {!enablePaymentReversal && !isCancelled && canCancelInvoice ? (
                 <Block title="Cancelar fatura" headingLevel={3}>
                   {detailInvoice.status === 'covered' ? (
                     <p className="app-invoice-detail__note">Fatura coberta por outro documento pago não se cancela: o B/L já foi pago. Para recebimento lançado por engano, cancele a baixa no documento pago.</p>

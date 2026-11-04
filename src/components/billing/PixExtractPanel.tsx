@@ -55,7 +55,7 @@ const sourceLabel = (source: 'local' | 'demurrage' | 'unmatched') => (source ===
  */
 export function PixExtractPanel({ onOpenPending, onOpenInvoice }: { onOpenPending: () => void; onOpenInvoice: OpenInvoice }) {
   const { can } = useAuth()
-  const canReconcile = can('settle_financial_adjustments')
+  const canReconcile = can('manage_payments')
   const queryClient = useQueryClient()
   const [file, setFile] = useState<File | null>(null)
   const [read, setRead] = useState<ReadResult | null>(null)
@@ -125,12 +125,12 @@ export function PixExtractPanel({ onOpenPending, onOpenInvoice }: { onOpenPendin
   const busy = readMutation.isPending || confirmMutation.isPending
 
   // Ler o extrato já grava as exceções e confirmar baixa: conciliar é do
-  // Financeiro e do Administrativo (ADR 0085, D5; migration 247).
+  // Financeiro e da conta Dev (decisão do dono de 2026-11-04; migration 583).
   if (!canReconcile) {
     return (
       <div className="grid min-w-0 gap-4 pt-1">
         <Block title="Extrato Pix do Itaú">
-          <ImportNotice tone="info" role="status" title="Conciliar extrato é do Financeiro e do Administrativo">
+          <ImportNotice tone="info" role="status" title="Conciliar extrato é do Financeiro">
             <p>Você acompanha as pendências e o histórico de baixas; a leitura do extrato registra exceções e baixa faturas.</p>
           </ImportNotice>
         </Block>

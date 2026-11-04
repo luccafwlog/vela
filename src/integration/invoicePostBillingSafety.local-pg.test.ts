@@ -212,9 +212,10 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     psql(`
       INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'basis-128@example.test'), ('${spareAdminId}', 'basis-128-reserva@example.test'),
         ('${settlementActorId}', 'basis-128-itau@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${actorId}', 'Administrativo 128', 'administrativo', true),
-        ('${spareAdminId}', 'Administrativo 128 reserva', 'administrativo', true)
-        ON CONFLICT (id) DO UPDATE SET role = 'administrativo', active = true;
+      -- Conta Dev: baixa e cancelamento de baixa são do Financeiro e da conta Dev (migration 583).
+      INSERT INTO public.user_profiles (id, full_name, role, active, is_dev) VALUES ('${actorId}', 'Administrativo 128', 'administrativo', true, true),
+        ('${spareAdminId}', 'Administrativo 128 reserva', 'administrativo', true, false)
+        ON CONFLICT (id) DO UPDATE SET role = 'administrativo', active = true, is_dev = EXCLUDED.is_dev;
       INSERT INTO public.user_profiles (id, full_name, role, active, account_kind)
         VALUES ('${settlementActorId}', 'API ITAÚ 128', 'financeiro', true, 'integracao');
       ${customers.map(([id, ns]) => `
@@ -282,7 +283,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
     const txid = psql(`SELECT txid FROM public.local_pix_charge_versions WHERE invoice_id=${invoice} ORDER BY id DESC LIMIT 1`)
     const results = await Promise.all(Array.from({ length: 8 }, () => new Promise<string>((resolve, reject) => {
       execFile('psql', ['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
-        -- Como o dono, com o JWT do Administrativo (ver asReconciler).
+        -- Como o dono, com o JWT da conta Dev do Administrativo (ver asReconciler).
         BEGIN;
         SET LOCAL request.jwt.claim.role = 'authenticated';
         SET LOCAL request.jwt.claim.sub = '${actorId}';

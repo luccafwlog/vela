@@ -134,7 +134,8 @@ describeLocal('Caixa dividida entre Clientes (migration 522)', () => {
     cleanup()
     psql(`
       INSERT INTO auth.users (id, email) VALUES ('${adminId}', 'r522-admin@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${adminId}', 'R522 Administrativo', 'administrativo', true);
+      -- Conta Dev: baixa e cancelamento de baixa são do Financeiro e da conta Dev (migration 583).
+      INSERT INTO public.user_profiles (id, full_name, role, active, is_dev) VALUES ('${adminId}', 'R522 Administrativo', 'administrativo', true, true);
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES
         (${customerA}, '${syntheticCnpj(522001)}', 'R522 CLIENTE A'),
         (${customerB}, '${syntheticCnpj(522002)}', 'R522 CLIENTE B'),

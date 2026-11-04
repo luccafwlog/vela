@@ -377,8 +377,9 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
     cleanup()
     localPsql(`
       INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'a203-admin@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active)
-      VALUES ('${actorId}', 'A203 Administrativo', 'administrativo', true);
+      -- Conta Dev: baixa e cancelamento de baixa são do Financeiro e da conta Dev (migration 583).
+      INSERT INTO public.user_profiles (id, full_name, role, active, is_dev)
+      VALUES ('${actorId}', 'A203 Administrativo', 'administrativo', true, true);
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES
         (${alfa.id}, '${alfa.cnpj}', '${alfa.name}'),
         (${beta.id}, '${beta.cnpj}', '${beta.name}'),

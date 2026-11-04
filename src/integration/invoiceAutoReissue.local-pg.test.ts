@@ -149,8 +149,9 @@ describeLocal('126 — reimportação com impacto reemite individual e consolida
     cleanup()
     psql(`
       INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'auto-reissue-126@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${actorId}', 'Administrativo 126', 'administrativo', true)
-        ON CONFLICT (id) DO UPDATE SET role = 'administrativo', active = true;
+      -- Conta Dev: baixa e cancelamento de baixa são do Financeiro e da conta Dev (migration 583).
+      INSERT INTO public.user_profiles (id, full_name, role, active, is_dev) VALUES ('${actorId}', 'Administrativo 126', 'administrativo', true, true)
+        ON CONFLICT (id) DO UPDATE SET role = 'administrativo', active = true, is_dev = true;
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerId}, '${customerCnpj}', 'Cliente 126');
       INSERT INTO public.customer_contacts (customer_id, name, email, purpose, is_primary)
         VALUES (${customerId}, 'Financeiro 126', 'financeiro-126@example.test', 'financeiro', true);

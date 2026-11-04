@@ -124,7 +124,7 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
         items: [`${row.voyage?.vessel?.name ?? 'Navio não informado'} / ${row.voyage?.voyage_number ?? 'viagem não informada'}`, `${row.totals.line_count} linha(s) de cobrança`, ...(row.totals.total_usd ? [`Total em USD: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(row.totals.total_usd)}`] : [])],
       },
       consequence: ['Cria e emite a invoice, vincula o B/L e atualiza o recebível do ledger. O B/L passa ao estado faturado e deixa de aceitar recálculo.', adjustedIssueNotice(row.adjustments)].filter(Boolean).join(' '),
-      reversibility: 'A invoice não pode ser apagada. Sem pagamentos, o cancelamento é restrito ao perfil Administrativo; com pagamento, use Cancelar baixa ou Restituição no recebimento.',
+      reversibility: 'A invoice não pode ser apagada. Sem pagamentos, o cancelamento é restrito ao Administrativo e ao Financeiro; com pagamento, use Cancelar baixa ou Restituição no recebimento.',
     })
     if (!confirmed) return
     // "Pronto para emitir" inclui B/L calculado ou revisado: a RPC marca pronto e emite numa transação, como a ficha do B/L.

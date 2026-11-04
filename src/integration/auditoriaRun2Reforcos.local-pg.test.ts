@@ -124,12 +124,14 @@ describeLocal('migration 109 — reforços adicionais da auditoria run-2', () =>
     `)).toEqual(['42501'])
   })
 
-  it('estorno de baixa local: a implementação não é executável direto e o envelope exige admin', () => {
+  // Migration 583 (decisão do dono de 2026-11-04): cancelar a baixa passou do
+  // Administrativo para o Financeiro e a conta Dev.
+  it('estorno de baixa local: a implementação não é executável direto e o envelope exige o Financeiro', () => {
     expect(scenario(`
       ${as(ADM)} ${try_(`SELECT public._reverse_invoice_payment_impl_109(0, 'x', NULL)`)}
       ${try_(`SELECT public.reverse_invoice_payment(0, 'x', NULL)`)}
       ${as(FIN)} ${try_(`SELECT public.reverse_invoice_payment(0, 'x', NULL)`)}
-    `)).toEqual(['42501', 'P0002', '42501'])
+    `)).toEqual(['42501', '42501', 'P0002'])
   })
 
   it('consolidada com PIX em conciliação não é desfeita pelo Portal', () => {

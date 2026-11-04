@@ -148,7 +148,8 @@ describeLocal('Meio de pagamento e destino das caixas da Demurrage (migration 51
     cleanup()
     psql(`
       INSERT INTO auth.users (id, email) VALUES ('${adminId}', 'r519-admin@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${adminId}', 'R519 Administrativo', 'administrativo', true);
+      -- Conta Dev: baixa e cancelamento de baixa são do Financeiro e da conta Dev (migration 583).
+      INSERT INTO public.user_profiles (id, full_name, role, active, is_dev) VALUES ('${adminId}', 'R519 Administrativo', 'administrativo', true, true);
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES
         (${customerId}, '${syntheticCnpj(519001)}', 'R519 CLIENTE'),
         (${otherCustomerId}, '${syntheticCnpj(519002)}', 'R519 OUTRO CLIENTE');

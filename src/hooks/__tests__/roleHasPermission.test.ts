@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { roleHasPermission, type Permission } from '../useAuth'
 
-const ALL: Permission[] = ['admin_panel', 'manage_users', 'portal_provisioning', 'settle_financial_adjustments', 'customer_communications', 'edit_customer_contacts']
+const ALL: Permission[] = ['admin_panel', 'manage_users', 'portal_provisioning', 'settle_financial_adjustments', 'cancel_invoices', 'cancel_demurrage_invoices', 'customer_communications', 'edit_customer_contacts']
+const EVERY: Permission[] = [...ALL, 'manage_payments', 'ce_unlock_read', 'ce_unlock_manage', 'ce_unlock_documents']
 const NAVIGATION: Permission[] = ['admin_panel', 'manage_users', 'portal_provisioning']
 
 describe('matriz RBAC de exceções', () => {
@@ -18,6 +19,24 @@ describe('matriz RBAC de exceções', () => {
   it('Administrativo e Financeiro podem liquidar ajustes financeiros', () => {
     expect(roleHasPermission('administrativo', 'settle_financial_adjustments')).toBe(true)
     expect(roleHasPermission('financeiro', 'settle_financial_adjustments')).toBe(true)
+  })
+  it('baixa, cancelar baixa, Restituição e Conciliação Pix: só o Financeiro e a conta Dev (migration 583)', () => {
+    expect(roleHasPermission('financeiro', 'manage_payments')).toBe(true)
+    expect(roleHasPermission('administrativo', 'manage_payments')).toBe(false)
+    expect(roleHasPermission('administrativo', 'manage_payments', true)).toBe(true)
+    for (const role of ['documentacao', 'operacoes', 'equipamentos'] as const) expect(roleHasPermission(role, 'manage_payments')).toBe(false)
+  })
+  it('cancelar fatura: Administrativo e Financeiro; cancelar Invoice de Demurrage e Régua: também Equipamentos (migration 583)', () => {
+    expect(roleHasPermission('administrativo', 'cancel_invoices')).toBe(true)
+    expect(roleHasPermission('financeiro', 'cancel_invoices')).toBe(true)
+    expect(roleHasPermission('equipamentos', 'cancel_invoices')).toBe(false)
+    for (const role of ['administrativo', 'financeiro', 'equipamentos'] as const) expect(roleHasPermission(role, 'cancel_demurrage_invoices')).toBe(true)
+    for (const role of ['documentacao', 'operacoes'] as const) expect(roleHasPermission(role, 'cancel_demurrage_invoices')).toBe(false)
+  })
+  it('a conta Dev pode tudo; a marca só vale no Administrativo (ADR 0104)', () => {
+    for (const permission of EVERY) expect(roleHasPermission('administrativo', permission, true), permission).toBe(true)
+    expect(roleHasPermission('documentacao', 'manage_payments', true)).toBe(false)
+    expect(roleHasPermission('financeiro', 'admin_panel', true)).toBe(false)
   })
   it('todos disparam Comunicado; só Administrativo, Documentação e Equipamentos editam contatos (ACE-D01, opção A)', () => {
     for (const role of ['administrativo', 'documentacao', 'financeiro', 'operacoes', 'equipamentos'] as const) {

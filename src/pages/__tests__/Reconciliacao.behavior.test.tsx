@@ -29,7 +29,8 @@ const mocks = vi.hoisted(() => ({
   sheetWarnings: vi.fn(),
   navigate: vi.fn(),
 }))
-const authState = vi.hoisted(() => ({ isAdmin: true, role: 'administrativo' }))
+// Conciliar é do Financeiro e da conta Dev (migration 583): o padrão dos casos é o Financeiro.
+const authState = vi.hoisted(() => ({ isAdmin: false, role: 'financeiro', isDev: false }))
 
 vi.mock('react-router-dom', async (importOriginal) => ({
   ...(await importOriginal<typeof import('react-router-dom')>()),
@@ -63,13 +64,16 @@ vi.mock('../../services/reconciliacao', () => ({
 vi.mock('../../services/demurrage/demurrageInvoices', () => ({
   getInvoiceDetail: mocks.getDemurrageDetail,
 }))
-vi.mock('../../hooks/useAuth', () => ({
-  useAuth: () => ({
-    isAdmin: authState.isAdmin,
-    effectiveRole: authState.role,
-    can: (permission: string) => permission === 'settle_financial_adjustments' && ['administrativo', 'financeiro'].includes(authState.role),
-  }),
-}))
+vi.mock('../../hooks/useAuth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../hooks/useAuth')>()
+  return {
+    useAuth: () => ({
+      isAdmin: authState.isAdmin,
+      effectiveRole: authState.role,
+      can: (permission: Parameters<typeof actual.roleHasPermission>[1]) => actual.roleHasPermission(authState.role as 'financeiro', permission, authState.isDev),
+    }),
+  }
+})
 vi.mock('../../hooks/useFinancialRefunds', () => ({
   useFinancialRefunds: () => ({ data: { pending: 0, settled: 0 }, error: null }),
 }))
@@ -180,8 +184,9 @@ describe('Conciliação PIX', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
-    authState.isAdmin = true
-    authState.role = 'administrativo'
+    authState.isAdmin = false
+    authState.role = 'financeiro'
+    authState.isDev = false
     mocks.parse.mockResolvedValue({ transactions: [transaction], ignored: 0, errors: [] })
     mocks.match.mockResolvedValue([safeMatch, ambiguousMatch, unmatchedMatch])
     mocks.sheetNotices.mockResolvedValue({ warnings: [], firstSheetHiddenRows: 0 })
@@ -583,7 +588,7 @@ describe('Conciliação PIX', () => {
     expect(mocks.parse).toHaveBeenCalledTimes(1)
   })
 
-  it('qualquer Departamento lê a Conciliação; conciliar o extrato é do Financeiro e do Administrativo (ADR 0085, D5)', async () => {
+  it('qualquer Departamento lê a Conciliação; conciliar o extrato é do Financeiro e da conta Dev (migration 583)', async () => {
     authState.isAdmin = false
     authState.role = 'operacoes'
     const user = userEvent.setup()
@@ -595,7 +600,7 @@ describe('Conciliação PIX', () => {
     expect(screen.getByText('Desligada')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Marcar como tratado/ })).toBeNull()
     await user.click(screen.getByRole('tab', { name: /Conciliar extrato/ }))
-    expect(screen.getByText('Conciliar extrato é do Financeiro e do Administrativo')).toBeTruthy()
+    expect(screen.getByText('Conciliar extrato é do Financeiro')).toBeTruthy()
   })
 
   it('o Financeiro concilia', async () => {
@@ -604,7 +609,21 @@ describe('Conciliação PIX', () => {
     const user = userEvent.setup()
     renderPage()
     await user.click(screen.getByRole('tab', { name: /Conciliar extrato/ }))
-    expect(screen.queryByText('Conciliar extrato é do Financeiro e do Administrativo')).toBeNull()
+    expect(screen.queryByText('Conciliar extrato é do Financeiro')).toBeNull()
+  })
+
+  it('o Administrativo comum não concilia; a conta Dev concilia (migration 583)', async () => {
+    authState.isAdmin = true
+    authState.role = 'administrativo'
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('tab', { name: /Conciliar extrato/ }))
+    expect(screen.getByText('Conciliar extrato é do Financeiro')).toBeTruthy()
+    cleanup()
+    authState.isDev = true
+    renderPage()
+    await user.click(screen.getByRole('tab', { name: /Conciliar extrato/ }))
+    expect(screen.queryByText('Conciliar extrato é do Financeiro')).toBeNull()
   })
   describe('aba Pix recebidos (ADR 0100)', () => {
     const receipt = {

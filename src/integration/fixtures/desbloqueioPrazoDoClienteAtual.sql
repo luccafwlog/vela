@@ -12,9 +12,10 @@ INSERT INTO auth.users (id, email) VALUES
  ('00000000-0000-0000-0011-000000000001','v11-admin@example.test'),
  ('00000000-0000-0000-0011-0000000000a1','v11-portal-a@example.test'),
  ('00000000-0000-0000-0011-0000000000b1','v11-portal-b@example.test');
-INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
- ('00000000-0000-0000-0011-000000000001','V11 Admin','administrativo',true)
- ON CONFLICT (id) DO UPDATE SET role='administrativo', active=true;
+-- Conta Dev: baixa e cancelamento de baixa são do Financeiro e da conta Dev (migration 583).
+INSERT INTO public.user_profiles (id, full_name, role, active, is_dev) VALUES
+ ('00000000-0000-0000-0011-000000000001','V11 Admin','administrativo',true,true)
+ ON CONFLICT (id) DO UPDATE SET role='administrativo', active=true, is_dev=true;
 INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (99110001,'99000001100157','V11 Cliente A'),(99110002,'99000001100238','V11 Cliente B');
 INSERT INTO public.customer_contacts (customer_id, name, email, purpose, is_primary) VALUES
  (99110001,'Fin A','v11-fin-a@example.test','financeiro',true),(99110002,'Fin B','v11-fin-b@example.test','financeiro',true);

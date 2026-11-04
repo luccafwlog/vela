@@ -157,9 +157,9 @@ function ReceiptsBlock({ monitor }: { monitor: ItauPixMonitor | undefined }) {
   const noteRef = useRef<HTMLTextAreaElement>(null)
   const triggerRefs = useRef(new Map<string, HTMLButtonElement>())
   const receipts = monitor?.receipts ?? []
-  // Ler é de todos; tratar é do Financeiro e do Administrativo (ADR 0085, D5; migration 247).
+  // Ler é de todos; tratar é do Financeiro e da conta Dev (migration 583).
   const { can } = useAuth()
-  const canReconcile = can('settle_financial_adjustments')
+  const canReconcile = can('manage_payments')
 
   const formFor = form?.endToEndId ?? null
   const returnFocus = useRef<string | null>(null)
@@ -328,7 +328,7 @@ type ExceptionFeedback = { id: number; tone: 'danger' | 'success'; text: string 
 function ExceptionsBlock({ query, onOpenExtract }: { query: ReturnType<typeof usePixExceptions>; onOpenExtract: () => void }) {
   const queryClient = useQueryClient()
   const { can } = useAuth()
-  const canReconcile = can('settle_financial_adjustments')
+  const canReconcile = can('manage_payments')
   const [openId, setOpenId] = useState<number | null>(null)
   const [feedback, setFeedback] = useState<ExceptionFeedback | null>(null)
   // Exceções com baixa gravada e encerramento recusado. A fatura já não está
