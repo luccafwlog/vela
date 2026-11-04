@@ -290,7 +290,7 @@ Os Emails de Contato são os canais de Comunicado do Cliente; o roteamento é fe
 
   | Caixa | Modelos |
   |---|---|
-  | Documentação e Operação (`documentacao_operacao`) | CE e Taxas, NOA, NOR e NOB |
+  | Documentação e Operação (`documentacao_operacao`) | CE e Taxas, NOA, NOR, NOB e os avisos do Desbloqueio de CE (documentação validada e recusa de documento; o texto da caixa diz isso desde 2026-11-04) |
   | Financeiro (`financeiro`) | CE e Taxas e Cobranças de Demurrage |
   | Demurrage (`demurrage`) | Cobranças de Demurrage e futuros comunicados de Demurrage |
 

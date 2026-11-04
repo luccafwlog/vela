@@ -12,7 +12,8 @@
   fica logo acima de **Revisão**; o Portal não mostra mais a nota dos portos sem data em Chegadas e Saídas; o B/L VIP
   pago e entregue diz "Apto ao desbloqueio (VIP)" e manda conferir no SISCARGA, como a solicitação validada (a
   solicitação automática foi estudada e descartada, [Desbloqueio de CE](modules/desbloqueio-ce.md)); **Meu perfil**
-  do Portal mostra as caixas de recebimento e o que cada uma recebe; **Novo cliente** aceita contato sem nome; a lista
+  do Portal mostra as caixas de recebimento e o que cada uma recebe (a caixa Documentação e Operação passa a citar os avisos
+  do Desbloqueio de CE, que já recebia, também no Tutorial anexado ao convite); **Novo cliente** aceita contato sem nome; a lista
   de Clientes ganha **Contatos** e **Espiadinha**, com a coluna Cliente mais estreita; a aba **Portal** ordena por nome;
   e **O que cada setor pode** vem recolhido no Admin.
 - **B/L cancelado não pede terminal (2026-11-04, migration `588`; decisão do dono):** o B/L cancelado, ou cancelado

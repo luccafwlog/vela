@@ -385,7 +385,7 @@ describe('PortalContactConfiguration', () => {
 
     const guide = screen.getByRole('table', { name: /Caixas de recebimento/ })
     const row = (box: string) => within(guide).getByRole('rowheader', { name: box }).closest('tr')!
-    expect(row('Documentação e Operação').textContent).toContain('CE e Taxas, NOA, NOR e NOB.')
+    expect(row('Documentação e Operação').textContent).toContain('CE e Taxas, NOA, NOR, NOB e avisos do Desbloqueio de CE.')
     expect(row('Documentação e Operação').textContent).not.toContain('joao@cliente.com')
     expect(row('Financeiro').textContent).toContain('CE e Taxas e Cobranças de Demurrage.')
     expect(row('Financeiro').textContent).toContain('mariana@cliente.com, joao@cliente.com')
