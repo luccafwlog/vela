@@ -144,7 +144,7 @@ export function ClienteFicha() {
   const menu: ActionMenuItem[] = [
     { key: 'faturas', label: 'Ver faturas em Taxas Locais', icon: <ReceiptText size={14} aria-hidden="true" />, to: buildCustomerBillingUrl(data) },
     { key: 'bls', label: 'Ver na lista de B/Ls', icon: <FileStack size={14} aria-hidden="true" />, to: `/bls?q=${encodeURIComponent(data.cnpj_cpf)}` },
-    { key: 'portal', label: 'Abrir no Provisionamento do Portal', icon: <ShieldCheck size={14} aria-hidden="true" />, to: `/clientes/portal?cliente=${data.id}` },
+    { key: 'portal', label: 'Abrir em Clientes › Portal', icon: <ShieldCheck size={14} aria-hidden="true" />, to: `/clientes/portal?cliente=${data.id}` },
     ...(isAdmin ? [{
       key: 'ativo',
       label: deactivatedAt ? 'Reativar cliente' : 'Desativar cliente',

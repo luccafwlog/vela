@@ -570,7 +570,7 @@ export function Revisao() {
       if (resolvedCount) lines.push(`${plural(resolvedCount, 'B/L saiu', 'B/Ls saíram')} da revisão.`)
       if (remainingText) lines.push(`Continuam em revisão: ${remainingText}.`)
       if (result.portalInvite === 'sent') lines.push(`Convite do Portal enviado para ${input.email}.`)
-      if (result.portalInvite === 'failed') lines.push('O convite do Portal não foi enviado; o cadastro foi concluído. Envie pelo Provisionamento do Portal.')
+      if (result.portalInvite === 'failed') lines.push('O convite do Portal não foi enviado; o cadastro foi concluído. Envie por Clientes › Portal.')
       pushOutcome({
         tone: result.portalInvite === 'failed' || remainingText ? 'warning' : 'success',
         title: `${result.onboarding.customer.name}: cliente ${input.customerId ? 'vinculado' : 'cadastrado'} em ${plural(result.onboarding.bls.length, 'B/L', 'B/Ls')}`,

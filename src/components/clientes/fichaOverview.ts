@@ -96,7 +96,7 @@ export function buildFichaOverview(input: OverviewInput): OverviewResult {
   const items: OverviewItem[] = []
   const loading: string[] = []
   const failed: string[] = []
-  const provisioningLink = { label: 'Abrir no Provisionamento do Portal', to: `/clientes/portal?cliente=${input.customerId}` }
+  const provisioningLink = { label: 'Abrir em Clientes › Portal', to: `/clientes/portal?cliente=${input.customerId}` }
 
   function track<T>(label: string, source: Source<T>): source is T {
     if (source === undefined) loading.push(label)

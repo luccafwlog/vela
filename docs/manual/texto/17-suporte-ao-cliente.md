@@ -1,4 +1,4 @@
-Quando o Cliente pede ajuda, quase sempre é uma destas coisas: não consegue entrar no Portal, o e-mail não chegou, a fatura não aparece ou o Pix não baixou. A resposta está em três lugares: a ficha do Cliente, a conta dele no **Provisionamento do Portal** e o próprio Portal, visto como ele vê. Este capítulo é um índice das situações mais comuns, com o caminho curto de cada uma. O detalhe de cada tela está nos capítulos 13 a 16.
+Quando o Cliente pede ajuda, quase sempre é uma destas coisas: não consegue entrar no Portal, o e-mail não chegou, a fatura não aparece ou o Pix não baixou. A resposta está em três lugares: a ficha do Cliente, a conta dele em **Clientes** › **Portal** e o próprio Portal, visto como ele vê. Este capítulo é um índice das situações mais comuns, com o caminho curto de cada uma. O detalhe de cada tela está nos capítulos 13 a 16.
 
 ::: aprende
 - ver o Portal como o Cliente vê, sem a senha dele;
@@ -15,7 +15,7 @@ Quando o Cliente pede ajuda, quase sempre é uma destas coisas: não consegue en
 
 Comece sempre pela **Espiadinha**: ela abre o Portal do Cliente como ele vê, sem a senha dele ([15.1](15-portal-o-que-o-cliente-ve.md#151-ver-o-portal-como-o-cliente-vê)). É o jeito mais rápido de confirmar o que ele está dizendo e de conferir, depois, que o problema foi resolvido.
 
-Antes de responder, olhe também a linha do Cliente no **Provisionamento do Portal**: a coluna **Conta** diz em que pé está o acesso, a coluna **Alerta** mostra **Crítico** quando há um alerta grave do Portal, e a coluna **Ação** diz o próximo passo ([14.1](14-portal-a-conta.md#141-ler-a-fila-do-provisionamento-do-portal)).
+Antes de responder, olhe também a linha do Cliente em **Clientes** › **Portal**: a coluna **Conta** diz em que pé está o acesso, a coluna **Alerta** mostra **Crítico** quando há um alerta grave do Portal, e a coluna **Ação** diz o próximo passo ([14.1](14-portal-a-conta.md#141-ler-a-fila-do-portal)).
 
 ## 17.2 O Cliente não consegue entrar
 
@@ -73,7 +73,7 @@ Primeiro, saiba qual e-mail. O convite e a recuperação de senha vão para o **
 
 Para o convite ou a recuperação de senha:
 
-1. Abra a linha do Cliente no **Provisionamento do Portal** e veja a **Última entrega** e o **Estado do e-mail**.
+1. Abra a linha do Cliente em **Clientes** › **Portal** e veja a **Última entrega** e o **Estado do e-mail**.
 2. **Entregue** ou **Aceito pelo provedor**: o e-mail saiu. Peça que o Cliente olhe o spam. "Aceito pelo provedor" ainda não garante que chegou.
 3. **Devolvido**, **Falha permanente** ou o aviso em vermelho de lista de bloqueio: o endereço não recebe. Troque o e-mail de recuperação ([17.6](#176-trocar-o-e-mail-de-recuperação-ou-o-cnpj)) ou, no convite, use **Revisar e-mail e reenviar**.
 4. Se o Cliente confirmar que a caixa voltou a funcionar, use **Ações administrativas** › **Liberar endereço bloqueado**.

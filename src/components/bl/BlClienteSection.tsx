@@ -148,7 +148,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
       message: `Iniciar o convite do Portal para ${normalizedEmail}?`,
       confirmLabel: 'Enviar convite',
       consequence: 'O cliente receberá o convite para ativar o acesso ao Portal. O vínculo deste B/L é preservado.',
-      reversibility: 'O convite pode ser revogado em Provisionamento do Portal.',
+      reversibility: 'O convite pode ser revogado em Clientes › Portal.',
     }))) return
     setSaving(true)
     try {
@@ -390,7 +390,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
         // Convite só quando o servidor o aceita e para quem pode enviar (POR-D12, BLR-D06).
         <div><Button type="button" disabled={saving} onClick={() => { setInviteOpen(true); setInviteEmail(customerEmail) }}>Enviar convite do Portal</Button></div>
       ) : linked && portalStatus && !portalStatus.visibility.portalReady && !inviteOpen ? (
-        <div><Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/portal?cliente=${linked.id}`}>Abrir no Provisionamento do Portal</Link></div>
+        <div><Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/portal?cliente=${linked.id}`}>Abrir em Clientes › Portal</Link></div>
       ) : null}
       {inviteOpen && linked ? (
         <div className="grid gap-3">

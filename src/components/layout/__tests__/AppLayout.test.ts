@@ -21,7 +21,7 @@ describe('financial navigation badges', () => {
   })
 })
 
-it('Provisionamento do Portal fica no grupo Clientes, não como link solto da barra', () => {
+it('Portal fica no grupo Clientes, não como link solto da barra', () => {
   const topLinks = [painelNavItem, reportsNavItem, adminNavItem]
   expect(topLinks.some((item) => item.to === '/clientes/portal')).toBe(false)
   const clientes = buildNavGroups(COUNTS).find((group) => group.id === 'clientes')

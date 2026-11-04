@@ -149,7 +149,7 @@ it('conta ativa ou setor sem permissão não vê o convite; leva ao Provisioname
   const active = { visibility: { visible: true, reasons: [], portalReady: false, billingReady: false, accountSituation: 'ativo' }, notifications: [], openDisputes: [] }
   render(<MemoryRouter><BlClienteSection bl={linkedBl} portalStatus={active} /></MemoryRouter>)
   expect(screen.queryByRole('button', { name: 'Enviar convite do Portal' })).toBeNull()
-  expect(screen.getByRole('link', { name: 'Abrir no Provisionamento do Portal' }).getAttribute('href')).toBe('/clientes/portal?cliente=42')
+  expect(screen.getByRole('link', { name: 'Abrir em Clientes › Portal' }).getAttribute('href')).toBe('/clientes/portal?cliente=42')
   cleanup()
 
   mocks.can.mockReturnValue(false)
@@ -160,7 +160,7 @@ it('conta ativa ou setor sem permissão não vê o convite; leva ao Provisioname
   // A Liberação de faturamento deixa faturar, mas não provisiona o Portal: o link continua.
   const released = { visibility: { visible: false, reasons: ['Conta do Portal não está ativa'], portalReady: false, billingReady: true, accountSituation: 'suspenso' }, notifications: [], openDisputes: [] }
   render(<MemoryRouter><BlClienteSection bl={linkedBl} portalStatus={released} /></MemoryRouter>)
-  expect(screen.getByRole('link', { name: 'Abrir no Provisionamento do Portal' })).toBeTruthy()
+  expect(screen.getByRole('link', { name: 'Abrir em Clientes › Portal' })).toBeTruthy()
 })
 
 // Migration 502: Trocar Cliente e Desvincular pedem o motivo, que vai ao Histórico.

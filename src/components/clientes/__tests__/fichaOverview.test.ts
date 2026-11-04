@@ -26,7 +26,7 @@ describe('buildFichaOverview', () => {
     expect(items[0]).toMatchObject({ key: 'portal', tone: 'warning', title: 'Portal não provisionado (sem conta)' })
     expect(items[0].detail).toMatch(/faturas ficam retidas/)
     expect(items[0].actions).toEqual([
-      { label: 'Abrir no Provisionamento do Portal', to: '/clientes/portal?cliente=7' },
+      { label: 'Abrir em Clientes › Portal', to: '/clientes/portal?cliente=7' },
       { label: 'Liberação na aba Financeiro', tab: 'financeiro' },
     ])
   })

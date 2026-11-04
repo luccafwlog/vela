@@ -72,7 +72,12 @@ Fontes executáveis principais:
 - importação de datas em
   [`src/services/containerDatesImport.ts`](../../src/services/containerDatesImport.ts);
 - documento imprimível em
-  [`src/components/demurrage/InvoiceDocument.tsx`](../../src/components/demurrage/InvoiceDocument.tsx).
+  [`src/components/demurrage/InvoiceDocument.tsx`](../../src/components/demurrage/InvoiceDocument.tsx);
+- planilha enviada ao armador (Invoices em aberto e Demurrage ainda sem
+  Invoice, uma linha por container) em
+  [`src/services/demurrage/demurrageCarrierReport.ts`](../../src/services/demurrage/demurrageCarrierReport.ts),
+  exportada em `/relatorios`; o layout fica em
+  [Operação e suporte](operacao-suporte.md#relatorios).
 
 ## Anatomia das telas
 

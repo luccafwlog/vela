@@ -4,21 +4,13 @@ import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { Painel } from '../Painel'
 
-const { showToast, writeFileMock, jsonToSheetMock } = vi.hoisted(() => ({
+const { showToast, writeWorkbookMock } = vi.hoisted(() => ({
   showToast: vi.fn(),
-  writeFileMock: vi.fn(),
-  jsonToSheetMock: vi.fn(() => ({})),
+  writeWorkbookMock: vi.fn<(spec: unknown) => Promise<void>>(async () => {}),
 }))
 
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast }) }))
-vi.mock('@e965/xlsx', () => ({
-  utils: {
-    json_to_sheet: jsonToSheetMock,
-    book_new: vi.fn(() => ({})),
-    book_append_sheet: vi.fn(),
-  },
-  writeFile: writeFileMock,
-}))
+vi.mock('../../services/exportWorkbook', () => ({ writeWorkbook: writeWorkbookMock, exportTimestamp: () => '202611031432' }))
 vi.mock('@tanstack/react-query', () => ({
   keepPreviousData: (previous: unknown) => previous,
   useQuery: ({ queryKey }: { queryKey: string[] }) => {
@@ -151,16 +143,13 @@ vi.mock('@tanstack/react-query', () => ({
 
 beforeEach(() => {
   showToast.mockReset()
-  writeFileMock.mockReset()
-  jsonToSheetMock.mockClear()
+  writeWorkbookMock.mockReset()
 })
 
 afterEach(cleanup)
 
 it('informa falha e encerra loading quando a exportacao do Line-Up falha', async () => {
-  writeFileMock.mockImplementation(() => {
-    throw new Error('disk full')
-  })
+  writeWorkbookMock.mockRejectedValue(new Error('disk full'))
 
   render(
     <MemoryRouter>
@@ -183,8 +172,9 @@ it('exporta CEs e Linked da programação de exportação', async () => {
 
   fireEvent.click(screen.getByRole('button', { name: 'Exportar' }))
 
-  await waitFor(() => expect(writeFileMock).toHaveBeenCalled())
-  expect(jsonToSheetMock).toHaveBeenCalledWith(expect.arrayContaining([
+  await waitFor(() => expect(writeWorkbookMock).toHaveBeenCalled())
+  const spec = writeWorkbookMock.mock.calls[0][0] as unknown as { sheets: Array<{ rows: unknown[] }> }
+  expect(spec.sheets[0].rows).toEqual(expect.arrayContaining([
     expect.objectContaining({ Navio: 'Navio exportação', CEs: 'approved', Linked: 'Sim' }),
   ]))
 })

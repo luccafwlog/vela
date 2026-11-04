@@ -248,7 +248,7 @@ function PortalAccessSection({ customerId }: { customerId: number }) {
             </Button>
           ) : null}
           <Link className="app-btn app-btn--secondary app-btn--sm" to={`/clientes/portal?cliente=${customerId}`}>
-            Abrir no Provisionamento do Portal <ArrowRight size={14} aria-hidden="true" />
+            Abrir em Clientes › Portal <ArrowRight size={14} aria-hidden="true" />
           </Link>
         </>
       )}
@@ -270,7 +270,7 @@ function PortalAccessSection({ customerId }: { customerId: number }) {
         </LeadValue>
       ) : null}
       {!isLoading && !isError && !portalRow ? (
-        <p className="app-customer-muted">Este Cliente ainda não está na fila do Portal. A fila é criada no cadastro; abra o Provisionamento para conferir.</p>
+        <p className="app-customer-muted">Este Cliente ainda não está na fila do Portal. A fila é criada no cadastro; abra Clientes › Portal para conferir.</p>
       ) : null}
 
       {portalRow && !portalOpen ? (

@@ -25,6 +25,7 @@ import { useVoyageOptions, usePortOptions } from '../hooks/useBls'
 import { formatBRL, formatCnpjCpf, formatDate, formatUSD } from '../lib/utils'
 import { describeActiveFilters, formatResultCount, type OperationalFilter } from '../lib/operationalState'
 import { userFacingErrorMessage } from '../lib/errors'
+import { saoPauloTodayIso } from '../lib/dates'
 import { formatPortDisplayName } from '../lib/voyageFormat'
 import { DEMURRAGE_INVOICE_STATUS_LABELS, INVOICE_STATUS_LABELS, statusLabel } from '../lib/statusLabels'
 import { blTotalCbm, blTotalWeightKg, cargoModeLabel } from '../lib/cargoMode'
@@ -164,7 +165,7 @@ function toOperationalFilters(lines: ReportFilterLine[]): OperationalFilter[] {
 }
 
 /** Período, Navio / Viagem e Cliente: sempre abertos; "Exportar planilha" ao lado. */
-function ScopeFilters({ scope, customerName, periodLabel, onDate, onVoyage, onCustomer, exporting, canExport, onExport }: {
+function ScopeFilters({ scope, customerName, periodLabel, onDate, onVoyage, onCustomer, exporting, canExport, onExport, extraAction }: {
   scope: ReportScope
   customerName: string
   periodLabel: string
@@ -174,6 +175,8 @@ function ScopeFilters({ scope, customerName, periodLabel, onDate, onVoyage, onCu
   exporting: boolean
   canExport: boolean
   onExport: () => void
+  /** Outra exportação da visão, ao lado de "Exportar planilha". */
+  extraAction?: ReactNode
 }) {
   return (
     <div className="app-filter-grid">
@@ -211,6 +214,7 @@ function ScopeFilters({ scope, customerName, periodLabel, onDate, onVoyage, onCu
           Exportar planilha
         </Button>
       </div>
+      {extraAction ? <div>{extraAction}</div> : null}
     </div>
   )
 }
@@ -740,6 +744,7 @@ function DemurrageReportView(props: ViewProps) {
   const handlers = useScopeHandlers(props, true)
   const { data: voyages } = useVoyageOptions()
   const exporter = useExport()
+  const carrierExporter = useExport()
 
   const exposureQuery = useQuery({
     queryKey: ['demurrage-report', 'exposicao', filters.customerId, filters.voyageId, filters.division],
@@ -788,6 +793,14 @@ function DemurrageReportView(props: ViewProps) {
     await exportDemurrageReportWorkbook({ exposure: exposure.rows, invoices: invoices.rows, items: items.rows }, lines)
     return exposure.rows.length + invoices.rows.length + items.rows.length
   })
+  // Planilha do armador (#1139): Invoices em aberto + Demurrage ainda sem Invoice, no layout enviado ao Gao.
+  const exportCarrierReport = () => carrierExporter.run(async () => {
+    const { fetchDemurrageCarrierReport } = await import('../services/demurrage/demurrageCarrierReport')
+    const report = await fetchDemurrageCarrierReport(filters, saoPauloTodayIso())
+    const { exportDemurrageCarrierWorkbook } = await import('../services/exports')
+    await exportDemurrageCarrierWorkbook(report)
+    return report.invoiced.length + report.pending.length
+  })
   const current = filters.slice === 'exposicao' ? exposureQuery.data?.rows : filters.slice === 'itens' ? itemsQuery.data?.rows : invoicesQuery.data?.rows
 
   return (
@@ -807,6 +820,17 @@ function DemurrageReportView(props: ViewProps) {
         exporting={exporter.exporting}
         canExport={Boolean(current?.length)}
         onExport={() => void exportReport()}
+        extraAction={(
+          <Button
+            variant="secondary"
+            onClick={() => void exportCarrierReport()}
+            loading={carrierExporter.exporting}
+            loadingLabel="Exportando…"
+          >
+            <FileDown size={16} aria-hidden="true" />
+            Planilha do armador
+          </Button>
+        )}
       />
       <FilterBar title="Mais filtros" activeCount={moreCount} onClear={clearMore}>
         <div className="app-filter-grid">

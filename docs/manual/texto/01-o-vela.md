@@ -39,7 +39,7 @@ O Vela e o Portal Fwlog são sistemas separados, com entradas separadas. Você p
 
 **Quem faz:** {{Todas as equipes}}
 
-O menu fica no alto da tela e agrupa as telas pelo assunto: **Painel**, **Viagens** (Viagens, Chegadas e Saídas, Tela TV), **Importação** (Baplie EDI, B/Ls, Desbloqueio de CE, Containers, Veículos, Vazios IMP, Revisão), **Exportação** (Granito, Vazios EXP, Locais (depots e terminais)), **Clientes** (Clientes, Provisionamento do Portal, Comunicação, Informações do Portal), **Alertas** (Alertas, Regras de alertas), **Financeiro** (Taxas Locais, Demurrage, Conciliação PIX), **Relatórios** e **Admin**, que só o {{Administrativo}} vê. **Tela TV** abre o quadro dos navios em outra aba, para um monitor ([5.7](05-programacao.md#57-acompanhar-o-line-up-e-a-tela-tv)).
+O menu fica no alto da tela e agrupa as telas pelo assunto: **Painel**, **Viagens** (Viagens, Chegadas e Saídas, Tela TV), **Importação** (Baplie EDI, B/Ls, Desbloqueio de CE, Containers, Veículos, Vazios IMP, Revisão), **Exportação** (Granito, Vazios EXP, Locais (depots e terminais)), **Clientes** (Clientes, Portal, Comunicação), **Alertas** (Alertas, Regras de alertas), **Financeiro** (Taxas Locais, Demurrage, Conciliação PIX), **Relatórios** e **Admin**, que só o {{Administrativo}} vê. **Tela TV** abre o quadro dos navios em outra aba, para um monitor ([5.7](05-programacao.md#57-acompanhar-o-line-up-e-a-tela-tv)).
 
 O número ao lado de um item, e somado no grupo, conta o que está pendente no Vela inteiro, de todas as equipes: os alertas ativos, os B/Ls pendentes de Revisão, os B/Ls com taxa em revisão. O de **Alertas** se atualiza sozinho a cada minuto; os outros, quando você mexe no assunto ou recarrega a página.
 
@@ -119,6 +119,8 @@ As listas do Vela (B/Ls, Containers, Clientes, faturas) funcionam do mesmo jeito
 - **A caixa do cabeçalho seleciona tudo o que o filtro achou,** em todas as páginas, não só a página da tela. Há seleção em Veículos e Vazios IMP; em Desbloqueio de CE, para a {{Documentação}} e o {{Administrativo}}; e, para o {{Administrativo}}, em B/Ls, Containers e Clientes.
 - **Exportar** (em Clientes, **Exportar base**) baixa uma planilha com tudo o que o filtro achou.
 
+Toda planilha exportada sai no mesmo padrão (desde 2026-11-03): no alto, a faixa com "Vela", o nome da tela, a data e a hora da exportação, quantas linhas vieram e os filtros usados; os títulos das colunas em azul-marinho, em português, congelados ao rolar e com o filtro do Excel já ligado; as colunas na largura do conteúdo; dinheiro com a moeda ("R$ 18.420,50"), data que o Excel ordena como data e "—" onde não há dado. A situação tem a mesma cor da tela: ✓ verde no que está pago ou atendido, âmbar no que aguarda, cinza no que foi cancelado. A última linha traz a quantidade e a soma das colunas de valor, que acompanha o que você filtrar ou apagar. A planilha que serve para importar de volta (**Exportar programação**, **Exportar base**) sai sem a faixa e sem o total, só com os títulos que a importação reconhece.
+
 ### Relatórios
 
 **Relatórios**, no menu, reúne os números da operação em quatro abas: **Operacional** (B/Ls, containers, peso), **Financeiro** (faturas emitidas e pagas), **Por Cliente** e **Demurrage** (a **Exposição** do que corre sem Invoice, as **Invoices** e os **Itens por container**). O período, a Viagem e o Cliente valem para todas as abas; a **Exposição** é o retrato de hoje e não usa o período.
@@ -128,6 +130,8 @@ Relatórios, na aba Operacional.
 :::
 
 **Exportar planilha** leva o recorte inteiro para o Excel, com uma aba que registra os filtros usados.
+
+Na aba **Demurrage**, **Planilha do armador** baixa o relatório no formato que a equipe de Demurrage envia ao armador, uma linha por container. A aba **Demurrage** traz os containers com demurrage das Invoices em aberto, emitidas no período; o container devolvido no free time, que a Invoice traz com valor zero, não aparece. A aba **Not Invoiced** traz o que ainda não foi faturado: o container devolvido que espera os outros do B/L, o que ainda está fora (calculado até o dia da exportação) e o que já pode ser faturado. A Viagem e o Cliente escolhidos valem para as duas abas.
 
 ## 1.6 Quando algo dá errado
 

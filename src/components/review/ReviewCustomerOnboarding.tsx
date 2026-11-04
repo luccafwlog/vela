@@ -166,11 +166,11 @@ export function ReviewCustomerOnboarding({
         <input className="review-onboarding__checkbox" type="checkbox" checked={sendPortalInvite} onChange={(event) => setSendPortalInvite(event.target.checked)} />
         <span>
           Enviar convite do Portal para este mesmo e-mail
-          <span className="review-onboarding__invite-hint">{sendPortalInvite ? `O convite será enviado para ${email.trim().toLowerCase() || 'o e-mail informado acima'} depois do cadastro.` : 'Opcional — você poderá iniciar o convite depois em Provisionamento do Portal.'}</span>
+          <span className="review-onboarding__invite-hint">{sendPortalInvite ? `O convite será enviado para ${email.trim().toLowerCase() || 'o e-mail informado acima'} depois do cadastro.` : 'Opcional — você poderá iniciar o convite depois em Clientes › Portal.'}</span>
         </span>
       </label>
       ) : (
-        <p className="review-onboarding__intro" role="note">O convite do Portal fica com a Documentação ou o Administrativo, em Provisionamento do Portal.</p>
+        <p className="review-onboarding__intro" role="note">O convite do Portal fica com a Documentação ou o Administrativo, em Clientes › Portal.</p>
       )}
       </>
       ) : (

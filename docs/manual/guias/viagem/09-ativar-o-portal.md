@@ -1,11 +1,11 @@
 Sem a conta ativa, a fatura do Cliente fica retida. O convite pode sair da Revisão (etapa 8) ou daqui.
 
 ::: tela portal-fila
-O Provisionamento do Portal.
+A fila do Portal, em Clientes.
 :::
 
 ::: passos
-1. Em **Clientes**, abra **Provisionamento do Portal**.
+1. Em **Clientes**, abra **Portal**.
 2. A fila abre em **Aguardando análise**: os Clientes ainda sem convite.
 3. Busque o Cliente.
 4. Clique no botão da coluna **Ação**.

@@ -12,13 +12,13 @@ const ROUTES: Record<ClientesTab, string> = {
   comunicacao: '/clientes/comunicacao',
 }
 
-/** Quem vê a fila do Provisionamento (mesma lista da contagem de Clientes). */
+/** Quem vê a fila do Portal (mesma lista da contagem de Clientes). */
 const PORTAL_QUEUE_ROLES = ['administrativo', 'documentacao', 'financeiro', 'operacoes', 'equipamentos']
 
 /**
- * Abas de Clientes, Provisionamento do Portal e Comunicação no topo das três
+ * Abas de Clientes, Portal e Comunicação no topo das três
  * páginas (lote 2, 2026-10-16): as duas páginas muito usadas ficam à vista. O
- * número é o de Clientes aguardando análise no Provisionamento. Os endereços
+ * número é o de Clientes aguardando análise no Portal. Os endereços
  * das páginas não mudam.
  */
 export function ClientesTabs({ active }: { active: ClientesTab }) {
@@ -35,7 +35,7 @@ export function ClientesTabs({ active }: { active: ClientesTab }) {
       <TabButton active={active === 'clientes'} label="Clientes" onClick={() => go('clientes')} />
       <TabButton
         active={active === 'portal'}
-        label="Provisionamento do Portal"
+        label="Portal"
         count={awaiting}
         countLabel={awaiting === 1 ? '1 Cliente aguardando análise' : `${awaiting} Clientes aguardando análise`}
         onClick={() => go('portal')}

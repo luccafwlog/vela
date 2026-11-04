@@ -80,7 +80,7 @@ A fatura só sai para o Cliente com o Portal ativo, porque é no Portal que ele 
 2. Se o e-mail não é o certo, clique em **Usar outro e-mail** e digite o novo.
 3. Clique em **Autorizar e enviar convite** (ou **Reenviar convite** ou **Enviar novo convite**, conforme a situação) e confirme em **Enviar convite**.
 
-Quando a conta está suspensa ou não aceita convite, o bloco leva a **Abrir no Provisionamento do Portal** (capítulo 14). A Liberação fica em **Liberação na ficha do Cliente**.
+Quando a conta está suspensa ou não aceita convite, o bloco leva a **Abrir em Clientes › Portal** (capítulo 14). A Liberação fica em **Liberação na ficha do Cliente**.
 
 ::: atencao
 A Liberação de faturamento sem Portal tem data de revisão. Quando ela vence, os B/Ls ainda não faturados do Cliente voltam para a Revisão.

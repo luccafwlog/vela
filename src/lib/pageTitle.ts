@@ -21,7 +21,7 @@ const ROUTE_TITLES: Array<[RegExp, string]> = [
   [/^\/revisao/, 'Revisão'],
   [/^\/clientes\/comunicacao/, 'Clientes · Comunicação'],
   // Precisam vir antes do padrão de CNPJ, senão caem em "Ficha do Cliente".
-  [/^\/clientes\/portal/, 'Clientes · Provisionamento do Portal'],
+  [/^\/clientes\/portal/, 'Clientes · Portal'],
   [/^\/clientes\/[^/]+/, 'Ficha do Cliente'],
   [/^\/clientes/, 'Clientes'],
   [/^\/taxas-locais\/tabelas/, 'Tabelas de Taxas Locais'],

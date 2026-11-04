@@ -129,7 +129,7 @@ Os quatro primeiros alertas da conta só abrem quando o Cliente tem processo ati
 
 | Alerta | Quando abre | O que fazer |
 |---|---|---|
-| **Portal do Cliente — pendência geral** | O Portal não está pronto: sem conta, conta não ativa ou suspensa, sem usuário de acesso ou sem e-mail de recuperação utilizável. A mensagem diz qual. | Siga a **Ação** da linha do Cliente no Provisionamento ([14.1](14-portal-a-conta.md#141-ler-a-fila-do-provisionamento-do-portal)). |
+| **Portal do Cliente — pendência geral** | O Portal não está pronto: sem conta, conta não ativa ou suspensa, sem usuário de acesso ou sem e-mail de recuperação utilizável. A mensagem diz qual. | Siga a **Ação** da linha do Cliente no Provisionamento ([14.1](14-portal-a-conta.md#141-ler-a-fila-do-portal)). |
 | **Portal do Cliente — convite expirado** | O convite passou de 48 horas sem ativação. | Reenvie o convite ([14.3](14-portal-a-conta.md#143-convidar-o-cliente)). |
 | **Portal do Cliente — falha de envio** | O e-mail do convite não saiu. | Confira o e-mail e reenvie o convite ([14.3](14-portal-a-conta.md#143-convidar-o-cliente)). |
 | **Portal do Cliente — email suprimido** | O e-mail de recuperação foi bloqueado (devolvido ou marcado como spam). | Troque o e-mail de recuperação ([14.6](14-portal-a-conta.md#146-trocar-o-e-mail-de-recuperação)) ou libere o endereço ([14.7](14-portal-a-conta.md#147-liberar-um-endereço-bloqueado)). |

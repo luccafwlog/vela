@@ -6,6 +6,19 @@
 
 ## 2026-11
 
+- **Planilha do armador sem o container no free time (2026-11-03):** a aba **Demurrage** da Planilha do armador
+  listava também o container devolvido dentro do free time, que a Invoice traz com US$ 0,00 (EXCESS 0). Ele sai da
+  planilha, como no modelo que a equipe envia ao armador; o total das Invoices não muda
+  ([Operação e suporte](modules/operacao-suporte.md#relatorios)).
+- **Planilha de Demurrage do armador (2026-11-03, issue #1139; decisões do dono):** em **Relatórios › Demurrage**,
+  **Planilha do armador** baixa o relatório no layout que a equipe de Demurrage envia ao armador, uma linha por
+  container (INVOICE … TOTAL USD), com as Invoices em aberto. A aba nova **Not Invoiced** traz o que o formato antigo
+  deixava de fora: o container com Demurrage ainda sem Invoice, inclusive o do B/L que ainda tem container fora,
+  calculado até o dia da exportação ([Operação e suporte](modules/operacao-suporte.md#relatorios)).
+- **Menu Clientes mais curto (2026-11-03; decisão do dono):** a tela Provisionamento do Portal passa a se chamar
+  **Portal** no menu, na aba, no título e nos atalhos ("Abrir em Clientes › Portal"); o endereço `/clientes/portal`
+  não muda. **Informações do Portal** sai do menu e volta a abrir pelo botão de mesmo nome na tela Portal
+  ([Portal do Cliente](modules/portal-cliente.md#console-clientesportal)).
 - **Cliente VIP sem solicitação no Desbloqueio de CE (2026-11-03, migrations `581` e `582`,
   [ADR 0119](adr/0119-vip-desbloqueia-sem-solicitacao.md); decisão do dono):** o B/L do Cliente VIP coberto pelo termo
   e pela procuração anuais fica apto com as Taxas Locais pagas e o B/L original entregue, sem pedido no Portal; o

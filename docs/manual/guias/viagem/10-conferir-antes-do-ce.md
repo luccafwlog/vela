@@ -6,7 +6,7 @@ O CE é o momento mais delicado da Viagem. Na hora em que ele entra, três coisa
 | Nenhuma divergência entre o Baplie e os B/Ls | **Baplie EDI** › **Conciliação Baplie × B/L** |
 | Nenhum B/L da Viagem na Revisão, nem carga solta sem peso | **Importação** › **Revisão** |
 | Veículos lançados, ou a Viagem declarada sem veículos ({{Equipamentos}}) | **Veículos** |
-| Os Clientes novos convidados para o Portal | **Provisionamento do Portal** |
+| Os Clientes novos convidados para o Portal | **Clientes** › **Portal** |
 | Nenhum alerta da Viagem aberto, fora o **CE Mercante pendente** | **Alertas**, com o navio na **Busca** |
 
 ::: tela baplie-conciliacao

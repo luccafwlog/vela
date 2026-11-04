@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import { canonicalizeDocument } from '../lib/cnpj'
-import { formatDate } from '../lib/utils'
-import { sanitizeSheetRows } from '../lib/spreadsheetSafe'
+import { exportTimestamp, writeWorkbook } from './exportWorkbook'
 import { normalizePixTxid } from '../lib/pix'
 import { supabase } from './supabase'
 import { invoiceTypeLabel } from './billing'
@@ -641,10 +640,9 @@ export async function listReconciliationHistory(
 export async function exportReconciliationHistoryExcel(filters: Partial<ReconciliationFilters>) {
   const { rows } = await listReconciliationHistory({ ...filters, page: 1, pageSize: 999999 })
 
-  const XLSX = await import('@e965/xlsx')
-
   // Cabeçalhos com os nomes das colunas da tela (lote 3 da identidade), uma
-  // linha por baixa e B/L como na tela (ADR 0115).
+  // linha por baixa e B/L como na tela (ADR 0115). A aparência é do
+  // `writeWorkbook` (ADR 0120).
   const data = rows.map((r) => ({
     Fatura: r.docNumber,
     Origem: r.source === 'demurrage' ? 'Demurrage' : 'Taxas Locais',
@@ -655,7 +653,7 @@ export async function exportReconciliationHistoryExcel(filters: Partial<Reconcil
     Navio: r.vesselName ?? '',
     Viagem: r.voyageNumber ?? '',
     POD: r.pod ?? '',
-    'Pago em': r.paidAt ? formatDate(r.paidAt) : '',
+    'Pago em': r.paidAt ?? '',
     'Forma da baixa': paymentMethodLabel(r.method),
     'Referência bancária': r.bankReference ?? '',
     'Valor do B/L': r.blAmount,
@@ -666,20 +664,26 @@ export async function exportReconciliationHistoryExcel(filters: Partial<Reconcil
     Situação: r.status === 'paid' ? 'Paga' : r.status === 'covered' ? 'Coberta pela consolidada' : r.status === 'partially_paid' ? 'Parcialmente paga' : INVOICE_STATUS_LABELS[r.status] ?? r.status,
   }))
 
-  const safeRows = sanitizeSheetRows(data)
-
-  const workbook = XLSX.utils.book_new()
-  const sheet = XLSX.utils.json_to_sheet(safeRows)
-  XLSX.utils.book_append_sheet(workbook, sheet, 'Conciliação')
-  const now = new Date()
-  const ts = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-    String(now.getHours()).padStart(2, '0'),
-    String(now.getMinutes()).padStart(2, '0'),
-  ].join('')
-  XLSX.writeFile(workbook, `conciliacao-${ts}.xlsx`)
+  await writeWorkbook({
+    product: 'vela',
+    title: 'Histórico de baixas',
+    sheets: [{
+      name: 'Conciliação',
+      rows: data,
+      unit: 'baixas',
+      // Uma linha por baixa e B/L: o valor da fatura se repete e não se soma; a baixa sim.
+      types: { 'Valor do B/L': 'brl', 'Valor da fatura': 'brl', 'Valor pago': 'brl', 'Valor da baixa': 'brl', Saldo: 'brl', 'Referência bancária': 'text' },
+      totals: ['Valor da baixa'],
+      groups: [
+        { label: 'Fatura', from: 'Fatura', to: 'B/L' },
+        { label: 'Cliente', from: 'Cliente', to: 'CNPJ' },
+        { label: 'Viagem', from: 'Navio', to: 'POD' },
+        { label: 'Baixa', from: 'Pago em', to: 'Referência bancária' },
+        { label: 'Valores', from: 'Valor do B/L', to: 'Situação' },
+      ],
+    }],
+    fileName: `conciliacao-${exportTimestamp()}.xlsx`,
+  })
 }
 
 export async function reverseLocalInvoicePayment(paymentId: number, reason?: string) {

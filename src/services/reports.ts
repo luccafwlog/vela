@@ -860,6 +860,8 @@ export type DemurrageItemReportRow = {
   subtotal_usd: number | null
   /** Migration 521: Clientes que dividem a caixa; o item cobra 1/n. */
   box_share_count: number | null
+  /** B/L do container no item (o grupo pode ter mais de um B/L na mesma Invoice). */
+  container: { bl_id: string } | null
   invoice: {
     id: number
     doc_number: string
@@ -871,9 +873,21 @@ export type DemurrageItemReportRow = {
   }
 }
 
-/** Itens por container: cada caixa de Invoice viva (emitida ou paga), pela emissão da Invoice. */
-export async function fetchDemurrageItemsReport(filters: DemurrageReportFilters, options: ReportOptions = {}): Promise<PagedRows<DemurrageItemReportRow>> {
+const LIVE_ITEM_STATUSES = ['issued', 'overdue', 'paid']
+/** Em aberto: emitida e ainda não paga (a Invoice de Demurrage não vence, ADR 0014). */
+export const OPEN_DEMURRAGE_STATUSES = ['issued', 'overdue']
+
+/**
+ * Itens por container: cada caixa de Invoice viva (emitida ou paga), pela
+ * emissão da Invoice; `statuses` restringe as situações (a planilha do
+ * armador lê só as em aberto).
+ */
+export async function fetchDemurrageItemsReport(
+  filters: DemurrageReportFilters,
+  options: ReportOptions & { statuses?: readonly string[] } = {},
+): Promise<PagedRows<DemurrageItemReportRow>> {
   const ceiling = options.ceiling ?? REPORT_SCREEN_CEILING
+  const statuses = options.statuses ?? LIVE_ITEM_STATUSES
   const voyageId = positiveId(filters.voyageId)
   const customerId = positiveId(filters.customerId)
   return fetchAllPages<DemurrageItemReportRow>((from, to) => {
@@ -881,8 +895,9 @@ export async function fetchDemurrageItemsReport(filters: DemurrageReportFilters,
     let query = supabase
       .from('demurrage_invoice_items')
       .select(`id, container_number, container_type, discharge_date, return_date, total_days, free_days, days_p1, rate_p1_usd, days_p2, rate_p2_usd, subtotal_usd, box_share_count,
+        container:bl_containers(bl_id),
         invoice:demurrage_invoices!inner(id, doc_number, status, billed_at, bl_id, customer_id, customer:customers(id,name), ${bl})`, reportSelectOptions(from))
-      .in('invoice.status', ['issued', 'overdue', 'paid'])
+      .in('invoice.status', [...statuses])
       .order('invoice_id', { ascending: false })
       .order('container_number')
       .order('id')
