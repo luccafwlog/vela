@@ -46,7 +46,7 @@ O dólar de cada linha já vem sem o desconto; passe o mouse sobre ele para ver 
 
 Em **Por Cliente**, **Imprimir relatório** abre o **Extrato de Demurrage do Cliente**: escolha o Cliente e imprima as Invoices em aberto e os containers com Demurrage ainda sem Invoice, com o US$ previsto de hoje. É o jeito de mostrar ao Cliente o que está correndo: o Portal só mostra valor de Demurrage depois da Invoice. As Invoices de um Cliente também aparecem na ficha dele, aba **Financeiro** ([13.7](13-cadastro-do-cliente.md#137-as-faturas-e-as-condições-negociadas)).
 
-**Exportar**, em cada aba, baixa o que a tela mostra. O relatório completo, com filtros, fica em **Relatórios**, aba **Demurrage**: a **Exposição** (os containers com Demurrage ainda sem Invoice), as **Invoices** e os **Itens por container**.
+**Exportar**, em cada aba, baixa o que a tela mostra. A planilha que vai ao armador sai em **Relatórios**, aba **Demurrage**, botão **Planilha do armador** (ver o capítulo 1). O relatório completo, com filtros, fica em **Relatórios**, aba **Demurrage**: a **Exposição** (os containers com Demurrage ainda sem Invoice), as **Invoices** e os **Itens por container**.
 
 ## 23.3 Informar a PTAX
 

@@ -191,6 +191,7 @@ rótulo não diz sozinho; nenhuma tela estiliza a própria planilha.
 | Total | Última linha na faixa azulada com traço azul-marinho em cima: "Total · N faturas" e `SOMA()` viva nas colunas de dinheiro e peso (e nas que a exportação pedir). |
 | Impressão | Paisagem, ajustada à largura da página, cabeçalho repetido em cada página, rodapé com produto, tela e "Página N de M". |
 | Molde de reimportação | Programação de navios, Base de Clientes e a aba de carga solta do manifesto mantêm os cabeçalhos do importador e saem planos: cabeçalho, larguras e filtro, sem faixa, grupos nem total. |
+| Planilha de terceiro | A planilha que outro sistema ou parceiro lê no formato dele fica fora do padrão: a da ZPT (Edge `ce-unlock-export`), a do armador (`buildDemurrageCarrierWorkbook`, layout do modelo enviado) e os modelos para baixar em `public/templates/`. |
 | Letra | Calibri (vem com todo Excel) e Consolas nos códigos; DM Sans e IBM Plex Mono ficam nas telas. |
 
 Os separadores de milhar e decimal seguem o Excel de quem abre (em português,
