@@ -194,11 +194,13 @@ Em **Mais ações** › **Reativar B/L**, com motivo. O B/L volta a ser editáve
 
 ### Excluir
 
-Na ficha do B/L sem CE e não cancelado, o botão **Excluir B/L** fica ao lado de **Reimportar B/L**:
+Na ficha do B/L não cancelado, o botão **Excluir B/L** fica ao lado de **Reimportar B/L**:
 
 1. Clique em **Excluir B/L**.
-2. Se a ficha avisa que o B/L "não pode ser excluído", ele tem documento financeiro: cancele em vez de excluir.
-3. Escreva o motivo e confirme em **Excluir**. A ficha volta para a lista **B/Ls**.
+2. Se a ficha avisa que o B/L "não pode ser excluído", siga o que o aviso diz:
+   - **Só o CE segura** (o B/L ainda não teve fatura nem Invoice de Demurrage): se o B/L foi importado por engano, clique em **Abrir Detalhes do B/L**, use **Remover CE** no bloco **Documento Mercante** ([6.6](06-importacao.md#66-corrigir-o-ce-ou-o-manifesto-de-um-bl)) e clique em **Excluir B/L** de novo.
+   - **O B/L tem CE e já teve fatura ou Invoice de Demurrage**, o caso comum: ele não se exclui, nem com a fatura cancelada; ele se cancela. Antes, a fatura sem pagamento é cancelada pelo {{Administrativo}} ou pelo {{Financeiro}} ([22.9](22-a-fatura.md#229-cancelar-uma-fatura)); com pagamento, o {{Financeiro}} prepara o cancelamento financeiro e confirma a Restituição, se o dinheiro volta ao Cliente. Depois, clique em **Cancelar B/L** no aviso e siga [Cancelar](#cancelar).
+3. Sem trava, escreva o motivo e confirme em **Excluir**. A ficha volta para a lista **B/Ls**.
 
 Para excluir vários de uma vez, use a lista:
 

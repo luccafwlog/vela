@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { BlDetalhe } from '../BlDetalhe'
+import { BlDetalhe, deleteRefusalGuidance } from '../BlDetalhe'
 
 const { useBlDetailMock, cancelBlMock, authState, checkBlDependenciesMock, deleteBlsMock, confirmWithReasonMock } = vi.hoisted(() => ({
   useBlDetailMock: vi.fn(),
@@ -354,15 +354,62 @@ describe('BlDetalhe - Excluir B/L na ficha', () => {
     expect(deleteBlsMock).not.toHaveBeenCalled()
   })
 
-  it('não aparece no B/L com CE Mercante nem fora do Administrativo', () => {
-    useBlDetailMock.mockReturnValue({ data: { ...blSemCe, ce_mercante: '152605123456701' }, isLoading: false, error: null })
+  it('não aparece fora do Administrativo nem no B/L cancelado', () => {
+    authState.isAdmin = false
     renderFicha()
     expect(screen.queryByRole('button', { name: /Excluir B\/L/ })).toBeNull()
 
     cleanup()
-    authState.isAdmin = false
-    useBlDetailMock.mockReturnValue({ data: blSemCe, isLoading: false, error: null })
+    authState.isAdmin = true
+    useBlDetailMock.mockReturnValue({ data: { ...blSemCe, cancelled_at: '2026-11-04T12:00:00Z' }, isLoading: false, error: null })
     renderFicha()
     expect(screen.queryByRole('button', { name: /Excluir B\/L/ })).toBeNull()
+  })
+
+  it('B/L com CE e sem fatura: manda remover o CE e abre Detalhes do B/L', async () => {
+    useBlDetailMock.mockReturnValue({ data: { ...blSemCe, ce_mercante: '152605123456701' }, isLoading: false, error: null })
+    checkBlDependenciesMock.mockResolvedValue({ deletableIds: [], blockedIds: [{ id: 'BL-ERRADO-1', reasons: ['B/L com CE Mercante'] }] })
+    renderFicha()
+
+    fireEvent.click(screen.getByRole('button', { name: /Excluir B\/L/ }))
+
+    const alert = (await screen.findByText(/não pode ser excluído/)).closest('[role="alert"]') as HTMLElement
+    expect(alert.textContent).toContain('Remover CE')
+    expect(alert.textContent).not.toContain('Cancelar B/L')
+    fireEvent.click(within(alert).getByRole('button', { name: 'Abrir Detalhes do B/L' }))
+    expect(screen.getByRole('tab', { name: 'Detalhes do B/L' }).getAttribute('aria-selected')).toBe('true')
+    expect(confirmWithReasonMock).not.toHaveBeenCalled()
+  })
+
+  it('B/L com CE e fatura: diz o que fazer com a fatura e leva ao Cancelar B/L', async () => {
+    useBlDetailMock.mockReturnValue({ data: { ...blSemCe, ce_mercante: '152605123456701' }, isLoading: false, error: null })
+    checkBlDependenciesMock.mockResolvedValue({ deletableIds: [], blockedIds: [{ id: 'BL-ERRADO-1', reasons: ['B/L com CE Mercante', 'documento financeiro emitido'] }] })
+    cancelBlMock.mockReset()
+    cancelBlMock.mockResolvedValue({ cancelled: false, reasons: ['fatura em aberto'] })
+    renderFicha()
+
+    fireEvent.click(screen.getByRole('button', { name: /Excluir B\/L/ }))
+
+    const alert = (await screen.findByText(/não pode ser excluído/)).closest('[role="alert"]') as HTMLElement
+    expect(alert.textContent).toContain('Cancelar fatura')
+    expect(alert.textContent).toContain('Restituição')
+    expect(alert.textContent).not.toContain('Remover CE')
+    fireEvent.click(within(alert).getByRole('button', { name: 'Cancelar B/L' }))
+
+    // O Cancelar B/L faz a própria conferência e mostra o que ainda segura.
+    expect(await screen.findByText(/não pode ser cancelado agora/)).toBeTruthy()
+    expect(cancelBlMock).toHaveBeenCalledWith('BL-ERRADO-1', '', { dryRun: true })
+    expect(screen.queryByText(/não pode ser excluído/)).toBeNull()
+  })
+})
+
+describe('deleteRefusalGuidance', () => {
+  it.each([
+    [['B/L com CE Mercante'], 'remove-ce'],
+    [['B/L com CE Mercante', 'documento financeiro emitido'], 'cancel'],
+    [['documento financeiro emitido'], null],
+    [['o B/L não foi encontrado; ele pode já ter sido excluído'], null],
+  ])('%j → %s', (reasons, expected) => {
+    expect(deleteRefusalGuidance(reasons)).toBe(expected)
   })
 })

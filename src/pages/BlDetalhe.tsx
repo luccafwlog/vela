@@ -87,10 +87,23 @@ function demurrageCancelHref(blId: string, reasons: readonly string[]) {
     : `/demurrage?busca=${search}`
 }
 
+// Motivos de `bl_delete_lock_reasons` (migration 191).
+const DELETE_LOCK_CE = 'B/L com CE Mercante'
+const DELETE_LOCK_FINANCIAL = 'documento financeiro emitido'
+
 // Sem motivo na resposta, o banco não achou o B/L (já excluído noutra aba).
 function deleteRefusalReasons(blocked: ReadonlyArray<{ reasons: string[] }>): string[] {
   const reasons = blocked.flatMap((item) => item.reasons)
   return reasons.length > 0 ? reasons : ['o B/L não foi encontrado; ele pode já ter sido excluído']
+}
+
+/**
+ * O que fazer quando o banco recusa a exclusão: só o CE trava → tirar o CE e
+ * excluir; com documento financeiro, o B/L com CE se cancela (ADR 0071).
+ */
+export function deleteRefusalGuidance(reasons: readonly string[]): 'remove-ce' | 'cancel' | null {
+  if (reasons.includes(DELETE_LOCK_FINANCIAL)) return reasons.includes(DELETE_LOCK_CE) ? 'cancel' : null
+  return reasons.includes(DELETE_LOCK_CE) ? 'remove-ce' : null
 }
 
 export function isBlTab(value: string | null): value is BlTab {
@@ -409,8 +422,8 @@ export function BlDetalhe() {
                 Reimportar B/L
               </Button>
             ) : null}
-            {/* B/L sem CE se exclui; com CE, se cancela (ADR 0071; Mais ações). */}
-            {isAdmin && !bl.ce_mercante && !cancelledAt ? (
+            {/* Com CE, o banco recusa e a ficha explica o caminho: Remover CE ou Cancelar B/L (ADR 0071). */}
+            {isAdmin && !cancelledAt ? (
               <Button variant="secondary" loading={deleting} loadingLabel="Excluindo…" onClick={() => void handleDeleteBl()}>
                 <Trash2 size={16} aria-hidden="true" />
                 Excluir B/L
@@ -443,7 +456,39 @@ export function BlDetalhe() {
         <div className="app-bl-notice app-bl-notice--warning app-bl-notice--row" role="alert">
           <span>
             <strong>O B/L {bl.id} não pode ser excluído:</strong> {deleteBlockedReasons.join(', ')}.
+            {deleteRefusalGuidance(deleteBlockedReasons) === 'remove-ce'
+              ? ' Se o B/L foi importado por engano, remova o CE em Detalhes do B/L › Documento Mercante › Remover CE e exclua de novo.'
+              : null}
+            {deleteRefusalGuidance(deleteBlockedReasons) === 'cancel'
+              ? ' O B/L que já teve fatura ou Invoice de Demurrage não se exclui, nem com a fatura cancelada: ele se cancela.'
+                + ' Antes, a fatura sem pagamento é cancelada pelo Administrativo ou pelo Financeiro (Taxas Locais › Cancelar fatura);'
+                + ' com pagamento, o Financeiro prepara o cancelamento financeiro e confirma a Restituição, se o dinheiro volta ao Cliente.'
+                + ' Depois, use Cancelar B/L.'
+              : null}
           </span>
+          {deleteRefusalGuidance(deleteBlockedReasons) === 'cancel' ? (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setDeleteBlockedReasons(null)
+                void handleCancelBl()
+              }}
+            >
+              Cancelar B/L
+            </Button>
+          ) : null}
+          {deleteRefusalGuidance(deleteBlockedReasons) === 'remove-ce' ? (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                const next = new URLSearchParams(searchParams)
+                next.set('tab', 'detalhes')
+                setSearchParams(next, { replace: true })
+              }}
+            >
+              Abrir Detalhes do B/L
+            </Button>
+          ) : null}
           <Button variant="secondary" onClick={() => setDeleteBlockedReasons(null)}>Fechar aviso</Button>
         </div>
       ) : null}
