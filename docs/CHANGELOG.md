@@ -6,6 +6,15 @@
 
 ## 2026-11
 
+- **Terminal da escala cobrado antes da chegada (2026-11-04, migration `583`,
+  [ADR 0121](adr/0121-terminal-da-escala-cobrado-antes-da-chegada.md); decisões do dono sobre a
+  [revisão do vínculo de terminal](archive/audits/2026-11-04-revisao-vinculo-terminal-escala.md)):** o alerta
+  crítico **Escala sem terminal** avisa Operações cinco dias antes do ETA, e de novo no ATA, quando alguma frente de
+  operação está sem terminal; antes, o terminal só era cobrado no Fechar ADR. Com o ATA, cada terminal sem ETB é
+  cobrado. O Cliente cuja carga ficou sem terminal aparece em **Comunicado NOB pendente** e no aviso do Disparo, em
+  vez de ficar sem o NOB em silêncio. O banco recusa ATB anterior ao ATA; o ETB anterior ao ETA ganha aviso na
+  janela. O Painel mostra **TBC** em âmbar, com o filtro **Terminal** › **Sem terminal**, e a ficha da Viagem ganha
+  a coluna **Terminal** no Planejamento por escala ([Viagens](modules/viagens.md#escala-atracação-e-datas)).
 - **Planilha do armador sem o container no free time (2026-11-03):** a aba **Demurrage** da Planilha do armador
   listava também o container devolvido dentro do free time, que a Invoice traz com US$ 0,00 (EXCESS 0). Ele sai da
   planilha, como no modelo que a equipe envia ao armador; o total das Invoices não muda

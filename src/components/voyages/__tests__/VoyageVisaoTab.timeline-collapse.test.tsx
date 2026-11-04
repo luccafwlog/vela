@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
 
@@ -186,8 +186,8 @@ it('recolhe e expande o painel próprio de atracações sem perder os dados da e
   expect(screen.queryByRole('table', { name: 'Atracações de BRSSZ' })).toBeNull()
 
   await user.click(screen.getByRole('button', { name: 'Expandir atracações de BRSSZ' }))
-  expect(screen.getByRole('table', { name: 'Atracações de BRSSZ' })).toBeTruthy()
-  expect(screen.getByText('BTP')).toBeTruthy()
+  // "BTP" também está na coluna Terminal da linha da escala (revisão de 2026-11-04).
+  expect(within(screen.getByRole('table', { name: 'Atracações de BRSSZ' })).getByText('BTP')).toBeTruthy()
 })
 
 it('não usa status de exportação ao reabrir uma escala que também tem importação', async () => {

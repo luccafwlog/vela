@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const from = vi.fn()
-vi.mock('../supabase', () => ({ supabase: { from: (table: string) => from(table) } }))
+// `escala_frentes_sem_terminal` (migration 583): sem frente pendente por padrão.
+type RpcResult = { data: unknown[] | null; error: unknown }
+const rpc = vi.fn<(name: string, args: unknown) => Promise<RpcResult>>(async () => ({ data: [], error: null }))
+vi.mock('../supabase', () => ({ supabase: { from: (table: string) => from(table), rpc: (name: string, args: unknown) => rpc(name, args) } }))
 
 function builder(result: { data: unknown; error: unknown }) {
   let data = Array.isArray(result.data) ? result.data : result.data
@@ -361,6 +364,63 @@ describe('fetchLineUpSnapshot', () => {
     ])
     expect(rows.find((row) => row.rowType === 'import')).toMatchObject({ importTerminal: 'TVV', exportTerminal: 'TBC' })
     expect(rows.find((row) => row.rowType === 'export')).toMatchObject({ importTerminal: 'TBC', exportTerminal: 'PORTMAC' })
+  })
+
+  // Revisão de 2026-11-04 (T2, D5): a frente sem terminal que só o banco deriva
+  // (carga solta importada depois de gravar a escala) aparece como "TBC" ao
+  // lado do terminal gravado, só na linha do seu sentido.
+  it('acrescenta TBC ao terminal da linha com frente do seu sentido sem terminal', async () => {
+    const { fetchLineUpSnapshot } = await import('../lineup')
+    from.mockImplementation(byTable({
+      voyages: [VOYAGE],
+      bls: [{ id: 'BL1', voyage_id: 24, pod: 'BRVIX', cargo_mode: 'misto', ce_mercante: 'CE1', bb_machine_qty: 1, bb_packages_qty: 0 }],
+      voyage_export_schedules: [{
+        id: 'EXP1', voyage_id: 24, pol: 'BRVIX', tem_exportacao: true, has_granite: true,
+        containers_qty: 7, movements_qty: 9, ce_status: 'waiting', linked: false,
+      }],
+      voyage_escala_operation_fronts: [
+        { voyage_id: 24, port: 'BRVIX', sentido: 'importacao', modalidade: 'carga_cheia', terminal_id: 'import-terminal' },
+        { voyage_id: 24, port: 'BRVIX', sentido: 'exportacao', modalidade: 'granito', terminal_id: 'export-terminal' },
+      ],
+      voyage_escala_terminal_state: [
+        { voyage_id: 24, port: 'BRVIX', terminal_id: 'import-terminal', terminal_atb: null, terminal_atd: null, terminal_rtw: null, revision: 1 },
+        { voyage_id: 24, port: 'BRVIX', terminal_id: 'export-terminal', terminal_atb: null, terminal_atd: null, terminal_rtw: null, revision: 1 },
+      ],
+      depots: [
+        { id: 'import-terminal', code: 'TVV', active: true },
+        { id: 'export-terminal', code: 'PORTMAC', active: true },
+      ],
+      audit_logs: [
+        { entity_type: 'voyage_pod_schedule', entity_id: '24::BRVIX', field_name: 'eta', new_value: '2026-11-12T12:00', changed_at: '2026-11-01T00:00:00Z' },
+      ],
+    }))
+    rpc.mockResolvedValueOnce({ data: [{ voyage_id: 24, port: 'BRVIX', fronts: ['importacao:carga_solta'] }], error: null })
+
+    const rows = (await fetchLineUpSnapshot()).rows.filter((row) => row.pod === 'BRVIX')
+
+    expect(rpc).toHaveBeenCalledWith('escala_frentes_sem_terminal', { p_voyage_ids: [24] })
+    expect(rows.find((row) => row.rowType === 'import')).toMatchObject({ importTerminal: 'TVV / TBC', pendingTerminalFronts: ['importacao:carga_solta'] })
+    expect(rows.find((row) => row.rowType === 'export')).toMatchObject({ exportTerminal: 'PORTMAC', pendingTerminalFronts: [] })
+  })
+
+  it('a falha da leitura das frentes sem terminal não derruba o Line-Up', async () => {
+    const { fetchLineUpSnapshot } = await import('../lineup')
+    from.mockImplementation(byTable({
+      voyages: [VOYAGE],
+      bls: [{ id: 'BL1', voyage_id: 24, pod: 'BRVIX', cargo_mode: 'container', ce_mercante: 'CE1', bb_machine_qty: 0, bb_packages_qty: 0 }],
+      voyage_escala_operation_fronts: [
+        { voyage_id: 24, port: 'BRVIX', sentido: 'importacao', modalidade: 'carga_cheia', terminal_id: 'import-terminal' },
+      ],
+      voyage_escala_terminal_state: [
+        { voyage_id: 24, port: 'BRVIX', terminal_id: 'import-terminal', terminal_atb: null, terminal_atd: null, terminal_rtw: null, revision: 1 },
+      ],
+      depots: [{ id: 'import-terminal', code: 'TVV', active: true }],
+    }))
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'function escala_frentes_sem_terminal does not exist' } })
+
+    const rows = (await fetchLineUpSnapshot()).rows.filter((row) => row.pod === 'BRVIX')
+
+    expect(rows.find((row) => row.rowType === 'import')).toMatchObject({ importTerminal: 'TVV', pendingTerminalFronts: [] })
   })
 
   it('reutiliza o snapshot anterior sem refazer a cadeia completa quando não houve alteração', async () => {

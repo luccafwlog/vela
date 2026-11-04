@@ -15,6 +15,7 @@ import {
 import { Modal } from '../ui/Modal'
 import { Field, Input, Select, Textarea } from '../ui/Input'
 import { Badge } from '../ui/Badge'
+import { StatusText } from '../ui/StatusText'
 import { Button } from '../ui/Button'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { useConfirm } from '../ui/ConfirmDialog'
@@ -380,6 +381,7 @@ function buildTerminalPayload({
   justification,
   exportExpectation,
   initialExportExpectation,
+  ata = null,
 }: {
   terminalScale: EscalaModalTerminalScale | null
   terminalFronts: Record<string, string>
@@ -387,6 +389,8 @@ function buildTerminalPayload({
   justification: string
   exportExpectation: Record<string, unknown>
   initialExportExpectation: Record<string, unknown>
+  /** ATA da escala com o fuso de Brasília (`combineBrasiliaDateTime`), para conferir o ATB. */
+  ata?: string | null
 }): { value?: EscalaModalPayload['terminalState']; error?: string; needsJustification?: boolean } {
   if (!terminalScale) return {}
   if (terminalScale.loading) return { error: 'Aguarde o carregamento das frentes e terminais antes de salvar a escala.' }
@@ -440,6 +444,11 @@ function buildTerminalPayload({
     if (!validationError && atd && (!atb || atd < atb)) {
       validationError = `Informe o ATB antes do ATD do terminal ${code}; o ATD não pode ser anterior ao ATB.`
     }
+    // D4 da revisão de 2026-11-04: o navio atraca depois de chegar ao porto.
+    // O banco recusa o mesmo (migration 583).
+    if (!validationError && isBeforeInstant(atb, ata)) {
+      validationError = `O ATB do terminal ${code} não pode ser anterior ao ATA da escala.`
+    }
     if (!validationError && restow !== null && (!Number.isInteger(restow) || restow < 0)) {
       validationError = `Restow inválido para o terminal ${code}.`
     }
@@ -485,6 +494,29 @@ function buildTerminalPayload({
     },
   }
 }
+
+/** `left` anterior a `right`, os dois com data e hora; data incompleta não é comparada. */
+function isBeforeInstant(left: string | null | undefined, right: string | null | undefined): boolean {
+  if (!left || !right || !left.includes('T') || !right.includes('T')) return false
+  const leftTime = Date.parse(left)
+  const rightTime = Date.parse(right)
+  return Number.isFinite(leftTime) && Number.isFinite(rightTime) && leftTime < rightTime
+}
+
+/**
+ * ETB anterior ao ETA da escala (D4 da revisão de 2026-11-04): só um aviso,
+ * porque é o caso comum do armador que atrasou a chegada e o ETB ficou como
+ * estava. ETA só com a data (planilha) vale desde 00:00 de Brasília.
+ */
+function etbBeforeEta(etbDate: string, etbTime: string, etaDate: string, etaTime: string): boolean {
+  if (!etbDate || !etaDate) return false
+  return isBeforeInstant(
+    combineBrasiliaDateTime(etbDate, etbTime.trim() || '00:00'),
+    combineBrasiliaDateTime(etaDate, etaTime.trim() || '00:00'),
+  )
+}
+
+const ETB_BEFORE_ETA_WARNING = 'ETB anterior ao ETA da escala: confira se o armador mudou a chegada.'
 
 const TBC_AFTER_ATA_MESSAGE = 'Com o ATA registrado, toda frente de operação precisa de terminal: TBC não é terminal. Escolha o terminal de cada frente.'
 
@@ -556,6 +588,7 @@ function TerminalFrontEditor({
   onTerminalChange,
   onDateChange,
   focusTerminalId,
+  eta = { date: '', time: '' },
 }: {
   scale: EscalaModalTerminalScale
   terminalFronts: Record<string, string>
@@ -566,6 +599,8 @@ function TerminalFrontEditor({
   onTerminalChange: (front: OperationFront, terminalId: string) => void
   onDateChange: (terminalId: string, field: keyof TerminalDatesDraft, value: string) => void
   focusTerminalId?: string | null
+  /** ETA digitado na janela, para o aviso do ETB anterior a ele. */
+  eta?: { date: string; time: string }
 }) {
   const sectionRef = useRef<HTMLElement>(null)
   const terminalRowRefs = useRef(new Map<string, HTMLDivElement>())
@@ -689,6 +724,12 @@ function TerminalFrontEditor({
                   <DateTimeField label="ATB · realizado" ariaLabel={`ATB ${code}`} date={draft.atbDate} time={draft.atbTime} onDateChange={field('atbDate')} onTimeChange={field('atbTime')} />
                   <DateTimeField label="ATD · realizado" ariaLabel={`ATD ${code}`} date={draft.atdDate} time={draft.atdTime} onDateChange={field('atdDate')} onTimeChange={field('atdTime')} />
                 </div>
+                {etbBeforeEta(draft.etbDate, draft.etbTime, eta.date, eta.time) ? (
+                  <p className="app-escala-note mt-2" role="status">
+                    <AlertTriangle size={13} aria-hidden="true" />
+                    <StatusText tone="warning">{ETB_BEFORE_ETA_WARNING}</StatusText>
+                  </p>
+                ) : null}
               </div>
             )
           })}
@@ -981,6 +1022,7 @@ export function EscalaModal({
     justification,
     exportExpectation: currentExportExpectation,
     initialExportExpectation,
+    ata: combineBrasiliaDateTime(ataDate, ataTime),
   })
   const documentalAltered = ceStatus !== getEditableVoyagePodCeStatus(escala?.ceStatus)
   const needsJustification = Boolean(terminalPreview.needsJustification) || documentalAltered
@@ -1272,6 +1314,7 @@ export function EscalaModal({
               onTerminalChange={handleTerminalChange}
               onDateChange={handleTerminalDateChange}
               focusTerminalId={escala.focusTerminalId}
+              eta={{ date: etaDate, time: etaTime }}
             />
           ) : null}
 

@@ -31,6 +31,8 @@ const CARGO_READ_KEYS: readonly (readonly unknown[])[] = [
   // As frentes do ADR por terminal nascem da carga (B/L, veículo, vazio):
   // importar uma frente nova precisa aparecer no ADR e em Editar escala.
   ['agency-report-terminal-state'],
+  // A mesma carga cria a frente sem terminal da Visão geral (migration 583).
+  queryKeys.voyages.escalasSemTerminal(),
   ['customer-detail'], ['customer-ficha'], ['customers-summary'],
   ['customer-communications'], queryKeys.dashboard(),
   ['demurrage-containers'], ['demurrage-invoices'], ['demurrage-invoice-detail'],
@@ -100,7 +102,7 @@ export async function afterViagemAlterada(queryClient: QueryInvalidator, options
 }
 
 export async function afterEscalaAlterada(queryClient: QueryInvalidator, options: { voyageId: number | string }): Promise<void> {
-  await invalidate(queryClient, [...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS, voyageTimelineKey(options.voyageId), ['voyages'], queryKeys.voyages.detail(Number(options.voyageId)), ['baplie-reconciliation'], queryKeys.baplie.voyageContext(Number(options.voyageId)), ['bl-cockpit'], ['agency-report'], ...LINEUP_KEYS])
+  await invalidate(queryClient, [...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS, voyageTimelineKey(options.voyageId), ['voyages'], queryKeys.voyages.detail(Number(options.voyageId)), ['baplie-reconciliation'], queryKeys.baplie.voyageContext(Number(options.voyageId)), ['bl-cockpit'], ['agency-report'], queryKeys.voyages.escalasSemTerminal(), ...LINEUP_KEYS])
 }
 
 /**

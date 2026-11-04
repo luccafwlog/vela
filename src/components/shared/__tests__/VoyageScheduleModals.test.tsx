@@ -694,6 +694,71 @@ describe('EscalaModal', () => {
     expect(payload.terminalState.terminals.every((terminal: { terminalId: string }) => terminal.terminalId)).toBe(true)
   })
 
+  // D4 da revisão de 2026-11-04: o navio atraca depois de chegar ao porto. O
+  // banco recusa o mesmo (migration 583); a janela avisa antes de gravar.
+  it('recusa ATB anterior ao ATA da escala', async () => {
+    const user = userEvent.setup()
+    const onSaved = renderEscala({
+      ...escalaBase,
+      ata: '2026-03-02T10:00:00',
+      terminalScale: {
+        ...terminalScaleBase,
+        fronts: [terminalScaleBase.fronts[0]],
+        terminals: [{ terminalId: 't-norte', atb: '2026-03-02T08:00:00-03:00', atd: null, restow: null }],
+      },
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert').textContent).toContain('O ATB do terminal T-NORTE não pode ser anterior ao ATA da escala.')
+  })
+
+  it('aceita ATB igual ou posterior ao ATA da escala', async () => {
+    const user = userEvent.setup()
+    const onSaved = renderEscala({
+      ...escalaBase,
+      ata: '2026-03-02T08:00:00',
+      terminalScale: {
+        ...terminalScaleBase,
+        fronts: [terminalScaleBase.fronts[0]],
+        terminals: [{ terminalId: 't-norte', atb: '2026-03-02T08:00:00-03:00', atd: null, restow: null }],
+      },
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+
+    expect(onSaved).toHaveBeenCalled()
+  })
+
+  it('avisa, sem impedir a gravação, o ETB anterior ao ETA da escala', async () => {
+    const user = userEvent.setup()
+    const onSaved = renderEscala({
+      ...escalaBase,
+      eta: '2026-03-05T10:00',
+      terminalScale: {
+        ...terminalScaleBase,
+        fronts: [terminalScaleBase.fronts[0]],
+        terminals: [{ terminalId: 't-norte', etb: '2026-03-04T08:00:00-03:00', atb: null, atd: null, restow: null }],
+      },
+    })
+
+    expect(screen.getByText('ETB anterior ao ETA da escala: confira se o armador mudou a chegada.')).toBeTruthy()
+    await user.clear(screen.getByLabelText('ETB T-NORTE'))
+    await user.type(screen.getByLabelText('ETB T-NORTE'), '2026-03-06')
+    expect(screen.queryByText('ETB anterior ao ETA da escala: confira se o armador mudou a chegada.')).toBeNull()
+    await user.clear(screen.getByLabelText('ETB T-NORTE'))
+    await user.type(screen.getByLabelText('ETB T-NORTE'), '2026-03-04')
+
+    await user.click(screen.getByRole('button', { name: 'Salvar escala' }))
+
+    expect(onSaved).toHaveBeenCalledWith(expect.objectContaining({
+      terminalState: expect.objectContaining({
+        terminals: [expect.objectContaining({ terminalId: 't-norte', etb: '2026-03-04T08:00:00-03:00' })],
+      }),
+    }))
+  })
+
   it('remove do payload o estado do terminal que ficou sem frente', async () => {
     const user = userEvent.setup()
     const onSaved = renderEscala(terminalEscala())

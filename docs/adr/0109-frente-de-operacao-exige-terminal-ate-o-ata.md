@@ -1,6 +1,9 @@
 # 0109 — Frente de operação exige terminal até o ATA
 
-Status: aceito — 2026-10-27 (decisão do dono sobre `02-viagens-adr:13`,
+> **Situação atual (2026-11-04).** A decisão vale inteira. A [ADR 0121](./0121-terminal-da-escala-cobrado-antes-da-chegada.md) a estende: o alerta "Escala sem terminal" cobra a frente sem terminal desde o 5º dia antes do ETA e de novo no ATA; o ATA confirmado em Chegadas e Saídas ou gravado na escala nova é aceito e cobrado pelo alerta, sem recusa; o banco recusa ATB anterior ao ATA.
+> Regra vigente em [Viagens](../modules/viagens.md#escala-atracação-e-datas).
+
+Status: estendida — 2026-10-27 (decisão do dono sobre `02-viagens-adr:13`,
 resposta "outra": TBC não é terminal; lote 9 do
 [plano de correções](../archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md)).
 Implementada nas migrations `477` e `482`.

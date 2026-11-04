@@ -71,6 +71,7 @@ export type ActiveAlertType =
   | 'voyage_vehicle_sheet_pending'
   | 'voyage_schedule_date_pending'
   | 'voyage_terminal_date_pending'
+  | 'voyage_escala_terminal_missing'
   | 'voyage_export_after_atd'
 
 export const TYPE_LABELS: Record<string, string> = {
@@ -138,6 +139,7 @@ export const TYPE_LABELS: Record<string, string> = {
   voyage_vehicle_sheet_pending: 'Planilha de Veículos pendente',
   voyage_schedule_date_pending: 'Data da escala pendente',
   voyage_terminal_date_pending: 'Data de terminal pendente',
+  voyage_escala_terminal_missing: 'Escala sem terminal',
   voyage_export_after_atd: 'Exportação pendente pós-ATD',
 }
 
@@ -432,6 +434,21 @@ function alertEntityLinkRaw(alert: {
     return '/taxas-locais'
   }
 
+  // NOB que não sai por falta de terminal (migration 583): a correção é a
+  // frente da escala, em Editar escala, não o Disparo.
+  if (
+    effectiveType === 'comunicado_nob_pendente'
+    && alert.entity_type === 'voyage_pod_schedule'
+    && alert.metadata?.scope === 'sem_terminal'
+  ) {
+    const [voyageId, port] = alert.entity_id.split('::')
+    if (/^\d+$/.test(voyageId)) {
+      const params = new URLSearchParams()
+      if (port) params.set('escala', port)
+      return `/viagens/${voyageId}${params.toString() ? `?${params.toString()}` : ''}`
+    }
+  }
+
   if (
     effectiveType === 'comunicado_noa_pendente'
     || effectiveType === 'comunicado_nor_pendente'
@@ -573,8 +590,13 @@ export function alertEntityLinkLabel(alert: {
   type: string
   item_type?: string | null
   entity_type: string | null
+  metadata?: Record<string, unknown> | null
 }): string {
   const effectiveType = getEffectiveAlertType(alert)
+  // NOB sem terminal (583): o link abre a escala, não o Disparo.
+  if (effectiveType === 'comunicado_nob_pendente' && alert.entity_type === 'voyage_pod_schedule' && alert.metadata?.scope === 'sem_terminal') {
+    return 'Abrir Viagem'
+  }
   if (
     effectiveType === 'comunicado_noa_pendente'
     || effectiveType === 'comunicado_nor_pendente'

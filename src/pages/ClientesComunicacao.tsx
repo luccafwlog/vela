@@ -41,6 +41,7 @@ import {
   fetchCustomerCommunicationHistory,
   type CustomerCommunicationConferenceRow,
   type CustomerCommunicationConference,
+  type CustomerCommunicationUncoveredNob,
   type CustomerCommunicationBlCandidate,
   type CustomerCommunicationDispatchMode,
   type CustomerCommunicationFilters,
@@ -1011,6 +1012,7 @@ export function ClientesComunicacao() {
                     </StatusText>
                   </p>
                 ) : null}
+                {conference?.uncoveredNobBls?.length ? <UncoveredNobNotice items={conference.uncoveredNobBls} /> : null}
 
                 {conference?.rows.length ? (
                   <>
@@ -1691,6 +1693,34 @@ export function ClientesComunicacao() {
 }
 
 /** Divisória interna do painel da direita, que é um cartão sem padding. */
+/**
+ * NOB: Clientes que ficaram fora porque o terminal do B/L não se resolve
+ * (revisão de 2026-11-04, T8). Antes sumiam da conferência sem aviso.
+ */
+function UncoveredNobNotice({ items }: { items: CustomerCommunicationUncoveredNob[] }) {
+  const semTerminal = items.filter((item) => item.reason === 'sem_terminal')
+  const misto = items.filter((item) => item.reason === 'misto_terminais_diferentes')
+  const describe = (list: CustomerCommunicationUncoveredNob[]) => list
+    .map((item) => `${item.customerName} (${item.blIds.join(', ')})`)
+    .join('; ')
+  return (
+    <div className="px-4 pt-1" role="status">
+      {semTerminal.length ? (
+        <p>
+          <StatusText tone="warning">Fora do NOB por falta de terminal: {describe(semTerminal)}.</StatusText>{' '}
+          Atribua o terminal da frente em Editar escala.
+        </p>
+      ) : null}
+      {misto.length ? (
+        <p className={semTerminal.length ? 'mt-1' : undefined}>
+          <StatusText tone="warning">Fora do NOB: {describe(misto)}.</StatusText>{' '}
+          B/L misto com carga cheia e carga solta em terminais diferentes: defina a exceção de terminal do B/L.
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 function PanelRule() {
   return <div className="h-px bg-[var(--app-border)]" />
 }
