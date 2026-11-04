@@ -894,6 +894,48 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(screen.getByText(/Atracação TBC/i)).toBeTruthy()
   })
 
+  // Revisão de 2026-11-04 (T8): quem fica fora do NOB por falta de terminal é avisado.
+  it('avisa no NOB quem ficou fora por falta de terminal e o B/L misto com as frentes em terminais diferentes', () => {
+    activeMockConference = {
+      kind: 'aviso_atracacao_nob',
+      nature: 'avisos_operacionais',
+      mode: 'carga',
+      totalCustomers: 0,
+      totalEligibleEmails: 0,
+      totalExcludedEmails: 0,
+      excludedReasonCounts: {
+        preferencia_desligada: 0,
+        email_ausente: 0,
+        suprimido_complaint: 0,
+        suprimido_bounce: 0,
+      },
+      blockedCustomers: [],
+      rows: [],
+      unassignedOperationFronts: true,
+      uncoveredNobBls: [
+        { customerId: 5, customerName: 'Alfa', reason: 'sem_terminal', blIds: ['BL-1', 'BL-2'] },
+        { customerId: 6, customerName: 'Beta', reason: 'misto_terminais_diferentes', blIds: ['BL-3'] },
+      ],
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>
+        <ClientesComunicacao />
+      </MemoryRouter>,
+    )
+
+    escolher(/NOB · Aviso de Atracação/)
+    fireEvent.change(screen.getByLabelText('Navio / Viagem'), { target: { value: '1' } })
+    fireEvent.click(screen.getByRole('button', { name: /Conferir destinatários/i }))
+
+    expect(screen.getByText('Fora do NOB por falta de terminal: Alfa (BL-1, BL-2).')).toBeTruthy()
+    expect(screen.getByText(/Atribua o terminal da frente em Editar escala\./)).toBeTruthy()
+    expect(screen.getByText('Fora do NOB: Beta (BL-3).')).toBeTruthy()
+    expect(screen.getByText(/B\/L misto com carga cheia e carga solta em terminais diferentes: defina a exceção de terminal do B\/L\./)).toBeTruthy()
+    // O aviso de todos fora continua.
+    expect(screen.getByText('Nenhuma carga disponível para envio de NOB')).toBeTruthy()
+  })
+
   it('depois de conferir, a composição colapsa numa faixa-resumo e o Editar a devolve', () => {
     render(
       <MemoryRouter initialEntries={['/clientes/comunicacao?tab=disparo']}>

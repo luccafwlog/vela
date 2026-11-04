@@ -33,6 +33,8 @@ import {
 import type { Voyage } from './voyageCardTypes'
 import type { EscalaModalData } from '../shared/VoyageScheduleModals'
 import { TransshipmentInfoCard } from './TransshipmentInfoCard'
+import { useEscalasSemTerminal } from '../../hooks/useEscalasSemTerminal'
+import { escalaSemTerminalKey, pendingFrontsTitle } from '../../services/escalaTerminalPendente'
 
 export function VoyageVisaoTab({
   voyage,
@@ -80,6 +82,8 @@ export function VoyageVisaoTab({
   const routesByBatchId = useMemo(() => groupBlsByRoute(voyage.bls), [voyage.bls])
 
   const { data: timelineSources } = useVoyageTimeline(voyage.id)
+  // Frentes sem terminal de cada escala, pela derivação do banco (migration 584).
+  const { data: escalasSemTerminal } = useEscalasSemTerminal([voyage.id])
   const timelineEvents = useMemo(
     () =>
       buildVoyageTimeline({
@@ -249,6 +253,7 @@ export function VoyageVisaoTab({
               <th scope="col" className="app-table__text-head">Porto</th>
               {/* Abaixo de 1024 px, Opera, ATA e Vinculada saem da linha (ficam no Editar). */}
               <th scope="col" className="app-table__text-head hidden lg:table-cell">Opera</th>
+              <th scope="col" className="app-table__text-head">Terminal</th>
               <th scope="col">ETA</th>
               <th scope="col" className="hidden lg:table-cell">ATA</th>
               <th scope="col">ATD</th>
@@ -292,6 +297,9 @@ export function VoyageVisaoTab({
                         {row.divergences.length ? <EscalaDivergenceWarning divergences={row.divergences} /> : null}
                       </td>
                       <td className="app-table__text hidden lg:table-cell">{escalaOperationText(row) ?? <NoValue label="Sem operação declarada" />}</td>
+                      <td className="app-table__text">
+                        <EscalaTerminalCell row={row} pendingFronts={escalasSemTerminal?.get(escalaSemTerminalKey(voyage.id, row.port)) ?? []} />
+                      </td>
                       <td className="tabular-nums">{row.eta ? formatDate(row.eta) : <NoValue label="Sem ETA" />}</td>
                       <td className="tabular-nums hidden lg:table-cell">{row.ata ? formatDate(row.ata) : <NoValue label="Sem ATA" />}</td>
                       <td className="tabular-nums">{row.atd ? formatDate(row.atd) : <NoValue label="Sem ATD" />}</td>
@@ -310,7 +318,7 @@ export function VoyageVisaoTab({
                     </tr>
                     {isOpen ? (
                       <tr id={panelId} data-row-detail>
-                        <td colSpan={9}>
+                        <td colSpan={10}>
                           {atracacoes.length ? (
                             <table className="app-table app-table--dense w-auto" aria-label={`Atracações de ${row.port}`}>
                               <thead>
@@ -369,7 +377,7 @@ export function VoyageVisaoTab({
               })
             ) : (
               <tr>
-                <td colSpan={9}>Nenhuma escala planejada para esta viagem.</td>
+                <td colSpan={10}>Nenhuma escala planejada para esta viagem.</td>
               </tr>
             )}
           </tbody>
@@ -384,6 +392,33 @@ export function VoyageVisaoTab({
       {planningContent}
       <VoyageTimeline events={timelineEvents} open={timelineOpen} onToggle={() => setTimelineOpen((value) => !value)} />
     </div>
+  )
+}
+
+/**
+ * Terminais das atracações da escala, na ordem delas, e "TBC" em âmbar quando
+ * alguma frente com carga ainda não tem terminal (o título diz quais). É o
+ * mesmo recorte que trava o Fechar ADR e abre o alerta "Escala sem terminal".
+ */
+function EscalaTerminalCell({ row, pendingFronts }: { row: VoyageEscalaSchedule; pendingFronts: readonly string[] }) {
+  const codes = [...new Set((row.atracacoes ?? [])
+    .filter((atracacao) => atracacao.terminalId)
+    .map((atracacao) => atracacao.terminalCode?.trim() || '—'))]
+  if (!codes.length && !pendingFronts.length) return <NoValue label="Sem terminal" />
+  const title = pendingFronts.length ? pendingFrontsTitle(pendingFronts) : null
+  return (
+    <>
+      {codes.join(' / ')}
+      {title ? (
+        <>
+          {codes.length ? ' / ' : null}
+          <span title={title}>
+            <StatusText tone="warning">TBC</StatusText>
+            <span className="sr-only"> ({title})</span>
+          </span>
+        </>
+      ) : null}
+    </>
   )
 }
 

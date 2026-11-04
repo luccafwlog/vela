@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { Link } from 'react-router-dom'
 import { Block, Fact, FactList } from '../ui/Block'
 import { NoValue } from '../ui/NoValue'
@@ -7,6 +8,7 @@ import type { LineUpRow } from '../../services/lineup'
 import { formatShortDateSafe } from '../../lib/utils'
 import { arrivalDisplay, deriveEscalaState } from '../../lib/escalaState'
 import { formatLineUpInteger, lineUpCeStatus, lineUpExportLabel, lineUpLinked } from './lineUpStatus'
+import { pendingFrontsTitle } from '../../services/escalaTerminalPendente'
 
 /**
  * Line-Up do Painel. A TV (`LineUpTVDisplay`) tem quadro próprio; os dois leem
@@ -95,7 +97,7 @@ export function LineUpTable({
                 </td>
                 <td>{row.voyageNumber}</td>
                 <td><PodCell row={row} /></td>
-                <td>{view.terminal}</td>
+                <td><TerminalCell row={row} /></td>
                 <td className="tabular-nums"><DateCell value={view.arrival.value} actual={view.arrival.isActual} actualTitle="ATA registrada" /></td>
                 <td className="tabular-nums"><DateCell value={view.berthing.value} actual={view.berthing.isActual} actualTitle="ATB registrada" /></td>
                 {view.isExport ? (
@@ -126,7 +128,6 @@ function lineUpRowView(row: LineUpRow) {
   const isExport = row.rowType === 'export'
   return {
     isExport,
-    terminal: isExport ? row.exportTerminal : row.importTerminal,
     arrival: arrivalDisplay({ eta: row.eta, ata: row.ata }),
     berthing: row.atb ? { value: row.atb, isActual: true } : { value: row.etb, isActual: false },
     isBerthed: deriveEscalaState({ atb: row.atb, atd: row.atd }) === 'atracada',
@@ -144,7 +145,7 @@ function LineUpCard({ row }: { row: LineUpRow }) {
       aside={aside}
     >
       <FactList columns={3}>
-        <Fact label="Terminal">{view.terminal}</Fact>
+        <Fact label="Terminal"><TerminalCell row={row} /></Fact>
         <Fact label="ETA"><DateCell value={view.arrival.value} actual={view.arrival.isActual} actualTitle="ATA registrada" /></Fact>
         <Fact label="ETB"><DateCell value={view.berthing.value} actual={view.berthing.isActual} actualTitle="ATB registrada" /></Fact>
         {view.isExport ? null : (
@@ -163,6 +164,33 @@ function LineUpCard({ row }: { row: LineUpRow }) {
       </FactList>
       {view.isExport ? <p className="mt-2 text-[var(--app-muted)]">{lineUpExportLabel(row)}</p> : null}
     </Block>
+  )
+}
+
+/**
+ * Terminal da linha. O "TBC" de uma frente com carga e sem terminal (migration
+ * 584) fica em âmbar, com as frentes no título; o "TBC" da escala ainda sem
+ * carga (planejamento) continua em texto comum.
+ */
+function TerminalCell({ row }: { row: LineUpRow }) {
+  const label = row.rowType === 'export' ? row.exportTerminal : row.importTerminal
+  const pending = row.pendingTerminalFronts ?? []
+  if (!pending.length) return <>{label}</>
+  const title = pendingFrontsTitle(pending)
+  return (
+    <>
+      {label.split(' / ').map((part, index) => (
+        <Fragment key={`${part}-${index}`}>
+          {index > 0 ? ' / ' : null}
+          {part === 'TBC' ? (
+            <span title={title}>
+              <StatusText tone="warning">TBC</StatusText>
+              <span className="sr-only"> ({title})</span>
+            </span>
+          ) : part}
+        </Fragment>
+      ))}
+    </>
   )
 }
 

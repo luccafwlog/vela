@@ -151,7 +151,7 @@ export function Painel() {
             />
             {unassignedMty.length ? <UnassignedMtyNote items={unassignedMty} /> : null}
             <p className="border-t border-[var(--app-border-soft)] px-4 py-2 text-xs text-[var(--app-muted)]">
-              Faixa verde à esquerda: navio atracado · ✓ data efetiva (ATA na coluna ETA, ATB na coluna ETB) · TBC: terminal sem atribuição ·
+              Faixa verde à esquerda: navio atracado · ✓ data efetiva (ATA na coluna ETA, ATB na coluna ETB) · TBC: terminal sem atribuição; em âmbar, a carga da escala já pede o terminal (filtro Terminal › Sem terminal) ·
               VIN veículos · VIN CNTR containers com veículos · CG carga geral · MTY vazios · RTW restow · BB máquinas / packages ·
               Vinculada: manifesto vinculado à escala. Cada número abre a lista filtrada.
             </p>

@@ -371,10 +371,25 @@ export type CustomerCommunicationConference = {
   blockedCustomers: CustomerCommunicationConferenceRow[]
   excludedReasonCounts: Record<CustomerCommunicationExcludedReason, number>
   unassignedOperationFronts?: boolean
+  /**
+   * NOB: Clientes com B/L que não pertence a nenhuma Atracação porque o terminal
+   * não se resolve (frente sem terminal, ou B/L misto com as duas frentes em
+   * terminais diferentes e sem exceção). Ficam fora da lista e são avisados.
+   */
+  uncoveredNobBls?: CustomerCommunicationUncoveredNob[]
   /** Modo carga: B/Ls ativos da Viagem sem Cliente vinculado, que ficam fora da lista. */
   blsWithoutCustomer?: number
   /** Modo carga com a lista vazia: o motivo, em português (`describeEmptyCargoConference`). */
   emptyReason?: string | null
+}
+
+export type CustomerCommunicationUncoveredNobReason = 'sem_terminal' | 'misto_terminais_diferentes'
+
+export type CustomerCommunicationUncoveredNob = {
+  customerId: number
+  customerName: string
+  reason: CustomerCommunicationUncoveredNobReason
+  blIds: string[]
 }
 
 export type CommunicationFilterValidation = {
@@ -788,6 +803,51 @@ export async function fetchAssignedOperationFrontKeys(voyageIds: readonly number
   return keys
 }
 
+/**
+ * B/Ls fora de qualquer NOB porque o terminal não se resolve, espelho de
+ * `resolve_bl_terminal_id` (ADR 0068): sem exceção de terminal, o B/L herda a
+ * frente da sua modalidade; sem frente com terminal, fica "sem terminal"; o
+ * misto com carga cheia e carga solta em terminais diferentes também não se
+ * resolve. O B/L que pertence à Atracação de outro terminal não entra aqui.
+ * Revisão de 2026-11-04 (T3, T7 e T8): antes eles sumiam da conferência.
+ */
+export function uncoveredNobCandidates(
+  rows: readonly CustomerCommunicationBlCandidate[],
+  schedulesByVoyage: ReadonlyMap<number, readonly VoyageEscalaSchedule[]>,
+  assignedFrontKeys: ReadonlySet<string>,
+): CustomerCommunicationUncoveredNob[] {
+  // `${voyageId}::${porto}::${modalidade}` → terminais com essa frente.
+  const terminalsByFront = new Map<string, Set<string>>()
+  for (const key of assignedFrontKeys) {
+    const [voyageId, port, terminalId, modalidade] = key.split('::')
+    if (!voyageId || !terminalId || !modalidade) continue
+    const frontKey = `${voyageId}::${port ?? ''}::${modalidade}`
+    const terminals = terminalsByFront.get(frontKey) ?? new Set<string>()
+    terminals.add(terminalId)
+    terminalsByFront.set(frontKey, terminals)
+  }
+  const grouped = new Map<string, CustomerCommunicationUncoveredNob>()
+  for (const row of rows) {
+    const schedule = scheduleForCandidate(row, schedulesByVoyage.get(row.voyageId) ?? [])
+    if (!schedule || schedule.deleted || schedule.podDeleted || schedule.omitted) continue
+    if (row.terminalOverrideId) continue
+    const kinds = operationFrontKindsForCargoMode(row.cargoMode)
+    if (!kinds.length) continue
+    const terminalsByKind = kinds.map((kind) => terminalsByFront.get(`${row.voyageId}::${communicationPortCode(row.pod ?? '') ?? ''}::${kind}`) ?? new Set<string>())
+    let reason: CustomerCommunicationUncoveredNobReason | null = null
+    if (terminalsByKind.some((terminals) => terminals.size === 0)) reason = 'sem_terminal'
+    else if (![...terminalsByKind[0]!].some((terminalId) => terminalsByKind.every((terminals) => terminals.has(terminalId)))) reason = 'misto_terminais_diferentes'
+    if (!reason) continue
+    const groupKey = `${row.customerId}::${reason}`
+    const group = grouped.get(groupKey) ?? { customerId: row.customerId, customerName: row.customerName, reason, blIds: [] }
+    if (!group.blIds.includes(row.id)) group.blIds.push(row.id)
+    grouped.set(groupKey, group)
+  }
+  return [...grouped.values()]
+    .map((group) => ({ ...group, blIds: [...group.blIds].sort() }))
+    .sort((left, right) => left.customerName.localeCompare(right.customerName, 'pt-BR') || left.reason.localeCompare(right.reason))
+}
+
 export function expandCandidatesForKind(
   rows: readonly CustomerCommunicationBlCandidate[],
   schedulesByVoyage: ReadonlyMap<number, readonly VoyageEscalaSchedule[]>,
@@ -1081,6 +1141,9 @@ export async function fetchCustomerCommunicationConference(input: {
   const filtered = ceCustomers
     ? baseRows.filter((row) => ceCustomers.has(row.customerId) && voyageIds.includes(row.voyageId))
     : expandCandidatesForKind(inScope, schedulesByVoyage, operationalKind, assignedFrontKeys)
+  const uncoveredNobBls = operationalKind === 'aviso_atracacao_nob' && assignedFrontKeys
+    ? uncoveredNobCandidates(inScope, schedulesByVoyage, assignedFrontKeys)
+    : []
   let unassignedOperationFronts = false
   if (operationalKind === 'aviso_atracacao_nob' && filtered.length === 0) {
     if (expandCandidatesForKind(inScope, schedulesByVoyage, operationalKind, undefined).length > 0) {
@@ -1147,6 +1210,7 @@ export async function fetchCustomerCommunicationConference(input: {
     ceMercante,
     now: input.now,
   })
+  if (uncoveredNobBls.length) conference.uncoveredNobBls = uncoveredNobBls
   if (!cargo) return conference
   return {
     ...conference,

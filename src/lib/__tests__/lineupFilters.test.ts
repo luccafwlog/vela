@@ -62,6 +62,20 @@ describe('filterLineUpRows', () => {
     expect(filterLineUpRows(rows, { ...emptyLineUpFilters(), ces: 'approved', linked: 'with' }).map((item) => item.id)).toEqual(['1::SSZ', 'exp::3'])
   })
 
+  // Revisão de 2026-11-04 (D5): Terminal › Sem terminal fica com as linhas,
+  // de importação ou de exportação, que têm frente do seu sentido sem terminal.
+  it('Terminal "Sem terminal" fica só com as linhas com frente pendente, nos dois sentidos', () => {
+    const pendentes = [
+      ...rows,
+      row({ id: '6::BRVIX', voyageId: 6, importTerminal: 'TVV / TBC', pendingTerminalFronts: ['importacao:carga_solta'] }),
+      row({ id: 'exp::6::BRVIX', voyageId: 6, rowType: 'export', exportTerminal: 'TBC', pendingTerminalFronts: ['exportacao:granito'] }),
+      row({ id: '7::BRVIX', voyageId: 7, importTerminal: 'TVV', pendingTerminalFronts: [] }),
+    ]
+    expect(filterLineUpRows(pendentes, { ...emptyLineUpFilters(), terminal: 'pending' }).map((item) => item.id)).toEqual(['6::BRVIX', 'exp::6::BRVIX'])
+    expect(filterLineUpRows(pendentes, emptyLineUpFilters())).toHaveLength(pendentes.length)
+    expect(countActiveLineUpFilters({ ...emptyLineUpFilters(), terminal: 'pending' })).toBe(1)
+  })
+
   it('conta filtros ativos sem contar as datas isoladamente', () => {
     expect(countActiveLineUpFilters({ ...emptyLineUpFilters(), search: 'Aurora', periodo: 'custom', dataInicio: '2026-07-11', dataFim: '2026-07-12', linked: 'with' })).toBe(3)
   })

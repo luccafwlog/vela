@@ -129,6 +129,39 @@ vi.mock('@tanstack/react-query', () => ({
           exportMovementsQty: null,
           exportCeStatus: 'approved',
           exportLinked: true,
+        }, {
+          // Revisão de 2026-11-04 (D5): B/Ls de carga solta e nenhuma frente com terminal.
+          id: '4::VIX',
+          voyageId: 4,
+          voyageNumber: 'V4',
+          voyageStatus: 'active',
+          vesselName: 'Navio sem terminal',
+          pod: 'VIX',
+          eta: '2026-11-12',
+          etb: null,
+          ata: null,
+          atb: null,
+          rowType: 'import',
+          importTerminal: 'TBC',
+          exportTerminal: 'TBC',
+          vin: 0,
+          car: 0,
+          cg: 0,
+          total: 0,
+          mty: 0,
+          rtw: null,
+          bbMachines: 2,
+          bbPackages: 0,
+          bbTotal: 2,
+          atd: null,
+          ceStatus: 'received',
+          linked: false,
+          exportHasGranite: null,
+          exportContainersQty: null,
+          exportMovementsQty: null,
+          exportCeStatus: null,
+          exportLinked: null,
+          pendingTerminalFronts: ['importacao:carga_solta'],
         }],
         unassignedMty: [{ voyageId: 1, voyageNumber: 'V1', vesselName: 'Navio ativo', pod: 'BRRIO', count: 2 }],
         lastChangedAt: '2026-06-23T00:00:00Z',
@@ -221,6 +254,24 @@ it('exibe terminal por sentido na mesma linha da escala e preserva TBC', () => {
   expect(screen.getByText('TVV')).toBeTruthy()
   expect(screen.getByText('PORTMAC')).toBeTruthy()
   expect(screen.getByText(/TBC: terminal sem atribuição/)).toBeTruthy()
+})
+
+// Revisão de 2026-11-04 (D5): o TBC da carga sem terminal fica em âmbar, com
+// as frentes no título; o TBC do planejamento sem carga continua em texto comum.
+it('destaca em âmbar o TBC da carga sem terminal e filtra por Terminal › Sem terminal', () => {
+  renderPainel()
+
+  const pendingRow = screen.getByRole('link', { name: 'Navio sem terminal' }).closest('tr')!
+  const amber = pendingRow.querySelector('.app-status-text--warning')
+  expect(amber?.textContent).toBe('TBC')
+  expect(amber?.closest('[title]')?.getAttribute('title')).toBe('Sem terminal: carga solta. Atribua o terminal em Editar escala.')
+  const exportRow = screen.getByRole('link', { name: 'Navio exportação' }).closest('tr')!
+  expect(exportRow.querySelector('.app-status-text--warning')).toBeNull()
+
+  fireEvent.change(screen.getByLabelText('Terminal'), { target: { value: 'pending' } })
+  expect(screen.getByRole('link', { name: 'Navio sem terminal' })).toBeTruthy()
+  expect(screen.queryByRole('link', { name: 'Navio ativo' })).toBeNull()
+  expect(screen.queryByRole('link', { name: 'Navio exportação' })).toBeNull()
 })
 
 it('usa ATA na coluna ETA, ATB na coluna ETB e destaca somente a escala atracada', () => {
