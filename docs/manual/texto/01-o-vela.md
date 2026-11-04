@@ -129,7 +129,7 @@ Relatórios, na aba Operacional.
 
 **Exportar planilha** leva o recorte inteiro para o Excel, com uma aba que registra os filtros usados.
 
-Na aba **Demurrage**, **Planilha do armador** baixa o relatório no formato que a equipe de Demurrage envia ao armador, uma linha por container. A aba **Demurrage** traz os containers das Invoices em aberto, emitidas no período. A aba **Not Invoiced** traz o que ainda não foi faturado: o container devolvido que espera os outros do B/L, o que ainda está fora (calculado até o dia da exportação) e o que já pode ser faturado. A Viagem e o Cliente escolhidos valem para as duas abas.
+Na aba **Demurrage**, **Planilha do armador** baixa o relatório no formato que a equipe de Demurrage envia ao armador, uma linha por container. A aba **Demurrage** traz os containers com demurrage das Invoices em aberto, emitidas no período; o container devolvido no free time, que a Invoice traz com valor zero, não aparece. A aba **Not Invoiced** traz o que ainda não foi faturado: o container devolvido que espera os outros do B/L, o que ainda está fora (calculado até o dia da exportação) e o que já pode ser faturado. A Viagem e o Cliente escolhidos valem para as duas abas.
 
 ## 1.6 Quando algo dá errado
 

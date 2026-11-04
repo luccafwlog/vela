@@ -106,9 +106,15 @@ function blColumns(bl: CarrierReportBl | undefined, blId: string) {
   }
 }
 
-/** Aba Demurrage: um item de Invoice em aberto por linha, da emissão mais antiga para a mais recente. */
+/**
+ * Aba Demurrage: um item de Invoice em aberto por linha, da emissão mais
+ * antiga para a mais recente. O container devolvido no free time entra na
+ * Invoice com valor zero, mas não é demurrage: fica de fora, como no modelo
+ * enviado ao armador, que não tem linha com EXCESS 0.
+ */
 export function carrierInvoicedLines(items: readonly DemurrageItemReportRow[], bls: ReadonlyMap<string, CarrierReportBl>): CarrierReportLine[] {
-  return [...items]
+  return items
+    .filter((item) => (excessDays(item) ?? 0) > 0)
     .sort((left, right) => (left.invoice.billed_at ?? '').localeCompare(right.invoice.billed_at ?? '')
       || left.invoice.doc_number.localeCompare(right.invoice.doc_number)
       || left.container_number.localeCompare(right.container_number))

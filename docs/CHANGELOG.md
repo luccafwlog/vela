@@ -6,6 +6,10 @@
 
 ## 2026-11
 
+- **Planilha do armador sem o container no free time (2026-11-03):** a aba **Demurrage** da Planilha do armador
+  listava também o container devolvido dentro do free time, que a Invoice traz com US$ 0,00 (EXCESS 0). Ele sai da
+  planilha, como no modelo que a equipe envia ao armador; o total das Invoices não muda
+  ([Operação e suporte](modules/operacao-suporte.md#relatorios)).
 - **Planilha de Demurrage do armador (2026-11-03, issue #1139; decisões do dono):** em **Relatórios › Demurrage**,
   **Planilha do armador** baixa o relatório no layout que a equipe de Demurrage envia ao armador, uma linha por
   container (INVOICE … TOTAL USD), com as Invoices em aberto. A aba nova **Not Invoiced** traz o que o formato antigo
