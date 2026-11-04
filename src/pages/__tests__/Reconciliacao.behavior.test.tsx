@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
@@ -134,7 +134,7 @@ function renderPage(path = '/reconciliacao?tab=recebidos') {
       </MemoryRouter>
     </QueryClientProvider>,
   )
-  return { invalidate }
+  return { invalidate, queryClient }
 }
 
 const transaction = { txid: 'INV-001', cnpj: '123', date: '2026-06-23', amount: 100, lineNumber: 5 }
@@ -333,6 +333,25 @@ describe('Conciliação PIX', () => {
     await user.click(screen.getByRole('button', { name: 'Marcar como tratado' }))
     await waitFor(() => expect(mocks.markHandled).toHaveBeenLastCalledWith('E9', 'Rest. registrada'))
     expect(await screen.findByText(/marcado como tratado; o Alerta do recebimento foi encerrado/)).toBeTruthy()
+  })
+
+  it('a resposta de "marcado como tratado" sai da tela quando a releitura traz um Pix novo', async () => {
+    const receipt = (id: string, amount: number) => ({ endToEndId: id, txid: `VELA-${id}`, amount, paidAt: '2026-10-06T14:00:00Z', reason: 'Fatura cancelada.' })
+    mocks.itauMonitor.mockResolvedValue({ provider: 'itau', polledUntil: new Date().toISOString(), counts: {}, charges: [], receipts: [receipt('E9', 5)] })
+    mocks.markHandled.mockResolvedValueOnce(undefined)
+    const user = userEvent.setup()
+    const { queryClient } = renderPage()
+
+    await user.click(await screen.findByRole('button', { name: /^Marcar como tratado o Pix de R\$\s5,00 recebido em / }))
+    mocks.itauMonitor.mockResolvedValue({ provider: 'itau', polledUntil: new Date().toISOString(), counts: {}, charges: [], receipts: [] })
+    await user.type(screen.getByLabelText(/Motivo do tratamento/), 'Restituído')
+    await user.click(screen.getByRole('button', { name: 'Marcar como tratado' }))
+    expect(await screen.findByText(/marcado como tratado; o Alerta do recebimento foi encerrado/)).toBeTruthy()
+
+    mocks.itauMonitor.mockResolvedValue({ provider: 'itau', polledUntil: new Date().toISOString(), counts: {}, charges: [], receipts: [receipt('E10', 7)] })
+    await act(async () => { await queryClient.invalidateQueries() })
+    expect(await screen.findByRole('button', { name: /^Marcar como tratado o Pix de R\$\s7,00 recebido em / })).toBeTruthy()
+    expect(screen.queryByText(/marcado como tratado; o Alerta do recebimento foi encerrado/)).toBeNull()
   })
 
   it('lê o extrato, salva as exceções e separa o que entra no lote do que fica pendente', async () => {
@@ -612,6 +631,9 @@ describe('Conciliação PIX', () => {
     renderPage()
     expect(await screen.findByText('Baixa automática ligada')).toBeTruthy()
     await waitFor(() => expect(mocks.listExceptions).toHaveBeenCalled())
+    // Conferir só depois de a lista de exceções responder: durante o
+    // carregamento o bloco também não aparece, e o teste passaria à toa.
+    await act(async () => { await mocks.listExceptions.mock.results[0]!.value })
     expect(screen.getByRole('heading', { name: 'Pix recebidos' })).toBeTruthy()
     // A cobrança na fila sem erro é só contagem; nenhum bloco vazio de pendência.
     const itau = screen.getByRole('heading', { name: 'Cobrança Pix Itaú' }).closest('section')!
@@ -650,6 +672,25 @@ describe('Conciliação PIX', () => {
     await user.click(within(ask).getByRole('button', { name: 'Descartar leitura' }))
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Conciliar extrato Pix do Itaú' })).toBeNull())
     expect(mocks.confirm).not.toHaveBeenCalled()
+  })
+
+  it('com a leitura em andamento, X e Escape não fecham a janela', async () => {
+    let finishRead: (value: unknown) => void = () => {}
+    mocks.parse.mockImplementationOnce(() => new Promise((resolve) => { finishRead = resolve }))
+    const user = userEvent.setup()
+    renderPage()
+    await chooseExtract(user)
+    const dialog = screen.getByRole('dialog', { name: 'Conciliar extrato Pix do Itaú' })
+    await waitFor(() => expect(mocks.parse).toHaveBeenCalled())
+
+    await user.click(within(dialog).getByRole('button', { name: 'Fechar modal' }))
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('dialog', { name: 'Conciliar extrato Pix do Itaú' })).toBeTruthy()
+    expect(screen.queryByText('Descartar a leitura?')).toBeNull()
+
+    // A leitura termina e a janela segue com a prévia.
+    await act(async () => { finishRead({ transactions: [transaction], ignored: 0, errors: [] }) })
+    expect(await screen.findByRole('heading', { name: 'Prévia' })).toBeTruthy()
   })
 
   it('sem nada lido, Voltar fecha a janela sem perguntar', async () => {

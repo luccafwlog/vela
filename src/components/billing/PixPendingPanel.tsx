@@ -173,10 +173,13 @@ function ItauStatus({ query, monitor }: { query: ReturnType<typeof useItauPixMon
 function ReceiptsBlock({ monitor }: { monitor: ItauPixMonitor | undefined }) {
   const queryClient = useQueryClient()
   const [form, setForm] = useState<{ endToEndId: string; note: string; error: string | null } | null>(null)
-  const [done, setDone] = useState<string | null>(null)
+  // A resposta da última ação vale para a lista que a pessoa viu: o Pix novo
+  // que a releitura de cada minuto trouxer a tira da tela.
+  const [lastDone, setLastDone] = useState<{ text: string; seen: ReadonlySet<string> } | null>(null)
   const noteRef = useRef<HTMLTextAreaElement>(null)
   const triggerRefs = useRef(new Map<string, HTMLButtonElement>())
   const receipts = monitor?.receipts ?? []
+  const done = lastDone && receipts.every((receipt) => lastDone.seen.has(receipt.endToEndId)) ? lastDone.text : null
   // Ler é de todos; tratar é do Financeiro e da conta Dev (migration 583).
   const { can } = useAuth()
   const canReconcile = can('manage_payments')
@@ -198,7 +201,10 @@ function ReceiptsBlock({ monitor }: { monitor: ItauPixMonitor | undefined }) {
     mutationFn: ({ endToEndId, note }: { endToEndId: string; note: string; amount: number }) => markItauPixReceiptHandled(endToEndId, note),
     onSuccess: async (_data, { amount }) => {
       setForm(null)
-      setDone(`Pix de ${formatBRL(amount)} marcado como tratado; o Alerta do recebimento foi encerrado.`)
+      setLastDone({
+        text: `Pix de ${formatBRL(amount)} marcado como tratado; o Alerta do recebimento foi encerrado.`,
+        seen: new Set(receipts.map((receipt) => receipt.endToEndId)),
+      })
       await afterPendenciaPixAlterada(queryClient)
     },
     onError: (error: Error) => setForm((current) => (current ? { ...current, error: extractErrorText(error) } : current)),
@@ -248,7 +254,7 @@ function ReceiptsBlock({ monitor }: { monitor: ItauPixMonitor | undefined }) {
                             label={`Marcar como tratado o Pix de ${formatBRL(receipt.amount)} recebido em ${cellInstant(receipt.paidAt)}`}
                             title="Marcar como tratado"
                             icon={CheckCheck}
-                            onClick={() => { setDone(null); setForm({ endToEndId: receipt.endToEndId, note: '', error: null }) }}
+                            onClick={() => { setLastDone(null); setForm({ endToEndId: receipt.endToEndId, note: '', error: null }) }}
                           />
                         ) : null}
                       </td>
@@ -345,7 +351,9 @@ function settleErrorText(error: unknown, docNumber: string | null) {
   return `${extractErrorText(error)} Nenhuma baixa foi gravada; a exceção continua pendente.`
 }
 
-type ExceptionFeedback = { id: number; tone: 'danger' | 'success'; text: string }
+// `seen`: as exceções na tela quando a ação respondeu; a exceção nova que a
+// releitura trouxer tira da tela a resposta que ficou sem linha.
+type ExceptionFeedback = { id: number; tone: 'danger' | 'success'; text: string; seen?: ReadonlySet<number> }
 
 function ExceptionsBlock({ query }: { query: ReturnType<typeof usePixExceptions> }) {
   const queryClient = useQueryClient()
@@ -361,6 +369,7 @@ function ExceptionsBlock({ query }: { query: ReturnType<typeof usePixExceptions>
   // fatura na exceção antes da baixa (vínculo) e encerrar a partir dela.
   const [unclosed, setUnclosed] = useState<ReadonlyMap<number, { resolution: PixExceptionResolution; docNumber: string }>>(() => new Map())
   const exceptions = query.data ?? []
+  const seenNow = () => new Set(exceptions.map((exception) => exception.id))
 
   function rememberUnclosed(exceptionId: number, error: unknown) {
     if (!(error instanceof SettleError) || !error.pending) return
@@ -384,7 +393,7 @@ function ExceptionsBlock({ query }: { query: ReturnType<typeof usePixExceptions>
     },
     onMutate: () => setFeedback(null),
     onSuccess: async (docNumber, exception) => {
-      setFeedback({ id: exception.id, tone: 'success', text: `${docNumber}: baixa confirmada pelo banco (Pix de ${formatBRL(exception.amount)}, linha ${exception.lineNumber}).` })
+      setFeedback({ id: exception.id, tone: 'success', text: `${docNumber}: baixa confirmada pelo banco (Pix de ${formatBRL(exception.amount)}, linha ${exception.lineNumber}).`, seen: seenNow() })
       await afterPixConciliado(queryClient)
     },
     onError: async (error, exception) => {
@@ -413,7 +422,7 @@ function ExceptionsBlock({ query }: { query: ReturnType<typeof usePixExceptions>
     onMutate: () => setFeedback(null),
     onSuccess: async (docNumber, { exception }) => {
       setOpenId(null)
-      setFeedback({ id: exception.id, tone: 'success', text: `${docNumber}: baixa confirmada pelo banco (Pix de ${formatBRL(exception.amount)}, linha ${exception.lineNumber}).` })
+      setFeedback({ id: exception.id, tone: 'success', text: `${docNumber}: baixa confirmada pelo banco (Pix de ${formatBRL(exception.amount)}, linha ${exception.lineNumber}).`, seen: seenNow() })
       await afterPixConciliado(queryClient)
     },
     onError: async (error, { exception, candidate }) => {
@@ -432,7 +441,7 @@ function ExceptionsBlock({ query }: { query: ReturnType<typeof usePixExceptions>
     onMutate: () => setFeedback(null),
     onSuccess: async (_data, { exception, docNumber }) => {
       setUnclosed((current) => { const next = new Map(current); next.delete(exception.id); return next })
-      setFeedback({ id: exception.id, tone: 'success', text: `${docNumber}: exceção encerrada; a baixa já estava gravada.` })
+      setFeedback({ id: exception.id, tone: 'success', text: `${docNumber}: exceção encerrada; a baixa já estava gravada.`, seen: seenNow() })
       await afterPixConciliado(queryClient)
     },
     onError: (error, { exception, docNumber }) =>
@@ -444,11 +453,13 @@ function ExceptionsBlock({ query }: { query: ReturnType<typeof usePixExceptions>
     : linkMutation.isPending
       ? linkMutation.variables?.exception.id
       : closeMutation.isPending ? closeMutation.variables?.exception.id : null
-  const successElsewhere = feedback?.tone === 'success' && !exceptions.some((exception) => exception.id === feedback.id)
+  const successElsewhere = feedback?.tone === 'success'
+    && !exceptions.some((exception) => exception.id === feedback.id)
+    && exceptions.every((exception) => feedback.seen?.has(exception.id) ?? true)
 
   // Erro de consulta não vira lista vazia: aparece. Carregando ou sem exceção,
   // o bloco sai da aba, a não ser que traga a resposta da última ação.
-  if (!query.error && !exceptions.length && !feedback) return null
+  if (!query.error && !exceptions.length && !successElsewhere) return null
 
   return (
     <Block

@@ -11,7 +11,7 @@ Quando alguma coisa precisa de uma pessoa e ninguém pediu, o Vela abre um alert
 
 **Quem faz:** {{Todas as equipes}}
 
-A fila é uma só para todas as equipes: o setor é um filtro, não uma fila separada. Cada alerta tem um setor responsável (**Documentação**, **Equipamentos**, **Operações** ou **Administrativo**) e uma gravidade: **Crítico**, em vermelho, ou **Normal**. O {{Financeiro}} não é setor de alerta: os alertas de dinheiro ficam no setor {{Administrativo}} e chegam ao Financeiro pelo sino ([20.3](#203-acompanhar-o-sino)).
+A fila é uma só para todas as equipes: o setor é um filtro, não uma fila separada. Cada alerta tem um setor responsável (**Documentação**, **Equipamentos**, **Operações** ou **Administrativo**) e uma gravidade: **Crítico**, em vermelho, ou **Normal**. O {{Financeiro}} não é setor de alerta: os alertas de dinheiro ficam no setor {{Administrativo}} e chegam ao Financeiro pelo sino ([20.3](#203-acompanhar-o-sino)). Desde 2026-11-04, tratar o que eles pedem (baixa, Conciliação PIX, Restituição) é do Financeiro e, no Administrativo, só da conta com a marca Dev ([24](24-pagamento-e-restituicao.md)).
 
 ::: passos
 1. No menu, abra **Alertas** › **Alertas**, ou clique no cartão da sua equipe no **Painel**: a fila abre já no seu setor.
