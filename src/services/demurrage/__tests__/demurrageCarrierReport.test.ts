@@ -85,6 +85,19 @@ describe('planilha de Demurrage do armador (#1139)', () => {
     })
   })
 
+  it('o container devolvido no free time (item de US$ 0,00 na Invoice) não sai na aba Demurrage, como no modelo', () => {
+    const lines = carrierInvoicedLines([
+      item({ container_number: 'CSGU6473850', total_days: 34, free_days: 21, days_p1: 13, days_p2: 0, subtotal_usd: 860 }),
+      item({ container_number: 'CSGU6757013', total_days: 19, free_days: 21, days_p1: 0, days_p2: 0, subtotal_usd: 0 }),
+      item({ container_number: 'GCXU6153951', total_days: 39, free_days: 21, days_p1: 15, days_p2: 3, subtotal_usd: 1260 }),
+    ], bls)
+
+    expect(lines.map((line) => line.container)).toEqual(['CSGU6473850', 'GCXU6153951'])
+    expect(lines.every((line) => (line.excess ?? 0) > 0)).toBe(true)
+    // O total da Invoice não muda: o item removido vale zero.
+    expect(lines.reduce((sum, line) => sum + (line.totalUsd ?? 0), 0)).toBe(2120)
+  })
+
   it('a aba Not Invoiced diz a situação para o armador sem expor o motivo interno', () => {
     expect(carrierPendingStatus({ state: 'running', return_date: null, division: 'correndo' })).toBe('NOT RETURNED (CALCULATED TO DATE)')
     expect(carrierPendingStatus({ state: 'returned_overstay', return_date: '2026-10-20', division: 'correndo' })).toBe('RETURNED - AWAITING OTHER CONTAINERS OF THE B/L')
