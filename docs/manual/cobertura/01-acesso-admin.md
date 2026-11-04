@@ -139,7 +139,7 @@ repositório.
 | ACE-116 | **Desativar e reativar Cliente; trocar o CNPJ do Portal; Liberação de faturamento**: só o Administrativo. | Op 2; Op 11; Op 17 | Adm | `permissao:desativar-cliente` |
 | ACE-117 | **Ver pedidos e abrir documentos** do Desbloqueio de CE: qualquer setor; a tela Desbloqueio de CE abre para todos. A lista **Planilhas enviadas à ZPT** e as confirmações do pedido (CE confirmado, referência externa) ficam só com Administrativo e Documentação (ACE-124). | Op 2; Op 10 | Todos | `permissao:ver-desbloqueio` |
 | ACE-118 | **Gerir pedidos, documentos, exportação para a ZPT e conciliação** do Desbloqueio de CE: Administrativo e Documentação. | Op 2; Op 10 | Adm + Doc | `permissao:gerir-desbloqueio` |
-| ACE-119 | **Recebe os alertas do próprio setor** no sino (desde 2026-10-27, migration `476`, só os do setor responsável): Administrativo 18 tipos (os 11 dele, desde a migration `485` os quatro críticos de contato e Portal da Documentação, desde a `495` Taxa alterada à mão mudou, desde a `516` Demurrage travada e, desde a `535`, Retorno do provedor de e-mail não aplicado) e também os críticos de setor sem ninguém ativo; Financeiro 5 (PIX sem conciliação segura, Consulta de Pix do Itaú parada, Restituição pendente, Fatura desatualizada e, desde a migration `495`, Taxa alterada à mão mudou); Operações 6 (desde a migration `584`, com Escala sem terminal); Documentação 36 (com a Demurrage travada pelos motivos CE, Cliente e Portal, migration `516`); Equipamentos 5 (Disputa de invoice Demurrage, desde a migration `520` Disputa de Demurrage sem resposta no prazo, Planilha de Veículos pendente e os dois do ADR). Operações e Equipamentos contam os dois tipos do ADR da própria seção. | Op 2; Op 16 | Todos | `permissao:alertas-do-setor` | 18 tipos + críticos sem ninguém / 5 / 6 / 36 / 5 | Desde a migration `476`, a entrega (`fanout_alert_item_for_department`) vai ao setor responsável do item e, nos quatro tipos do dinheiro, também ao Financeiro; nos quatro críticos de contato e Portal da Documentação, também ao Administrativo (migration `485`); a audiência do catálogo diz o mesmo; crítico sem destinatário vai ao Administrativo | Bate (Operações e Equipamentos contam os dois tipos do ADR da própria seção) |
+| ACE-119 | **Recebe os alertas do próprio setor** no sino (desde 2026-10-27, migration `476`, só os do setor responsável): Administrativo 15 tipos (os 11 dele, entre eles Taxa alterada à mão mudou desde a `495`, Demurrage travada desde a `516` e Retorno do provedor de e-mail não aplicado desde a `535`, e, desde a migration `485`, os quatro críticos de contato e Portal da Documentação) e também os críticos de setor sem ninguém ativo; até a migration `587` eram 18, com os três do dinheiro; Financeiro 5 (do próprio setor desde a migration `587`: PIX sem conciliação segura, Consulta de Pix do Itaú parada e Restituição pendente; avisado em Fatura desatualizada e, desde a migration `495`, Taxa alterada à mão mudou); Operações 6 (desde a migration `584`, com Escala sem terminal); Documentação 36 (com a Demurrage travada pelos motivos CE, Cliente e Portal, migration `516`); Equipamentos 5 (Disputa de invoice Demurrage, desde a migration `520` Disputa de Demurrage sem resposta no prazo, Planilha de Veículos pendente e os dois do ADR). Operações e Equipamentos contam os dois tipos do ADR da própria seção. | Op 2; Op 16 | Todos | `permissao:alertas-do-setor` | 15 tipos + críticos sem ninguém / 5 / 6 / 36 / 5 | Desde a migration `476`, a entrega (`fanout_alert_item_for_department`) vai ao setor responsável do item e, na Fatura desatualizada e na Taxa alterada à mão mudou, também ao Financeiro (os outros três do dinheiro são do Financeiro desde a `587`); nos quatro críticos de contato e Portal da Documentação, também ao Administrativo (migration `485`); a audiência do catálogo diz o mesmo; crítico sem destinatário vai ao Administrativo | Bate (Operações e Equipamentos contam os dois tipos do ADR da própria seção) |
 | ACE-120 | Todos os setores mudam terminal, ATB, ATD, Restow e as frentes de operação da atracação de uma escala (migration `477`, ACE-D02); tirar uma atracação, inclusive ao trocar o terminal da única frente dela, é de Operações e do Administrativo ("Somente Operações e o Administrativo removem atracação."), e a atracação de um terminal não sai quando algum B/L desse terminal (ou ainda sem terminal) tem CE Mercante ou fatura, ou com o ADR do terminal fechado (conferência de 2026-11-03); a Atracação TBC, sem terminal, sai sem essas travas e por qualquer setor (migration `482`, `delete_lock_reasons` da `191`). Fica fora da matriz só o terminal do ADR antigo (por porto), de Operações e Administrativo ("Terminal pertence ao departamento operações."), e a tela só libera esse campo a eles. | Op 2; Op 4; Op 9 | Todos; Ope + Adm | `save_voyage_escala_terminal_state`, `gatilho:guard_terminal_state_removal`, `set_agency_report_terminal`, `src/components/voyages/VoyageAgencyReportTab.tsx` |
 | ACE-121 | O resumo diário do Portal (e-mail interno) vai às pessoas ativas de Administrativo e Documentação, menos a conta de integração. O antigo "Operador", que vale como Documentação no resto do Vela, não recebe: o Administrativo passa essas pessoas para Documentação em **Usuários** › **Editar acesso** (decisão de 2026-10-27, ficha ACE-D13; a lista mostra "setor antigo Operador"). | Op 13; Op 2 | Adm + Doc | `supabase/functions/portal-daily-digest/index.ts` |
 | ACE-122 | Conferências do sistema por trás da matriz: "é do Administrativo", "é do Financeiro ou do Administrativo" e "é usuário interno ativo", esta para gravar e para ler. Todas exigem perfil ativo e deixam de valer na hora em que o acesso da pessoa é revogado. | Op 2 | Todos | `funcao:is_admin`, `funcao:is_financeiro_user`, `funcao:is_active_user`, `funcao:is_active_read_user` |
@@ -388,25 +388,29 @@ checagem de setor dentro delas não vale para nenhuma pessoa.
   setor do catálogo de alertas (`responsible_department`) ou, nas pendências
   do ADR de Saída, o dono da seção pendente: um item para Operações, um para
   Documentação e um para Equipamentos no mesmo ADR.
-- Cartões fixos: **Documentação**, **Equipamentos**, **Operações** e
-  **Administrativo**. Tipos ativos por responsável no catálogo: Documentação
-  35, Administrativo 11, Operações 3, Equipamentos 2 (Disputa de invoice
-  Demurrage e, desde a migration `468`, Planilha de Veículos pendente), mais os itens do ADR por seção.
+- Cartões fixos: **Documentação**, **Equipamentos**, **Operações**,
+  **Financeiro** (desde a migration `587`) e **Administrativo**. Tipos ativos
+  por responsável no catálogo: Documentação 35, Administrativo 11, Operações 4
+  (com Escala sem terminal, migration `584`), Equipamentos 3 (Disputa de
+  invoice Demurrage, Planilha de Veículos pendente, migration `468`, e Disputa
+  de Demurrage sem resposta no prazo, migration `520`) e Financeiro 3, mais os
+  itens do ADR por seção.
 - Alerta antigo, sem item por setor, conta no cartão do responsável do
   tipo no catálogo; só cai em **Sem setor** quando o tipo não está no
   catálogo. Hoje todo tipo do catálogo (ativo ou não) tem responsável, então
   **Sem setor** só aparece com alerta de tipo fora do catálogo. O cartão
   aparece quando tem alerta ativo.
-- **Não há cartão do Financeiro.** O banco só aceita item de alerta nos
-  setores Operações, Documentação, Equipamentos e Administrativo, e os tipos
-  que avisam o Financeiro (PIX sem conciliação segura, Consulta de Pix do Itaú
-  parada, Restituição pendente, Fatura desatualizada) têm o Administrativo
-  como responsável: aparecem no cartão **Administrativo** e no sino do
-  Financeiro.
+- **Cartão do Financeiro (desde 2026-11-04, migration `587`).** O banco passou
+  a aceitar o Financeiro como setor de alerta. PIX sem conciliação segura,
+  Consulta de Pix do Itaú parada e Restituição pendente, que só o Financeiro
+  e a conta Dev resolvem (migration `583`), têm o Financeiro como responsável
+  e aparecem no cartão **Financeiro**. Antes, ficavam no cartão
+  **Administrativo** e chegavam ao Financeiro só pelo sino. Todas as equipes
+  veem todos os alertas na fila; o cartão filtra.
 - Desde 2026-10-27 (migration `476`), quem recebe no sino é quem aparece no
   cartão: cada setor recebe só os alertas de que é responsável (no ADR, os da
-  própria seção). A exceção é o Financeiro, que recebe os 4 tipos do
-  Administrativo citados acima.
+  própria seção). A exceção é o Financeiro, que recebe também Fatura
+  desatualizada e Taxa alterada à mão mudou, do Administrativo.
 
 ### 4. Quem trabalha em mais de um setor
 
@@ -462,7 +466,7 @@ checagem de setor dentro delas não vale para nenhuma pessoa.
 |---|---|
 | Só ele (no Administrativo, só a conta Dev; desde a migration `583`) | Baixa manual de fatura e de Invoice de Demurrage; cancelar baixa (fatura e Invoice); preparar cancelamento financeiro de B/L; confirmar a Restituição; conciliar Pix (vincular, confirmar, tratar exceção, baixar Pix recebido, marcar recebimento Itaú). Com o Administrativo: liquidar Ajuste de COD; cancelar fatura sem pagamento. Com o Administrativo e Equipamentos: Informar PTAX e ROE manual; cancelar Invoice de Demurrage sem pagamento; intervalo da Régua |
 | Assina no ADR de Saída | Nada |
-| Recebe | 5 tipos no sino (PIX sem conciliação segura, Consulta de Pix do Itaú parada, Restituição pendente, Fatura desatualizada, Taxa alterada à mão mudou); não tem cartão no Painel: esses alertas contam no cartão **Administrativo** |
+| Recebe | 5 tipos no sino: os 3 do próprio setor (PIX sem conciliação segura, Consulta de Pix do Itaú parada, Restituição pendente), que contam no cartão **Financeiro** do Painel desde a migration `587`, e Fatura desatualizada e Taxa alterada à mão mudou, do cartão **Administrativo** |
 | Todos os setores podem | Como na Documentação. |
 
 ### Administrativo
@@ -472,7 +476,7 @@ checagem de setor dentro delas não vale para nenhuma pessoa.
 | Só ele | Administração (usuários, falhas de entrega, histórico de ações, sistema, Prazo do ADR); criar, editar acesso, desativar e reativar usuário; ligar o envio real; excluir Viagem, escala, atracação, B/L, container e cadastro sem uso (Cliente, só o sem CNPJ, que na prática não existe: desative); cancelar e reativar Viagem e B/L; excluir taxa manual; desativar, reativar e excluir tarifa, Local e serviço; incluir e corrigir item de tabela já usada e editar Condição de Cliente; desativar e reativar Cliente; trocar o CNPJ do Portal; Liberação de faturamento |
 | Também pode | Tudo o que os outros setores fazem, inclusive as exclusivas de Equipamentos e Documentação, e, com o Financeiro, cancelar fatura sem pagamento e liquidar Ajuste de COD; com o Financeiro e Equipamentos, cancelar Invoice de Demurrage sem pagamento e mudar o intervalo da Régua. Baixa, cancelamento de baixa, preparar cancelamento financeiro, Restituição e Conciliação Pix, só a conta Dev (desde a migration `583`; antes, todo Administrativo). A conta Dev pode tudo o que qualquer setor pode |
 | Assina no ADR de Saída | Qualquer seção (cobre quem faltar) |
-| Recebe | 18 tipos no sino (composição em ACE-119): os do cartão **Administrativo** (entre eles os 4 do Financeiro) e os quatro críticos de contato e Portal da Documentação (migration `485`), e os críticos sem destinatário no setor (**Entrega alternativa**); resumo diário do Portal por e-mail; a aba Falhas de entrega de alertas |
+| Recebe | 15 tipos no sino (composição em ACE-119): os do cartão **Administrativo** (entre eles Fatura desatualizada e Taxa alterada à mão mudou, que avisam também o Financeiro; os outros três do dinheiro são do cartão **Financeiro** desde a migration `587`) e os quatro críticos de contato e Portal da Documentação (migration `485`), e os críticos sem destinatário no setor (**Entrega alternativa**); resumo diário do Portal por e-mail; a aba Falhas de entrega de alertas |
 | Todos os setores podem | Como na Documentação |
 
 ## Divergências

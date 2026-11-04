@@ -55,7 +55,8 @@ type AlertRuleDraft = Omit<AlertRule, 'label' | 'notifiedDepartments' | 'respons
 }
 
 export const ALERT_RULE_DEPARTMENTS: AlertRuleDepartment[] = ['documentacao', 'equipamentos', 'operacoes']
-// Financeiro recebe os alertas de baixa e Restituição (migration 247).
+// Financeiro: setor de Pix não conciliado, Consulta do Itaú parada e
+// Restituição pendente desde a migration 587; avisado nos outros do dinheiro.
 const DEPARTMENT_ORDER: AlertRuleDepartment[] = [...ALERT_RULE_DEPARTMENTS, 'financeiro', 'administrativo']
 
 export const ALERT_RULE_DEPARTMENT_LABELS: Record<AlertRuleDepartment, string> = {
@@ -277,8 +278,9 @@ const ALERT_RULES_BASE = [
   {
     type: 'itau_pix_consulta_parada',
     domain: 'Financeiro',
-    responsible: 'administrativo',
-    catalogAudience: ['administrativo', 'financeiro'],
+    responsible: 'financeiro',
+    catalogAudience: ['financeiro'],
+    routingNote: 'Do setor Financeiro desde a migration 587 (decisão do dono de 2026-11-04): só o Financeiro e a conta Dev fazem o que ele pede (migration 583). Antes ficava no Administrativo e avisava o Financeiro.',
     entityType: 'itau_pix_checkpoint',
     severity: 'critical',
     summary: 'A consulta de recebimentos do Itaú não avança há mais de 15 minutos: Pix pagos (pela cobrança Itaú ou pelo QR estático) não são baixados.',
@@ -417,9 +419,9 @@ const ALERT_RULES_BASE = [
   {
     type: 'pix_unreconciled',
     domain: 'Financeiro',
-    responsible: 'administrativo',
-    catalogAudience: ['administrativo', 'financeiro'],
-    routingNote: 'O alerta fica no setor Administrativo e avisa também o Financeiro (migration 476). Desde a migration 583, tratar o Pix (baixar, conciliar o extrato, marcar como tratado) é só do Financeiro e da conta Dev; o Administrativo comum acompanha.',
+    responsible: 'financeiro',
+    catalogAudience: ['financeiro'],
+    routingNote: 'Do setor Financeiro desde a migration 587 (decisão do dono de 2026-11-04): só o Financeiro e a conta Dev fazem o que ele pede (migration 583). Antes ficava no Administrativo e avisava o Financeiro.',
     entityType: 'pix_transaction',
     severity: 'critical',
     summary: 'Um PIX não encontrou uma correspondência segura com a cobrança esperada.',
@@ -877,8 +879,9 @@ const ALERT_RULES_BASE = [
     afterResolution: 'A reemissão ou o cancelamento fecham o alerta. Para avulsa, registre a resolução com justificativa.',
   },
   {
-    type: 'restituicao_pendente', domain: 'Financeiro', responsible: 'administrativo',
-    catalogAudience: ['administrativo', 'financeiro'], entityType: 'invoice', severity: 'normal',
+    type: 'restituicao_pendente', domain: 'Financeiro', responsible: 'financeiro',
+    catalogAudience: ['financeiro'], entityType: 'invoice', severity: 'normal',
+    routingNote: 'Do setor Financeiro desde a migration 587 (decisão do dono de 2026-11-04): só o Financeiro e a conta Dev fazem o que ele pede (migration 583). Antes ficava no Administrativo e avisava o Financeiro.',
     summary: 'Há dinheiro a devolver ao Cliente: uma restituição da fatura ou da Invoice de Demurrage está pendente.',
     trigger: 'Qualquer restituição pendente: excedente de baixa, Pix em duplicidade, correção do B/L em fatura paga que passa do saldo, restituição excepcional, troca de CNPJ, cancelamento financeiro do B/L ou Invoice de Demurrage.',
     timing: 'No fim da transação da correção.',

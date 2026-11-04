@@ -11,7 +11,7 @@ Quando alguma coisa precisa de uma pessoa e ninguém pediu, o Vela abre um alert
 
 **Quem faz:** {{Todas as equipes}}
 
-A fila é uma só para todas as equipes: o setor é um filtro, não uma fila separada. Cada alerta tem um setor responsável (**Documentação**, **Equipamentos**, **Operações** ou **Administrativo**) e uma gravidade: **Crítico**, em vermelho, ou **Normal**. O {{Financeiro}} não é setor de alerta: os alertas de dinheiro ficam no setor {{Administrativo}} e chegam ao Financeiro pelo sino ([20.3](#203-acompanhar-o-sino)). Desde 2026-11-04, tratar o que eles pedem (baixa, Conciliação PIX, Restituição) é do Financeiro e, no Administrativo, só da conta com a marca Dev ([24](24-pagamento-e-restituicao.md)).
+A fila é uma só para todas as equipes: o setor é um filtro, não uma fila separada. Todas as equipes veem todos os alertas. Cada alerta tem um setor responsável (**Documentação**, **Equipamentos**, **Operações**, **Financeiro** ou **Administrativo**) e uma gravidade: **Crítico**, em vermelho, ou **Normal**. O setor diz de quem é a ação: desde 2026-11-04, os alertas que só o {{Financeiro}} resolve (**PIX sem conciliação segura**, **Consulta de Pix do Itaú parada** e **Restituição pendente**) são do setor {{Financeiro}} ([20.10](#2010-pix-e-pagamento)); a **Fatura desatualizada**, que qualquer equipe corrige, continua no {{Administrativo}} e avisa o {{Financeiro}}.
 
 ::: passos
 1. No menu, abra **Alertas** › **Alertas**, ou clique no cartão da sua equipe no **Painel**: a fila abre já no seu setor.
@@ -54,7 +54,7 @@ Se a causa volta depois de o alerta fechar, ele reabre e as pessoas são avisada
 
 **Quem faz:** {{Todas as equipes}}
 
-O sino é pessoal: traz as **Notificações internas**, o aviso de que abriu um alerta para a sua equipe. Cada pessoa ativa recebe os alertas do seu setor; o {{Financeiro}} recebe também os de dinheiro, e o {{Administrativo}}, os críticos de contato e de fatura do Cliente. O "Quem recebe" de cada assunto diz quais.
+O sino é pessoal: traz as **Notificações internas**, o aviso de que abriu um alerta para a sua equipe. Cada pessoa ativa recebe os alertas do seu setor; o {{Financeiro}} recebe também a Fatura desatualizada e a Taxa alterada à mão mudou, e o {{Administrativo}}, os críticos de contato e de fatura do Cliente. O "Quem recebe" de cada assunto diz quais.
 
 ::: passos
 1. Clique no sino, na barra do alto. Com o menu na lateral, ele fica no pé do menu, como **Notificações**.
@@ -197,7 +197,7 @@ Estes alertas avisam quando a cobrança da Demurrage não anda sem uma pessoa. A
 
 ## 20.10 Pix e pagamento
 
-**Quem recebe:** {{Administrativo}} e {{Financeiro}}
+**Quem recebe:** {{Financeiro}}. São do setor {{Financeiro}} desde 2026-11-04: só ele, e no {{Administrativo}} a conta com a marca Dev, dá baixa, concilia e confirma a restituição. As outras equipes veem esses alertas na fila, sem aviso no sino. Se não houver ninguém ativo no {{Financeiro}}, o alerta crítico avisa o {{Administrativo}}.
 
 O Pix de uma cobrança do Vela que não pode ser baixado sozinho com segurança vira alerta. O Pix do QR estático e o feito digitando a chave ficam **Sem baixa** em **Pix recebidos**, sem alerta ([24.1](24-pagamento-e-restituicao.md#241-acompanhar-a-baixa-automática-do-pix)).
 

@@ -213,9 +213,10 @@ describeLocal('440 — conta de integração (API ITAÚ) — PostgreSQL local', 
       expect(result.stderr).toBe('')
       return result.stdout.split('\n').find((line) => line.startsWith('RECIPIENTS='))?.slice('RECIPIENTS='.length)
     }
-    // Desde a 476 o Pix avisa o responsável (Administrativo) e o Financeiro: a
-    // pessoa do Administrativo, sem a integração nem a Documentação.
-    expect(recipients('pix_unreconciled')).toBe(personAdminId)
+    // A Fatura desatualizada avisa o responsável (Administrativo) e o Financeiro
+    // (476): a pessoa do Administrativo, sem a integração nem a Documentação. O
+    // Pix não conciliado, que fazia esse papel aqui, é do Financeiro desde a 587.
+    expect(recipients('fatura_desatualizada')).toBe(personAdminId)
     // Crítico só de Documentação, sem ninguém dela ativo: cai no fallback Administrativo, só na pessoa.
     expect(recipients('billing_auto_issue_failed', `SET LOCAL session_replication_role = replica;
       UPDATE public.user_profiles SET active = false WHERE role IN ('documentacao', 'operator');

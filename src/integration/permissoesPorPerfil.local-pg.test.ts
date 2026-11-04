@@ -654,10 +654,15 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     for (const call of [...P5_READ, ...P5_ANY]) expectPastProfileGuard(runAs(profile, call), `${profile}: ${call}`)
   })
 
-  it('P5: Pix não conciliado, Fatura desatualizada e Restituição pendente avisam o Financeiro', () => {
-    expect(psql(`SELECT string_agg(type, ',' ORDER BY type) FROM public.alert_type_catalog
-      WHERE type IN ('pix_unreconciled', 'fatura_desatualizada', 'restituicao_pendente') AND 'financeiro' = ANY(audience_departments)
-        AND 'administrativo' = ANY(audience_departments);`)).toBe('fatura_desatualizada,pix_unreconciled,restituicao_pendente')
+  // Migration 587 (decisão do dono de 2026-11-04): o que só o Financeiro resolve
+  // é do setor Financeiro; a Fatura desatualizada, que todos corrigem, segue no
+  // Administrativo e avisa o Financeiro.
+  it('P5: Pix não conciliado, Consulta do Itaú parada e Restituição pendente são do Financeiro; Fatura desatualizada o avisa', () => {
+    expect(psql(`SELECT string_agg(type || ':' || responsible_department || ':' || array_to_string(audience_departments, '+'), ',' ORDER BY type)
+      FROM public.alert_type_catalog
+      WHERE type IN ('pix_unreconciled', 'fatura_desatualizada', 'restituicao_pendente', 'itau_pix_consulta_parada');`))
+      .toBe('fatura_desatualizada:administrativo:administrativo+financeiro,itau_pix_consulta_parada:financeiro:financeiro,'
+        + 'pix_unreconciled:financeiro:financeiro,restituicao_pendente:financeiro:financeiro')
   })
 
   // A18 + P12 — leitura global nas telas restantes (ADR 0085, D11, D12, D16, D17; migration 250).

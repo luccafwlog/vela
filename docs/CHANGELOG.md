@@ -6,6 +6,11 @@
 
 ## 2026-11
 
+- **Alertas do Pix e da Restituição no setor Financeiro (2026-11-04, migration `587`; decisão do dono):**
+  **Pix não conciliado**, **Consulta de Pix do Itaú parada** e **Restituição pendente**, que desde a `583` só o
+  Financeiro e a conta Dev resolvem, passam do setor Administrativo para o Financeiro, que ganha cartão no Painel e
+  em **Alertas** e recebe o sino só dele. Todos os setores continuam vendo todos os alertas. **Fatura desatualizada**
+  segue no Administrativo, avisando o Financeiro ([ADR 0107](adr/0107-sino-so-do-setor-responsavel.md)).
 - **Terminal da escala cobrado antes da chegada (2026-11-04, migration `584`,
   [ADR 0121](adr/0121-terminal-da-escala-cobrado-antes-da-chegada.md); decisões do dono sobre a
   [revisão do vínculo de terminal](archive/audits/2026-11-04-revisao-vinculo-terminal-escala.md)):** o alerta

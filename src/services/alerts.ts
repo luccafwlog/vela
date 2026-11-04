@@ -177,11 +177,11 @@ export type AlertEventUnit = 'bl' | 'invoice' | 'pix_transaction' | 'itau_pix_re
 // (itau_pix_receipt, migration 153).
 export const FINANCIAL_ALERT_EVENTS = {
   fatura_desatualizada: { audience: ['administrativo', 'financeiro'], units: ['invoice'] },
-  restituicao_pendente: { audience: ['administrativo', 'financeiro'], units: ['invoice'] },
+  restituicao_pendente: { audience: ['financeiro'], units: ['invoice'] },
   billing_calculation_blocked: { audience: ['documentacao'], units: ['bl'] },
   billing_auto_issue_failed: { audience: ['documentacao'], units: ['bl'] },
   demurrage_ptax_recalc_failed: { audience: ['documentacao'], units: ['exchange_rate_reference'] },
-  pix_unreconciled: { audience: ['administrativo', 'financeiro'], units: ['pix_transaction', 'itau_pix_receipt'] },
+  pix_unreconciled: { audience: ['financeiro'], units: ['pix_transaction', 'itau_pix_receipt'] },
   portal_dispute_opened: { audience: ['equipamentos'], units: ['demurrage_invoice'] },
 } as const satisfies Record<string, { audience: readonly AlertAudience[]; units: readonly AlertEventUnit[] }>
 
@@ -200,12 +200,14 @@ import { AGENCY_REPORT_DEPARTMENT_LABELS, agencyReportSectionLabel } from './age
 
 /**
  * Setor responsável por um alerta, como a fila e o Painel o mostram. Os três
- * setores do ADR mais o Administrativo, responsável por parte do catálogo
- * (Pix, restituição, cobrança de Demurrage, rotinas). "Sem setor" é o alerta
- * anterior à divisão por setor.
+ * setores do ADR, o Financeiro (Pix não conciliado, Consulta do Itaú parada e
+ * Restituição pendente, migration 587) e o Administrativo (cobrança de
+ * Demurrage, rotinas, contato do Cliente). "Sem setor" é o alerta anterior à
+ * divisão por setor.
  */
 export const ALERT_DEPARTMENT_LABELS: Record<string, string> = {
   ...AGENCY_REPORT_DEPARTMENT_LABELS,
+  financeiro: 'Financeiro',
   administrativo: 'Administrativo',
   sem_departamento: 'Sem setor',
 }

@@ -108,7 +108,8 @@ describeLocal('077 — Baplie importado por qualquer Departamento ativo', () => 
 function migration078Applied() {
   if (!enabled) return false
   try {
-    return psql(`SELECT responsible_department FROM public.alert_type_catalog WHERE type = 'pix_unreconciled';`) === 'administrativo'
+    // 587: o tipo passou do Administrativo para o Financeiro.
+    return ['administrativo', 'financeiro'].includes(psql(`SELECT responsible_department FROM public.alert_type_catalog WHERE type = 'pix_unreconciled';`))
   } catch {
     return false
   }
@@ -116,7 +117,7 @@ function migration078Applied() {
 
 const describe078 = describeWithProbe(migration078Applied, 'migration078Applied')
 
-describe078('078 — PIX sem conciliação na fila do Administrativo', () => {
+describe078('078 — PIX sem conciliação na fila de um setor (Administrativo; Financeiro desde a 587)', () => {
   const ENTITY = 'pix-078-local-pg'
 
   afterAll(() => {
@@ -128,8 +129,9 @@ describe078('078 — PIX sem conciliação na fila do Administrativo', () => {
     `)
   })
 
-  it('abre o item com o Administrativo como setor responsável', () => {
-    // Antes da 078 a fila recusava 'administrativo' ("Departamento inválido").
+  it('abre o item com o setor responsável do catálogo, hoje o Financeiro (587)', () => {
+    // Antes da 078 a fila recusava 'administrativo' ("Departamento inválido");
+    // antes da 587, 'financeiro'.
     psql(`
       BEGIN;
       SELECT set_config('request.jwt.claim.role', 'service_role', true);
@@ -137,7 +139,7 @@ describe078('078 — PIX sem conciliação na fila do Administrativo', () => {
       COMMIT;
     `)
     expect(psql(`SELECT ai.department || '/' || ai.severity FROM public.alert_items ai
-      JOIN public.alerts a ON a.id = ai.alert_id WHERE a.entity_id = '${ENTITY}';`)).toBe('administrativo/critical')
+      JOIN public.alerts a ON a.id = ai.alert_id WHERE a.entity_id = '${ENTITY}';`)).toBe('financeiro/critical')
   })
 
   it('rebaixa Granito sem cliente para Normal', () => {

@@ -59,11 +59,13 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
  * (CE, Cliente, Portal; migration 516). Equipamentos recebe também o prazo da Disputa
  * de Demurrage (migration 520). O Financeiro recebe os quatro da exceção do dono e a Taxa alterada à mão mudou (migration 495).
  * O Administrativo recebe também o Retorno do provedor de e-mail não aplicado (migration 535).
- * Operações recebe também a Escala sem terminal (migration 584).
+ * Operações recebe também a Escala sem terminal (migration 584). Desde a migration 587,
+ * Pix não conciliado, Consulta de Pix do Itaú parada e Restituição pendente são do setor
+ * Financeiro e saem do Administrativo.
  * A bateria confere estes números no banco.
  */
 export const ALERT_TYPE_COUNTS: Readonly<Record<Department, number>> = {
-  administrativo: 18,
+  administrativo: 15,
   financeiro: 5,
   operacoes: 6,
   documentacao: 36,
@@ -174,12 +176,12 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     id: 'alertas-do-setor', group: 'alertas', action: 'Recebe os alertas do próprio setor',
     can: {
       administrativo: `${alertTypes(ALERT_TYPE_COUNTS.administrativo)} (inclusive os quatro críticos de contato e Portal da Documentação); também os críticos de setor sem ninguém ativo`,
-      financeiro: `${alertTypes(ALERT_TYPE_COUNTS.financeiro)} (Pix, consulta Itaú parada, Restituição, Fatura desatualizada, Taxa alterada à mão mudou)`,
+      financeiro: `${alertTypes(ALERT_TYPE_COUNTS.financeiro)} (do próprio setor: Pix não conciliado, Consulta de Pix do Itaú parada e Restituição pendente; avisado em Fatura desatualizada e Taxa alterada à mão mudou)`,
       operacoes: alertTypes(ALERT_TYPE_COUNTS.operacoes),
       documentacao: alertTypes(ALERT_TYPE_COUNTS.documentacao),
       equipamentos: alertTypes(ALERT_TYPE_COUNTS.equipamentos),
     },
-    proof: ['caso: Catálogo: cada setor recebe os tipos de alerta que a tela diz', 'caso: P5: Pix não conciliado, Fatura desatualizada e Restituição pendente avisam o Financeiro'],
+    proof: ['caso: Catálogo: cada setor recebe os tipos de alerta que a tela diz', 'caso: P5: Pix não conciliado, Consulta do Itaú parada e Restituição pendente são do Financeiro; Fatura desatualizada o avisa'],
   },
 ]
 
