@@ -1,8 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, Ban, MoreHorizontal, RotateCcw, Upload } from 'lucide-react'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, Ban, MoreHorizontal, RotateCcw, Trash2, Upload } from 'lucide-react'
 import { countDistinctContainerNumbers, countDistinctContainerNumbersBy } from '../lib/containerCounts'
 import { Badge } from '../components/ui/Badge'
 import { Card } from '../components/ui/Card'
@@ -24,7 +24,9 @@ import { useBlDetail } from '../hooks/useBls'
 import { useBlEditForm } from '../hooks/useBlEditForm'
 import { useBlCockpit } from '../hooks/useBlCockpit'
 import { useAuth } from '../hooks/useAuth'
-import { afterBlEstadoAlterado, afterTerminalDoBlAlterado } from '../services/cacheEffects'
+import { afterBlEstadoAlterado, afterCargaAlterada, afterTerminalDoBlAlterado } from '../services/cacheEffects'
+import { checkBlDependencies, deleteBls } from '../services/bls'
+import { buildDeleteAffected } from '../services/deleteDependencies'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { cancelBl, reactivateBl } from '../services/blState'
@@ -85,6 +87,12 @@ function demurrageCancelHref(blId: string, reasons: readonly string[]) {
     : `/demurrage?busca=${search}`
 }
 
+// Sem motivo na resposta, o banco não achou o B/L (já excluído noutra aba).
+function deleteRefusalReasons(blocked: ReadonlyArray<{ reasons: string[] }>): string[] {
+  const reasons = blocked.flatMap((item) => item.reasons)
+  return reasons.length > 0 ? reasons : ['o B/L não foi encontrado; ele pode já ter sido excluído']
+}
+
 export function isBlTab(value: string | null): value is BlTab {
   return (BL_TAB_KEYS as string[]).includes(value ?? '')
 }
@@ -94,6 +102,9 @@ export function BlDetalhe() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [blFreightOpen, setBlFreightOpen] = useState(false)
   const [cancelBlockedReasons, setCancelBlockedReasons] = useState<string[] | null>(null)
+  const [deleteBlockedReasons, setDeleteBlockedReasons] = useState<string[] | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const navigate = useNavigate()
   const tabParam = searchParams.get('tab')
   const activeTab: BlTab = isBlTab(tabParam) ? tabParam : 'visao-geral'
   const { data: blData, isLoading, error, refetch } = useBlDetail(blId)
@@ -146,6 +157,44 @@ export function BlDetalhe() {
       showToast('B/L cancelado.', 'success')
     } catch (error) {
       showToast(userFacingErrorMessage(error, 'Falha ao cancelar o B/L.'), 'error')
+    }
+  }
+
+  // Mesma exclusão da lista /bls (`delete_records`): a prévia do banco diz se
+  // o B/L sai e, se não sai, o motivo fica na ficha, perto do botão.
+  async function handleDeleteBl() {
+    if (!bl) return
+    setDeleting(true)
+    setDeleteBlockedReasons(null)
+    try {
+      const preview = await checkBlDependencies([bl.id])
+      if (!preview.deletableIds.includes(bl.id)) {
+        setDeleteBlockedReasons(deleteRefusalReasons(preview.blockedIds))
+        return
+      }
+      const reason = await confirmWithReason({
+        title: 'Excluir B/L',
+        message: `Excluir o B/L ${bl.id}? Use para B/L importado por engano; B/L com CE Mercante se cancela.`,
+        affected: buildDeleteAffected('B/L(s)', preview),
+        consequence: 'O B/L sai das listas, da viagem e da revisão; containers, carga solta, veículos e cálculos de taxa dele são apagados junto.',
+        reversibility: 'Não é possível desfazer pelo sistema; o registro apagado fica guardado na auditoria.',
+        confirmLabel: 'Excluir',
+        tone: 'danger',
+      })
+      if (reason === null) return
+      const result = await deleteBls([bl.id], reason)
+      if (!result.deletableIds.includes(bl.id)) {
+        setDeleteBlockedReasons(deleteRefusalReasons(result.blockedIds))
+        return
+      }
+      // Sai da ficha antes de invalidar: o B/L apagado não tem mais o que mostrar.
+      navigate(listHref, { replace: true })
+      await afterCargaAlterada(queryClient)
+      showToast(`B/L ${bl.id} excluído.`, 'success')
+    } catch (error) {
+      showToast(userFacingErrorMessage(error, 'Falha ao excluir o B/L.'), 'error')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -360,6 +409,13 @@ export function BlDetalhe() {
                 Reimportar B/L
               </Button>
             ) : null}
+            {/* B/L sem CE se exclui; com CE, se cancela (ADR 0071; Mais ações). */}
+            {isAdmin && !bl.ce_mercante && !cancelledAt ? (
+              <Button variant="secondary" loading={deleting} loadingLabel="Excluindo…" onClick={() => void handleDeleteBl()}>
+                <Trash2 size={16} aria-hidden="true" />
+                Excluir B/L
+              </Button>
+            ) : null}
             <ActionMenu
               label="Mais ações do B/L"
               menuId="bl-header-menu"
@@ -380,6 +436,15 @@ export function BlDetalhe() {
             {cancelBlockedReasons.some(isDemurrageCancelReason) ? <> <Link className="app-link" to={demurrageCancelHref(bl.id, cancelBlockedReasons)}>Abrir em Demurrage</Link></> : null}
           </span>
           <Button variant="secondary" onClick={() => setCancelBlockedReasons(null)}>Fechar aviso</Button>
+        </div>
+      ) : null}
+
+      {deleteBlockedReasons && !cancelledAt ? (
+        <div className="app-bl-notice app-bl-notice--warning app-bl-notice--row" role="alert">
+          <span>
+            <strong>O B/L {bl.id} não pode ser excluído:</strong> {deleteBlockedReasons.join(', ')}.
+          </span>
+          <Button variant="secondary" onClick={() => setDeleteBlockedReasons(null)}>Fechar aviso</Button>
         </div>
       ) : null}
 

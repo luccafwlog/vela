@@ -5,10 +5,13 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { BlDetalhe } from '../BlDetalhe'
 
-const { useBlDetailMock, cancelBlMock, authState } = vi.hoisted(() => ({
+const { useBlDetailMock, cancelBlMock, authState, checkBlDependenciesMock, deleteBlsMock, confirmWithReasonMock } = vi.hoisted(() => ({
   useBlDetailMock: vi.fn(),
   cancelBlMock: vi.fn(),
   authState: { isAdmin: false },
+  checkBlDependenciesMock: vi.fn(),
+  deleteBlsMock: vi.fn(),
+  confirmWithReasonMock: vi.fn(),
 }))
 
 vi.mock('../../hooks/useBls', () => ({
@@ -37,7 +40,12 @@ vi.mock('../../components/ui/Toast', () => ({
 
 vi.mock('../../components/ui/ConfirmDialog', () => ({
   useConfirm: () => vi.fn(),
-  useConfirmWithReason: () => vi.fn(),
+  useConfirmWithReason: () => confirmWithReasonMock,
+}))
+
+vi.mock('../../services/bls', () => ({
+  checkBlDependencies: checkBlDependenciesMock,
+  deleteBls: deleteBlsMock,
 }))
 
 vi.mock('../../components/shared/ImportResultPanel', () => ({
@@ -278,5 +286,83 @@ describe('BlDetalhe - cancelamento bloqueado', () => {
     const alert = (await screen.findByText(/não pode ser cancelado agora/)).closest('[role="alert"]') as HTMLElement
     expect(alert.textContent).not.toContain('Administrativo cancela a fatura')
     expect(within(alert).getByRole('link', { name: 'Abrir em Demurrage' }).getAttribute('href')).toBe('/demurrage?busca=BL-BLOQ-1')
+  })
+})
+
+// Pedido de 2026-11-04: o B/L sem CE importado por engano se exclui na própria
+// ficha, ao lado de Reimportar B/L, pela mesma prévia de `delete_records`.
+describe('BlDetalhe - Excluir B/L na ficha', () => {
+  const blSemCe = { id: 'BL-ERRADO-1', cargo_mode: 'container', ce_mercante: null, pol: 'CNSHA', pod: 'BRIGI', voyage_id: 170, bl_containers: [], bl_breakbulk_items: [] }
+
+  function renderFicha() {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/bls/BL-ERRADO-1']}>
+          <Routes>
+            <Route path="/bls/:blId" element={<BlDetalhe />} />
+            <Route path="/bls" element={<p>Lista de B/Ls</p>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+  }
+
+  beforeEach(() => {
+    cleanup()
+    authState.isAdmin = true
+    checkBlDependenciesMock.mockReset()
+    deleteBlsMock.mockReset()
+    confirmWithReasonMock.mockReset()
+    useBlDetailMock.mockReturnValue({ data: blSemCe, isLoading: false, error: null })
+  })
+
+  it('exclui com motivo e volta para a lista', async () => {
+    checkBlDependenciesMock.mockResolvedValue({ deletableIds: ['BL-ERRADO-1'], blockedIds: [] })
+    confirmWithReasonMock.mockResolvedValue('POD não atendido')
+    deleteBlsMock.mockResolvedValue({ deletableIds: ['BL-ERRADO-1'], blockedIds: [] })
+    renderFicha()
+
+    fireEvent.click(screen.getByRole('button', { name: /Excluir B\/L/ }))
+
+    expect(await screen.findByText('Lista de B/Ls')).toBeTruthy()
+    expect(checkBlDependenciesMock).toHaveBeenCalledWith(['BL-ERRADO-1'])
+    expect(deleteBlsMock).toHaveBeenCalledWith(['BL-ERRADO-1'], 'POD não atendido')
+  })
+
+  it('Voltar no diálogo não exclui', async () => {
+    checkBlDependenciesMock.mockResolvedValue({ deletableIds: ['BL-ERRADO-1'], blockedIds: [] })
+    confirmWithReasonMock.mockResolvedValue(null)
+    renderFicha()
+
+    fireEvent.click(screen.getByRole('button', { name: /Excluir B\/L/ }))
+
+    await vi.waitFor(() => expect(confirmWithReasonMock).toHaveBeenCalled())
+    expect(deleteBlsMock).not.toHaveBeenCalled()
+    expect(screen.queryByText('Lista de B/Ls')).toBeNull()
+  })
+
+  it('a trava do banco aparece na ficha, sem abrir o diálogo', async () => {
+    checkBlDependenciesMock.mockResolvedValue({ deletableIds: [], blockedIds: [{ id: 'BL-ERRADO-1', reasons: ['documento financeiro emitido'] }] })
+    renderFicha()
+
+    fireEvent.click(screen.getByRole('button', { name: /Excluir B\/L/ }))
+
+    const alert = (await screen.findByText(/não pode ser excluído/)).closest('[role="alert"]') as HTMLElement
+    expect(alert.textContent).toContain('documento financeiro emitido')
+    expect(confirmWithReasonMock).not.toHaveBeenCalled()
+    expect(deleteBlsMock).not.toHaveBeenCalled()
+  })
+
+  it('não aparece no B/L com CE Mercante nem fora do Administrativo', () => {
+    useBlDetailMock.mockReturnValue({ data: { ...blSemCe, ce_mercante: '152605123456701' }, isLoading: false, error: null })
+    renderFicha()
+    expect(screen.queryByRole('button', { name: /Excluir B\/L/ })).toBeNull()
+
+    cleanup()
+    authState.isAdmin = false
+    useBlDetailMock.mockReturnValue({ data: blSemCe, isLoading: false, error: null })
+    renderFicha()
+    expect(screen.queryByRole('button', { name: /Excluir B\/L/ })).toBeNull()
   })
 })

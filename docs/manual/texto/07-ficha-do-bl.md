@@ -170,7 +170,7 @@ O número do B/L existe uma vez só no Vela. O caminho para tirar um B/L do jogo
 
 | Ação | Quando | Onde |
 |---|---|---|
-| **Excluir** | O B/L não tem CE nem documento financeiro (fatura, mesmo cancelada, ou Invoice de Demurrage). | Lista **B/Ls** |
+| **Excluir** | O B/L não tem CE nem documento financeiro (fatura, mesmo cancelada, ou Invoice de Demurrage). | Ficha, **Excluir B/L**, ou lista **B/Ls** |
 | **Cancelar B/L** | O B/L tem CE: a carga não embarcou ou o armador reemitiu o B/L com outro número. | Ficha, **Mais ações** |
 | **Reativar B/L** | Desfazer um cancelamento. | Ficha, **Mais ações** |
 
@@ -194,7 +194,15 @@ Em **Mais ações** › **Reativar B/L**, com motivo. O B/L volta a ser editáve
 
 ### Excluir
 
-1. Na lista **B/Ls**, marque a caixa da linha do B/L.
+Na ficha do B/L sem CE e não cancelado, o botão **Excluir B/L** fica ao lado de **Reimportar B/L**:
+
+1. Clique em **Excluir B/L**.
+2. Se a ficha avisa que o B/L "não pode ser excluído", ele tem documento financeiro: cancele em vez de excluir.
+3. Escreva o motivo e confirme em **Excluir**. A ficha volta para a lista **B/Ls**.
+
+Para excluir vários de uma vez, use a lista:
+
+1. Na lista **B/Ls**, marque a caixa da linha de cada B/L.
 2. Clique em **Excluir selecionados**.
 3. Escreva o motivo e confirme em **Excluir**.
 
