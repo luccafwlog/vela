@@ -113,9 +113,9 @@ it("VIP coberto: diz que não precisa pedir e mostra, por B/L, o que falta ou a 
   expect(screen.getByRole("region", { name: "Prazo para desbloqueio" }).textContent).toContain("na condição VIP, sem solicitação, B/L a B/L");
   const row = (bl: string) => screen.getByLabelText(`Selecionar B/L ${bl}`).closest("tr")!;
   expect(row("BL-VIP-FALTA").textContent).toContain("Não precisa (VIP) · Falta pagar as taxas locais e entregar o B/L original");
-  // Apto: como na solicitação validada, o Cliente confere no SISCARGA (decisão do dono de 2026-11-04).
-  expect(row("BL-VIP-OK").textContent).toContain("Apto ao desbloqueio (VIP) · Documentação validada · prazo até 03/11");
-  expect(row("BL-VIP-OK").textContent).toContain("consulte o SISCARGA para verificar o desbloqueio");
+  // Tudo cumprido: frase curta, com o prazo e o SISCARGA (decisões do dono de 2026-11-04).
+  expect(row("BL-VIP-OK").textContent).toMatch(/Documentação validada\. Prazo para desbloqueio até 03\/11, \d{2}:\d{2}\. Consulte o SISCARGA\.$/);
+  expect(row("BL-VIP-OK").textContent).not.toContain("Apto ao desbloqueio");
   expect(row("BL-VIP-OK").textContent).not.toContain("Não precisa");
   expect(screen.getByLabelText("Selecionar B/L BL-VIP-OK").hasAttribute("disabled")).toBe(true);
   await userEvent.click(screen.getByRole("button", { name: /Não precisam de solicitação\s*2/ }));

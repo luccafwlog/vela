@@ -6,6 +6,19 @@
 
 ## 2026-11
 
+- **Consolidada só com dois B/Ls ou mais (2026-11-04, migration `591`; decisão do dono):** no Vela e no Portal, a
+  fatura consolidada pede pelo menos dois B/Ls distintos. Com um B/L só, o botão de emitir fica apagado e o banco
+  recusa com "A fatura consolidada precisa de pelo menos dois B/Ls. Para um B/L só, use a fatura individual dele.".
+  As consolidadas de um B/L só já emitidas ficam como estão, e a reemissão automática de uma consolidada que já
+  existia continua ([Faturamento](modules/faturamento.md#modal-de-invoice-consolidada)).
+- **Ordem das tabelas de Taxas Locais no Portal (2026-11-04; pedido do dono):** em **Informações** › **Taxas
+  Locais**, as tabelas vêm por porto (Vitória, Salvador, Suape) e, em cada porto, Container antes de Carga Solta
+  ([Portal do Cliente](modules/portal-cliente.md)).
+- **Desbloqueio de CE no Portal: frase curta do B/L sem solicitação pronto e entrega do veículo LCL (2026-11-04;
+  pedidos do dono):** o B/L VIP com tudo cumprido diz só "Documentação validada. Prazo para desbloqueio até dd/mm,
+  HH:MM. Consulte o SISCARGA.", sem o "Apto ao desbloqueio (VIP)" na frente; o veículo LCL isento com a entrega
+  registrada no Vela deixa de dizer "entregue o B/L original" e passa a "B/L original entregue. Prazo para
+  desbloqueio até dd/mm, HH:MM. Consulte o SISCARGA." ([Desbloqueio de CE](modules/desbloqueio-ce.md)).
 - **Ajustes de Clientes, Portal, menu e Desbloqueio de CE (2026-11-04, migration `590`; pedidos do dono):** a
   planilha comum do Desbloqueio de CE traz a data e a hora em que cada requisito se cumpriu, no lugar de "Atendido";
   **Regras de alertas** sai do menu (abre pelo botão da tela Alertas, que vira link direto) e **Desbloqueio de CE**

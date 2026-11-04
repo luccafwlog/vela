@@ -223,9 +223,9 @@ export const CE_SISCARGA_STEP = "consulte o SISCARGA para verificar o desbloquei
 
 /**
  * Situação do B/L do Cliente VIP que segue sem solicitação (migration 581, ADR 0119):
- * o que ainda falta do Cliente ou, com tudo cumprido, que o B/L está apto ao
- * desbloqueio e deve ser conferido no SISCARGA, como na solicitação validada
- * (decisão do dono de 2026-11-04; antes, "Validação em até 5 minutos"). A
+ * o que ainda falta do Cliente ou, com tudo cumprido, o que se cumpriu; o Portal
+ * acrescenta o prazo e manda conferir no SISCARGA, como na solicitação validada
+ * (decisões do dono de 2026-11-04; antes, "Validação em até 5 minutos"). A
  * validação vem do banco (`sla_started_at`), na entrega do original ou em até 5
  * minutos depois da baixa feita fora do Desbloqueio; com ela, o prazo.
  */
