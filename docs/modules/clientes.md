@@ -1,6 +1,6 @@
 # Clientes
 
-> **Status:** ativo · **Atualizado:** 2026-10-18 · **Rotas:** `/clientes`, `/clientes/:cnpj`, `/clientes/comunicacao`
+> **Status:** ativo · **Atualizado:** 2026-11-04 · **Rotas:** `/clientes`, `/clientes/:cnpj`, `/clientes/comunicacao`
 
 ## Propósito e escopo
 
@@ -434,6 +434,7 @@ Os testes abaixo foram inspecionados na cartografia. Os `*Migration.test.ts` lee
 
 ## Notas e divergências
 
+- **Divergência pendente — NOB do B/L sem terminal ([revisão de 2026-11-04](../archive/audits/2026-11-04-revisao-vinculo-terminal-escala.md), T3).** O texto do NOB acima e a [ADR 0067](../adr/0067-nob-automatico-ancorado-na-frente-de-operacao.md) dizem que `comunicado_nob_pendente` fica aberto quando a Atracação não tem frente atribuída. No código vigente, o detector monta o alerta só com os alvos da régua, e o B/L cujo terminal não se resolve (frente em TBC, frente só derivada na tela e nunca gravada, B/L misto com as frentes em terminais diferentes) não vira alvo: o Cliente dele fica sem NOB e fora do alerta, e a conferência do Disparo manual o esconde quando só parte dos B/Ls fica de fora. Decisão D3 da revisão (**local-pg**, cenários B e C).
 - **Contatos só pela RPC (ADR 0085, falha 2).** Editar contatos e caixas é do Administrativo, da Documentação e de Equipamentos ([matriz de permissões](../operations/seguranca.md#clientes-comunicação-e-portal)), pela RPC que confere isso. Desde a migration `232`, `authenticated` não tem INSERT nem UPDATE em `customer_contacts`: a troca do e-mail do principal ou a criação de outro principal pela API, que antes redirecionava Comunicados e Régua sem evento no histórico de contatos, é recusada (**Teste**, Postgres local).
 
 - **Exportação e recorte (corrigido em 2026-10-09, etapa 08 da revisão visual).** `handleExportBase` passou a usar `fetchCustomerRows`, a mesma consulta da lista: busca por documento, filtros e ordem iguais aos da tabela. A coluna Email do arquivo traz os e-mails ativos, o principal primeiro, separados por "; ", no formato que a importação lê.
