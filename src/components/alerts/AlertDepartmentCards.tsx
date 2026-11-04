@@ -3,13 +3,13 @@ import { MetricCard } from '../ui/MetricCard'
 import { NoValue } from '../ui/NoValue'
 import { ALERT_DEPARTMENT_LABELS, type AlertDepartmentSummary } from '../../services/alerts'
 
-const KNOWN_ALERT_DEPARTMENTS = ['documentacao', 'equipamentos', 'operacoes', 'administrativo'] as const
+const KNOWN_ALERT_DEPARTMENTS = ['documentacao', 'equipamentos', 'operacoes', 'financeiro', 'administrativo'] as const
 
 type DepartmentCard = { department: string; label: string; activeCount: number; detail?: string }
 
 /**
- * Um cartão por setor, inclusive o Administrativo, responsável por parte do
- * catálogo de alertas (lote 5a, achado A1). "Sem setor" (alertas anteriores à
+ * Um cartão por setor, inclusive o Administrativo (lote 5a, achado A1) e o
+ * Financeiro, setor dos alertas do Pix e da Restituição (migration 587). "Sem setor" (alertas anteriores à
  * divisão por setor) só aparece quando tem alerta. A dispensa saiu na
  * migration 476 (ADR 0108): o cartão não conta dispensados.
  */

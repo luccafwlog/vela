@@ -89,9 +89,15 @@ describe('Regras de Alertas', () => {
     const terminal = ALERT_RULES.find((rule) => rule.type === 'voyage_terminal_date_pending')!
     const portal = ALERT_RULES.find((rule) => rule.type === 'review_portal_not_ready')!
 
-    // ALE-D03: um setor responsável; o Financeiro só é avisado.
-    expect(pix.responsibleDepartments).toEqual(['administrativo'])
-    expect(pix.notifiedDepartments).toEqual(['financeiro', 'administrativo'])
+    // ALE-D03: um setor responsável. Desde a 587 o Pix é do Financeiro e o
+    // Administrativo não é mais avisado; a Fatura desatualizada segue com ele.
+    const invoice = ALERT_RULES.find((rule) => rule.type === 'fatura_desatualizada')!
+    expect(pix.responsibleDepartments).toEqual(['financeiro'])
+    expect(pix.notifiedDepartments).toEqual(['financeiro'])
+    expect(invoice.responsibleDepartments).toEqual(['administrativo'])
+    expect(invoice.notifiedDepartments).toEqual(['financeiro', 'administrativo'])
+    expect(ALERT_RULES.filter((rule) => rule.responsibleDepartments.includes('financeiro')).map((rule) => rule.type).sort())
+      .toEqual(['itau_pix_consulta_parada', 'pix_unreconciled', 'restituicao_pendente'])
     expect(schedule.notifiedDepartments).toEqual(['operacoes'])
     expect(terminal.notifiedDepartments).toEqual(['operacoes'])
     expect(portal.notifiedDepartments).toEqual(['documentacao'])
@@ -106,7 +112,7 @@ describe('Regras de Alertas', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('55 regras')).toBeTruthy()
+    expect(screen.getByText('56 regras')).toBeTruthy()
     fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'equipamentos' } })
 
     expect(screen.getByText('5 regras')).toBeTruthy()
@@ -130,7 +136,7 @@ describe('Regras de Alertas', () => {
 
     // Retorna para qualquer setor (sem filtro de setor)
     fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'all' } })
-    expect(screen.getByText('55 regras')).toBeTruthy()
+    expect(screen.getByText('56 regras')).toBeTruthy()
   })
 
   it('ignora um deep-link para um tipo aposentado e cai na primeira regra viva', () => {
@@ -142,7 +148,7 @@ describe('Regras de Alertas', () => {
 
     expect(screen.queryByRole('heading', { name: 'Cancelamento bloqueado' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Cancelamento bloqueado/ })).toBeNull()
-    expect(screen.getByText('55 regras')).toBeTruthy()
+    expect(screen.getByText('56 regras')).toBeTruthy()
   })
 
   it('combina filtros no topo e limpa a combinação sem perder a regra selecionada', () => {
@@ -162,7 +168,7 @@ describe('Regras de Alertas', () => {
     expect((clearButton as HTMLButtonElement).disabled).toBe(false)
     fireEvent.click(clearButton)
 
-    expect(screen.getByText('55 regras')).toBeTruthy()
+    expect(screen.getByText('56 regras')).toBeTruthy()
     expect((screen.getByRole('combobox', { name: 'Assunto' }) as HTMLSelectElement).value).toBe('all')
     expect((screen.getByRole('combobox', { name: 'Gravidade' }) as HTMLSelectElement).value).toBe('all')
     expect((screen.getByRole('button', { name: 'Limpar filtros' }) as HTMLButtonElement).disabled).toBe(true)

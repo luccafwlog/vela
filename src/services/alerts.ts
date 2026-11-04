@@ -71,6 +71,7 @@ export type ActiveAlertType =
   | 'voyage_vehicle_sheet_pending'
   | 'voyage_schedule_date_pending'
   | 'voyage_terminal_date_pending'
+  | 'voyage_escala_terminal_missing'
   | 'voyage_export_after_atd'
 
 export const TYPE_LABELS: Record<string, string> = {
@@ -138,6 +139,7 @@ export const TYPE_LABELS: Record<string, string> = {
   voyage_vehicle_sheet_pending: 'Planilha de Veículos pendente',
   voyage_schedule_date_pending: 'Data da escala pendente',
   voyage_terminal_date_pending: 'Data de terminal pendente',
+  voyage_escala_terminal_missing: 'Escala sem terminal',
   voyage_export_after_atd: 'Exportação pendente pós-ATD',
 }
 
@@ -175,11 +177,11 @@ export type AlertEventUnit = 'bl' | 'invoice' | 'pix_transaction' | 'itau_pix_re
 // (itau_pix_receipt, migration 153).
 export const FINANCIAL_ALERT_EVENTS = {
   fatura_desatualizada: { audience: ['administrativo', 'financeiro'], units: ['invoice'] },
-  restituicao_pendente: { audience: ['administrativo', 'financeiro'], units: ['invoice'] },
+  restituicao_pendente: { audience: ['financeiro'], units: ['invoice'] },
   billing_calculation_blocked: { audience: ['documentacao'], units: ['bl'] },
   billing_auto_issue_failed: { audience: ['documentacao'], units: ['bl'] },
   demurrage_ptax_recalc_failed: { audience: ['documentacao'], units: ['exchange_rate_reference'] },
-  pix_unreconciled: { audience: ['administrativo', 'financeiro'], units: ['pix_transaction', 'itau_pix_receipt'] },
+  pix_unreconciled: { audience: ['financeiro'], units: ['pix_transaction', 'itau_pix_receipt'] },
   portal_dispute_opened: { audience: ['equipamentos'], units: ['demurrage_invoice'] },
 } as const satisfies Record<string, { audience: readonly AlertAudience[]; units: readonly AlertEventUnit[] }>
 
@@ -198,12 +200,14 @@ import { AGENCY_REPORT_DEPARTMENT_LABELS, agencyReportSectionLabel } from './age
 
 /**
  * Setor responsável por um alerta, como a fila e o Painel o mostram. Os três
- * setores do ADR mais o Administrativo, responsável por parte do catálogo
- * (Pix, restituição, cobrança de Demurrage, rotinas). "Sem setor" é o alerta
- * anterior à divisão por setor.
+ * setores do ADR, o Financeiro (Pix não conciliado, Consulta do Itaú parada e
+ * Restituição pendente, migration 587) e o Administrativo (cobrança de
+ * Demurrage, rotinas, contato do Cliente). "Sem setor" é o alerta anterior à
+ * divisão por setor.
  */
 export const ALERT_DEPARTMENT_LABELS: Record<string, string> = {
   ...AGENCY_REPORT_DEPARTMENT_LABELS,
+  financeiro: 'Financeiro',
   administrativo: 'Administrativo',
   sem_departamento: 'Sem setor',
 }
@@ -360,9 +364,10 @@ export function getAlertTypeLabel(type: string): string {
 }
 
 // A Conciliação PIX abre no Histórico de baixas; o que um Alerta de Pix aponta
-// está em Pendências. Destinos gravados antes como "/reconciliacao" (migrations
-// 152, 153 e 247) passam a abrir nessa aba.
-export const PIX_PENDING_HREF = '/reconciliacao?tab=pendencias'
+// fica no topo da aba Pix recebidos (até 2026-11-04, aba Pendências, cujo
+// endereço `?tab=pendencias` continua abrindo Pix recebidos). Destinos gravados
+// antes como "/reconciliacao" (migrations 152, 153 e 247) passam a abrir nessa aba.
+export const PIX_PENDING_HREF = '/reconciliacao?tab=recebidos'
 
 /**
  * Registros sem ficha própria (ALE-D05): a tela onde a pendência se resolve,
@@ -430,6 +435,21 @@ function alertEntityLinkRaw(alert: {
       return correctionRoute
     }
     return '/taxas-locais'
+  }
+
+  // NOB que não sai por falta de terminal (migration 584): a correção é a
+  // frente da escala, em Editar escala, não o Disparo.
+  if (
+    effectiveType === 'comunicado_nob_pendente'
+    && alert.entity_type === 'voyage_pod_schedule'
+    && alert.metadata?.scope === 'sem_terminal'
+  ) {
+    const [voyageId, port] = alert.entity_id.split('::')
+    if (/^\d+$/.test(voyageId)) {
+      const params = new URLSearchParams()
+      if (port) params.set('escala', port)
+      return `/viagens/${voyageId}${params.toString() ? `?${params.toString()}` : ''}`
+    }
   }
 
   if (
@@ -573,8 +593,13 @@ export function alertEntityLinkLabel(alert: {
   type: string
   item_type?: string | null
   entity_type: string | null
+  metadata?: Record<string, unknown> | null
 }): string {
   const effectiveType = getEffectiveAlertType(alert)
+  // NOB sem terminal (584): o link abre a escala, não o Disparo.
+  if (effectiveType === 'comunicado_nob_pendente' && alert.entity_type === 'voyage_pod_schedule' && alert.metadata?.scope === 'sem_terminal') {
+    return 'Abrir Viagem'
+  }
   if (
     effectiveType === 'comunicado_noa_pendente'
     || effectiveType === 'comunicado_nor_pendente'

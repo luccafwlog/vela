@@ -24,4 +24,4 @@ A atracação e a saída, no cartão do terminal.
 - Com o ATD do último terminal, a Viagem fica **Concluída** e sai da programação.
 :::
 
-A chegada também se confirma na data em âmbar de **Chegadas e Saídas**: é o mesmo ATA. Com o ATA, a escala só grava com terminal em toda frente: se a janela mostrar frente em **TBC — pendente**, escolha o terminal dela (etapa 2).
+A chegada também se confirma na data em âmbar de **Chegadas e Saídas**: é o mesmo ATA. Com o ATA, a escala só grava com terminal em toda frente: se a janela mostrar frente em **TBC — pendente**, escolha o terminal dela (etapa 2); o alerta **Escala sem terminal** avisa de novo. O ATB não pode ser anterior ao ATA: o navio atraca depois de chegar.

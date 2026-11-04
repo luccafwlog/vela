@@ -1,7 +1,7 @@
 import { FilterBar } from '../ui/FilterBar'
 import { Button } from '../ui/Button'
 import { Field, Input, Select } from '../ui/Input'
-import { countMoreLineUpFilters, type LineUpCeFilter, type LineUpFilters as Filters, type LineUpPeriodoFilter, type LineUpPresenceFilter, type LineUpStatusFilter } from '../../lib/lineupFilters'
+import { countMoreLineUpFilters, type LineUpCeFilter, type LineUpFilters as Filters, type LineUpPeriodoFilter, type LineUpPresenceFilter, type LineUpStatusFilter, type LineUpTerminalFilter } from '../../lib/lineupFilters'
 
 type LineUpFiltersProps = {
   filters: Filters
@@ -11,7 +11,8 @@ type LineUpFiltersProps = {
 }
 
 /**
- * Filtros do Line-Up no Painel (lote 5a): Busca, Escalas, Período e CEs ficam
+ * Filtros do Line-Up no Painel (lote 5a): Busca, Escalas, Período, CEs e
+ * Terminal ("Sem terminal", migration 584) ficam
  * abertos; os de presença de carga (Veículos, BB, MTY, RTW, Vinculada) vão
  * para "Mais filtros", como na lista de BLs. A contagem de escalas fica na
  * faixa do bloco do Line-Up.
@@ -64,6 +65,13 @@ export function LineUpFilters({ filters, onChange, onClear, activeCount }: LineU
             <option value="launching">Lançando</option>
             <option value="approving">Em aprovação</option>
             <option value="approved">Aprovado</option>
+          </Select>
+        </Field>
+
+        <Field label="Terminal">
+          <Select value={filters.terminal} onChange={(event) => onChange({ ...filters, terminal: event.target.value as LineUpTerminalFilter })}>
+            <option value="all">Todos</option>
+            <option value="pending">Sem terminal</option>
           </Select>
         </Field>
 

@@ -18,12 +18,14 @@ export function InvoiceCorrectionPanel({ invoiceId }: { invoiceId: number }) {
   const [cancelBlId, setCancelBlId] = useState('')
   const [cancelReason, setCancelReason] = useState('')
   const retry = useRetryInvoiceBasisChanges()
-  const { isAdmin } = useAuth()
+  // Preparar cancelamento financeiro: Financeiro e conta Dev (migration 583).
+  const { can } = useAuth()
+  const mayPrepareCancellation = can('manage_payments')
   const pending = summary.data?.pending_bl_ids ?? []
   const corrections = summary.data?.corrections ?? []
   const customerChanges = summary.data?.customer_changes ?? []
   const cancelCandidates = (summary.data?.receivables ?? []).filter((row) => row.corrected_brl > 0 && row.paid_brl > 0 && !customerChanges.some((change) => change.bl_id === row.bl_id && change.status !== 'completed'))
-  if (!summary.error && corrections.length === 0 && pending.length === 0 && customerChanges.length === 0 && (!isAdmin || cancelCandidates.length === 0)) return null
+  if (!summary.error && corrections.length === 0 && pending.length === 0 && customerChanges.length === 0 && (!mayPrepareCancellation || cancelCandidates.length === 0)) return null
   async function prepareCancellation() {
     const target = cancelCandidates.find((row) => row.bl_id === cancelBlId)
     if (!target || cancelReason.trim().length < 10) return
@@ -52,7 +54,7 @@ export function InvoiceCorrectionPanel({ invoiceId }: { invoiceId: number }) {
       <p>Abatido do saldo: {formatBRL(item.offset_brl)} · Restituição: {formatBRL(item.refund_brl)}.</p>
       <p className="app-invoice-detail__note">{item.reason}</p>
     </div>)}
-    {isAdmin && cancelCandidates.length > 0 ? <div className="app-invoice-detail__form">
+    {mayPrepareCancellation && cancelCandidates.length > 0 ? <div className="app-invoice-detail__form">
       <p className="app-invoice-detail__note app-invoice-detail__form-wide">Para cancelar cobrança com recebimento verdadeiro, prepare a restituição. Para erro de tarifa ou quantidade, corrija a base do B/L.</p>
       <Field label="B/L para cancelamento financeiro" required><Select value={cancelBlId} onChange={(event) => setCancelBlId(event.target.value)}><option value="">Selecione o B/L</option>{cancelCandidates.map((row) => <option key={row.bl_id} value={row.bl_id}>{row.bl_id} · {formatBRL(row.corrected_brl)}</option>)}</Select></Field>
       <div className="app-invoice-detail__form-wide"><Field label="Motivo do cancelamento financeiro" required hint="Pelo menos 10 caracteres."><Textarea value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} /></Field></div>

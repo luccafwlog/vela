@@ -505,6 +505,11 @@ plano; não autoriza perda de dados.
   `service_role` na tabela ou na sequence; o de `authenticated` ela não tem como inferir, e
   a falta só aparece no teste da tela (migration `340`,
   [Segurança](./docs/operations/seguranca.md#rls-first));
+- tabela nova em `public` recebe, na própria migration, o gatilho que recusa
+  `TRUNCATE` sem a confirmação de banco descartável:
+  `CREATE TRIGGER truncate_requires_confirmation BEFORE TRUNCATE ON public.<tabela> FOR EACH STATEMENT EXECUTE FUNCTION public.truncate_requires_disposable_confirmation();`
+  (migration `585`, [reset do ambiente](./docs/operations/reset-ambiente.md)).
+  A suíte local-pg `truncateConfirmacao` falha com tabela sem ele;
 - grants pré-autenticação para `anon` exigem decisão explícita, controles contra
   abuso e teste focado;
 - trigger functions não precisam ser executáveis diretamente por clientes;

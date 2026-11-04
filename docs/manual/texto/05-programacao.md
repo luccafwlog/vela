@@ -93,7 +93,7 @@ A confirmação da saída de Shanghai.
 :::
 :::
 
-A **chegada** confirmada é o próprio ATA da escala: é a mesma coisa que registrá-lo na ficha da Viagem ([4.4](04-viagens-escalas.md#44-manter-as-datas-do-navio-em-dia)).
+A **chegada** confirmada é o próprio ATA da escala: é a mesma coisa que registrá-lo na ficha da Viagem ([4.4](04-viagens-escalas.md#44-manter-as-datas-do-navio-em-dia)). A chegada é aceita mesmo com frente de operação ainda sem terminal; nesse caso, o alerta **Escala sem terminal** avisa {{Operações}} para escolher o terminal ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)). Se um terminal já tem ATB anterior à chegada que você confirma, o Vela recusa: corrija a data errada na escala.
 
 A **saída** confirmada é provisória. A data real de saída vem do B/L, pela data de embarque (Laden on Board): quando o primeiro B/L chega com outra data, ela substitui a sua. A confirmação cobre o intervalo até o B/L chegar.
 
@@ -146,7 +146,7 @@ O Line-Up: o navio atracado em Vitória com a faixa verde, uma linha de exporta�
 
 1. **Tela TV**, no alto do **Painel** ou no menu **Viagens**, abre o quadro em outra aba, para um monitor da sala.
 2. **Exportar** leva para uma planilha as linhas que estão na tela.
-3. Os filtros recortam o quadro. **Escalas** começa em **Ativas**. **Busca**, **Escalas** e **Período** valem para as duas linhas da escala, a de importação e a de exportação; os filtros de carga, **CEs** e **Vinculada** só recortam as linhas de importação.
+3. Os filtros recortam o quadro. **Escalas** começa em **Ativas**. **Busca**, **Escalas**, **Período** e **Terminal** valem para as duas linhas da escala, a de importação e a de exportação; os filtros de carga, **CEs** e **Vinculada** só recortam as linhas de importação. **Terminal** › **Sem terminal** deixa só as escalas cuja carga já pede terminal.
 
 Como ler o quadro:
 
@@ -154,6 +154,7 @@ Como ler o quadro:
 - A ordem é a do porto: primeiro os navios atracados, depois os que chegaram, os previstos, os que já saíram e, no fim, as escalas omitidas.
 - A faixa verde marca o navio atracado. O ✓ marca a data que já aconteceu.
 - O âmbar pede ação da documentação: **CEs** em **Aguardando** ou **Vinculada** em **Não**.
+- **TBC** na coluna do terminal quer dizer frente sem terminal. Em âmbar, a escala tem frente sem terminal, declarada em **Editar escala** ou vinda da carga: passe o mouse para ver quais frentes faltam e escolha o terminal em **Editar escala** ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)). Uma escala pode mostrar "TVV / TBC": uma frente no TVV e outra ainda sem terminal. **TBC** sem cor é a escala ainda sem frente, em planejamento. Se a frente sem terminal é de um sentido que não tem linha (o Granito importado antes de declarar a exportação), o **TBC** em âmbar aparece na linha que a escala tem.
 - Cada número abre a lista correspondente, já filtrada.
 
 A **Tela TV** mostra as escalas que ainda não terminaram, em letras grandes, e desliza sozinha quando há mais de oito linhas.

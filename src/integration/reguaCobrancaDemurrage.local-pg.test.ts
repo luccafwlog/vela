@@ -98,7 +98,8 @@ describeLocal('Régua de Cobrança de Demurrage — plano dos e-mails (1E, 2.5, 
       .join(',\n        ')
     psql(`
       INSERT INTO auth.users (id, email) VALUES ('${adminId}', 'reg303@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${adminId}', 'Reg 303', 'administrativo', true);
+      -- Conta Dev: baixa e cancelamento de baixa são do Financeiro e da conta Dev (migration 583).
+      INSERT INTO public.user_profiles (id, full_name, role, active, is_dev) VALUES ('${adminId}', 'Reg 303', 'administrativo', true, true);
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerId}, '${customerCnpj}', 'Cliente Régua 303');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier 303');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel 303', ${carrierId});

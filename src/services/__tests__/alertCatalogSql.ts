@@ -47,6 +47,7 @@ const CATALOG_MIGRATIONS = [
   '516_alerta_de_demurrage_travada.sql',
   '520_disputas_de_demurrage_repaginadas.sql',
   '535_retorno_de_email_nao_aplicado.sql',
+  '584_terminal_da_escala_cobrado.sql',
 ]
 
 // Migrations que aposentam tipos. Aceitam tanto `type IN (...)` quanto
@@ -75,6 +76,12 @@ const AUDIENCE_RESET_MIGRATION = '476_alertas_e_sino_decididos_pelo_dono.sql'
 // Migrations posteriores ao reset que acrescentam setores avisados a tipos
 // listados (`SET audience_departments = ARRAY[...] WHERE type IN (...)`).
 const AUDIENCE_EXCEPTION_MIGRATIONS = ['485_alertas_ajustes_da_revisao.sql']
+
+// Migrations posteriores ao reset que mudam responsável ou audiência de um tipo
+// (`UPDATE ... SET ... WHERE type = '...'`), aplicadas depois do reset e das
+// exceções, na ordem da cadeia. 587: Pix, Consulta do Itaú e Restituição
+// passam para o setor Financeiro.
+const POST_RESET_CATALOG_UPDATE_MIGRATIONS = ['587_alertas_de_dinheiro_no_setor_financeiro.sql']
 const AUDIENCE_IN_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+audience_departments\s*=\s*ARRAY\[([^\]]*)\]\s+WHERE\s+type\s+IN\s*\(([^)]*)\)/gi
 
 const CATALOG_UPDATE_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+([\s\S]*?)\s+WHERE\s+type\s*=\s*'([a-z0-9_]+)'/gi
@@ -111,19 +118,22 @@ export function readSqlAlertCatalog(): SqlAlertCatalogEntry[] {
     }
   }
 
-  for (const fileName of CATALOG_UPDATE_MIGRATIONS) {
-    for (const match of readMigration(fileName).matchAll(CATALOG_UPDATE_PATTERN)) {
-      const [, assignments, type] = match
-      const entry = entries.get(type)
-      if (!entry) continue
-      const severity = assignments.match(/severity\s*=\s*'(critical|normal)'/)
-      if (severity) entry.severity = severity[1] as 'critical' | 'normal'
-      const responsible = assignments.match(/responsible_department\s*=\s*'([a-z_]+)'/)
-      if (responsible) entry.responsibleDepartment = responsible[1]
-      const audience = assignments.match(/audience_departments\s*=\s*ARRAY\[([^\]]*)\]/)
-      if (audience) entry.audienceDepartments = Array.from(audience[1].matchAll(/'([a-z_]+)'/g), (item) => item[1])
+  const applyCatalogUpdates = (fileNames: string[]) => {
+    for (const fileName of fileNames) {
+      for (const match of readMigration(fileName).matchAll(CATALOG_UPDATE_PATTERN)) {
+        const [, assignments, type] = match
+        const entry = entries.get(type)
+        if (!entry) continue
+        const severity = assignments.match(/severity\s*=\s*'(critical|normal)'/)
+        if (severity) entry.severity = severity[1] as 'critical' | 'normal'
+        const responsible = assignments.match(/responsible_department\s*=\s*'([a-z_]+)'/)
+        if (responsible) entry.responsibleDepartment = responsible[1]
+        const audience = assignments.match(/audience_departments\s*=\s*ARRAY\[([^\]]*)\]/)
+        if (audience) entry.audienceDepartments = Array.from(audience[1].matchAll(/'([a-z_]+)'/g), (item) => item[1])
+      }
     }
   }
+  applyCatalogUpdates(CATALOG_UPDATE_MIGRATIONS)
 
   for (const fileName of DEACTIVATION_MIGRATIONS) {
     const deactivation = readMigration(fileName).replace(/\s+/g, ' ').match(DEACTIVATION_PATTERN)
@@ -154,6 +164,8 @@ export function readSqlAlertCatalog(): SqlAlertCatalogEntry[] {
       }
     }
   }
+
+  applyCatalogUpdates(POST_RESET_CATALOG_UPDATE_MIGRATIONS)
 
   return Array.from(entries.values())
 }

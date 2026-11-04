@@ -1096,7 +1096,7 @@ data de descarga de cada container; o que o acordo não define vem da Tarifa.
 
 **Conciliação PIX**
 Tela que acompanha a baixa automática dos Pix cobrados pelo
-Itaú, trata o que ficou sem baixa (aba Pendências), mostra o Histórico de
+Itaú, trata o que ficou sem baixa (no topo da aba Pix recebidos), mostra o Histórico de
 baixas e, como plano B, baixa faturas a partir do extrato bancário. O extrato
 liga o Pix à fatura só pelo TXID; o valor confirma a fatura encontrada, não a
 procura. Pix sem fatura segura não é baixado: fica para decisão humana.
@@ -1128,8 +1128,8 @@ estático usa esse número.
 **Pix recebido**
 O dinheiro que entrou na conta, lido na consulta do Itaú ou no extrato. Não é
 Baixa: só vira baixa quando o TXID leva a uma fatura pagável e o valor confere.
-O Pix do Itaú que não deu baixa aparece em **Pix recebidos sem baixa**, na aba
-Pendências, até a fatura ficar paga ou alguém marcá-lo como tratado.
+O Pix de cobrança do Vela que não deu baixa aparece em **Pix em análise**, no
+topo da aba Pix recebidos, até a fatura ficar paga ou alguém marcá-lo como tratado.
 → Regra: [Reconciliação PIX § Monitoramento das cobranças Itaú](docs/modules/reconciliacao-pix.md#monitoramento-das-cobranças-itaú)
 
 **Baixa**
@@ -1144,7 +1144,8 @@ pagamento no detalhe em [Faturamento § Pagamento, saldo e restituição](docs/m
 
 **Exceção pendente**
 Linha do extrato sem baixa segura (Sem documento ou Ambígua), salva já na
-leitura até alguém tratar em **Exceções do extrato**, na aba Pendências. Não é
+leitura até alguém tratar em **Exceções do extrato**, no topo da aba Pix
+recebidos. Não é
 baixa nem recusa definitiva. Distinta do Pix recebido sem baixa, que vem da
 consulta do Itaú e não do extrato.
 → Regra: [Reconciliação PIX § Exceções do extrato](docs/modules/reconciliacao-pix.md#exceções-do-extrato)
@@ -1615,9 +1616,13 @@ conta com a marca **Dev** a muda.
 
 **Marca Dev**
 Permissão especial acima do Administrativo, dada só por migration a uma conta
-do Administrativo; hoje só liga e desliga a chave de envio. Não é setor: a conta
-continua no Administrativo.
-→ Regra: [Clientes § Chave de envio de Comunicados](docs/modules/clientes.md#chave-de-envio-de-comunicados)
+do Administrativo. A conta Dev pode tudo o que qualquer setor pode; só ela, no
+Administrativo, liga e desliga a chave de envio e, desde a migration `583`
+(decisão do dono de 2026-11-04), registra e cancela baixa, confirma
+Restituição e concilia o Pix, que nos demais setores são só do Financeiro. Não
+é setor: a conta continua no Administrativo.
+→ Regra: [Clientes § Chave de envio de Comunicados](docs/modules/clientes.md#chave-de-envio-de-comunicados);
+[Segurança § Modelo de permissões por perfil](docs/operations/seguranca.md#modelo-de-permissões-por-perfil)
 
 ## Referências de verificação dos contratos
 

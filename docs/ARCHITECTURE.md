@@ -166,7 +166,9 @@ A linha singleton `id=1` de `app_settings` é obrigatória para as leituras da
 aplicação. Ela foi restaurada pelas migrations `044`, `104` e `155` (as duas
 últimas porque sumiu de produção por ação externa) e, desde a migration `156`,
 o banco recusa apagá-la, inclusive em cascata, salvo desabilitar o gatilho de
-propósito.
+propósito. Desde a migration `585`, as demais tabelas de `public` recusam
+`TRUNCATE`, inclusive em cascata, fora da sessão que confirmou banco descartável
+([reset do ambiente](operations/reset-ambiente.md)).
 
 ### Alertas e notificações internas
 

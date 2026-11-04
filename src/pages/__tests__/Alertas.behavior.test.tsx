@@ -154,7 +154,7 @@ it('ALE-D05: "Consulta de Pix do Itaú parada" resolve com justificativa e mant�
 
   const row = rowOf('Consulta Itaú parada há 20 minutos')
   fireEvent.click(within(row).getByRole('button', { name: /^Abrir Conciliação/ }))
-  expect(navigate).toHaveBeenCalledWith('/reconciliacao?tab=pendencias')
+  expect(navigate).toHaveBeenCalledWith('/reconciliacao?tab=recebidos')
   fireEvent.click(within(row).getByRole('button', { name: /^Resolver / }))
   await waitFor(() => expect(confirmWithReason).toHaveBeenCalledWith(expect.objectContaining({ title: 'Resolver com justificativa' })))
 })
@@ -180,6 +180,11 @@ it('sincroniza o cartão de setor a partir da URL e ignora valores desconhecidos
   expect(pressed()).toEqual([expect.stringMatching(/^Administrativo/)])
   unmount()
 
+  // 587: o Financeiro é setor dos alertas do Pix e da Restituição.
+  const financeiro = renderAlertas(['/alertas?departamento=financeiro'])
+  expect(pressed()).toEqual([expect.stringMatching(/^Financeiro/)])
+  financeiro.unmount()
+
   const legacy = renderAlertas(['/alertas?departamento=sem_departamento'])
   expect(pressed()).toEqual([expect.stringMatching(/^Sem setor/)])
   legacy.unmount()
@@ -198,6 +203,7 @@ it('cartões por setor filtram a fila ali mesmo e, clicados de novo, tiram o fil
   const cards = within(screen.getByRole('group', { name: 'Alertas por setor' }))
   const documentacao = cards.getByRole('button', { name: /Documentação\s*4 alertas/ })
   expect(cards.getByRole('button', { name: /Administrativo\s*Nenhum/ })).toBeTruthy()
+  expect(cards.getByRole('button', { name: /Financeiro\s*Nenhum/ })).toBeTruthy()
   expect(cards.getByRole('button', { name: /Sem setor\s*2 alertas/ })).toBeTruthy()
   expect(documentacao.getAttribute('aria-pressed')).toBe('false')
 

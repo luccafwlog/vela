@@ -99,9 +99,10 @@ describeLocal('fatura avulsa flexível — PostgreSQL local', () => {
         ('${operatorId}', 'operator-098@example.test'),
         ('${portalAId}', 'portal-a-098@example.test'),
         ('${portalBId}', 'portal-b-098@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
-        ('${adminId}', 'Admin 098', 'administrativo', true),
-        ('${operatorId}', 'Operator 098', 'operator', true);
+      -- Conta Dev: baixa e cancelamento de baixa são do Financeiro e da conta Dev (migration 583).
+      INSERT INTO public.user_profiles (id, full_name, role, active, is_dev) VALUES
+        ('${adminId}', 'Admin 098', 'administrativo', true, true),
+        ('${operatorId}', 'Operator 098', 'operator', true, false);
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES
         (${customerA}, '${customerACnpj}', 'Cliente manual A'),
         (${customerB}, '${customerBCnpj}', 'Cliente manual B');

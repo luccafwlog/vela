@@ -14,9 +14,10 @@ type Props = {
 
 export function DemurrageDunningSettingsModal({ open, onClose }: Props) {
   const { data: settings, isLoading, error: settingsError } = useAppSettings()
-  // A RPC `set_demurrage_dunning_interval_days` aceita só o Administrativo.
-  const { effectiveRole } = useAuth()
-  const canEdit = effectiveRole === 'administrativo'
+  // A RPC `set_demurrage_dunning_interval_days` aceita Administrativo,
+  // Financeiro e Equipamentos (migration 583).
+  const { can } = useAuth()
+  const canEdit = can('cancel_demurrage_invoices')
   const setDunningMutation = useSetDemurrageDunningIntervalDays()
   const confirm = useConfirm()
   const [daysInput, setDaysInput] = useState<string | null>(null)
@@ -96,7 +97,7 @@ export function DemurrageDunningSettingsModal({ open, onClose }: Props) {
           </Field>
         ) : (
           <p className="app-dem-facts-line">
-            Intervalo atual: <strong>{isLoading ? '…' : storedDays == null ? 'não lido' : `${storedDays} ${storedDays === 1 ? 'dia' : 'dias'}`}</strong>. Só o Administrativo altera o intervalo.
+            Intervalo atual: <strong>{isLoading ? '…' : storedDays == null ? 'não lido' : `${storedDays} ${storedDays === 1 ? 'dia' : 'dias'}`}</strong>. Só o Administrativo, o Financeiro e Equipamentos alteram o intervalo.
           </p>
         )}
 

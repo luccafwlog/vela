@@ -5,7 +5,9 @@ import {
   DEPARTMENTS,
   PERMISSION_GROUPS,
   PERMISSION_MATRIX,
+  DEV_ONLY,
   allowedDepartments,
+  allowedWithoutDevMark,
   capabilitiesFor,
   isSharedByAll,
   rowsByGroup,
@@ -41,8 +43,8 @@ const globals = new Set([...section('MATRIX_GLOBAL').matchAll(/\{ row: '([^']+)'
 const titles = [...battery.matchAll(/\bit(?:\.each\([^)]*\))?\(\s*'([^']+)'/g)].map(([, title]) => title)
 
 describe('catálogo "O que cada setor pode"', () => {
-  it('tem as 44 linhas (39 da página aprovada, o disparo de Comunicado, a remoção de atracação, o Novo cliente de 2026-10-27, Isentar Taxas Locais e Dispensar cobrança de Demurrage), nos nove assuntos, com os cinco setores', () => {
-    expect(PERMISSION_MATRIX).toHaveLength(44)
+  it('tem as 46 linhas (39 da página aprovada, o disparo de Comunicado, a remoção de atracação, o Novo cliente de 2026-10-27, Isentar Taxas Locais, Dispensar cobrança de Demurrage e os dois cancelamentos de baixa desmembrados em 2026-11-04), nos nove assuntos, com os cinco setores', () => {
+    expect(PERMISSION_MATRIX).toHaveLength(46)
     expect(rowsByGroup().map(({ group }) => group.label)).toEqual(PERMISSION_GROUPS.map((group) => group.label))
     expect(new Set(PERMISSION_MATRIX.map((row) => row.id)).size).toBe(PERMISSION_MATRIX.length)
     for (const row of PERMISSION_MATRIX) {
@@ -63,7 +65,7 @@ describe('catálogo "O que cada setor pode"', () => {
       if (proof.startsWith('exceção: ')) {
         const allowed = exceptions.get(proof.slice('exceção: '.length))
         expect(allowed, proof).toBeDefined()
-        expect([...(allowed ?? [])].sort(), proof).toEqual([...allowedDepartments(row)].sort())
+        expect([...(allowed ?? [])].sort(), proof).toEqual([...allowedWithoutDevMark(row)].sort())
       } else if (proof.startsWith('todos: ')) {
         expect(globals.has(proof.slice('todos: '.length)), proof).toBe(true)
         expect(isSharedByAll(row), proof).toBe(true)
@@ -90,7 +92,27 @@ describe('capabilitiesFor (lista da janela de usuário)', () => {
     expect(doc.can).toContain('Assinar e observar a seção do ADR de Saída: só a própria seção')
     expect(doc.can).toContain('Recebe os alertas do próprio setor: 36 tipos')
     expect(doc.cannot).toContain('Registrar pagamento (baixa manual) e confirmar Restituição')
-    expect(doc.cannot).toContain('Cancelar fatura, cancelar baixa e preparar cancelamento financeiro de B/L')
+    expect(doc.cannot).toContain('Cancelar fatura sem pagamento')
+    expect(doc.cannot).toContain('Cancelar baixa e preparar cancelamento financeiro de B/L')
+  })
+
+  it('baixa, cancelar baixa e conciliar Pix são do Financeiro; no Administrativo, só a conta Dev (decisão de 2026-11-04)', () => {
+    const fin = capabilitiesFor('financeiro')
+    const adm = capabilitiesFor('administrativo')
+    for (const action of ['Registrar pagamento (baixa manual) e confirmar Restituição', 'Cancelar baixa e preparar cancelamento financeiro de B/L',
+      'Registrar pagamento de Invoice', 'Cancelar baixa de Invoice', 'Conciliar: vincular, confirmar, tratar exceção, marcar recebimento Itaú']) {
+      expect(fin.can, action).toContain(action)
+      expect(adm.can, action).toContain(`${action}: só a conta Dev`)
+      const row = PERMISSION_MATRIX.find((candidate) => candidate.action === action)
+      expect(row && allowedWithoutDevMark(row), action).toEqual(['financeiro'])
+      expect(row?.can.administrativo, action).toBe(DEV_ONLY)
+    }
+    expect(fin.can).toContain('Cancelar fatura sem pagamento')
+    expect(fin.can).toContain('Cancelar Invoice sem pagamento; mudar o intervalo da Régua')
+    expect(capabilitiesFor('equipamentos').can).toContain('Cancelar Invoice sem pagamento; mudar o intervalo da Régua')
+    expect(capabilitiesFor('equipamentos').cannot).toContain('Cancelar fatura sem pagamento')
+    expect(fin.can).toContain('Liquidar Ajuste de COD')
+    expect(adm.can).toContain('Liquidar Ajuste de COD')
   })
 
   it('só o Administrativo exclui o Embarque de vazios (544); todos dispensam a cobrança de Demurrage (517, 530)', () => {

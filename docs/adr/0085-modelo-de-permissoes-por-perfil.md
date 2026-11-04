@@ -15,6 +15,8 @@
 >
 > **Situação atual (2026-10-28).** Pela [ADR 0111](./0111-alterar-excluir-e-isentar-taxas-locais-do-bl.md) (migration `491`), a linha "Excluir taxa manual do B/L" deixa de ser exceção do Administrativo: qualquer setor exclui a cobrança manual, e também altera o valor e exclui taxa calculada do B/L, sempre com justificativa.
 
+> **Situação atual (2026-11-04).** Pela decisão do dono de 2026-11-04 (migration `583`), as linhas de D4 e D5 sobre dinheiro mudam: baixa manual, cancelamento de baixa (Taxas Locais e Demurrage), conciliar Pix (extrato, exceções, Pix recebido), registrar a Restituição e preparar o cancelamento financeiro de B/L em fatura paga são só do Financeiro e da conta Dev (`is_financeiro_or_dev_user()`); o Administrativo comum deixa de fazê-las. Cancelar fatura sem pagamento e o intervalo da Régua passam a incluir o Financeiro (e, na Invoice de Demurrage e na Régua, Equipamentos). Regra vigente em [Segurança](../operations/seguranca.md#modelo-de-permissões-por-perfil).
+
 Status: supersedida parcialmente — 2026-10-14 (decisões do dono). Implementada em 2026-10-14 pelos
 itens P1 a P15 do
 [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md)

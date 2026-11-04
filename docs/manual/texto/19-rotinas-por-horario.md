@@ -101,10 +101,10 @@ Uma rotina a cada minuto cuida do Pix das faturas:
 
 - **gera o QR**, com a cobrança pelo Itaú ligada, segundos depois da emissão e o refaz quando o saldo muda. Até lá, a fatura impressa diz "QR Code em preparação". O QR da Demurrage vale até 14h30 do dia útil seguinte e acompanha a PTAX;
 - **consulta os Pix recebidos** na conta e dá a baixa automática do Pix de cobrança do Vela que tem o valor exato; com a cobrança pelo Itaú desligada, também a do Pix pago no QR estático ([24.1](24-pagamento-e-restituicao.md#241-acompanhar-a-baixa-automática-do-pix)). A fatura fica **Paga** no Vela e no Portal, com o recibo;
-- **separa o que não é seguro**: o Pix com valor diferente, ou de uma fatura já paga ou cancelada, vai para **Pix em análise** e abre **PIX sem conciliação segura** para o {{Financeiro}} e o {{Administrativo}} (capítulo 24). O do QR estático que não pode ser baixado fica **Sem baixa**, sem alerta.
+- **separa o que não é seguro**: o Pix com valor diferente, ou de uma fatura já paga ou cancelada, vai para **Pix em análise** e abre **PIX sem conciliação segura** para o {{Financeiro}} e o {{Administrativo}}; quem trata é o {{Financeiro}} (capítulo 24). O do QR estático que não pode ser baixado fica **Sem baixa**, sem alerta.
 
 ::: atencao
-Se a consulta para, os Pix pagos deixam de ser baixados e abre um alerta (capítulo 20). Enquanto isso, o {{Financeiro}} usa **Conciliar extrato**, em **Conciliação PIX**.
+Se a consulta para, os Pix pagos deixam de ser baixados e abre um alerta (capítulo 20). Enquanto isso, o {{Financeiro}} usa **Conciliar extrato**, em **Conciliação PIX** › **Pix recebidos**.
 :::
 
 ## 19.7 O Desbloqueio de CE

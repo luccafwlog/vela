@@ -38,15 +38,30 @@ export type Permission =
   | 'admin_panel'
   | 'manage_users'
   | 'portal_provisioning'
+  /** Liquidar Ajuste de COD: Financeiro e Administrativo (ADR 0051, decisão 3). */
   | 'settle_financial_adjustments'
+  /**
+   * Registrar e cancelar baixa (Taxas Locais, avulsa e Demurrage), confirmar
+   * Restituição, preparar cancelamento financeiro de B/L e conciliar Pix: só o
+   * Financeiro e a conta Dev (decisão do dono de 2026-11-04; migration 583).
+   */
+  | 'manage_payments'
+  /** Cancelar fatura sem pagamento: Administrativo e Financeiro (migration 583). */
+  | 'cancel_invoices'
+  /** Cancelar Invoice de Demurrage sem pagamento e mudar a Régua: Administrativo, Financeiro e Equipamentos (migration 583). */
+  | 'cancel_demurrage_invoices'
   | 'customer_communications'
   | 'edit_customer_contacts'
 
-export function roleHasPermission(role: UserProfileRole | undefined, permission: Permission): boolean {
+export function roleHasPermission(role: UserProfileRole | undefined, permission: Permission, isDev = false): boolean {
   if (!role) return false
+  // A conta Dev (Administrativo com a marca, ADR 0104) pode tudo de qualquer
+  // setor (decisão do dono de 2026-11-04).
+  if (isDev && role === 'administrativo') return true
   // Papel legado: operator = documentacao. O papel `admin` foi migrado para
   // administrativo e saiu da lista de papeis aceitos (migration 093).
   const effectiveRole: UserProfileRole = role === 'operator' ? 'documentacao' : role
+  if (permission === 'cancel_demurrage_invoices') return ['administrativo', 'financeiro', 'equipamentos'].includes(effectiveRole)
   // Ler o Desbloqueio de CE e abrir os documentos do pedido é de todos os
   // Departamentos; gerir o pedido segue de Administrativo e Documentação
   // (ADR 0085, D11; migration 250).
@@ -58,9 +73,9 @@ export function roleHasPermission(role: UserProfileRole | undefined, permission:
   if (permission === 'customer_communications') return ['administrativo', 'documentacao', 'financeiro', 'operacoes', 'equipamentos'].includes(effectiveRole)
 
   switch (effectiveRole) {
-    case 'administrativo': return permission === 'admin_panel' || permission === 'manage_users' || permission === 'portal_provisioning' || permission === 'settle_financial_adjustments' || permission === 'edit_customer_contacts'
+    case 'administrativo': return permission === 'admin_panel' || permission === 'manage_users' || permission === 'portal_provisioning' || permission === 'settle_financial_adjustments' || permission === 'cancel_invoices' || permission === 'edit_customer_contacts'
     case 'documentacao': return permission === 'portal_provisioning' || permission === 'edit_customer_contacts'
-    case 'financeiro': return permission === 'settle_financial_adjustments'
+    case 'financeiro': return permission === 'settle_financial_adjustments' || permission === 'manage_payments' || permission === 'cancel_invoices'
     case 'operacoes': return false
     case 'equipamentos': return permission === 'edit_customer_contacts'
     default:
@@ -272,6 +287,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const value = useMemo<AuthContextValue>(() => {
     const role = profile?.role
+    const isDev = role === 'administrativo' && profile?.is_dev === true && profile?.account_kind === 'pessoa'
     const effectiveRole: UserProfileRole | null = !role ? null :
       role === 'operator' ? 'documentacao' :
       role
@@ -283,9 +299,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
       profileStatus,
       profileError,
       isAdmin: role === 'administrativo',
-      isDev: role === 'administrativo' && profile?.is_dev === true && profile?.account_kind === 'pessoa',
+      isDev,
       effectiveRole,
-      can: (permission: Permission) => roleHasPermission(role, permission),
+      can: (permission: Permission) => roleHasPermission(role, permission, isDev),
       accessDenied,
       async signIn(email, password, captchaToken) {
         setAccessDenied(false)

@@ -26,6 +26,7 @@ A **Conciliação** da Viagem tem o mesmo nome e a mesma cor nos cartões, na li
 | **Omitida** | âmbar na ficha da Viagem; cinza no Line-Up e em Chegadas e Saídas | **Omitir escala** ([4.7](04-viagens-escalas.md#47-quando-o-armador-omite-uma-escala)); **Reverter omissão** desfaz. |
 | Data em âmbar | âmbar | A previsão passou e ninguém confirmou; só no Vela, o Cliente vê uma previsão comum. |
 | **TBC — pendente** (frente em **Editar escala**) e "N em TBC" | âmbar | Frente sem terminal ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)); com todas atribuídas, "Todas atribuídas", em verde. |
+| **TBC** na coluna de terminal do **Painel** e na coluna **Terminal** do **Planejamento por escala** | âmbar | Alguma frente da escala, declarada em **Editar escala** ou vinda da carga, ainda não tem terminal ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)); passe o mouse para ver quais. **TBC** sem cor no Painel é a escala ainda sem frente, em planejamento. |
 
 ## B/L
 
@@ -63,7 +64,7 @@ Na escala, **B/Ls e CEs** diz em que pé está a documentação no Mercante ([4.
 | **Parcialmente paga** | sem cor | Uma baixa menor que o saldo (capítulo 24). |
 | **Paga** | ✓ verde | A baixa do saldo inteiro: pelo Pix, pelo extrato ou à mão (capítulo 24). |
 | **Coberta** | ✓ verde | Foi paga a consolidada que inclui os B/Ls dela (capítulo 22). |
-| **Cancelada** | cinza | **Cancelar fatura**, pelo {{Administrativo}}, ou a correção do B/L que a reemitiu. A consolidada que deixou de valer aparece como **Cancelada** nas listas e como **Obsoleta** no detalhe (capítulo 22). |
+| **Cancelada** | cinza | **Cancelar fatura**, pelo {{Administrativo}} ou pelo {{Financeiro}}, ou a correção do B/L que a reemitiu. A consolidada que deixou de valer aparece como **Cancelada** nas listas e como **Obsoleta** no detalhe (capítulo 22). |
 
 **Cancelar baixa** devolve a **Paga** a **Emitida** ou **Parcialmente paga** (capítulo 24).
 
@@ -74,7 +75,7 @@ Na escala, **B/Ls e CEs** diz em que pé está a documentação no Mercante ([4.
 | **Faturado** | sem cor | A Invoice nasce assim, quando o último container do grupo volta ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)). |
 | **Em disputa** | âmbar | O Cliente abriu uma Disputa no Portal; volta a **Faturado** quando ela é resolvida ([9.9](09-containers-e-demurrage.md#99-decidir-a-disputa)). |
 | **Pago** | ✓ verde | A baixa do Pix ou o pagamento registrado (capítulo 23). |
-| **Cancelado** | cinza | O cancelamento pelo {{Administrativo}}, ou a reemissão quando as datas, o SOC/COC ou a divisão de um container mudam, ou quando o Cliente do B/L muda ([18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container)). |
+| **Cancelado** | cinza | O cancelamento pelo {{Administrativo}}, pelo {{Financeiro}} ou por {{Equipamentos}}, ou a reemissão quando as datas, o SOC/COC ou a divisão de um container mudam, ou quando o Cliente do B/L muda ([18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container)). |
 | **Fora da Régua** (ao lado da situação) | âmbar | As datas, o SOC/COC ou a divisão de um container mudaram numa Invoice com pagamento, desconto ou Disputa aberta ([23.9](23-demurrage-no-financeiro.md#239-cancelar-uma-invoice-e-gerar-outra)). |
 
 ## Container na Demurrage

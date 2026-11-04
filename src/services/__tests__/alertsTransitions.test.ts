@@ -101,7 +101,7 @@ it('expõe somente os tipos financeiros ativos do contrato', () => {
 
   expect(FINANCIAL_ALERT_EVENTS).toEqual({
     fatura_desatualizada: { audience: ['administrativo', 'financeiro'], units: ['invoice'] },
-    restituicao_pendente: { audience: ['administrativo', 'financeiro'], units: ['invoice'] },
+    restituicao_pendente: { audience: ['financeiro'], units: ['invoice'] },
     billing_calculation_blocked: {
       audience: ['documentacao'],
       units: ['bl'],
@@ -115,7 +115,7 @@ it('expõe somente os tipos financeiros ativos do contrato', () => {
       units: ['exchange_rate_reference'],
     },
     pix_unreconciled: {
-      audience: ['administrativo', 'financeiro'],
+      audience: ['financeiro'],
       units: ['pix_transaction', 'itau_pix_receipt'],
     },
     portal_dispute_opened: {
@@ -182,8 +182,8 @@ expect(getAlertTypeLabel('outro_tipo_desconhecido')).toBe('Alerta não catalogad
 it('resolve destinos pela unidade do evento e pelo identificador canônico da invoice', () => {
   expect(alertEntityLink({ type: 'portal_dispute_opened', entity_type: 'demurrage_invoice', entity_id: '77' })).toBe('/demurrage')
   expect(alertEntityLink({ type: 'portal_dispute_opened', entity_type: 'demurrage_invoice', entity_id: '77', metadata: { dispute_id: 12 } })).toBe('/demurrage?dispute=12')
-  expect(alertEntityLink({ type: 'pix_unreconciled', entity_type: 'pix_transaction', entity_id: 'PIX-77' })).toBe('/reconciliacao?tab=pendencias')
-  expect(alertEntityLink({ type: 'pix_unreconciled', entity_type: 'itau_pix_receipt', entity_id: 'E2E-1', destination: '/reconciliacao' })).toBe('/reconciliacao?tab=pendencias')
+  expect(alertEntityLink({ type: 'pix_unreconciled', entity_type: 'pix_transaction', entity_id: 'PIX-77' })).toBe('/reconciliacao?tab=recebidos')
+  expect(alertEntityLink({ type: 'pix_unreconciled', entity_type: 'itau_pix_receipt', entity_id: 'E2E-1', destination: '/reconciliacao' })).toBe('/reconciliacao?tab=recebidos')
   expect(alertEntityLink({ type: 'billing_calculation_blocked', entity_type: 'bl', entity_id: 'BL-77' })).toBe('/taxas-locais')
   expect(alertEntityLink({ type: 'billing_calculation_blocked', entity_type: 'bl', entity_id: 'BL-77', metadata: { correction_route: '/taxas-locais/tabelas' } })).toBe('/taxas-locais/tabelas')
   expect(alertEntityLink({ type: 'billing_calculation_blocked', entity_type: 'bl', entity_id: 'BL-77', metadata: { correction_route: '/\\evil' } })).toBe('/taxas-locais')
@@ -243,7 +243,7 @@ it('ALE-D05: alertas de registro técnico levam à tela que a Regra cita, com o 
   const link = (type: string, entity_type: string, entity_id: string) => alertEntityLink({ type, entity_type, entity_id, destination: null })
   expect(link('usuario_email_devolvido', 'user_profile', 'u-1')).toBe('/admin/usuarios')
   expect(link('billing_charge_table_missing', 'charge_table_gap', 'BRVIX::CNTR')).toBe('/taxas-locais/tabelas')
-  expect(link('itau_pix_consulta_parada', 'itau_pix_checkpoint', 'itau_pix_polled_until')).toBe('/reconciliacao?tab=pendencias')
+  expect(link('itau_pix_consulta_parada', 'itau_pix_checkpoint', 'itau_pix_polled_until')).toBe('/reconciliacao?tab=recebidos')
   expect(link('demurrage_ptax_recalc_failed', 'exchange_rate_reference', 'itau-pix-14h')).toBe('/demurrage')
   expect(link('calendario_feriados_pendente', 'business_holidays', 'itau-pix-calendar')).toBe('/demurrage')
   expect(alertRecord({ entity_type: 'itau_pix_checkpoint', entity_id: 'itau_pix_polled_until' })?.label).toBe('Consulta de Pix do Itaú')

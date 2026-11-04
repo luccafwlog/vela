@@ -52,6 +52,7 @@ Quando o Vela recusa uma ação, a mensagem quase sempre diz o motivo com as pal
 | Mensagem | O que quer dizer | O que fazer |
 |---|---|---|
 | "Frente TBC impede o fechamento do ADR: …" | Uma frente da escala está sem terminal; a mensagem diz quais (carga solta, vazios de importação, Granito, embarque de vazios…). | Escolha o terminal em **Editar escala** ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)); no Embarque de vazios antigo, em **Definir terminal** ([10.5](10-veiculos-vazios-granito.md#105-registrar-o-embarque-de-vazios)). |
+| "O ATB do terminal … não pode ser anterior ao ATA da escala." (na janela da escala) ou "ATB anterior ao ATA da escala: o navio atraca depois de chegar ao porto. Corrija o ATA ou o ATB do terminal …." | A atracação num terminal ficou antes da chegada ao porto. Aparece ao salvar a escala ou ao confirmar a chegada em **Chegadas e Saídas** depois do ATB. | Confira qual data está errada e corrija em **Editar escala**: o ATA da escala ou o ATB no cartão do terminal. Os dois podem ser corrigidos na mesma gravação ([4.4](04-viagens-escalas.md#44-manter-as-datas-do-navio-em-dia)). |
 | "A escala … tem Embarque de vazios: a frente Vazios EXP não volta para TBC nem sai enquanto o embarque existir. Para trocar, escolha outro terminal." | Com o embarque, a frente de vazios da exportação fica com terminal. | Troque o terminal, se for o caso. Embarque criado na escala errada: o {{Administrativo}} o exclui, se ainda está vazio ([10.5](10-veiculos-vazios-granito.md#105-registrar-o-embarque-de-vazios)). |
 
 ## B/L e containers
@@ -78,7 +79,7 @@ Quando o Vela não deixa excluir, ele diz o motivo de cada registro. Os motivos 
 | "cliente com CNPJ: desative em vez de excluir", "Esta tarifa já foi usada (ou já está em vigor): desative em vez de excluir.", "O registro vinculado não existe mais ou ainda está em uso." ou "Este local ainda está em uso em outros registros e não pode ser excluído." | O cadastro já entrou num cálculo, está em vigor ou outro registro depende dele; Cliente nunca se exclui. | Peça ao {{Administrativo}} que o desative ([9.7](09-containers-e-demurrage.md#97-cadastrar-tarifas-e-acordos-de-demurrage), [10.7](10-veiculos-vazios-granito.md#107-cadastrar-depots-terminais-e-serviços), [13.10](13-cadastro-do-cliente.md#1310-desativar-ou-reativar-um-cliente) e capítulo 21). |
 | "Nada foi excluído: você não tem permissão para excluir este registro, ou ele já não existe." | Ou a exclusão não é da sua equipe, ou outra pessoa já excluiu. | Recarregue a lista; se o registro continua lá, peça ao {{Administrativo}}. |
 | "A Viagem tem fatura viva ou baixa: …. Resolva cada B/L antes de cancelar a Viagem." | Algum B/L da Viagem tem fatura ou pagamento. | [4.8](04-viagens-escalas.md#48-encerrar-cancelar-ou-excluir) e capítulos 22 a 24 |
-| "O cliente não pode ser desativado: …. Receba ou cancele antes o que está em aberto." | O Cliente tem fatura, valor a receber ou Invoice de Demurrage em aberto. Cancelar a fatura é só do {{Administrativo}} ([22.9](22-a-fatura.md#229-cancelar-uma-fatura)). | [13.10](13-cadastro-do-cliente.md#1310-desativar-ou-reativar-um-cliente) |
+| "O cliente não pode ser desativado: …. Receba ou cancele antes o que está em aberto." | O Cliente tem fatura, valor a receber ou Invoice de Demurrage em aberto. Cancelar a fatura sem pagamento é do {{Administrativo}} e do {{Financeiro}} ([22.9](22-a-fatura.md#229-cancelar-uma-fatura)). | [13.10](13-cadastro-do-cliente.md#1310-desativar-ou-reativar-um-cliente) |
 
 ## Taxas Locais, fatura e pagamento
 
@@ -121,6 +122,7 @@ Quando o Vela não deixa excluir, ele diz o motivo de cada registro. Os motivos 
 | Mensagem | O que quer dizer | O que fazer |
 |---|---|---|
 | "Item de alerta não está ativo." | O alerta já fechou, ou outra pessoa o resolveu antes. | Abra **Alertas** de novo e confira ([20.2](20-alertas.md#202-resolver-um-alerta)). |
+| "A conta da baixa automática do Pix Itaú precisa ser do Financeiro: em outro setor, todo Pix pago fica em análise em vez de dar baixa." | Desde 2026-11-04, só a conta do {{Financeiro}} dá baixa; a conta **Integração** fica nele. | [25.5](25-administracao.md#255-desativar-ou-reativar-um-usuário) |
 | "… é o último usuário Administrativo ativo. Antes de mudar o setor ou desativar, ative ou cadastre outro usuário Administrativo." | O Vela não fica sem ninguém no {{Administrativo}}. | [25.3](25-administracao.md#253-trocar-a-equipe-de-um-usuário) |
 
 ## Quando o Vela não explica

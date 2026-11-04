@@ -4,7 +4,10 @@ import { beforeEach, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({ mutateAsync: vi.fn(), role: 'administrativo' }))
 
-vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ effectiveRole: mocks.role }) }))
+vi.mock('../../../hooks/useAuth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../hooks/useAuth')>()
+  return { useAuth: () => ({ effectiveRole: mocks.role, can: (permission: Parameters<typeof actual.roleHasPermission>[1]) => actual.roleHasPermission(mocks.role as 'administrativo', permission) }) }
+})
 
 vi.mock('../../../hooks/useAppSettings', () => ({
   useAppSettings: () => ({ data: { demurrage_dunning_interval_days: 7 } }),
@@ -44,10 +47,17 @@ it('persists the interval after the displayed change is confirmed', async () => 
 })
 
 it('mostra o intervalo e o motivo, sem formulário, para quem a RPC recusa', () => {
-  mocks.role = 'financeiro'
+  mocks.role = 'operacoes'
   render(<ConfirmDialogProvider><DemurrageDunningSettingsModal open onClose={vi.fn()} /></ConfirmDialogProvider>)
   expect(screen.queryByRole('spinbutton')).toBeNull()
   expect(screen.queryByRole('button', { name: 'Salvar intervalo' })).toBeNull()
-  expect(screen.getByText(/Só o Administrativo altera o intervalo/)).toBeTruthy()
+  expect(screen.getByText(/Só o Administrativo, o Financeiro e Equipamentos alteram o intervalo/)).toBeTruthy()
+  mocks.role = 'administrativo'
+})
+
+it.each(['financeiro', 'equipamentos'])('%s também altera o intervalo da Régua (migration 583)', (role) => {
+  mocks.role = role
+  render(<ConfirmDialogProvider><DemurrageDunningSettingsModal open onClose={vi.fn()} /></ConfirmDialogProvider>)
+  expect(screen.getAllByRole('spinbutton').length).toBeGreaterThan(0)
   mocks.role = 'administrativo'
 })

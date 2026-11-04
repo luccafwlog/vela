@@ -58,7 +58,8 @@ const cellInstant = (value: string | null | undefined) => formatBrasiliaInstant(
  * Aba Pix recebidos (ADR 0100): todo Pix que o Itaú informou na consulta de
  * recebimentos, inclusive o que não veio de uma cobrança do Vela (chave
  * digitada, QR de outro sistema na mesma chave). Só o Pix de cobrança do Vela
- * em análise pede ação, e ela é feita em Pendências; para os demais, dar a
+ * em análise pede ação, e ela é feita no bloco Pix em análise, no topo desta
+ * aba (opção A de 2026-11-04; antes, aba Pendências); para os demais, dar a
  * baixa numa fatura é opção de quem concilia, na linha aberta. Filtros,
  * página e tamanho ficam na URL com o prefixo `pix`. A tela mostra o que o
  * Itaú manda de fato: identificador, valor, horário e, às vezes, a mensagem do
@@ -280,9 +281,9 @@ function ReceiptRow({ receipt, columns, open, onToggle, onOpenInvoice }: {
 
 function ReceiptDetail({ receipt, onOpenInvoice }: { receipt: ItauPixReceipt; onOpenInvoice: OpenInvoice }) {
   const { can } = useAuth()
-  // Conciliar é do Financeiro e do Administrativo (ADR 0085, D5; migration 442).
+  // Conciliar é do Financeiro e da conta Dev (decisão do dono de 2026-11-04; migration 583).
   // O Pix de cobrança do Vela sem baixa (baixa cancelada) não recebe baixa por aqui.
-  const canSettle = can('settle_financial_adjustments') && receipt.situation === 'received' && receipt.origin !== 'vela'
+  const canSettle = can('manage_payments') && receipt.situation === 'received' && receipt.origin !== 'vela'
   const extra = bankExtraFields(receipt.raw)
   const mono = 'font-[var(--app-font-mono)] break-all'
   return (
@@ -315,7 +316,7 @@ function ReceiptDetail({ receipt, onOpenInvoice }: { receipt: ItauPixReceipt; on
         {extra.map((field) => <Fact key={field.label} label={field.label}>{field.value}</Fact>)}
       </FactList>
       {receipt.situation === 'review' ? (
-        <p>Pix de cobrança do Vela que não deu baixa automática: trate em Pendências, no bloco Pix em análise.</p>
+        <p>Pix de cobrança do Vela que não deu baixa automática: trate no bloco Pix em análise, no topo desta aba.</p>
       ) : null}
       {canSettle ? <SettleReceipt receipt={receipt} onOpenInvoice={onOpenInvoice} /> : null}
     </div>

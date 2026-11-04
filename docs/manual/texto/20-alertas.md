@@ -11,7 +11,7 @@ Quando alguma coisa precisa de uma pessoa e ninguém pediu, o Vela abre um alert
 
 **Quem faz:** {{Todas as equipes}}
 
-A fila é uma só para todas as equipes: o setor é um filtro, não uma fila separada. Cada alerta tem um setor responsável (**Documentação**, **Equipamentos**, **Operações** ou **Administrativo**) e uma gravidade: **Crítico**, em vermelho, ou **Normal**. O {{Financeiro}} não é setor de alerta: os alertas de dinheiro ficam no setor {{Administrativo}} e chegam ao Financeiro pelo sino ([20.3](#203-acompanhar-o-sino)).
+A fila é uma só para todas as equipes: o setor é um filtro, não uma fila separada. Todas as equipes veem todos os alertas. Cada alerta tem um setor responsável (**Documentação**, **Equipamentos**, **Operações**, **Financeiro** ou **Administrativo**) e uma gravidade: **Crítico**, em vermelho, ou **Normal**. O setor diz de quem é a ação: desde 2026-11-04, os alertas que só o {{Financeiro}} resolve (**PIX sem conciliação segura**, **Consulta de Pix do Itaú parada** e **Restituição pendente**) são do setor {{Financeiro}} ([20.10](#2010-pix-e-pagamento)); a **Fatura desatualizada**, que qualquer equipe corrige, continua no {{Administrativo}} e avisa o {{Financeiro}}.
 
 ::: passos
 1. No menu, abra **Alertas** › **Alertas**, ou clique no cartão da sua equipe no **Painel**: a fila abre já no seu setor.
@@ -54,7 +54,7 @@ Se a causa volta depois de o alerta fechar, ele reabre e as pessoas são avisada
 
 **Quem faz:** {{Todas as equipes}}
 
-O sino é pessoal: traz as **Notificações internas**, o aviso de que abriu um alerta para a sua equipe. Cada pessoa ativa recebe os alertas do seu setor; o {{Financeiro}} recebe também os de dinheiro, e o {{Administrativo}}, os críticos de contato e de fatura do Cliente. O "Quem recebe" de cada assunto diz quais.
+O sino é pessoal: traz as **Notificações internas**, o aviso de que abriu um alerta para a sua equipe. Cada pessoa ativa recebe os alertas do seu setor; o {{Financeiro}} recebe também a Fatura desatualizada e a Taxa alterada à mão mudou, e o {{Administrativo}}, os críticos de contato e de fatura do Cliente. O "Quem recebe" de cada assunto diz quais.
 
 ::: passos
 1. Clique no sino, na barra do alto. Com o menu na lateral, ele fica no pé do menu, como **Notificações**.
@@ -78,8 +78,9 @@ Estes alertas cobram as datas que o navio já devia ter: a data prevista chegou,
 
 | Alerta | Quando abre | O que fazer |
 |---|---|---|
-| **Data da escala pendente** | No dia do ETA, se a escala não tem ATA. Com o ATA, se nenhum terminal da escala tem ETB. | Registre o ATA da escala, ou o ETB no cartão do terminal ([4.4](04-viagens-escalas.md#44-manter-as-datas-do-navio-em-dia)). |
-| **Data de terminal pendente** | Para cada terminal: no dia do ETB sem ATB; com o ATB, enquanto falta o ETD; no dia do ETD sem ATD. | Registre a data cobrada no cartão do terminal ([4.4](04-viagens-escalas.md#44-manter-as-datas-do-navio-em-dia)). |
+| **Escala sem terminal** · crítico | Cinco dias antes do ETA da escala, se alguma frente de operação está sem terminal (em **TBC**, ou a carga que chegou e ainda não tem frente com terminal). Abre de novo, e avisa outra vez, quando o ATA é registrado e a frente continua sem terminal. Também abre quando um terminal tem ATB e nenhuma frente. | Escolha o terminal de cada frente em **Editar escala** ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)). Sem terminal, a carga fica fora do Aviso de Atracação (NOB), do ADR de Saída e do EDI Mercante. Fecha quando você salva a escala com terminal em toda frente. |
+| **Data da escala pendente** | No dia do ETA, se a escala não tem ATA. Com o ATA, se a escala não tem terminal nenhum nem frente para atribuir. | Registre o ATA da escala, ou escolha o terminal e o ETB ([4.4](04-viagens-escalas.md#44-manter-as-datas-do-navio-em-dia)). |
+| **Data de terminal pendente** | Para cada terminal: com o ATA da escala, enquanto falta o ETB; no dia do ETB sem ATB; com o ATB, enquanto falta o ETD; no dia do ETD sem ATD. | Registre a data cobrada no cartão do terminal ([4.4](04-viagens-escalas.md#44-manter-as-datas-do-navio-em-dia)). |
 | **Exportação pendente pós-ATD** | Com o ATD num terminal de escala que declarou exportação de Granito ou de vazios, enquanto a exportação não foi lançada na Viagem. | Importe o Granito ([10.8](10-veiculos-vazios-granito.md#108-importar-o-granito)) ou inclua as unidades no **Embarque de vazios** ([10.5](10-veiculos-vazios-granito.md#105-registrar-o-embarque-de-vazios)), ou corrija a exportação declarada na escala ([4.2](04-viagens-escalas.md#42-planejar-as-escalas)). |
 
 ::: atencao
@@ -154,6 +155,7 @@ Quando um aviso ao Cliente não sai, um destes alertas avisa a {{Documentação}
 | Alerta | Quando abre | O que fazer |
 |---|---|---|
 | **Comunicado NOA pendente**, **Comunicado NOR pendente** e **Comunicado NOB pendente** | A escala (no NOB, o terminal) está na janela do aviso e algum Cliente com destinatário ainda não recebeu. A mensagem lista os Clientes. | Veja na página da viagem, pela Cobertura, o que segura o aviso ([16.8](16-emails-e-comunicados.md#168-quando-um-aviso-não-sai)). Fecha quando o último destinatário recebe. |
+| **Comunicado NOB pendente** · "NOB sem terminal na escala …" | O navio já atracou num terminal da escala e algum Cliente tem carga que não está em terminal nenhum: a frente dela está sem terminal, ou o B/L misto tem a carga cheia e a carga solta em terminais diferentes. Esse Cliente não recebe o Aviso de Atracação. A mensagem lista os Clientes. | **Abrir Viagem**: escolha o terminal da frente em **Editar escala** ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)) ou, no B/L misto, defina a exceção de terminal do B/L ([7.7](07-ficha-do-bl.md#77-mudar-o-terminal-de-descarga-de-um-bl)). Fecha quando todo B/L tem terminal. |
 | **Comunicado sem destinatário** | Um Cliente deveria receber um aviso e não tem contato válido na caixa do modelo. Um por Cliente, com os avisos pendentes. | Ligue um contato à caixa **Documentação e Operação** (no CE e Taxas, **Financeiro**) ([13.6](13-cadastro-do-cliente.md#136-cuidar-dos-contatos-do-cliente)). |
 | **Comunicado automático recusado** · com justificativa | Um aviso não saiu: recusa definitiva do provedor, um dado que só uma pessoa corrige ou a terceira falha seguida. Um por Cliente, com o motivo. | Corrija o que o motivo aponta; se é falha do provedor, avise o suporte técnico. Fecha sozinho quando o aviso sai ou deixa de ser devido; senão, com justificativa. |
 | **Reenviar Comunicado de CE e Taxas** | O CE de um B/L mudou ou saiu depois de o CE e Taxas ter sido enviado ao Cliente. | Reenvie o CE e Taxas ([16.7](16-emails-e-comunicados.md#167-reenviar-o-comunicado-de-ce-e-taxas)). |
@@ -195,14 +197,14 @@ Estes alertas avisam quando a cobrança da Demurrage não anda sem uma pessoa. A
 
 ## 20.10 Pix e pagamento
 
-**Quem recebe:** {{Administrativo}} e {{Financeiro}}
+**Quem recebe:** {{Financeiro}}. São do setor {{Financeiro}} desde 2026-11-04: só ele, e no {{Administrativo}} a conta com a marca Dev, dá baixa, concilia e confirma a restituição. As outras equipes veem esses alertas na fila, sem aviso no sino. Se não houver ninguém ativo no {{Financeiro}}, o alerta crítico avisa o {{Administrativo}}.
 
 O Pix de uma cobrança do Vela que não pode ser baixado sozinho com segurança vira alerta. O Pix do QR estático e o feito digitando a chave ficam **Sem baixa** em **Pix recebidos**, sem alerta ([24.1](24-pagamento-e-restituicao.md#241-acompanhar-a-baixa-automática-do-pix)).
 
 | Alerta | Quando abre | O que fazer |
 |---|---|---|
-| **PIX sem conciliação segura** · crítico | Um Pix não pôde ser baixado sozinho, por exemplo com valor diferente da cobrança ou de fatura já paga ou cancelada. | **Resolver** abre **Conciliação PIX** › **Pendências**: dê a baixa na fatura certa ou registre a devolução (capítulo 24). |
-| **Consulta de Pix do Itaú parada** · crítico · com justificativa | A consulta dos Pix recebidos não avança há mais de 15 minutos: os Pix pagos deixam de ser baixados. Vale com a cobrança pelo Itaú ligada ou desligada, porque o Pix do QR estático também dá baixa por essa consulta. | Baixe pelo **Conciliar extrato**, em **Conciliação PIX**, e avise o suporte técnico. Fecha sozinho quando a consulta volta a andar. |
+| **PIX sem conciliação segura** · crítico | Um Pix não pôde ser baixado sozinho, por exemplo com valor diferente da cobrança ou de fatura já paga ou cancelada. | **Resolver** abre **Conciliação PIX** › **Pix recebidos**, com o Pix ou a exceção no alto da aba: dê a baixa na fatura certa ou registre a devolução (capítulo 24). |
+| **Consulta de Pix do Itaú parada** · crítico · com justificativa | A consulta dos Pix recebidos não avança há mais de 15 minutos: os Pix pagos deixam de ser baixados. Vale com a cobrança pelo Itaú ligada ou desligada, porque o Pix do QR estático também dá baixa por essa consulta. | Baixe pelo **Conciliar extrato**, em **Conciliação PIX** › **Pix recebidos**, e avise o suporte técnico. Fecha sozinho quando a consulta volta a andar. |
 | **Restituição pendente** | Há valor a devolver ao Cliente numa fatura ou numa Invoice de Demurrage, como pagamento a mais ou Pix em duplicidade. | Devolva o valor e marque a restituição como efetuada no detalhe da fatura ou da Invoice (capítulo 24). Fecha quando não resta nada a devolver. |
 
 ## 20.11 Desbloqueio de CE

@@ -23,8 +23,9 @@ import { useToast } from '../ui/Toast'
  */
 export function FinancialRefundsPanel({ source, invoiceId, variant = 'full' }: { source: RefundSource; invoiceId: number; variant?: 'full' | 'authorization' }) {
   const summary = useFinancialRefunds(source, invoiceId)
-  const { isAdmin, can, effectiveRole } = useAuth()
-  const mayConfirm = typeof can === 'function' ? can('settle_financial_adjustments') : isAdmin
+  const { can, effectiveRole } = useAuth()
+  // Confirmar a devolução: Financeiro e conta Dev (migration 583).
+  const mayConfirm = typeof can === 'function' ? can('manage_payments') : false
   // Autorizar e cancelar a autorização: qualquer Departamento (ADR 0085, D2; migration 247).
   const mayAuthorize = effectiveRole != null
   const queryClient = useQueryClient()

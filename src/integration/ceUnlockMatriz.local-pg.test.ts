@@ -63,8 +63,9 @@ function invoiceFixture(bl:string, id:number, ce:string) {
     INSERT INTO public.invoice_receivable_links(invoice_id,receivable_id,bl_id,subtotal_brl,status) VALUES(${id},${id},'${bl}',100,'active');
     SET session_replication_role=origin;`)
 }
-const pay = (id:number, note:string) => JSON.parse(sql(`SELECT public.register_ledger_invoice_payment(${id},100,'ted',now(),NULL,'manual','${note}',NULL);`, admin)).payment_id as number
-const reverse = (paymentId:number) => sql(`SELECT public.reverse_invoice_payment(${paymentId},'Baixa lançada por engano',NULL);`, admin)
+// Baixa e cancelamento da baixa são do Financeiro (migration 583).
+const pay = (id:number, note:string) => JSON.parse(sql(`SELECT public.register_ledger_invoice_payment(${id},100,'ted',now(),NULL,'manual','${note}',NULL);`, finance)).payment_id as number
+const reverse = (paymentId:number) => sql(`SELECT public.reverse_invoice_payment(${paymentId},'Baixa lançada por engano',NULL);`, finance)
 
 const pages = Array.from({length:30},(_,n)=>String(n+1).padStart(2,'0'))
 // B/L isento sem recebível: pagamento atendido sem fatura (ADR 0087, item 2).
@@ -203,7 +204,7 @@ local('desbloqueio CE — matriz SQL de requisitos, filtros e concorrência',()=
     const payment = pay(998620,'Baixa CE600 corrida')
     readyRequest(['CE600-RACE'])
     expect(item('CE600-RACE').can_export).toBe(true)
-    const worker = await heldTransaction(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${admin}'; SELECT public.reverse_invoice_payment(${payment},'Cancelamento de baixa concorrente à exportação',NULL) IS NOT NULL; SELECT 'LOCKED'; SELECT pg_sleep(1.5); COMMIT;`)
+    const worker = await heldTransaction(`BEGIN; SET LOCAL ROLE authenticated; SET LOCAL request.jwt.claim.sub='${finance}'; SELECT public.reverse_invoice_payment(${payment},'Cancelamento de baixa concorrente à exportação',NULL) IS NOT NULL; SELECT 'LOCKED'; SELECT pg_sleep(1.5); COMMIT;`)
     try { expect(()=>exportBls(['CE600-RACE'])).toThrow(/CE600-RACE não apto: .*Taxas locais sem liquidação integral confirmada/) }
     finally { await worker.done }
     expect(sql("SELECT exported_at IS NULL AND export_id IS NULL FROM public.ce_unlock_request_bls WHERE bl_id='CE600-RACE' AND active;")).toBe('t')

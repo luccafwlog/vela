@@ -8,6 +8,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   role: 'administrativo' as string,
+  // Conta Dev (ADR 0104): pode tudo de qualquer setor (migration 583).
+  isDev: false,
   showToast: vi.fn(),
   confirm: vi.fn(),
   confirmWithReason: vi.fn(),
@@ -31,7 +33,15 @@ const mocks = vi.hoisted(() => ({
   fetchROE: vi.fn(),
 }))
 
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: mocks.role === 'administrativo', effectiveRole: mocks.role }) }))
+vi.mock('../../hooks/useAuth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../hooks/useAuth')>()
+  return {
+    useAuth: () => ({
+      isAdmin: mocks.role === 'administrativo', effectiveRole: mocks.role,
+      can: (permission: Parameters<typeof actual.roleHasPermission>[1]) => actual.roleHasPermission(mocks.role as 'administrativo', permission, mocks.isDev),
+    }),
+  }
+})
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({
   useConfirm: () => mocks.confirm,
@@ -208,6 +218,7 @@ describe('Demurrage page behaviours', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.role = 'administrativo'
+    mocks.isDev = false
     detailOverrides = {}
     Object.defineProperty(window, 'print', { configurable: true, value: mocks.print })
     mocks.confirm.mockResolvedValue(true)
@@ -390,6 +401,8 @@ describe('Demurrage page behaviours', () => {
   })
 
   it('aplica desconto, salva os dados da disputa e registra pagamento, voltando ao detalhe depois de cada um', async () => {
+    // Registrar pagamento é do Financeiro e da conta Dev (migration 583).
+    mocks.role = 'financeiro'
     const user = userEvent.setup()
     renderPage()
     await openIssuedDetail(user)
@@ -515,9 +528,37 @@ describe('Demurrage page behaviours', () => {
     const detail = await openIssuedDetail(user)
     expect(within(detail).queryByRole('button', { name: 'Registrar pagamento' })).toBeNull()
     expect(within(detail).queryByRole('button', { name: 'Cancelar Invoice…' })).toBeNull()
-    expect(within(detail).getByText(/Registrar pagamento: Financeiro ou Administrativo\./)).toBeTruthy()
+    expect(within(detail).getByText(/Registrar pagamento: Financeiro\./)).toBeTruthy()
+    expect(within(detail).getByText(/Cancelar a Invoice: Administrativo, Financeiro ou Equipamentos\./)).toBeTruthy()
     // Desconto é de qualquer Departamento (ADR 0085, D4; migration 247).
     expect(within(detail).getByRole('button', { name: /Aplicar desconto|Alterar desconto/ })).toBeTruthy()
+  })
+
+  it.each(['administrativo', 'financeiro', 'equipamentos'])('%s cancela a Invoice emitida (migration 583)', async (role) => {
+    mocks.role = role
+    const user = userEvent.setup()
+    renderPage()
+    const detail = await openIssuedDetail(user)
+    expect(within(detail).getByRole('button', { name: 'Cancelar Invoice…' })).toBeTruthy()
+    // Registrar pagamento só o Financeiro.
+    expect(Boolean(within(detail).queryByRole('button', { name: 'Registrar pagamento' }))).toBe(role === 'financeiro')
+  })
+
+  it('o Administrativo comum não cancela a baixa; a conta Dev cancela (migration 583)', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('tab', { name: 'Pagas' }))
+    await user.click(await screen.findByRole('button', { name: 'DEM-002' }))
+    const detail = await screen.findByRole('dialog', { name: 'Invoice de Demurrage DEM-002' })
+    expect(within(detail).queryByRole('button', { name: 'Cancelar baixa…' })).toBeNull()
+    expect(within(detail).getByText(/Cancelar a baixa: Financeiro\./)).toBeTruthy()
+    cleanup()
+    mocks.isDev = true
+    renderPage()
+    await user.click(screen.getByRole('tab', { name: 'Pagas' }))
+    await user.click(await screen.findByRole('button', { name: 'DEM-002' }))
+    await screen.findByRole('dialog', { name: 'Invoice de Demurrage DEM-002' })
+    expect(screen.getByRole('button', { name: 'Cancelar baixa…' })).toBeTruthy()
   })
 
   it('explica a Invoice tirada da Régua por datas alteradas com desconto ou disputa', async () => {
@@ -530,6 +571,7 @@ describe('Demurrage page behaviours', () => {
   })
 
   it('cancela a baixa com justificativa e preserva o aviso das datas alteradas', async () => {
+    mocks.role = 'financeiro'
     detailOverrides[22] = { dunning_suspended_reason: 'Datas de container alteradas depois do pagamento; conferir a diferença.' }
     const user = userEvent.setup()
     const { invalidateQueries } = renderPage()

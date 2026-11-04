@@ -229,6 +229,14 @@ a uma branch GitHub. O painel informa custo de US$ 0,01344 por hora enquanto a
 branch existir, sem impostos; removê-la encerra essa cobrança. Branches novas
 não copiam dados de produção por padrão.
 
+**Reports do Project Overview:** cada bloco roda o SQL do snippet ligado a ele
+toda vez que a página abre, com o papel somente leitura. Não ponha snippet de
+escrita ali. Em 2026-11-03 um bloco "LIMPA TUDO" tentou 32 vezes esvaziar
+produção e foi removido pelo dono às 23:33; ele era o único bloco da seção.
+Em 2026-11-04 o dono apagou todos os snippets do SQL Editor do projeto (Shared,
+Favorites e Private vazios, conferido por ele)
+([relatório](../archive/reports/2026-11-04-tentativas-de-truncate-em-producao.md)).
+
 Para uma Preview pontual sem ligar Automatic branching: em Supabase → projeto
 Vela → Branching → Create branch, informe o nome da branch de Preview e a mesma
 branch GitHub da PR em "Sync with Git branch". A integração publica commits
@@ -520,6 +528,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `ce-unlock-cleanup` | 06:00 (manual, 07/10, jobid 24) | expurga documentos vencidos do Desbloqueio de CE e expira rascunhos | — |
 | `billing-release-expiry-review` | 03:13 (00:13 de Brasília; `13 3 * * *`, migration `168`) | `reevaluate_expired_billing_releases()`: devolve à Revisão os B/Ls não faturados de Cliente cuja Liberação de faturamento sem Portal venceu nos últimos 7 dias | — |
 | `data-retention` | 06:30 (03:30 de Brasília) | `run_retention()` | — |
+| `cleanup-cron-run-details` | 06:45 (03:45 de Brasília; `45 6 * * *`, migration `589`) | apaga de `cron.job_run_details` as execuções terminadas há mais de 14 dias; não toca em tabela de negócio ([limpeza do lixo operacional](#limpeza-do-lixo-operacional-do-banco)) | — |
 | `container-demurrage-status` | 03:17 (00:17 de Brasília; `17 3 * * *`, migration `197`) | `refresh_containers_demurrage_status()`: grava `overdue` no container sem devolução cujo free time venceu desde a última gravação e tira do atraso o de B/L ou Viagem Cancelados (SQL puro; migration `200`) | — |
 | `demurrage-travado-alerts` | a cada 15 min, em :04/:19/:34/:49 (`4-59/15 * * * *`, migration `516`) | `reconcile_demurrage_travado_alerts()`: abre o Alerta `demurrage_travado` para o grupo de cobrança que entrou em Travado sem passar por um gatilho (Portal do Cliente fechado, virada do dia) e fecha o que saiu; setor pelo motivo (Documentação ou Administrativo, ADR 0112, D25); desde a migration `525`, põe na fila de emissão (`demurrage_billing`) o grupo de A emitir parado, menos o que espera Invoice cancelada à mão, com o iniciador do sistema e uma vez para as mesmas caixas (migration `526`); desde a `529`, refaz a reconciliação das Invoices que ficaram diferentes (datas, SOC, divisão da caixa) quando o gatilho falhou (`reconcile_demurrage_stale_invoices`); SQL puro, sem Vault nem Edge Function | — |
 | `demurrage-disputa-prazo` | a cada 15 min, em :07/:22/:37/:52 (`7-59/15 * * * *`, migration `520`) | `reconcile_demurrage_dispute_deadline_alerts()`: abre o Alerta `demurrage_disputa_prazo` para a Disputa de Demurrage que passou de 1 dia útil aguardando Equipamentos e fecha o que deixou de valer (ADR 0112, D18); SQL puro, sem Vault nem Edge Function | — |
@@ -630,6 +639,40 @@ publicada (as respostas trazem `elapsed_ms`); o acumulado de ~2.800 efeitos
 esvaziou em ~7 minutos, a 490–610 efeitos por minuto em `local_billing`.
 
 `data-retention` roda `public.run_retention()` (migration `094`, ADR 0074; vigente na `311`): apaga auditoria com mais de 5 anos, exceto as marcas de escala, e eventos e tentativas do Portal com mais de 1 ano, inclusive os eventos do provedor de e-mail, e mascara o e-mail em claro das tentativas de envio com mais de 1 ano ([regras de negócio](regras-de-negocio.md)). É SQL puro; não usa Vault nem Edge Function. O resultado da execução fica em `cron.job_run_details`.
+
+#### Limpeza do lixo operacional do banco
+
+Em 2026-11-04 o disco do banco de produção (~309 MB) estava ocupado sobretudo
+por duas tabelas internas, não por dados do Vela: `net._http_response`
+(~200 MB) e `cron.job_run_details` (~47 MB, ~182 mil linhas desde abr/2026).
+
+- `net._http_response`: o próprio `pg_net` apaga as respostas com mais de
+  `pg_net.ttl` (6 horas). Não baixe esse valor para menos de 1 hora: o
+  `http-job-failures` lê a última hora. O espaço das linhas apagadas só volta
+  ao disco com `VACUUM FULL`.
+- `cron.job_run_details`: desde a migration `589`, o job
+  `cleanup-cron-run-details` apaga todo dia as execuções terminadas há mais de
+  14 dias (cobre a janela de 7 dias do `billing-release-expiry-review` com
+  folga). Execução sem `end_time` fica. Para investigar uma rodada antiga,
+  copie a linha antes do 14º dia.
+
+Nenhuma das duas limpezas toca em B/L, Viagem, Pix, CE, Demurrage, Portal,
+`audit_logs` ou Storage; a guarda de dados de negócio continua só no
+`data-retention`.
+
+**Compactação avulsa (dono, SQL Editor, papel `postgres`, de madrugada):**
+depois que o `cleanup-cron-run-details` rodou ao menos uma vez, rode
+`VACUUM FULL net._http_response;` e `VACUUM FULL cron.job_run_details;`, um
+comando por vez (não roda dentro de transação nem de migration). Cada um trava
+a tabela por alguns segundos; chamadas do `pg_net` esperam esse instante. Para
+conferir antes e depois:
+
+```sql
+SELECT pg_size_pretty(pg_total_relation_size('net._http_response')) AS http_response,
+       pg_size_pretty(pg_total_relation_size('cron.job_run_details')) AS job_run_details,
+       (SELECT min(start_time) FROM cron.job_run_details) AS execucao_mais_antiga;
+SELECT jobid, schedule, command, active FROM cron.job WHERE jobname = 'cleanup-cron-run-details';
+```
 
 Os jobs HTTP chamam a Edge Function por `ops.dispatch_edge_job`, que dá 30 s
 ao `pg_net` (antes, o padrão de 5 s incluía DNS e perdia a rodada nos minutos
@@ -1305,7 +1348,9 @@ com autorização do dono. Desde a migration `440`, a conta é de integração e
 Financeiro, com o e-mail em `portal_suppressed_emails`
 ([Conta de integração](../modules/operacao-suporte.md#conta-de-integração)); uma
 conta nova para a baixa precisa de Financeiro e de `account_kind = 'integracao'`
-gravado por migration ou `service_role`. `ITAU_PIX_ADMIN_SECRET` cadastrado também no Vault;
+gravado por migration ou `service_role`. Desde a migration `583` (decisão do
+dono de 2026-11-04) a baixa aceita só o Financeiro (e a conta Dev): uma conta
+Administrativa nessa função deixa o Pix em análise, e a `583` avisa no deploy; desde a `586` o banco recusa tirar essa conta do Financeiro (em 2026-11-04 ela é do Financeiro, de integração e ativa em produção). `ITAU_PIX_ADMIN_SECRET` cadastrado também no Vault;
 chamada de diagnóstico pelo banco confirmou HTTP 200, Bearer, 300 s em 07/10.
 Job `itau-pix-queue` ativo a cada minuto (jobid 25), autorizado em 07/10;
 primeiro ciclo confirmou cron `succeeded`, Edge HTTP 200 e avanço do checkpoint,

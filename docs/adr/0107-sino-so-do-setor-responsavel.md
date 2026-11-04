@@ -1,5 +1,7 @@
 # 0107 — Sino só do setor responsável, e alerta resolvido sai do sino
 
+> **Situação atual (2026-11-04).** Decisão do dono sobre a revisão da release staging → main: o Financeiro passa a ser setor de alerta (migration `587`). **Pix não conciliado**, **Consulta de Pix do Itaú parada** e **Restituição pendente**, que desde a migration `583` só o Financeiro e a conta Dev resolvem, saem do setor Administrativo e vão para o Financeiro: cartão próprio, filtro na fila e sino só do Financeiro. A exceção do Financeiro desta ADR fica para **Fatura desatualizada** e **Taxa alterada à mão mudou**, que seguem no Administrativo. Todos os setores veem todos os alertas na fila. Regra vigente em [Operação e Suporte](../modules/operacao-suporte.md#alertas-e-notificações-internas).
+
 Status: aceito — 2026-10-27 (decisão do dono, ponto 2 de
 [Pontos do dono](../manual/decisoes/pontos-do-dono.md), com a exceção do
 Financeiro decidida em 2026-10-27; lote 8 do

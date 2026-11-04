@@ -280,6 +280,11 @@ function makeFront(
   }
 }
 
+/** B/L fora da operação: cancelado ou cancelado no financeiro (mesmo recorte do NOB, migration 584). */
+export function isCancelledBl(row: { cancelled_at?: unknown; financial_status?: unknown }): boolean {
+  return (typeof row.cancelled_at === 'string' && row.cancelled_at !== '') || row.financial_status === 'cancelled'
+}
+
 export type DeriveOperationFrontInput = {
   existing?: Array<Pick<OperationFront, 'id' | 'sentido' | 'modalidade' | 'terminalId' | 'source'>>
   importKinds?: Iterable<Exclude<OperationFrontKind, 'granito'>>
@@ -455,7 +460,7 @@ export async function fetchEscalaTerminalState(voyageId: number, port: string): 
   const operationalScale = schedules.get(voyageId)?.find((schedule) => normalizePort(schedule.port) === normalizedPort)
   if (operationalScale?.temImportacao) importKinds.add('carga_cheia')
   const bls = await fetchAllRows<JsonRecord>((from, to) =>
-    table('bls').select('id, cargo_mode, pod').eq('voyage_id', voyageId).in('pod', portCodeVariants(normalizedPort)).order('id', { ascending: true }).range(from, to),
+    table('bls').select('id, cargo_mode, pod, cancelled_at, financial_status').eq('voyage_id', voyageId).in('pod', portCodeVariants(normalizedPort)).order('id', { ascending: true }).range(from, to),
   )
   if (bls.error) throw bls.error
   // B/L em transbordo de uma escala omitida mantém o POD do porto omitido
@@ -463,11 +468,13 @@ export async function fetchEscalaTerminalState(voyageId: number, port: string): 
   // frentes desta escala, como o conteúdo do ADR já a soma.
   const transshipmentBlIds = await listTransshipmentBlIds(voyageId, normalizedPort)
   const transshipmentBls = transshipmentBlIds.length
-    ? await table('bls').select('id, cargo_mode').in('id', transshipmentBlIds)
+    ? await table('bls').select('id, cargo_mode, cancelled_at, financial_status').in('id', transshipmentBlIds)
     : { data: [], error: null }
   if (transshipmentBls.error) throw transshipmentBls.error
   const transshipmentRows = Array.isArray(transshipmentBls.data) ? transshipmentBls.data as JsonRecord[] : []
-  for (const row of [...bls.data, ...transshipmentRows]) {
+  // B/L cancelado (ou cancelado no financeiro) não traz carga: não cria frente,
+  // como no banco (`_escala_import_fronts_without_terminal`, migration 588).
+  for (const row of [...bls.data, ...transshipmentRows].filter((bl) => !isCancelledBl(bl))) {
     for (const kind of operationFrontKindsForCargoMode(typeof row.cargo_mode === 'string' ? row.cargo_mode : null)) {
       importKinds.add(kind)
     }

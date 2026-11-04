@@ -166,8 +166,9 @@ export function financeWorld(ns: number) {
       `SELECT public.create_local_consolidated_invoice(${customer}, ARRAY[${blIds.map(receivableId).join(',')}]::bigint[], NULL, '${actors.administrativo}'::uuid)`).invoice_id
   }
 
+  // Cancelar a baixa é do Financeiro e da conta Dev (migration 583).
   function reversePayment(paymentId: number, reason = 'Estorno do teste') {
-    return json<Record<string, unknown>>('administrativo', `SELECT public.reverse_invoice_payment(${paymentId}, '${reason}')`)
+    return json<Record<string, unknown>>('financeiro', `SELECT public.reverse_invoice_payment(${paymentId}, '${reason}')`)
   }
 
   function activeInvoiceAlerts(type: string, invoiceId: number): number {

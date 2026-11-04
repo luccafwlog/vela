@@ -194,7 +194,7 @@ export function Revisao() {
         after: String(value),
       }],
       consequence: 'Atualiza o dado documental e reavalia a pendência. Se esta correção liberar o último gate, o cálculo e a emissão da fatura poderão ocorrer automaticamente.',
-      reversibility: 'O dado pode ser corrigido novamente antes da emissão. Uma fatura emitida não pode ser apagada; sem pagamento, seu cancelamento é restrito ao perfil Administrativo.',
+      reversibility: 'O dado pode ser corrigido novamente antes da emissão. Uma fatura emitida não pode ser apagada; sem pagamento, seu cancelamento é restrito ao Administrativo e ao Financeiro.',
     })
     if (!confirmed) return
 
@@ -396,7 +396,7 @@ export function Revisao() {
       affected: { summary: `B/L ${item.id} · ${item.customer?.name ?? 'sem cliente vinculado'}` },
       changes,
       consequence: 'Atualiza os dados documentais e o servidor recalcula as pendências. Se nenhuma sobrar e os demais gates estiverem atendidos, a emissão da fatura poderá ocorrer automaticamente.',
-      reversibility: 'Os campos podem ser corrigidos novamente antes da emissão. Uma fatura emitida não pode ser apagada; sem pagamento, seu cancelamento é restrito ao perfil Administrativo.',
+      reversibility: 'Os campos podem ser corrigidos novamente antes da emissão. Uma fatura emitida não pode ser apagada; sem pagamento, seu cancelamento é restrito ao Administrativo e ao Financeiro.',
     })
     if (!confirmed) return
     setSavingInlineId(item.id)
@@ -478,7 +478,7 @@ export function Revisao() {
       },
       // B28 (ADR 0083, item 26; ADR 0064, item 6): o vínculo captura o e-mail do manifesto como contato.
       consequence: 'Atualiza os vínculos de cliente. O e-mail do manifesto de cada B/L entra como contato do Cliente quando o CNPJ do documento é o dele (endereço já cadastrado não é duplicado nem reativado). Para B/Ls, se essa for a última pendência e os gates estiverem liberados, a fatura poderá ser emitida automaticamente.',
-      reversibility: 'O vínculo pode ser corrigido pela Revisão antes da emissão. Faturas emitidas seguem o cancelamento restrito ao perfil Administrativo quando não houver pagamento.',
+      reversibility: 'O vínculo pode ser corrigido pela Revisão antes da emissão. Faturas emitidas seguem o cancelamento restrito ao Administrativo e ao Financeiro quando não houver pagamento.',
     })
     if (!confirmed) return
     setSavingGroupKey(group.key)

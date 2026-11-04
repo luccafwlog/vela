@@ -66,9 +66,13 @@ export function RowToggle({ open, controls, label, onClick, disabled }: { open: 
 
 /**
  * Pendências da Conciliação PIX: Pix de cobrança do Vela que entrou no Itaú e
- * não deu baixa, linhas de extrato sem baixa segura e cobranças que ainda
- * esperam o banco. Os demais Pix recebidos ficam na aba Pix recebidos, sem
- * pedir ação (ADR 0100).
+ * não deu baixa, linhas de extrato sem baixa segura e cobranças paradas no
+ * banco. Ficam no topo da aba Pix recebidos, acima da lista de todo Pix
+ * recebido, que não pede ação (ADR 0100; opção A, decisão do dono de
+ * 2026-11-04; antes era a aba Pendências). A faixa Cobrança Pix Itaú aparece
+ * sempre; Pix em análise, Exceções do extrato e Cobranças aguardando o Itaú só
+ * quando têm o que tratar, ou a resposta da ação que acabou de esvaziá-los. Os
+ * blocos ficam montados mesmo vazios, para essa resposta não se perder.
  * Cada assunto é um bloco com tabela limpa (lote 3 da identidade); a situação
  * vai em texto, âmbar só no que pede ação. Nada aqui baixa por semelhança.
  */
@@ -80,19 +84,33 @@ export function PixPendingPanel({ onOpenExtract, onOpenInvoice }: { onOpenExtrac
   return (
     <div className="grid min-w-0 gap-4 pt-1">
       <ItauBlock query={monitorQuery} onOpenExtract={onOpenExtract} />
-      {monitor?.provider === 'itau' || monitor?.receipts.length ? <ReceiptsBlock monitor={monitor} /> : null}
-      <ExceptionsBlock query={exceptionsQuery} onOpenExtract={onOpenExtract} />
-      {monitor?.provider === 'itau' || monitor?.charges.length ? <ChargesBlock monitor={monitor} onOpenInvoice={onOpenInvoice} /> : null}
+      <ReceiptsBlock monitor={monitor} />
+      <ExceptionsBlock query={exceptionsQuery} />
+      <ChargesBlock monitor={monitor} onOpenInvoice={onOpenInvoice} />
     </div>
   )
 }
 
 function ItauBlock({ query, onOpenExtract }: { query: ReturnType<typeof useItauPixMonitor>; onOpenExtract: () => void }) {
   const monitor = query.data
+  // Ler o extrato já grava exceções e confirmar baixa: é do Financeiro e da
+  // conta Dev (decisão do dono de 2026-11-04; migration 583). Os demais veem o motivo na dica.
+  const { can } = useAuth()
+  const canReconcile = can('manage_payments')
   return (
     <Block
       title="Cobrança Pix Itaú"
-      aside={<Button variant="secondary" className="app-btn--sm" onClick={onOpenExtract}>Conciliar extrato</Button>}
+      aside={(
+        <Button
+          variant="secondary"
+          className="app-btn--sm"
+          disabled={!canReconcile}
+          title={canReconcile ? undefined : 'Conciliar extrato é do Financeiro'}
+          onClick={onOpenExtract}
+        >
+          Conciliar extrato
+        </Button>
+      )}
     >
       <ItauStatus query={query} monitor={monitor} />
     </Block>
@@ -134,10 +152,12 @@ function ItauStatus({ query, monitor }: { query: ReturnType<typeof useItauPixMon
         </LeadValue>
       )}
       {itauOn ? (
-        <FactList columns={3}>
+        <FactList columns={4}>
           <Fact label="Baixa automática">Ligada</Fact>
           {polledUntil}
           <Fact label="Cobranças ativas"><span className="tabular-nums">{(monitor.counts.active ?? 0).toLocaleString('pt-BR')}</span></Fact>
+          {/* A fila só vira bloco quando uma cobrança pede ação; o resto do tempo é só a contagem. */}
+          <Fact label="Aguardando o Itaú">{monitor.charges.length ? <span className="tabular-nums">{monitor.charges.length.toLocaleString('pt-BR')}</span> : 'Nenhuma'}</Fact>
         </FactList>
       ) : (
         <FactList columns={3}>
@@ -153,13 +173,16 @@ function ItauStatus({ query, monitor }: { query: ReturnType<typeof useItauPixMon
 function ReceiptsBlock({ monitor }: { monitor: ItauPixMonitor | undefined }) {
   const queryClient = useQueryClient()
   const [form, setForm] = useState<{ endToEndId: string; note: string; error: string | null } | null>(null)
-  const [done, setDone] = useState<string | null>(null)
+  // A resposta da última ação vale para a lista que a pessoa viu: o Pix novo
+  // que a releitura de cada minuto trouxer a tira da tela.
+  const [lastDone, setLastDone] = useState<{ text: string; seen: ReadonlySet<string> } | null>(null)
   const noteRef = useRef<HTMLTextAreaElement>(null)
   const triggerRefs = useRef(new Map<string, HTMLButtonElement>())
   const receipts = monitor?.receipts ?? []
-  // Ler é de todos; tratar é do Financeiro e do Administrativo (ADR 0085, D5; migration 247).
+  const done = lastDone && receipts.every((receipt) => lastDone.seen.has(receipt.endToEndId)) ? lastDone.text : null
+  // Ler é de todos; tratar é do Financeiro e da conta Dev (migration 583).
   const { can } = useAuth()
-  const canReconcile = can('settle_financial_adjustments')
+  const canReconcile = can('manage_payments')
 
   const formFor = form?.endToEndId ?? null
   const returnFocus = useRef<string | null>(null)
@@ -178,7 +201,10 @@ function ReceiptsBlock({ monitor }: { monitor: ItauPixMonitor | undefined }) {
     mutationFn: ({ endToEndId, note }: { endToEndId: string; note: string; amount: number }) => markItauPixReceiptHandled(endToEndId, note),
     onSuccess: async (_data, { amount }) => {
       setForm(null)
-      setDone(`Pix de ${formatBRL(amount)} marcado como tratado; o Alerta do recebimento foi encerrado.`)
+      setLastDone({
+        text: `Pix de ${formatBRL(amount)} marcado como tratado; o Alerta do recebimento foi encerrado.`,
+        seen: new Set(receipts.map((receipt) => receipt.endToEndId)),
+      })
       await afterPendenciaPixAlterada(queryClient)
     },
     onError: (error: Error) => setForm((current) => (current ? { ...current, error: extractErrorText(error) } : current)),
@@ -188,6 +214,8 @@ function ReceiptsBlock({ monitor }: { monitor: ItauPixMonitor | undefined }) {
     returnFocus.current = endToEndId
     setForm(null)
   }
+
+  if (!receipts.length && !done) return null
 
   return (
     <Block title="Pix em análise" flush aside={`${receipts.length.toLocaleString('pt-BR')} · Pix de cobrança do Vela que não deu baixa automática`}>
@@ -226,7 +254,7 @@ function ReceiptsBlock({ monitor }: { monitor: ItauPixMonitor | undefined }) {
                             label={`Marcar como tratado o Pix de ${formatBRL(receipt.amount)} recebido em ${cellInstant(receipt.paidAt)}`}
                             title="Marcar como tratado"
                             icon={CheckCheck}
-                            onClick={() => { setDone(null); setForm({ endToEndId: receipt.endToEndId, note: '', error: null }) }}
+                            onClick={() => { setLastDone(null); setForm({ endToEndId: receipt.endToEndId, note: '', error: null }) }}
                           />
                         ) : null}
                       </td>
@@ -323,12 +351,14 @@ function settleErrorText(error: unknown, docNumber: string | null) {
   return `${extractErrorText(error)} Nenhuma baixa foi gravada; a exceção continua pendente.`
 }
 
-type ExceptionFeedback = { id: number; tone: 'danger' | 'success'; text: string }
+// `seen`: as exceções na tela quando a ação respondeu; a exceção nova que a
+// releitura trouxer tira da tela a resposta que ficou sem linha.
+type ExceptionFeedback = { id: number; tone: 'danger' | 'success'; text: string; seen?: ReadonlySet<number> }
 
-function ExceptionsBlock({ query, onOpenExtract }: { query: ReturnType<typeof usePixExceptions>; onOpenExtract: () => void }) {
+function ExceptionsBlock({ query }: { query: ReturnType<typeof usePixExceptions> }) {
   const queryClient = useQueryClient()
   const { can } = useAuth()
-  const canReconcile = can('settle_financial_adjustments')
+  const canReconcile = can('manage_payments')
   const [openId, setOpenId] = useState<number | null>(null)
   const [feedback, setFeedback] = useState<ExceptionFeedback | null>(null)
   // Exceções com baixa gravada e encerramento recusado. A fatura já não está
@@ -339,6 +369,7 @@ function ExceptionsBlock({ query, onOpenExtract }: { query: ReturnType<typeof us
   // fatura na exceção antes da baixa (vínculo) e encerrar a partir dela.
   const [unclosed, setUnclosed] = useState<ReadonlyMap<number, { resolution: PixExceptionResolution; docNumber: string }>>(() => new Map())
   const exceptions = query.data ?? []
+  const seenNow = () => new Set(exceptions.map((exception) => exception.id))
 
   function rememberUnclosed(exceptionId: number, error: unknown) {
     if (!(error instanceof SettleError) || !error.pending) return
@@ -362,7 +393,7 @@ function ExceptionsBlock({ query, onOpenExtract }: { query: ReturnType<typeof us
     },
     onMutate: () => setFeedback(null),
     onSuccess: async (docNumber, exception) => {
-      setFeedback({ id: exception.id, tone: 'success', text: `${docNumber}: baixa confirmada pelo banco (Pix de ${formatBRL(exception.amount)}, linha ${exception.lineNumber}).` })
+      setFeedback({ id: exception.id, tone: 'success', text: `${docNumber}: baixa confirmada pelo banco (Pix de ${formatBRL(exception.amount)}, linha ${exception.lineNumber}).`, seen: seenNow() })
       await afterPixConciliado(queryClient)
     },
     onError: async (error, exception) => {
@@ -391,7 +422,7 @@ function ExceptionsBlock({ query, onOpenExtract }: { query: ReturnType<typeof us
     onMutate: () => setFeedback(null),
     onSuccess: async (docNumber, { exception }) => {
       setOpenId(null)
-      setFeedback({ id: exception.id, tone: 'success', text: `${docNumber}: baixa confirmada pelo banco (Pix de ${formatBRL(exception.amount)}, linha ${exception.lineNumber}).` })
+      setFeedback({ id: exception.id, tone: 'success', text: `${docNumber}: baixa confirmada pelo banco (Pix de ${formatBRL(exception.amount)}, linha ${exception.lineNumber}).`, seen: seenNow() })
       await afterPixConciliado(queryClient)
     },
     onError: async (error, { exception, candidate }) => {
@@ -410,7 +441,7 @@ function ExceptionsBlock({ query, onOpenExtract }: { query: ReturnType<typeof us
     onMutate: () => setFeedback(null),
     onSuccess: async (_data, { exception, docNumber }) => {
       setUnclosed((current) => { const next = new Map(current); next.delete(exception.id); return next })
-      setFeedback({ id: exception.id, tone: 'success', text: `${docNumber}: exceção encerrada; a baixa já estava gravada.` })
+      setFeedback({ id: exception.id, tone: 'success', text: `${docNumber}: exceção encerrada; a baixa já estava gravada.`, seen: seenNow() })
       await afterPixConciliado(queryClient)
     },
     onError: (error, { exception, docNumber }) =>
@@ -422,7 +453,13 @@ function ExceptionsBlock({ query, onOpenExtract }: { query: ReturnType<typeof us
     : linkMutation.isPending
       ? linkMutation.variables?.exception.id
       : closeMutation.isPending ? closeMutation.variables?.exception.id : null
-  const successElsewhere = feedback?.tone === 'success' && !exceptions.some((exception) => exception.id === feedback.id)
+  const successElsewhere = feedback?.tone === 'success'
+    && !exceptions.some((exception) => exception.id === feedback.id)
+    && exceptions.every((exception) => feedback.seen?.has(exception.id) ?? true)
+
+  // Erro de consulta não vira lista vazia: aparece. Carregando ou sem exceção,
+  // o bloco sai da aba, a não ser que traga a resposta da última ação.
+  if (!query.error && !exceptions.length && !successElsewhere) return null
 
   return (
     <Block
@@ -431,19 +468,13 @@ function ExceptionsBlock({ query, onOpenExtract }: { query: ReturnType<typeof us
       aside={`${query.data ? exceptions.length.toLocaleString('pt-BR') : '…'} · linhas sem fatura segura para baixar`}
     >
       {successElsewhere && feedback ? <p className="app-block__body" role="status">{feedback.text}</p> : null}
-      {query.isLoading ? <p className="app-block__body" role="status">Carregando as exceções…</p> : null}
       {query.error ? (
         <div className="app-block__body grid justify-items-start gap-2" role="alert">
           <p>Não foi possível carregar as exceções do extrato: {extractErrorText(query.error)}</p>
           <Button variant="secondary" className="app-btn--sm" onClick={() => void query.refetch()}>Tentar novamente</Button>
         </div>
       ) : null}
-      {query.data && !exceptions.length ? (
-        <div className="app-block__body flex flex-wrap items-center gap-3">
-          <p>Nenhuma exceção pendente.</p>
-          <Button variant="secondary" className="app-btn--sm" onClick={onOpenExtract}>Conciliar extrato</Button>
-        </div>
-      ) : null}
+      {query.data && !exceptions.length ? <p className="app-block__body">Nenhuma exceção pendente.</p> : null}
       {exceptions.length ? (
         <div className="app-table-scroll">
           <table className="app-table app-table--compact">
@@ -595,76 +626,75 @@ function ExceptionsBlock({ query, onOpenExtract }: { query: ReturnType<typeof us
 function ChargesBlock({ monitor, onOpenInvoice }: { monitor: ItauPixMonitor | undefined; onOpenInvoice: OpenInvoice }) {
   const charges = sortItauCharges(monitor?.charges ?? [])
   const [openId, setOpenId] = useState<number | null>(null)
+  // A fila anda sozinha: o bloco só aparece quando uma cobrança está com erro ou
+  // sem resposta do banco, e então mostra a fila inteira, com essas primeiro.
+  if (!charges.some((charge) => itauChargeState(charge).needsAction)) return null
   return (
     <Block
       title="Cobranças aguardando o Itaú"
       flush
       aside={`${charges.length.toLocaleString('pt-BR')} · a fatura mostra "QR em preparação" enquanto aguarda`}
     >
-      {charges.length ? (
-        <div className="app-table-scroll">
-          <table className="app-table app-table--compact">
-            <caption className="sr-only">Cobranças ainda não confirmadas pelo Itaú</caption>
-            <thead>
-              <tr>
-                <th scope="col"><span className="sr-only">Resposta do banco</span></th>
-                <th scope="col">Fatura</th>
-                <th scope="col">Origem</th>
-                <th scope="col">Valor</th>
-                <th scope="col">Situação</th>
-                <th scope="col">Tentativas</th>
-                <th scope="col">Próxima tentativa</th>
-              </tr>
-            </thead>
-            <tbody>
-              {charges.map((charge) => {
-                const state = itauChargeState(charge)
-                const open = openId === charge.id
-                const detailId = `pix-charge-${charge.id}`
-                return (
-                  <Fragment key={charge.id}>
-                    <tr>
-                      <td className="w-px">
-                        <RowToggle
-                          open={open}
-                          controls={detailId}
-                          label={`resposta do banco da cobrança ${charge.docNumber ?? charge.id}`}
-                          onClick={() => setOpenId((current) => (current === charge.id ? null : charge.id))}
-                        />
+      <div className="app-table-scroll">
+        <table className="app-table app-table--compact">
+          <caption className="sr-only">Cobranças ainda não confirmadas pelo Itaú</caption>
+          <thead>
+            <tr>
+              <th scope="col"><span className="sr-only">Resposta do banco</span></th>
+              <th scope="col">Fatura</th>
+              <th scope="col">Origem</th>
+              <th scope="col">Valor</th>
+              <th scope="col">Situação</th>
+              <th scope="col">Tentativas</th>
+              <th scope="col">Próxima tentativa</th>
+            </tr>
+          </thead>
+          <tbody>
+            {charges.map((charge) => {
+              const state = itauChargeState(charge)
+              const open = openId === charge.id
+              const detailId = `pix-charge-${charge.id}`
+              return (
+                <Fragment key={charge.id}>
+                  <tr>
+                    <td className="w-px">
+                      <RowToggle
+                        open={open}
+                        controls={detailId}
+                        label={`resposta do banco da cobrança ${charge.docNumber ?? charge.id}`}
+                        onClick={() => setOpenId((current) => (current === charge.id ? null : charge.id))}
+                      />
+                    </td>
+                    <td className="whitespace-nowrap">
+                      {charge.docNumber && charge.invoiceId != null ? (
+                        <button type="button" className="app-link" onClick={() => onOpenInvoice(charge.source, charge.invoiceId!)}>{charge.docNumber}</button>
+                      ) : (
+                        charge.docNumber ?? <NoValue label="Fatura removida" />
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap">{sourceLabel(charge.source)}</td>
+                    <td className="whitespace-nowrap tabular-nums">{formatBRL(charge.amount)}</td>
+                    <td className="whitespace-nowrap">{state.needsAction ? <StatusText tone="warning">{state.label}</StatusText> : state.label}</td>
+                    <td className="whitespace-nowrap tabular-nums">{charge.attempts.toLocaleString('pt-BR')}</td>
+                    <td className="whitespace-nowrap tabular-nums">{charge.nextAttemptAt ? cellInstant(charge.nextAttemptAt) : <NoValue label="Sem tentativa marcada" />}</td>
+                  </tr>
+                  {open ? (
+                    <tr id={detailId} data-row-detail>
+                      <td colSpan={7}>
+                        <FactList columns={3}>
+                          <Fact label="Resposta do banco">{charge.lastError?.trim() || (charge.uncertain ? 'Sem resposta; a fila consulta o banco antes de repetir' : 'Nenhum erro')}</Fact>
+                          <Fact label="Identificador da cobrança"><span className="font-[var(--app-font-mono)] break-all">{charge.txid}</span></Fact>
+                          <Fact label="Última tentativa">{cellInstant(charge.updatedAt)}</Fact>
+                        </FactList>
                       </td>
-                      <td className="whitespace-nowrap">
-                        {charge.docNumber && charge.invoiceId != null ? (
-                          <button type="button" className="app-link" onClick={() => onOpenInvoice(charge.source, charge.invoiceId!)}>{charge.docNumber}</button>
-                        ) : (
-                          charge.docNumber ?? <NoValue label="Fatura removida" />
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap">{sourceLabel(charge.source)}</td>
-                      <td className="whitespace-nowrap tabular-nums">{formatBRL(charge.amount)}</td>
-                      <td className="whitespace-nowrap">{state.needsAction ? <StatusText tone="warning">{state.label}</StatusText> : state.label}</td>
-                      <td className="whitespace-nowrap tabular-nums">{charge.attempts.toLocaleString('pt-BR')}</td>
-                      <td className="whitespace-nowrap tabular-nums">{charge.nextAttemptAt ? cellInstant(charge.nextAttemptAt) : <NoValue label="Sem tentativa marcada" />}</td>
                     </tr>
-                    {open ? (
-                      <tr id={detailId} data-row-detail>
-                        <td colSpan={7}>
-                          <FactList columns={3}>
-                            <Fact label="Resposta do banco">{charge.lastError?.trim() || (charge.uncertain ? 'Sem resposta; a fila consulta o banco antes de repetir' : 'Nenhum erro')}</Fact>
-                            <Fact label="Identificador da cobrança"><span className="font-[var(--app-font-mono)] break-all">{charge.txid}</span></Fact>
-                            <Fact label="Última tentativa">{cellInstant(charge.updatedAt)}</Fact>
-                          </FactList>
-                        </td>
-                      </tr>
-                    ) : null}
-                  </Fragment>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="app-block__body">Nenhuma cobrança aguardando o Itaú.</p>
-      )}
+                  ) : null}
+                </Fragment>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
     </Block>
   )
 }

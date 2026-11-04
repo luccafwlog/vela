@@ -24,7 +24,7 @@ import { useBlDetail } from '../hooks/useBls'
 import { useBlEditForm } from '../hooks/useBlEditForm'
 import { useBlCockpit } from '../hooks/useBlCockpit'
 import { useAuth } from '../hooks/useAuth'
-import { afterBlEstadoAlterado } from '../services/cacheEffects'
+import { afterBlEstadoAlterado, afterTerminalDoBlAlterado } from '../services/cacheEffects'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { useToast } from '../components/ui/Toast'
 import { cancelBl, reactivateBl } from '../services/blState'
@@ -194,10 +194,7 @@ export function BlDetalhe() {
       changedBy: user?.id,
     }),
     onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.bls.detail(bl?.id) }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.auditLogs.detail('bl', bl?.id) }),
-      ])
+      if (bl?.id) await afterTerminalDoBlAlterado(queryClient, { blId: bl.id })
     },
   })
   const cargoMode = useMemo(() => resolveCargoMode(bl), [bl])
@@ -378,7 +375,7 @@ export function BlDetalhe() {
         <div className="app-bl-notice app-bl-notice--warning app-bl-notice--row" role="alert">
           <span>
             <strong>O B/L {bl.id} não pode ser cancelado agora:</strong> {cancelBlockedReasons.join(', ')}.
-            {cancelBlockedReasons.some((reason) => !isDemurrageCancelReason(reason)) ? ' Antes, o Administrativo cancela a fatura, ou o Financeiro ou o Administrativo registra a baixa ou a Restituição.' : null}
+            {cancelBlockedReasons.some((reason) => !isDemurrageCancelReason(reason)) ? ' Antes, o Administrativo ou o Financeiro cancela a fatura, ou o Financeiro registra a baixa ou a Restituição.' : null}
             {/* ADR 0112, D7 e D26: a sobreestadia sem Invoice segura o cancelamento até a emissão ou a dispensa. */}
             {cancelBlockedReasons.some(isDemurrageCancelReason) ? <> <Link className="app-link" to={demurrageCancelHref(bl.id, cancelBlockedReasons)}>Abrir em Demurrage</Link></> : null}
           </span>

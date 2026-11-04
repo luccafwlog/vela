@@ -54,6 +54,25 @@ describe('alertEntityLink & alertEntityLinkLabel — roteador de destino compart
     expect(alertEntityLinkLabel({ type: 'voyage_terminal_date_pending', entity_type: 'voyage_escala_terminal' })).toBe('Abrir Viagem')
   })
 
+  it('roteia o NOB sem terminal para a escala, onde a frente ganha terminal (584)', () => {
+    const alert = {
+      type: 'comunicado_nob_pendente',
+      entity_type: 'voyage_pod_schedule',
+      entity_id: '100::BRVIX',
+      metadata: { scope: 'sem_terminal', voyage_id: 100, port: 'BRVIX' },
+    }
+    expect(alertEntityLink(alert)).toBe('/viagens/100?escala=BRVIX')
+    expect(alertEntityLinkLabel(alert)).toBe('Abrir Viagem')
+    // O NOB comum continua no Disparo.
+    expect(alertEntityLinkLabel({ type: 'comunicado_nob_pendente', entity_type: 'voyage_escala_terminal' })).toBe('Abrir Comunicados')
+  })
+
+  it('roteia Escala sem terminal para a escala da Viagem (584)', () => {
+    expect(alertEntityLink({ type: 'voyage_escala_terminal_missing', entity_type: 'voyage_pod_schedule', entity_id: '100::BRVIX' }))
+      .toBe('/viagens/100?escala=BRVIX')
+    expect(alertEntityLinkLabel({ type: 'voyage_escala_terminal_missing', entity_type: 'voyage_pod_schedule' })).toBe('Abrir Viagem')
+  })
+
   it('roteia pendências de Comunicados para a conferência e bounce para Contatos', () => {
     expect(alertEntityLink({
       type: 'comunicado_noa_pendente',
@@ -104,7 +123,7 @@ describe('alertEntityLink & alertEntityLinkLabel — roteador de destino compart
       entity_type: 'pix_transaction',
       entity_id: 'tx-123',
     })
-    expect(link).toBe('/reconciliacao?tab=pendencias')
+    expect(link).toBe('/reconciliacao?tab=recebidos')
   })
 
   it('roteia o Pix recebido pela cobrança Itaú para as pendências da reconciliação', () => {
@@ -115,7 +134,7 @@ describe('alertEntityLink & alertEntityLinkLabel — roteador de destino compart
       entity_id: 'E1234',
       destination: null,
     })
-    expect(link).toBe('/reconciliacao?tab=pendencias')
+    expect(link).toBe('/reconciliacao?tab=recebidos')
   })
 
   it('evento de e-mail em investigação abre os Alertas, não o Portal de um Cliente com o id do evento', () => {

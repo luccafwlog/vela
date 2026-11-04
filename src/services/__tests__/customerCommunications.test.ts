@@ -14,6 +14,7 @@ import {
   resolveCustomerCommunicationRecipients,
   customerCommunicationStatusLabel,
   expandCandidatesForKind,
+  uncoveredNobCandidates,
   validateCustomerCommunicationFilters,
   type CustomerCommunicationBlCandidate,
 } from '../customerCommunications'
@@ -386,6 +387,49 @@ describe('NOB: regra única de quem entra na Atracação (B3, migration 243)', (
   it('a exceção de terminal do B/L vence a frente', () => {
     expect(nob({ id: 'EXC', terminalOverrideId: T1 }, [key(T2, 'carga_cheia')])).toEqual(['EXC'])
     expect(nob({ id: 'EXC', terminalOverrideId: T2 }, [key(T1, 'carga_cheia')])).toEqual([])
+  })
+})
+
+// Revisão de 2026-11-04 (T3, T7 e T8): o B/L cujo terminal não se resolve
+// sumia da conferência do NOB sem aviso. Espelho de `resolve_bl_terminal_id`.
+describe('NOB: quem fica fora por falta de terminal', () => {
+  const T1 = 'd0000000-0000-4000-8000-0000000000a1'
+  const T2 = 'd0000000-0000-4000-8000-0000000000a2'
+  const schedules = new Map([[7, [{
+    port: 'BRSSZ', eta: '2026-09-01T12:00:00Z', ata: null, omitted: false, deleted: false,
+    atracacoes: [{ stateId: 'state-1', terminalId: T1, terminalCode: 'T1', atb: '2026-09-02T08:00:00Z' }],
+  }]]])
+  const key = (terminal: string, modalidade: string) => `7::BRSSZ::${terminal}::${modalidade}`
+  const row = (overrides: Partial<CustomerCommunicationBlCandidate>) =>
+    candidate({ terminalId: null, terminalName: null, terminalStateId: null, ...overrides })
+
+  it('lista o B/L sem frente com terminal e o misto com as frentes em terminais diferentes, por Cliente', () => {
+    const rows = [
+      row({ id: 'CHEIA', cargoMode: 'container' }),
+      row({ id: 'SOLTA-2', cargoMode: 'carga_solta', customerId: 5, customerName: 'Alfa' }),
+      row({ id: 'SOLTA-1', cargoMode: 'carga_solta', customerId: 5, customerName: 'Alfa' }),
+      row({ id: 'MIX', cargoMode: 'misto', customerId: 6, customerName: 'Beta' }),
+    ]
+    const fronts = new Set([key(T1, 'carga_cheia')])
+    expect(uncoveredNobCandidates(rows, schedules as never, fronts)).toEqual([
+      { customerId: 5, customerName: 'Alfa', reason: 'sem_terminal', blIds: ['SOLTA-1', 'SOLTA-2'] },
+      { customerId: 6, customerName: 'Beta', reason: 'sem_terminal', blIds: ['MIX'] },
+    ])
+    const split = new Set([key(T1, 'carga_cheia'), key(T2, 'carga_solta')])
+    expect(uncoveredNobCandidates([row({ id: 'MIX', cargoMode: 'misto', customerId: 6, customerName: 'Beta' })], schedules as never, split))
+      .toEqual([{ customerId: 6, customerName: 'Beta', reason: 'misto_terminais_diferentes', blIds: ['MIX'] }])
+  })
+
+  it('não lista quem pertence a outro terminal, quem tem exceção de terminal nem a escala omitida', () => {
+    // Carga cheia e carga solta no T2, que ainda não atracou: o B/L espera o NOB do T2.
+    const fronts = new Set([key(T2, 'carga_cheia'), key(T2, 'carga_solta')])
+    expect(uncoveredNobCandidates([
+      row({ id: 'OUTRO', cargoMode: 'container' }),
+      row({ id: 'MIX', cargoMode: 'misto' }),
+      row({ id: 'EXC', cargoMode: 'carga_solta', terminalOverrideId: T2 }),
+    ], schedules as never, fronts)).toEqual([])
+    const omitted = new Map([[7, [{ ...schedules.get(7)![0], omitted: true }]]])
+    expect(uncoveredNobCandidates([row({ id: 'SOLTA', cargoMode: 'carga_solta' })], omitted as never, new Set())).toEqual([])
   })
 })
 
