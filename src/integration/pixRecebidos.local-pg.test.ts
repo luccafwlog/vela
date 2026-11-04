@@ -215,13 +215,13 @@ describeLocal('442 — Pix recebidos', () => {
       VALUES ('${e2e(12)}', '${txid}', 550, now(), 'settled')`)
     expect(row(12)).toMatchObject({ situation: 'settled', settled_by: 'itau', settled_doc_number: 'DEM-9443' })
 
-    w.asOk('administrativo', `SELECT public.reverse_demurrage_payment(${invoiceId}, 'Pix de outro B/L')`)
+    w.asOk('financeiro', `SELECT public.reverse_demurrage_payment(${invoiceId}, 'Pix de outro B/L')`)
     expect(receipt(12)).toBe('review')
     expect(openAlerts(12)).toBe(1)
     expect(row(12)).toMatchObject({ situation: 'review', reason: 'Baixa cancelada: Pix de outro B/L' })
 
     // O Pix recebido baixado pela aba volta a "Sem baixa", sem Alerta (ADR 0100, item 5).
-    w.asOk('administrativo', `SELECT public.reverse_demurrage_payment(${demurrageId}, 'Fatura errada')`)
+    w.asOk('financeiro', `SELECT public.reverse_demurrage_payment(${demurrageId}, 'Fatura errada')`)
     expect(receipt(9)).toBe('received')
     expect(openAlerts(9)).toBe(0)
     expect(row(9)).toMatchObject({ situation: 'received', settled_doc_number: null })

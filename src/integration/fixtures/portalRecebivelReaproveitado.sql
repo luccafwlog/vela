@@ -5,7 +5,8 @@
 \pset pager off
 \set ON_ERROR_STOP 0
 -- v10 independent reproduction. Dummy fixture (namespace 9951xxxx, example.test e-mails).
--- Staff: V10 Ops (operacoes) moves the B/L; V10 Fin (administrativo) registers B's payment.
+-- Staff: V10 Ops (operacoes) moves the B/L; V10 Fin (financeiro) registers B's payment
+-- (baixa é do Financeiro e da conta Dev desde a migration 583).
 -- Portal: PA (customer A, former owner) and PB (customer B, new owner).
 SET request.jwt.claim.role = 'service_role';
 SET request.jwt.claim.sub = '00000000-0000-0000-0510-000000000001';
@@ -15,7 +16,7 @@ INSERT INTO auth.users (id, email) VALUES
  ('00000000-0000-0000-0510-0000000000a1','v10-portal-a@example.test'),
  ('00000000-0000-0000-0510-0000000000b1','v10-portal-b@example.test');
 INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
- ('00000000-0000-0000-0510-000000000001','V10 Fin','administrativo',true),
+ ('00000000-0000-0000-0510-000000000001','V10 Fin','financeiro',true),
  ('00000000-0000-0000-0510-000000000002','V10 Ops','operacoes',true)
  ON CONFLICT (id) DO UPDATE SET role=EXCLUDED.role, active=true;
 INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (99510001,'99000005100135','V10 Cliente Antigo A'),(99510002,'99000005100216','V10 Cliente Novo B');

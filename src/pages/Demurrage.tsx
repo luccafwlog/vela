@@ -117,7 +117,7 @@ function discountErrors(form: DiscountForm): DiscountFieldErrors {
 
 export function Demurrage() {
   const queryClient = useQueryClient()
-  const { effectiveRole } = useAuth()
+  const { effectiveRole, can } = useAuth()
   const { showToast } = useToast()
   const confirmWithReason = useConfirmWithReason()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -126,9 +126,10 @@ export function Demurrage() {
 
   // Permissões das RPCs, para a tela não oferecer o que o banco recusa.
   const canIssue = effectiveRole != null // issue_demurrage_invoice_for_bl: qualquer Departamento (ADR 0085, D3; migration 246)
-  const canAdmin = effectiveRole === 'administrativo' // cancel_demurrage_invoice, reverse_demurrage_payment
-  const canSettle = effectiveRole === 'financeiro' || effectiveRole === 'administrativo' // register_demurrage_payment; apply_demurrage_discount é de qualquer Departamento (247)
-  const canInformPtax = canSettle || effectiveRole === 'equipamentos' // migration 110
+  const canSettle = can('manage_payments') // register_demurrage_payment (583: Financeiro e conta Dev); apply_demurrage_discount é de qualquer Departamento (247)
+  const canReversePayment = can('manage_payments') // reverse_demurrage_payment (583)
+  const canCancelInvoice = can('cancel_demurrage_invoices') // cancel_demurrage_invoice (583: Administrativo, Financeiro e Equipamentos)
+  const canInformPtax = effectiveRole === 'administrativo' || effectiveRole === 'financeiro' || effectiveRole === 'equipamentos' // migration 110
   const canAnswerDispute = canAnswerDemurrageDispute(effectiveRole)
   const canManageRoe = canManageManualRoe(effectiveRole)
   // A aba Disputas é de leitura para todos (ADR 0085, D12; migration 250).
@@ -628,7 +629,7 @@ export function Demurrage() {
       />
       <DemurrageInvoiceDetailModal
         invoiceId={state.invoiceId}
-        permissions={{ canSettle, canAdmin, canAnswerDispute, canManageRoe }}
+        permissions={{ canSettle, canReversePayment, canCancelInvoice, canAnswerDispute, canManageRoe }}
         cancelling={cancelMutation.isPending}
         cancelError={cancelError}
         onClose={() => { setCancelError(null); closeInvoice() }}

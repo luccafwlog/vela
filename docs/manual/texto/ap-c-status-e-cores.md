@@ -64,7 +64,7 @@ Na escala, **B/Ls e CEs** diz em que pé está a documentação no Mercante ([4.
 | **Parcialmente paga** | sem cor | Uma baixa menor que o saldo (capítulo 24). |
 | **Paga** | ✓ verde | A baixa do saldo inteiro: pelo Pix, pelo extrato ou à mão (capítulo 24). |
 | **Coberta** | ✓ verde | Foi paga a consolidada que inclui os B/Ls dela (capítulo 22). |
-| **Cancelada** | cinza | **Cancelar fatura**, pelo {{Administrativo}}, ou a correção do B/L que a reemitiu. A consolidada que deixou de valer aparece como **Cancelada** nas listas e como **Obsoleta** no detalhe (capítulo 22). |
+| **Cancelada** | cinza | **Cancelar fatura**, pelo {{Administrativo}} ou pelo {{Financeiro}}, ou a correção do B/L que a reemitiu. A consolidada que deixou de valer aparece como **Cancelada** nas listas e como **Obsoleta** no detalhe (capítulo 22). |
 
 **Cancelar baixa** devolve a **Paga** a **Emitida** ou **Parcialmente paga** (capítulo 24).
 
@@ -75,7 +75,7 @@ Na escala, **B/Ls e CEs** diz em que pé está a documentação no Mercante ([4.
 | **Faturado** | sem cor | A Invoice nasce assim, quando o último container do grupo volta ([9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)). |
 | **Em disputa** | âmbar | O Cliente abriu uma Disputa no Portal; volta a **Faturado** quando ela é resolvida ([9.9](09-containers-e-demurrage.md#99-decidir-a-disputa)). |
 | **Pago** | ✓ verde | A baixa do Pix ou o pagamento registrado (capítulo 23). |
-| **Cancelado** | cinza | O cancelamento pelo {{Administrativo}}, ou a reemissão quando as datas, o SOC/COC ou a divisão de um container mudam, ou quando o Cliente do B/L muda ([18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container)). |
+| **Cancelado** | cinza | O cancelamento pelo {{Administrativo}}, pelo {{Financeiro}} ou por {{Equipamentos}}, ou a reemissão quando as datas, o SOC/COC ou a divisão de um container mudam, ou quando o Cliente do B/L muda ([18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container)). |
 | **Fora da Régua** (ao lado da situação) | âmbar | As datas, o SOC/COC ou a divisão de um container mudaram numa Invoice com pagamento, desconto ou Disputa aberta ([23.9](23-demurrage-no-financeiro.md#239-cancelar-uma-invoice-e-gerar-outra)). |
 
 ## Container na Demurrage

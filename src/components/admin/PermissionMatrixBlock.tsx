@@ -65,7 +65,7 @@ export function PermissionMatrixBlock() {
       </div>
       <p className="px-4 py-3 text-xs text-[var(--app-muted)]">
         ✓ pode · ○ não pode. Todos os setores leem tudo; cada linha é uma ação que o sistema confere.
-        Nenhum setor pode desativar o último Administrativo ativo, escrever em nome de outra pessoa nem
+        A conta Dev (Administrativo · Dev) pode tudo o que qualquer setor pode. Nenhum setor pode desativar o último Administrativo ativo, escrever em nome de outra pessoa nem
         alterar fatura, cálculo ou pagamento fora das ações do sistema.
       </p>
     </Block>

@@ -195,7 +195,7 @@ Para mudar o B/L de manifesto, use o mesmo bloco da ficha ou, para vários B/Ls,
 Trocar o CE não muda a fatura já emitida.
 
 ::: atencao
-- O CE de um B/L com fatura emitida não pode ser removido, só corrigido. Para removê-lo, o {{Administrativo}} cancela a fatura antes.
+- O CE de um B/L com fatura emitida não pode ser removido, só corrigido. Para removê-lo, o {{Administrativo}} ou o {{Financeiro}} cancela a fatura antes.
 - Se o B/L já tinha o Desbloqueio de CE conferido, a troca do CE abre um alerta para a Documentação, porque o desbloqueio precisa ser conferido de novo (capítulo 12).
 :::
 

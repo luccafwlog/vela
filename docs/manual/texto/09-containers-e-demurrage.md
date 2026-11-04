@@ -198,7 +198,7 @@ Você tem 1 dia útil para responder, contado de quando a vez passou para você:
 
 ## 9.9 Decidir a Disputa
 
-**Quem faz:** {{Equipamentos}} e {{Administrativo}} · cancelar a Invoice: {{Administrativo}}
+**Quem faz:** {{Equipamentos}} e {{Administrativo}} · cancelar a Invoice: {{Equipamentos}}, {{Administrativo}} e {{Financeiro}}
 
 Decidir é responder ao Cliente com a conclusão e escolher **Encerrar pendência (Ninguém)**. A Disputa fica **Resolvida** e a Régua de Cobrança volta a cobrar a Invoice em aberto. O que fazer antes depende do que o Cliente contesta:
 
@@ -216,7 +216,7 @@ Com a Disputa aberta, corrigir a data não reemite a Invoice: ela sai da Régua 
 2. Corrija a data ([9.2](#92-gravar-a-descarga-e-a-devolução)).
 3. Sem pagamento nem desconto, o Vela cancela e reemite a Invoice ([18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container)).
 
-Se a data já foi corrigida com a Disputa aberta, o detalhe da Invoice diz "Fora da Régua". Aí o {{Administrativo}} cancela a Invoice, o que encerra a Disputa junto, e alguém clica em **Gerar Invoice** na divisão **A emitir** ([9.6](#96-saber-quando-a-invoice-de-demurrage-sai)).
+Se a data já foi corrigida com a Disputa aberta, o detalhe da Invoice diz "Fora da Régua". Aí {{Equipamentos}}, o {{Administrativo}} ou o {{Financeiro}} cancela a Invoice, o que encerra a Disputa junto, e alguém clica em **Gerar Invoice** na divisão **A emitir** ([9.6](#96-saber-quando-a-invoice-de-demurrage-sai)).
 
 ### Reabrir
 

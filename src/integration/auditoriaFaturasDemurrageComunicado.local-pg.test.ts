@@ -458,8 +458,9 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
     cleanup()
     localPsql(`
       INSERT INTO auth.users (id, email) VALUES ('${actorId}', 'a207-admin@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active)
-      VALUES ('${actorId}', 'A207 Administrativo', 'administrativo', true);
+      -- Conta Dev: baixa e cancelamento de baixa são do Financeiro e da conta Dev (migration 583).
+      INSERT INTO public.user_profiles (id, full_name, role, active, is_dev)
+      VALUES ('${actorId}', 'A207 Administrativo', 'administrativo', true, true);
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${cliente.id}, '${cliente.cnpj}', '${cliente.name}');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'A207 Carrier');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'A207 NAVIO', ${carrierId});

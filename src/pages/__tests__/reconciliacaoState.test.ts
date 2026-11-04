@@ -20,12 +20,19 @@ import {
 const params = (search: string) => new URLSearchParams(search)
 
 describe('estado de /reconciliacao na URL', () => {
-  it('abre no Histórico de baixas; Pendências só com tab=pendencias (destino dos Alertas de Pix)', () => {
+  it('abre no Histórico de baixas; Pix recebidos só com tab=recebidos (destino dos Alertas de Pix)', () => {
     expect(reconciliacaoTabFromSearch(params(''))).toBe('historico')
     expect(reconciliacaoTabFromSearch(params('tab=xyz'))).toBe('historico')
-    expect(reconciliacaoTabFromSearch(params('tab=pendencias'))).toBe('pendencias')
-    expect(withReconciliacaoTab(params('tab=pendencias&bl=X'), 'historico').toString()).toBe('bl=X')
-    expect(withReconciliacaoTab(params('bl=X'), 'pendencias').toString()).toBe('bl=X&tab=pendencias')
+    expect(reconciliacaoTabFromSearch(params('tab=constructor'))).toBe('historico')
+    expect(reconciliacaoTabFromSearch(params('tab=recebidos'))).toBe('recebidos')
+    expect(withReconciliacaoTab(params('tab=recebidos&bl=X'), 'historico').toString()).toBe('bl=X')
+    expect(withReconciliacaoTab(params('bl=X'), 'recebidos').toString()).toBe('bl=X&tab=recebidos')
+  })
+
+  // Até 2026-11-04 eram quatro abas; os Alertas de Pix gravados levam a tab=pendencias.
+  it('as abas antigas Pendências e Conciliar extrato abrem Pix recebidos', () => {
+    expect(reconciliacaoTabFromSearch(params('tab=pendencias'))).toBe('recebidos')
+    expect(reconciliacaoTabFromSearch(params('tab=extrato'))).toBe('recebidos')
   })
 
   it('descarta valores inválidos em vez de filtrar por eles', () => {

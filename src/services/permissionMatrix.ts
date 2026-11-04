@@ -1,8 +1,12 @@
 // "O que cada setor pode" (lote 5b, tela Administração, decisão de
 // 2026-10-19: opção A com C). Fonte única da matriz da aba Usuários e da
-// lista "Com este setor, ... pode" das janelas de usuário. As 44 linhas
+// lista "Com este setor, ... pode" das janelas de usuário. As 46 linhas
 // resumem as ações de docs/operations/seguranca.md § "Modelo de permissões
 // por perfil", que diz onde o banco aplica cada uma.
+//
+// A conta Dev (ADR 0104: Administrativo com a marca Dev) pode tudo o que
+// qualquer setor pode (decisão do dono de 2026-11-04). Nas linhas que saem do
+// Administrativo, a coluna dele diz `DEV_ONLY`: só a conta Dev.
 //
 // Cada linha cita, em `proof`, os casos de
 // src/integration/permissoesPorPerfil.local-pg.test.ts que executam a ação
@@ -66,6 +70,12 @@ export const ALERT_TYPE_COUNTS: Readonly<Record<Department, number>> = {
   equipamentos: 5,
 }
 
+/**
+ * Célula do Administrativo quando, no setor, só a conta Dev pode a ação
+ * (`is_dev_user()`, migration 469; `is_financeiro_or_dev_user()`, migration 583).
+ */
+export const DEV_ONLY = 'Só a conta Dev'
+
 function only(...allowed: Department[]): Record<Department, PermissionCell> {
   return Object.fromEntries(DEPARTMENTS.map((department) => [department, allowed.includes(department)])) as Record<Department, PermissionCell>
 }
@@ -76,6 +86,9 @@ const ADM_FIN = only('administrativo', 'financeiro')
 const ADM_FIN_EQU = only('administrativo', 'financeiro', 'equipamentos')
 const ADM_DOC = only('administrativo', 'documentacao')
 const ADM_DOC_EQU = only('administrativo', 'documentacao', 'equipamentos')
+// Decisão do dono de 2026-11-04 (migration 583): baixa, cancelamento de baixa,
+// Restituição e Conciliação Pix são do Financeiro; no Administrativo, só a conta Dev.
+const FIN_DEV: Record<Department, PermissionCell> = { ...only('financeiro'), administrativo: DEV_ONLY }
 
 function alertTypes(count: number) {
   return `${count} ${count === 1 ? 'tipo' : 'tipos'}`
@@ -86,7 +99,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   { id: 'abrir-administracao', group: 'usuarios', action: 'Abrir a tela Administração e listar os usuários', can: ADM, proof: ['exceção: Abrir a Administração'] },
   { id: 'gerir-usuarios', group: 'usuarios', action: 'Criar usuário, mudar setor, ativar e desativar, trocar e-mail e senha', can: ADM, proof: ['caso: Catálogo: só o Administrativo muda o setor e a situação de um usuário'] },
   // Marca Dev (ADR 0104): só a conta do Administrativo com a marca, dada por migration.
-  { id: 'envio-real-emails', group: 'usuarios', action: 'Ligar e desligar o envio real de e-mails', can: { ...only(), administrativo: 'só a conta Dev' }, proof: ['caso: Dev: só a conta Dev liga e desliga o envio real de e-mails'] },
+  { id: 'envio-real-emails', group: 'usuarios', action: 'Ligar e desligar o envio real de e-mails', can: { ...only(), administrativo: DEV_ONLY }, proof: ['caso: Dev: só a conta Dev liga e desliga o envio real de e-mails'] },
   { id: 'ultimo-administrativo', group: 'usuarios', action: 'Desativar ou rebaixar o último Administrativo ativo', can: only(), proof: ['caso: Catálogo: ninguém desativa nem rebaixa o último Administrativo ativo'] },
 
   // Viagens, B/L e ADR de Saída
@@ -121,23 +134,27 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   { id: 'desativar-tarifa', group: 'taxas', action: 'Desativar, reativar e excluir tarifa e tipo de container; corrigir item de tabela já usada e editar Condição de Cliente', can: ADM, proof: ['caso: P9:', 'caso: P9T:', 'caso: B13:', 'caso: Catálogo: item de tabela ainda sem uso'] },
   { id: 'emitir-fatura', group: 'taxas', action: 'Emitir fatura (do B/L, na Validação, consolidada, avulsa) e corrigir fatura emitida', can: ALL, proof: ['caso: A9:', 'caso: P4:'] },
   { id: 'autorizar-restituicao', group: 'taxas', action: 'Autorizar restituição excepcional e cancelar a autorização', can: ALL, proof: ['caso: P5: %s lê a Conciliação, autoriza restituição'] },
-  { id: 'baixa-restituicao', group: 'taxas', action: 'Registrar pagamento (baixa manual) e confirmar Restituição', can: ADM_FIN, proof: ['caso: P5: baixa manual e conciliar PIX', 'exceção: Registrar a Restituição (fatura)', 'exceção: Registrar a Restituição (Demurrage)'] },
+  { id: 'baixa-restituicao', group: 'taxas', action: 'Registrar pagamento (baixa manual) e confirmar Restituição', can: FIN_DEV, proof: ['caso: P5: baixa manual e conciliar PIX', 'exceção: Registrar a Restituição (fatura)', 'exceção: Registrar a Restituição (Demurrage)'] },
   { id: 'ajuste-cod', group: 'taxas', action: 'Liquidar Ajuste de COD', can: ADM_FIN, proof: ['exceção: Liquidar Ajuste de COD'] },
-  { id: 'cancelar-fatura', group: 'taxas', action: 'Cancelar fatura, cancelar baixa e preparar cancelamento financeiro de B/L', can: ADM, proof: ['exceção: Cancelar fatura', 'exceção: Cancelar fatura consolidada', 'exceção: Cancelar baixa', 'exceção: Preparar cancelamento financeiro de B/L'] },
+  // Fatura com pagamento só se cancela depois de cancelada a baixa (_cancel_invoice_core).
+  { id: 'cancelar-fatura', group: 'taxas', action: 'Cancelar fatura sem pagamento', can: ADM_FIN, proof: ['exceção: Cancelar fatura', 'exceção: Cancelar fatura consolidada'] },
+  { id: 'cancelar-baixa', group: 'taxas', action: 'Cancelar baixa e preparar cancelamento financeiro de B/L', can: FIN_DEV, proof: ['exceção: Cancelar baixa', 'exceção: Preparar cancelamento financeiro de B/L'] },
 
   // Demurrage
   { id: 'gerar-invoice', group: 'demurrage', action: 'Gerar Invoice e complementar; aplicar desconto; editar tarifa, tipo de container, acordo e condição de Demurrage do B/L', can: ALL, proof: ['caso: P4:', 'caso: P5: %s lê a Conciliação, autoriza restituição e aplica desconto', 'caso: P9:', 'caso: P9T:', 'todos: Condição de Demurrage do B/L'] },
   { id: 'disputas', group: 'demurrage', action: 'Ver Disputas e editar os dados da disputa e o vencimento', can: ALL, proof: ['caso: P12: %s lê o Desbloqueio de CE com os documentos, as Disputas', 'todos: Editar os dados da disputa'] },
   // ADR 0112, D24 (migrations 517 e 530): qualquer setor, justificativa de ao menos 10 caracteres.
   { id: 'dispensar-cobranca', group: 'demurrage', action: 'Dispensar a cobrança de Demurrage de um container e desfazer a dispensa, com justificativa', can: ALL, proof: ['todos: Dispensar a cobrança de Demurrage', 'todos: Desfazer a dispensa de Demurrage'] },
-  { id: 'baixa-invoice', group: 'demurrage', action: 'Registrar pagamento de Invoice', can: ADM_FIN, proof: ['exceção: Baixa de Invoice de Demurrage'] },
+  { id: 'baixa-invoice', group: 'demurrage', action: 'Registrar pagamento de Invoice', can: FIN_DEV, proof: ['exceção: Baixa de Invoice de Demurrage'] },
   { id: 'informar-ptax', group: 'demurrage', action: 'Informar PTAX; pôr e tirar o ROE manual do B/L e tirar o da Invoice, com motivo', can: ADM_FIN_EQU, proof: ['exceção: Informar PTAX', 'exceção: Pôr e tirar o ROE manual do B/L', 'exceção: Tirar o ROE manual da Invoice de Demurrage'] },
   { id: 'responder-disputa', group: 'demurrage', action: 'Responder, reabrir e anexar na Disputa', can: only('administrativo', 'equipamentos'), proof: ['exceção: Responder Disputa', 'exceção: Reabrir Disputa'] },
-  { id: 'cancelar-invoice', group: 'demurrage', action: 'Cancelar Invoice e cancelar baixa; mudar o intervalo da Régua', can: ADM, proof: ['exceção: Cancelar Invoice de Demurrage', 'exceção: Cancelar baixa de Demurrage', 'exceção: Intervalo da Régua'] },
+  // Invoice paga só se cancela depois de cancelada a baixa (cancel_demurrage_invoice).
+  { id: 'cancelar-invoice', group: 'demurrage', action: 'Cancelar Invoice sem pagamento; mudar o intervalo da Régua', can: ADM_FIN_EQU, proof: ['exceção: Cancelar Invoice de Demurrage', 'exceção: Intervalo da Régua'] },
+  { id: 'cancelar-baixa-invoice', group: 'demurrage', action: 'Cancelar baixa de Invoice', can: FIN_DEV, proof: ['exceção: Cancelar baixa de Demurrage'] },
 
   // Conciliação Pix
   { id: 'ver-conciliacao', group: 'pix', action: 'Ver a fila, as exceções e o monitor Itaú', can: ALL, proof: ['caso: P5: %s lê a Conciliação'] },
-  { id: 'conciliar', group: 'pix', action: 'Conciliar: vincular, confirmar, tratar exceção, marcar recebimento Itaú', can: ADM_FIN, proof: ['caso: P5: baixa manual e conciliar PIX', 'caso: P5: baixa por TXID só pela confirmação do lote'] },
+  { id: 'conciliar', group: 'pix', action: 'Conciliar: vincular, confirmar, tratar exceção, marcar recebimento Itaú', can: FIN_DEV, proof: ['caso: P5: baixa manual e conciliar PIX', 'caso: P5: baixa por TXID só pela confirmação do lote'] },
 
   // Clientes, Comunicação e Portal
   { id: 'editar-cliente', group: 'clientes', action: 'Editar Cliente; ler o Histórico de Comunicados e o console do Portal; trazer Cliente pela Base de Clientes e pela Revisão', can: ALL, proof: ['todos: Editar Cliente', 'todos: Ler o Histórico de Comunicados', 'caso: A18:'] },
@@ -174,6 +191,14 @@ export function departmentCan(row: PermissionRow, department: Department): boole
 /** Setores que podem a ação (✓ ou com condição), na ordem das colunas. */
 export function allowedDepartments(row: PermissionRow): Department[] {
   return DEPARTMENTS.filter((department) => departmentCan(row, department))
+}
+
+/**
+ * Setores em que qualquer usuário ativo passa da guarda, sem precisar da
+ * marca Dev: o que a bateria por perfil confere com os cinco perfis comuns.
+ */
+export function allowedWithoutDevMark(row: PermissionRow): Department[] {
+  return allowedDepartments(row).filter((department) => row.can[department] !== DEV_ONLY)
 }
 
 /** Linha em que os cinco setores podem igual: some com "Só exclusivas". */

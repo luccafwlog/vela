@@ -1,7 +1,7 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe, syntheticCnpj } from './localTestData'
-import { ALERT_TYPE_COUNTS, PERMISSION_MATRIX, allowedDepartments, isSharedByAll } from '../services/permissionMatrix'
+import { ALERT_TYPE_COUNTS, PERMISSION_MATRIX, allowedWithoutDevMark, isSharedByAll } from '../services/permissionMatrix'
 
 // Bateria por perfil do modelo de permissões (ADR 0085; matriz em
 // docs/operations/seguranca.md#modelo-de-permissões-por-perfil). Cada caso
@@ -31,6 +31,11 @@ const PROFILES = {
 } as const
 type Profile = keyof typeof PROFILES
 const ALL_PROFILES = Object.keys(PROFILES) as Profile[]
+// Conta Dev (ADR 0104): Administrativo com a marca, que pode tudo de qualquer
+// setor (decisão do dono de 2026-11-04; migration 583). Fica fora de PROFILES
+// para os casos por setor seguirem com os cinco perfis comuns.
+const DEV_USER = '85850000-0000-4000-8000-000000000006'
+const ALL_USERS = [...Object.values(PROFILES), DEV_USER]
 
 /** Executa como `authenticated` com o usuário do perfil; tudo numa transação. */
 function runAs(profile: Profile, sql: string): { ok: boolean; output: string; error: string } {
@@ -91,7 +96,7 @@ function cleanup() {
   psql(`
     SET session_replication_role = replica;
     DELETE FROM public.audit_logs WHERE entity_id IN ('${BL}', '${DEM_INVOICE_ID}', '${DEM_DRAFT_ID}', '${DEM_ITEM_ID}')
-      OR changed_by IN (${Object.values(PROFILES).map((id) => `'${id}'`).join(', ')});
+      OR changed_by IN (${ALL_USERS.map((id) => `'${id}'`).join(', ')});
     CREATE TEMP TABLE p85_invoices AS SELECT id FROM public.invoices WHERE id = ${INVOICE_ID} OR customer_id = ${CUSTOMER_ID};
     DELETE FROM public.itau_pix_charges WHERE invoice_id IN (SELECT id FROM p85_invoices);
     DELETE FROM public.audit_logs WHERE entity_id IN (SELECT id::text FROM p85_invoices);
@@ -127,8 +132,8 @@ function cleanup() {
     DELETE FROM public.voyages WHERE id = ${VOYAGE_ID};
     DELETE FROM public.vessels WHERE id = ${VESSEL_ID};
     DELETE FROM public.carriers WHERE id = ${CARRIER_ID};
-    DELETE FROM public.user_profiles WHERE id IN (${Object.values(PROFILES).map((id) => `'${id}'`).join(', ')});
-    DELETE FROM auth.users WHERE id IN (${Object.values(PROFILES).map((id) => `'${id}'`).join(', ')});
+    DELETE FROM public.user_profiles WHERE id IN (${ALL_USERS.map((id) => `'${id}'`).join(', ')});
+    DELETE FROM auth.users WHERE id IN (${ALL_USERS.map((id) => `'${id}'`).join(', ')});
     SET session_replication_role = origin;
   `)
 }
@@ -137,8 +142,10 @@ function seed() {
   const users = ALL_PROFILES.map((profile) => `('${PROFILES[profile]}', '${profile}-p85@example.test')`).join(', ')
   const profiles = ALL_PROFILES.map((profile) => `('${PROFILES[profile]}', 'Perfil ${profile} P85', '${profile}', true)`).join(', ')
   psql(`
-    INSERT INTO auth.users (id, email) VALUES ${users};
+    INSERT INTO auth.users (id, email) VALUES ${users}, ('${DEV_USER}', 'dev-p85@example.test');
     INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ${profiles};
+    -- A marca Dev só entra por migration (469); aqui, como dono do banco.
+    INSERT INTO public.user_profiles (id, full_name, role, active, is_dev) VALUES ('${DEV_USER}', 'Conta Dev P85', 'administrativo', true, true);
     SET session_replication_role = replica;
     INSERT INTO public.carriers (id, name) VALUES (${CARRIER_ID}, 'Armador P85');
     INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL_ID}, 'Navio P85', ${CARRIER_ID});
@@ -300,7 +307,9 @@ function migration250Applied(): boolean {
 function migration247Applied(): boolean {
   if (!enabled) return false
   try {
-    return psql(`SELECT position('is_financeiro_user()' IN prosrc) > 0 FROM pg_proc WHERE proname = 'confirm_unified_pix_matches';`) === 't'
+    // 583 trocou a guarda por is_financeiro_or_dev_user().
+    return psql(`SELECT position('is_financeiro_user()' IN prosrc) > 0 OR position('is_financeiro_or_dev_user()' IN prosrc) > 0
+      FROM pg_proc WHERE proname = 'confirm_unified_pix_matches';`) === 't'
   } catch {
     return false
   }
@@ -589,8 +598,10 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   })
 
   // P5 — baixa, Restituição, desconto e Conciliação PIX (ADR 0085, base, D2, D4, D5; migration 247).
+  // Desde a migration 583 (decisão do dono de 2026-11-04), baixa e Conciliação
+  // são do Financeiro e da conta Dev; o Administrativo comum é recusado.
   const PERMISSION_DENIED = /sem permiss|Credenciais invalidas|Somente o Administrativo/i
-  const FINANCE = new Set<Profile>(['administrativo', 'financeiro'])
+  const FINANCE = new Set<Profile>(['financeiro'])
   const P5_SETTLE = [
     `SELECT public.register_verified_invoice_payment(-1, 10, 'pix', now(), NULL, NULL, 'P5 baixa')`,
     `SELECT public.register_invoice_payment(-1, 10, 'pix', now(), NULL, NULL)`,
@@ -617,12 +628,16 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     `SELECT public.apply_demurrage_discount(gen_random_uuid(), -1, 'percent', 10, NULL, 'Desconto P5 por perfil', NULL)`,
   ]
 
-  it.each(ALL_PROFILES)('P5: baixa manual e conciliar PIX só para Financeiro e Administrativo (%s)', (profile) => {
+  it.each(ALL_PROFILES)('P5: baixa manual e conciliar PIX só para Financeiro e a conta Dev (%s)', (profile) => {
     for (const call of P5_SETTLE) {
       const result = runAs(profile, call)
       if (FINANCE.has(profile)) expectPastProfileGuard(result, `${profile}: ${call}`)
       else expect(result.error, `${profile}: ${call}`).toMatch(PERMISSION_DENIED)
     }
+  })
+
+  it('P5: a conta Dev registra baixa e concilia PIX (583)', () => {
+    for (const call of P5_SETTLE) expectPastProfileGuard(runAsUser(DEV_USER, call), `dev: ${call}`)
   })
 
   // Decisão do responsável de 2026-10-19 (migration 329): a baixa por TXID não
@@ -812,8 +827,11 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   // Cada chamada usa registro inexistente ou valor inválido: quem tem o perfil passa da checagem
   // e cai na validação do registro; quem não tem é recusado com 42501 (privilégio). O que a
   // chamada gravar é desfeito (outcomeAs).
+  // Decisão do dono de 2026-11-04 (migration 583): FIN = só o Financeiro entre os
+  // perfis comuns (a conta Dev passa em todas; caso "Dev: a conta Dev passa…").
   const ADM: Profile[] = ['administrativo']
-  const FIN: Profile[] = ['administrativo', 'financeiro']
+  const FIN: Profile[] = ['financeiro']
+  const ADM_FIN: Profile[] = ['administrativo', 'financeiro']
   const FIN_EQU: Profile[] = ['administrativo', 'financeiro', 'equipamentos']
   const ADM_DOC: Profile[] = ['administrativo', 'documentacao']
   const ADM_DOC_EQU: Profile[] = ['administrativo', 'documentacao', 'equipamentos']
@@ -829,13 +847,13 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     // Migration 544: a guarda do Administrativo vem antes da busca do embarque.
     { row: 'Excluir Embarque de vazios', allowed: ADM, call: `public.delete_vazios_export_operation(gen_random_uuid(), true, 'motivo')` },
     { row: 'Excluir cadastro sem uso', allowed: ADM, call: `public.delete_catalog_row('depots', '00000000-0000-0000-0000-000000000000', 'motivo')` },
-    { row: 'Cancelar baixa', allowed: ADM, call: `public.reverse_invoice_payment(-1, 'motivo', '{actor}')` },
-    { row: 'Cancelar fatura', allowed: ADM, call: `public.cancel_invoice(-1, 'motivo', '{actor}')` },
-    { row: 'Cancelar fatura consolidada', allowed: ADM, call: `public.obsolete_consolidated_invoice(-1, 'motivo', '{actor}')` },
-    { row: 'Preparar cancelamento financeiro de B/L', allowed: ADM, call: `public.prepare_bl_financial_cancellation(-1, 'P14-INEXISTENTE', 'motivo')` },
-    { row: 'Cancelar Invoice de Demurrage', allowed: ADM, call: `public.cancel_demurrage_invoice('{actor}', -1, 'motivo')` },
-    { row: 'Cancelar baixa de Demurrage', allowed: ADM, call: `public.reverse_demurrage_payment(-1, 'motivo', '{actor}')` },
-    { row: 'Intervalo da Régua', allowed: ADM, call: `public.set_demurrage_dunning_interval_days(0)` },
+    { row: 'Cancelar baixa', allowed: FIN, call: `public.reverse_invoice_payment(-1, 'motivo', '{actor}')` },
+    { row: 'Cancelar fatura', allowed: ADM_FIN, call: `public.cancel_invoice(-1, 'motivo', '{actor}')` },
+    { row: 'Cancelar fatura consolidada', allowed: ADM_FIN, call: `public.obsolete_consolidated_invoice(-1, 'motivo', '{actor}')` },
+    { row: 'Preparar cancelamento financeiro de B/L', allowed: FIN, call: `public.prepare_bl_financial_cancellation(-1, 'P14-INEXISTENTE', 'motivo')` },
+    { row: 'Cancelar Invoice de Demurrage', allowed: FIN_EQU, call: `public.cancel_demurrage_invoice('{actor}', -1, 'motivo')` },
+    { row: 'Cancelar baixa de Demurrage', allowed: FIN, call: `public.reverse_demurrage_payment(-1, 'motivo', '{actor}')` },
+    { row: 'Intervalo da Régua', allowed: FIN_EQU, call: `public.set_demurrage_dunning_interval_days(0)` },
     { row: 'Desativar Cliente', allowed: ADM, call: `public.deactivate_customer(-1, 'motivo', true)` },
     { row: 'Reativar Cliente', allowed: ADM, call: `public.reactivate_customer(-1, 'motivo')` },
     { row: 'Trocar o CNPJ do Portal', allowed: ADM, call: `public.portal_admin_change_cnpj(-1, '00000000000000', 'motivo')` },
@@ -843,7 +861,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     { row: 'Revogar Liberação de faturamento', allowed: ADM, call: `public.revoke_customer_billing_portal_release(-1, 'motivo')` },
     { row: 'Registrar a Restituição (fatura)', allowed: FIN, call: `public.confirm_invoice_refund(-1, 'comprovante', 'favorecido', now())` },
     { row: 'Registrar a Restituição (Demurrage)', allowed: FIN, call: `public.confirm_demurrage_refund(-1, 'comprovante', 'favorecido', now())` },
-    { row: 'Liquidar Ajuste de COD', allowed: FIN, call: `public.settle_cod_adjustment(-1, '{actor}', NULL, 'motivo')` },
+    { row: 'Liquidar Ajuste de COD', allowed: ADM_FIN, call: `public.settle_cod_adjustment(-1, '{actor}', NULL, 'motivo')` },
     { row: 'Baixa de Invoice de Demurrage', allowed: FIN, call: `public.register_demurrage_payment('{actor}', -1, current_date, 'motivo', 1, 1)` },
     { row: 'Tirar o ROE manual da Invoice de Demurrage', allowed: FIN_EQU, call: `public.release_demurrage_invoice_manual_roe(-1, 'motivo do teste P14')` },
     { row: 'Pôr e tirar o ROE manual do B/L', allowed: FIN_EQU, call: `public.set_bl_manual_roe('P14-INEXISTENTE', NULL, 'motivo do teste P14')` },
@@ -866,8 +884,12 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
    * faz a RLS) ou o SQLSTATE do erro.
    */
   function outcomeAs(profile: Profile, statement: string): string {
-    const body = statement.replaceAll('{actor}', PROFILES[profile])
-    const result = runAs(profile, `DO $p14$ DECLARE n bigint := -1; BEGIN
+    return outcomeAsUser(PROFILES[profile], statement)
+  }
+
+  function outcomeAsUser(userId: string, statement: string): string {
+    const body = statement.replaceAll('{actor}', userId)
+    const result = runAsUser(userId, `DO $p14$ DECLARE n bigint := -1; BEGIN
       BEGIN
         EXECUTE $s$${body}$s$;
         GET DIAGNOSTICS n = ROW_COUNT;
@@ -890,6 +912,12 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
       if (allowed.includes(profile)) expect(state, `${profile}: ${call}`).not.toBe('42501')
       else expect(state, `${profile}: ${call}`).toBe('42501')
     }
+  })
+
+  // Decisão do dono de 2026-11-04 (migration 583): a conta Dev pode tudo de
+  // qualquer setor, inclusive o que saiu do Administrativo (baixa, cancelar baixa).
+  it.each(MATRIX_EXCEPTIONS)('Dev: a conta Dev passa da checagem de perfil em $row', ({ call }) => {
+    expect(outcomeAsUser(DEV_USER, `SELECT ${call}`), `dev: ${call}`).not.toBe('42501')
   })
 
   // Ações que os cinco setores fazem (linhas ✓ em todas as colunas da matriz da tela) sem caso
@@ -1070,7 +1098,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
         if (proof.startsWith('exceção: ')) {
           const entry = MATRIX_EXCEPTIONS.find((candidate) => candidate.row === proof.slice('exceção: '.length))
           expect(entry, `${row.id}: ${proof}`).toBeDefined()
-          expect([...(entry?.allowed ?? [])].sort(), `${row.id}: ${proof}`).toEqual([...allowedDepartments(row)].sort())
+          expect([...(entry?.allowed ?? [])].sort(), `${row.id}: ${proof}`).toEqual([...allowedWithoutDevMark(row)].sort())
         } else if (proof.startsWith('todos: ')) {
           expect(MATRIX_GLOBAL.some((candidate) => candidate.row === proof.slice('todos: '.length)), `${row.id}: ${proof}`).toBe(true)
           expect(isSharedByAll(row), `${row.id}: ${proof}`).toBe(true)

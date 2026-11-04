@@ -81,7 +81,7 @@ export function BlCeMercanteField({
     const reason = await confirmWithReason({
       title: 'Remover CE Mercante',
       message: `Remover o CE ${ce} do B/L ${blId}?`,
-      consequence: 'O B/L volta a aguardar CE. Com fatura viva, a remoção é recusada: o Administrativo cancela a fatura antes.',
+      consequence: 'O B/L volta a aguardar CE. Com fatura viva, a remoção é recusada: o Administrativo ou o Financeiro cancela a fatura antes.',
       reversibility: 'Importar ou corrigir o CE de novo.',
       confirmLabel: 'Remover CE',
       tone: 'danger',

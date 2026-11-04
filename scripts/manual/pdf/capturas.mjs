@@ -1474,7 +1474,8 @@ export const CAPTURAS = [
     capitulo: 24,
     async fazer({ page, base }) {
       await abrir(page, base, '/reconciliacao?tab=recebidos')
-      const tabela = page.getByRole('table').first()
+      // A aba começa pelo que pede ação (Pix em análise, Exceções do extrato) quando há; a lista é o bloco Pix recebidos.
+      const tabela = page.locator('.app-block').filter({ has: page.getByRole('heading', { name: 'Pix recebidos' }) }).first().getByRole('table')
       await tabela.waitFor()
       await page.waitForTimeout(600)
       const linha = tabela.locator('tbody tr').filter({ hasText: 'QR estático do Vela' }).first()
@@ -1518,7 +1519,7 @@ export const CAPTURAS = [
       const voltar = () => banco("update public.app_settings set pix_provider = 'static'")
       banco("update public.app_settings set pix_provider = 'itau', itau_pix_polled_until = now() - interval '2 minutes'")
       try {
-        await abrir(page, base, '/reconciliacao?tab=pendencias')
+        await abrir(page, base, '/reconciliacao?tab=recebidos')
         const bloco = page.locator('.app-block').filter({ has: page.getByRole('heading', { name: 'Cobrança Pix Itaú' }) }).first()
         await bloco.getByText('Baixa automática ligada').waitFor()
         await page.waitForTimeout(600)

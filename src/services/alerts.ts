@@ -362,9 +362,10 @@ export function getAlertTypeLabel(type: string): string {
 }
 
 // A Conciliação PIX abre no Histórico de baixas; o que um Alerta de Pix aponta
-// está em Pendências. Destinos gravados antes como "/reconciliacao" (migrations
-// 152, 153 e 247) passam a abrir nessa aba.
-export const PIX_PENDING_HREF = '/reconciliacao?tab=pendencias'
+// fica no topo da aba Pix recebidos (até 2026-11-04, aba Pendências, cujo
+// endereço `?tab=pendencias` continua abrindo Pix recebidos). Destinos gravados
+// antes como "/reconciliacao" (migrations 152, 153 e 247) passam a abrir nessa aba.
+export const PIX_PENDING_HREF = '/reconciliacao?tab=recebidos'
 
 /**
  * Registros sem ficha própria (ALE-D05): a tela onde a pendência se resolve,

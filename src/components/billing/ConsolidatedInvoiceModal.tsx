@@ -104,7 +104,7 @@ export function ConsolidatedInvoiceModal({ open, onClose }: Props) {
       },
       consequence: ['Cria a invoice consolidada, vincula os recebíveis selecionados e registra o evento financeiro na mesma transação. Enquanto estiver ativa, esses saldos não poderão entrar em outra invoice.',
         adjusted.size ? `${adjusted.size === 1 ? '1 B/L tem' : `${adjusted.size} B/Ls têm`} taxas alteradas à mão; a fatura sai com os valores alterados.` : ''].filter(Boolean).join(' '),
-      reversibility: 'A invoice não pode ser apagada. Sem pagamentos, o perfil Administrativo pode cancelá-la; se ficar obsoleta, os recebíveis podem ser consolidados novamente. Com pagamento, use Cancelar baixa ou Restituição no recebimento.',
+      reversibility: 'A invoice não pode ser apagada. Sem pagamentos, o Administrativo ou o Financeiro pode cancelá-la; se ficar obsoleta, os recebíveis podem ser consolidados novamente. Com pagamento, use Cancelar baixa ou Restituição no recebimento.',
     })
     if (!confirmed) return
     try {

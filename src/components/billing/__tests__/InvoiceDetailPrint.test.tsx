@@ -11,10 +11,19 @@ const showToast = vi.fn()
 const registerLedgerPayment = vi.fn()
 const reversePayment = vi.fn()
 
-const auth = vi.hoisted(() => ({ isAdmin: true }))
-vi.mock('../../../hooks/useAuth', () => ({
-  useAuth: () => ({ user: { id: 'admin-1' }, isAdmin: auth.isAdmin, can: () => auth.isAdmin }),
-}))
+// Regras reais de permissão (useAuth.roleHasPermission): o Financeiro registra e
+// cancela baixa e cancela fatura; o Administrativo comum só cancela fatura;
+// a conta Dev pode tudo (migration 583).
+const auth = vi.hoisted(() => ({ role: 'financeiro' as 'administrativo' | 'financeiro' | 'operacoes', isDev: false }))
+vi.mock('../../../hooks/useAuth', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../hooks/useAuth')>()
+  return {
+    useAuth: () => ({
+      user: { id: 'user-1' }, isAdmin: auth.role === 'administrativo',
+      can: (permission: Parameters<typeof actual.roleHasPermission>[1]) => actual.roleHasPermission(auth.role, permission, auth.isDev),
+    }),
+  }
+})
 let mockRefunds: Array<Record<string, unknown>> = []
 const settleRefund = vi.fn()
 vi.mock('../../ui/Toast', () => ({ useToast: () => ({ showToast }) }))
@@ -82,7 +91,8 @@ beforeEach(() => {
   mockReissueLinks = null
   mockDetailError = null
   mockRefunds = []
-  auth.isAdmin = true
+  auth.role = 'financeiro'
+  auth.isDev = false
 })
 afterEach(cleanup)
 
@@ -104,7 +114,7 @@ it('repetição após timeout mantém chave, valor e data da tentativa', async (
   expect(second).toEqual(first)
 })
 
-it('o Administrativo pode selecionar e cancelar uma baixa antiga com confirmação do valor', async () => {
+it('o Financeiro pode selecionar e cancelar uma baixa antiga com confirmação do valor', async () => {
   mockDetailData = { invoice: { id: 9, invoice_number: 'INV-9', invoice_type: 'individual', status: 'partially_paid', total_brl: 100, balance_brl: 50, total_paid_brl: 50 }, bls: [], items: [],
     payments: [{ id: 1, amount_brl: 20, paid_at: '2026-10-01', payment_method: 'ted' }, { id: 2, amount_brl: 30, paid_at: '2026-10-02', payment_method: 'ted' }] }
   confirm.mockClear()
@@ -263,13 +273,36 @@ it('distingue total emitido, recebido, a devolver e saldo da avulsa paga a maior
   expect(text).not.toContain('Nº interno')
 })
 
-it('sem Administrativo, mostra o motivo no lugar dos formulários de baixa e cancelamento', () => {
-  auth.isAdmin = false
+it('sem Financeiro nem Administrativo, mostra o motivo no lugar dos formulários de baixa e cancelamento', () => {
+  auth.role = 'operacoes'
   render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
   expect(screen.queryByRole('button', { name: 'Registrar pagamento' })).toBeNull()
-  expect(screen.getByText(/Somente o Financeiro e o Administrativo registram recebimentos/)).toBeTruthy()
+  expect(screen.getByText(/Somente o Financeiro registra recebimentos/)).toBeTruthy()
   expect(screen.queryByRole('button', { name: 'Cancelar fatura' })).toBeNull()
   expect(screen.queryByRole('region', { name: 'Cancelar fatura' })).toBeNull()
+})
+
+it('o Administrativo cancela a fatura sem pagamento, mas não registra nem cancela baixa (migration 583)', () => {
+  auth.role = 'administrativo'
+  mockDetailData = { invoice: { id: 9, invoice_number: 'INV-9', invoice_type: 'individual', status: 'partially_paid', total_brl: 100, balance_brl: 60, total_paid_brl: 40 }, bls: [], items: [],
+    payments: [{ id: 7, amount_brl: 40, paid_at: '2026-10-01', payment_method: 'pix' }] }
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
+  expect(screen.queryByRole('button', { name: 'Registrar pagamento' })).toBeNull()
+  expect(screen.getByText(/Somente o Financeiro registra recebimentos/)).toBeTruthy()
+  expect(screen.queryByRole('button', { name: /Cancelar baixa de/ })).toBeNull()
+  // O bloco Cancelar fatura aparece e explica que a fatura com pagamento não se cancela.
+  expect(screen.getByRole('heading', { name: 'Cancelar fatura' })).toBeTruthy()
+  expect(screen.getByText(/Fatura com pagamento não se cancela/)).toBeTruthy()
+})
+
+it('a conta Dev registra e cancela baixa como o Financeiro (migration 583)', () => {
+  auth.role = 'administrativo'
+  auth.isDev = true
+  mockDetailData = { invoice: { id: 9, invoice_number: 'INV-9', invoice_type: 'individual', status: 'partially_paid', total_brl: 100, balance_brl: 60, total_paid_brl: 40 }, bls: [], items: [],
+    payments: [{ id: 7, amount_brl: 40, paid_at: '2026-10-01', payment_method: 'pix' }] }
+  render(<MemoryRouter><InvoiceDetailModal invoiceId={9} onClose={vi.fn()} /></MemoryRouter>)
+  expect(screen.getByRole('button', { name: 'Registrar pagamento' })).toBeTruthy()
+  expect(screen.getByRole('button', { name: /Cancelar baixa de R\$\s40,00/ })).toBeTruthy()
 })
 
 it('fatura com pagamento explica por que não é cancelada e abre a baixa pela linha', async () => {

@@ -94,9 +94,9 @@ repositório.
 | ACE-075 | Reativar cadastro desativado (tabela e item de Taxas Locais, Condição de Cliente, tarifa e acordo de Demurrage, Local, serviço do Local e usuário) é só do Administrativo, com motivo, gravado no Histórico como "... reativado" ("Local reativado", "Tabela reativada"; o usuário, ver ACE-054). | Op 2; Adm | Adm | `funcao:reactivate_catalog_row`, `src/services/deleteRecords.ts` |
 | ACE-076 | Desativar e reativar Local e serviço do Local, e cadastrar um deles já desativado, é só do Administrativo; desativar e reativar tarifa (tabela e item de Taxas Locais, Condição de Cliente, tarifa e acordo de Demurrage) também. Desativado, o cadastro sai das listas de escolha e continua nos documentos. | Op 2; Op 8; Fin | Adm | `guard_catalog_active_change`, `guard_catalog_insert_inactive`, `guard_tariff_active_change`, `permissao:desativar-cadastros` |
 | ACE-077 | Ninguém grava em nome de outra pessoa, nem o Administrativo: ação que chega com um autor diferente de quem está logado é recusada ("Autor informado difere do usuário da sessão."). Sem pessoa na sessão (rotina do sistema), vale o autor informado. | Op 2 | Todos | `_assert_actor_is_caller` |
-| ACE-078 | Cancelar fatura (Administrativo) é recusado quando ela está **Coberta** por outra já paga, ou, na fatura individual, quando um B/L dela tem baixa em outro documento: primeiro cancela-se a baixa naquele documento. A consolidada cancelada devolve o B/L às individuais. | Fin; Op 17; Ap. B | Adm | `guard_cancel_settled_elsewhere` |
+| ACE-078 | Cancelar fatura (Administrativo e Financeiro) é recusado quando ela está **Coberta** por outra já paga, ou, na fatura individual, quando um B/L dela tem baixa em outro documento: primeiro cancela-se a baixa naquele documento. A consolidada cancelada devolve o B/L às individuais. | Fin; Op 17; Ap. B | Adm + Fin | `guard_cancel_settled_elsewhere` |
 | ACE-079 | O lote de exportação para a ZPT do Desbloqueio de CE não muda depois de gerado; corrigir é gerar uma reexportação. | Op 10 | Adm + Doc | `ce_unlock_private.export_immutable` (gatilho `ce_unlock_exports_immutable`) |
-| ACE-080 | Matriz **O que cada setor pode** (Admin › Usuários): uma linha por ação, com ✓ (pode), ○ (não pode) ou a condição; **Só exclusivas** (padrão) esconde as linhas em que os cinco setores podem, **Todas as ações** mostra as 44. A nota diz que todos os setores leem tudo e que nenhum desativa o último Administrativo ativo, grava em nome de outra pessoa ou altera fatura, cálculo ou pagamento fora das ações do sistema. As mesmas linhas montam "Com este setor, ... pode" nas janelas de usuário. Conferência linha a linha em "Quem faz o quê". | Op 2; Adm | Todos | `src/services/permissionMatrix.ts`, `src/components/admin/PermissionMatrixBlock.tsx`, `src/components/admin/SectorCapabilities.tsx` |
+| ACE-080 | Matriz **O que cada setor pode** (Admin › Usuários): uma linha por ação, com ✓ (pode), ○ (não pode) ou a condição; **Só exclusivas** (padrão) esconde as linhas em que os cinco setores podem, **Todas as ações** mostra as 46 (44 antes da migration `583`). Onde no Administrativo só a conta Dev pode, a célula diz **Só a conta Dev**. A nota diz que a conta Dev (Administrativo · Dev) pode tudo o que qualquer setor pode, que todos os setores leem tudo e que nenhum desativa o último Administrativo ativo, grava em nome de outra pessoa ou altera fatura, cálculo ou pagamento fora das ações do sistema. As mesmas linhas montam "Com este setor, ... pode" nas janelas de usuário. Conferência linha a linha em "Quem faz o quê". | Op 2; Adm | Todos | `src/services/permissionMatrix.ts`, `src/components/admin/PermissionMatrixBlock.tsx`, `src/components/admin/SectorCapabilities.tsx` |
 | ACE-081 | **Abrir a tela Administração e listar os usuários**: só o Administrativo. O banco recusa a lista de usuários aos demais; o resto da tela é guardado só pela navegação. | Op 2; Adm | Adm | `permissao:abrir-administracao`, `funcao:admin_list_users` |
 | ACE-082 | **Criar usuário, mudar setor, ativar e desativar, trocar e-mail e senha**: só o Administrativo. | Op 2; Adm | Adm | `permissao:gerir-usuarios`, `servidor:admin-users`, `politica:user_profiles.user_profiles_update` |
 | ACE-083 | **Ligar e desligar o envio real de e-mails**: só a conta do Administrativo com a marca **Dev**. A marca é dada só por alteração do banco feita pela equipe de desenvolvimento, nunca por tela; a tela de Usuários mostra "Administrativo · Dev". | Op 2; Adm; Op 13 | Adm (Dev) | `permissao:envio-real-emails`, `funcao:is_dev_user` |
@@ -119,18 +119,20 @@ repositório.
 | ACE-099 | **Desativar, reativar e excluir tarifa; corrigir item de tabela já usada e editar Condição de Cliente**: só o Administrativo ("Só o Administrativo corrige item de tabela já usada: a correção reemite as faturas. ..."). Incluir item novo numa tabela já usada também é só dele (mesma recusa), embora a linha da matriz não diga. | Op 2; Op 17; Fin | Adm | `permissao:desativar-tarifa` |
 | ACE-100 | **Emitir fatura (do B/L, na Validação, consolidada, avulsa) e corrigir fatura emitida**: qualquer setor. | Op 2; Op 17; Fin | Todos | `permissao:emitir-fatura` |
 | ACE-101 | **Autorizar restituição excepcional e cancelar a autorização**: qualquer setor. | Op 2; Op 17; Fin | Todos | `permissao:autorizar-restituicao` |
-| ACE-102 | **Registrar pagamento (baixa manual) e confirmar Restituição**: Financeiro e Administrativo. | Op 2; Op 17; Fin | Fin + Adm | `permissao:baixa-restituicao`, `funcao:is_financeiro_user` |
+| ACE-102 | **Registrar pagamento (baixa manual) e confirmar Restituição**: o Financeiro e, no Administrativo, só a conta Dev (desde a migration `583` (decisão do dono de 2026-11-04); antes, Financeiro e Administrativo). | Op 2; Op 17; Fin | Fin + Adm (Dev) | `permissao:baixa-restituicao`, `funcao:is_financeiro_or_dev_user` |
 | ACE-103 | **Liquidar Ajuste de COD**: Financeiro e Administrativo. | Op 2; Op 17; Fin | Fin + Adm | `permissao:ajuste-cod`, `funcao:is_financeiro_user` |
-| ACE-104 | **Cancelar fatura, cancelar baixa e preparar cancelamento financeiro de B/L**: só o Administrativo. | Op 2; Op 17; Fin | Adm | `permissao:cancelar-fatura` |
+| ACE-104 | **Cancelar fatura sem pagamento** (inclusive consolidada): Administrativo e Financeiro (desde a migration `583` (decisão do dono de 2026-11-04); antes, só o Administrativo). Fatura com pagamento não se cancela: primeiro o Financeiro cancela a baixa (ACE-131). | Op 2; Op 17; Fin | Adm + Fin | `permissao:cancelar-fatura`, `funcao:is_financeiro_user` |
+| ACE-131 | **Cancelar baixa e preparar cancelamento financeiro de B/L**: o Financeiro e, no Administrativo, só a conta Dev (desde a migration `583` (decisão do dono de 2026-11-04); antes, só o Administrativo). | Op 2; Op 17; Fin | Fin + Adm (Dev) | `permissao:cancelar-baixa`, `funcao:is_financeiro_or_dev_user` |
 | ACE-105 | **Gerar Invoice e complementar; aplicar desconto; editar tarifa, acordo e condição de Demurrage do B/L**: qualquer setor. | Op 2; Op 8; Op 17 | Todos | `permissao:gerar-invoice` |
 | ACE-106 | **Ver Disputas e editar os dados da disputa e o vencimento**: qualquer setor. | Op 2; Op 8 | Todos | `permissao:disputas` |
 | ACE-129 | **Dispensar a cobrança de Demurrage de um container e desfazer a dispensa, com justificativa**: qualquer setor; justificativa de ao menos 10 caracteres (migrations `517` e `530`). | Op 2; Op 8 | Todos | `permissao:dispensar-cobranca` |
-| ACE-107 | **Registrar pagamento de Invoice**: Financeiro e Administrativo. | Op 2; Op 17; Fin | Fin + Adm | `permissao:baixa-invoice` |
+| ACE-107 | **Registrar pagamento de Invoice**: o Financeiro e, no Administrativo, só a conta Dev (desde a migration `583` (decisão do dono de 2026-11-04); antes, Financeiro e Administrativo). | Op 2; Op 17; Fin | Fin + Adm (Dev) | `permissao:baixa-invoice` |
 | ACE-108 | **Informar PTAX; pôr e tirar o ROE manual do B/L e tirar o da Invoice, com motivo**: Financeiro, Administrativo e Equipamentos. | Op 2; Op 8; Op 17 | Fin + Adm + Equ | `permissao:informar-ptax` |
 | ACE-109 | **Responder, reabrir e anexar na Disputa**: Equipamentos e Administrativo. | Op 2; Op 8 | Equ + Adm | `permissao:responder-disputa` |
-| ACE-110 | **Cancelar Invoice e cancelar baixa; mudar o intervalo da Régua**: só o Administrativo. | Op 2; Op 17; Fin | Adm | `permissao:cancelar-invoice` |
+| ACE-110 | **Cancelar Invoice sem pagamento; mudar o intervalo da Régua**: Administrativo, Financeiro e Equipamentos (desde a migration `583` (decisão do dono de 2026-11-04); antes, só o Administrativo). Invoice paga não se cancela: primeiro o Financeiro cancela a baixa (ACE-132). | Op 2; Op 8; Op 17; Fin | Adm + Fin + Equ | `permissao:cancelar-invoice` |
+| ACE-132 | **Cancelar baixa de Invoice**: o Financeiro e, no Administrativo, só a conta Dev (desde a migration `583` (decisão do dono de 2026-11-04); antes, só o Administrativo). | Op 2; Op 17; Fin | Fin + Adm (Dev) | `permissao:cancelar-baixa-invoice` |
 | ACE-111 | **Ver a fila, as exceções e o monitor Itaú** da Conciliação PIX: qualquer setor. | Op 2; Op 17 | Todos | `permissao:ver-conciliacao` |
-| ACE-112 | **Conciliar: vincular, confirmar, tratar exceção, marcar recebimento Itaú**: Financeiro e Administrativo. | Op 2; Op 17; Fin | Fin + Adm | `permissao:conciliar` |
+| ACE-112 | **Conciliar: vincular, confirmar, tratar exceção, marcar recebimento Itaú** (e baixar um Pix recebido numa fatura): o Financeiro e, no Administrativo, só a conta Dev (desde a migration `583` (decisão do dono de 2026-11-04); antes, Financeiro e Administrativo). | Op 2; Op 17; Fin | Fin + Adm (Dev) | `permissao:conciliar` |
 | ACE-113 | **Editar Cliente; ler o Histórico de Comunicados e o console do Portal; trazer Cliente pela Base de Clientes e pela Revisão**: qualquer setor. **Criar Cliente pelo Novo cliente** (grava os contatos): Administrativo, Documentação e Equipamentos (decisão do dono de 2026-10-27, migration `486`). | Op 2; Op 11; Op 12 | Todos; Adm, Doc, Equ | `permissao:editar-cliente`, `permissao:novo-cliente` |
 | ACE-114 | **Editar contatos e Caixas de Comunicação**: Administrativo, Documentação e Equipamentos. **Disparar Comunicado e salvar modelo** é de todos os setores, e a vista **Disparo** de Clientes › Comunicação aparece para todos (`permissao:disparar-comunicado`, desde 2026-10-27). Vale para o Cliente já cadastrado: os contatos e as caixas que entram junto com o cadastro do Cliente, e os e-mails da importação da base de Clientes, qualquer setor grava (ACE-125). | Op 2; Op 11; Op 13 | Adm + Doc + Equ | `permissao:contatos-comunicados` |
 | ACE-115 | **Provisionar o Portal: convite (enviar e cancelar), conta, e-mail de recuperação, reabrir análise**: Administrativo e Documentação. | Op 2; Op 12 | Adm + Doc | `permissao:provisionar-portal` |
@@ -156,7 +158,7 @@ repositório.
 | `ADR de Saída fechado: reabra o ADR para excluir a linha de serviço de vazios.` | Embarque de Vazios, ao excluir uma linha de serviço com o ADR de Saída da escala fechado. Reabra o ADR (com motivo) ou deixe a linha. | Ap. B |
 | `Apenas administradores podem listar usuários.` | Admin › Usuários ou Histórico de ações, quando quem abriu a tela deixou de ser Administrativo durante a sessão. Recarregue a página. | Ap. B |
 | `Autor informado difere do usuário da sessão.` | Qualquer gravação que chegue com outro autor que não o da sessão (por exemplo, aba antiga aberta com outro usuário). Recarregue a página e refaça. | Ap. B |
-| `Fatura % coberta por outro documento pago: o B/L já foi pago e ela não pode ser cancelada.` | Taxas Locais, ao cancelar (Administrativo) uma fatura individual **Coberta** por uma consolidada paga. | Ap. B |
+| `Fatura % coberta por outro documento pago: o B/L já foi pago e ela não pode ser cancelada.` | Taxas Locais, ao cancelar (Administrativo ou Financeiro) uma fatura individual **Coberta** por uma consolidada paga. | Ap. B |
 | `Fatura % tem B/L com baixa em outro documento; cancele a baixa naquele documento antes.` | Taxas Locais, ao cancelar uma fatura individual cujo B/L tem baixa em outra fatura. Cancele a baixa naquela fatura antes. | Ap. B |
 | `Informe o motivo da exclusão.` | Exclusão sem motivo; a janela já não deixa confirmar sem motivo, então só aparece fora dela. | Ap. B |
 | `Lote de exportação ZPT é imutável; gere uma reexportação` | Nunca chega a uma pessoa: nenhuma tela nem setor altera um lote gravado; protege o lote contra alteração. | Fora |
@@ -289,7 +291,7 @@ repositório.
 Lido no código e nas definições vigentes do banco local. O banco decide; a
 tela só esconde botões e telas.
 
-### 1. As 44 linhas da matriz "O que cada setor pode" contra o banco
+### 1. As 46 linhas da matriz "O que cada setor pode" contra o banco
 
 Colunas da tela: Adm, Fin, Ope, Doc, Equ (✓ pode, ○ não pode).
 
@@ -319,18 +321,20 @@ Colunas da tela: Adm, Fin, Ope, Doc, Equ (✓ pode, ○ não pode).
 | `permissao:desativar-tarifa` | ✓ / ○ / ○ / ○ / ○ | `guard_tariff_active_change`, `guard_tariff_correction_admin`, `reactivate_catalog_row`, `delete_catalog_row` | Bate; a linha não diz que incluir item novo em tabela já usada também é só do Administrativo (o mesmo gatilho recusa a inclusão) |
 | `permissao:emitir-fatura` | ✓ / ✓ / ✓ / ✓ / ✓ | `mark_bl_ready_and_create_invoice`, `create_local_consolidated_invoice`, `create_manual_invoice`, `retry_pending_consolidated_reissue`, `retry_invoice_basis_changes`, `resolve_stale_invoice` (ativo) | Bate |
 | `permissao:autorizar-restituicao` | ✓ / ✓ / ✓ / ✓ / ✓ | `request_financial_refund`, `cancel_financial_refund_authorization` (ativo) | Bate |
-| `permissao:baixa-restituicao` | ✓ / ✓ / ○ / ○ / ○ | `register_verified_invoice_payment`, `register_invoice_payment`, `register_ledger_invoice_payment`, `confirm_invoice_refund`, `confirm_demurrage_refund` (`is_financeiro_user`) | Bate |
+| `permissao:baixa-restituicao` | só a conta Dev / ✓ / ○ / ○ / ○ | `register_verified_invoice_payment`, `register_invoice_payment`, `register_ledger_invoice_payment`, `reconcile_invoice_payment_by_txid`, `confirm_invoice_refund`, `confirm_demurrage_refund` e o gatilho `guard_financial_refund_evidence` (`is_financeiro_or_dev_user`, migration `583`; antes, `is_financeiro_user`, que inclui o Administrativo) | Bate |
 | `permissao:ajuste-cod` | ✓ / ✓ / ○ / ○ / ○ | `settle_cod_adjustment` (`is_financeiro_user`) | Bate |
-| `permissao:cancelar-fatura` | ✓ / ○ / ○ / ○ / ○ | `cancel_invoice`, `obsolete_consolidated_invoice`, `reverse_invoice_payment`, `prepare_bl_financial_cancellation` (Administrativo) | Bate |
+| `permissao:cancelar-fatura` | ✓ / ✓ / ○ / ○ / ○ | `cancel_invoice`, `obsolete_consolidated_invoice` (`is_financeiro_user`, que inclui o Administrativo; migration `583`, antes `is_admin`); fatura com pagamento recusada (`_cancel_invoice_core`) | Bate |
+| `permissao:cancelar-baixa` | só a conta Dev / ✓ / ○ / ○ / ○ | `reverse_invoice_payment` (e as camadas `reverse_invoice_payment_legacy_134` > `_reverse_invoice_payment_impl_109`), `prepare_bl_financial_cancellation` (`is_financeiro_or_dev_user`, migration `583`; antes, `is_admin`) | Bate |
 | `permissao:gerar-invoice` | ✓ / ✓ / ✓ / ✓ / ✓ | `issue_demurrage_invoice_for_bl`, `apply_demurrage_discount`, `save_bl_demurrage_config` (ativo); tarifa e acordo gravados por qualquer ativo | Bate; ativar e desativar tarifa ou acordo segue do Administrativo |
 | `permissao:disputas` | ✓ / ✓ / ✓ / ✓ / ✓ | `list_demurrage_disputes_internal` (os cinco setores); dados da disputa e vencimento abertos a qualquer ativo | Bate |
 | `permissao:dispensar-cobranca` | ✓ / ✓ / ✓ / ✓ / ✓ | `waive_demurrage_box` e `revoke_demurrage_box_waiver` (`is_active_user()`, justificativa de ao menos 10 caracteres; migrations `517`, `530` e `548`) | Bate |
-| `permissao:baixa-invoice` | ✓ / ✓ / ○ / ○ / ○ | `register_demurrage_payment` (`is_financeiro_user`) | Bate |
+| `permissao:baixa-invoice` | só a conta Dev / ✓ / ○ / ○ / ○ | `register_demurrage_payment` (`is_financeiro_or_dev_user`, migration `583`; antes, `is_financeiro_user`; o `service_role` da baixa Itaú segue aceito) | Bate |
 | `permissao:informar-ptax` | ✓ / ✓ / ○ / ○ / ✓ | `recalculate_demurrage_invoices_manual`, `set_bl_manual_roe`, `release_demurrage_invoice_manual_roe` (Financeiro, Administrativo, Equipamentos) | Bate |
 | `permissao:responder-disputa` | ✓ / ○ / ○ / ○ / ✓ | `add_demurrage_dispute_message`, `reopen_demurrage_dispute`, `add_demurrage_dispute_attachment` (Equipamentos ou Administrativo) | Bate |
-| `permissao:cancelar-invoice` | ✓ / ○ / ○ / ○ / ○ | `cancel_demurrage_invoice`, `reverse_demurrage_payment`, `set_demurrage_dunning_interval_days` (Administrativo) | Bate |
+| `permissao:cancelar-invoice` | ✓ / ✓ / ○ / ○ / ✓ | `cancel_demurrage_invoice`, `set_demurrage_dunning_interval_days` (Administrativo, Financeiro ou Equipamentos, migration `583`; antes, só o Administrativo); Invoice paga recusada | Bate |
+| `permissao:cancelar-baixa-invoice` | só a conta Dev / ✓ / ○ / ○ / ○ | `reverse_demurrage_payment` (`is_financeiro_or_dev_user`, migration `583`; antes, `is_admin`) | Bate |
 | `permissao:ver-conciliacao` | ✓ / ✓ / ✓ / ✓ / ✓ | `list_pix_reconciliation_exceptions`, `itau_pix_monitor`, `list_itau_pix_receipts` (ativo) | Bate na tela (as tabelas por trás têm leitura direta mais fechada; seção 2) |
-| `permissao:conciliar` | ✓ / ✓ / ○ / ○ / ○ | `link_pix_reconciliation_candidate`, `confirm_unified_pix_matches`, `upsert_pix_reconciliation_exceptions`, `resolve_pix_reconciliation_exception`, `itau_pix_mark_receipt_handled`, `list_itau_pix_receipt_candidates`, `itau_pix_settle_received`, `confirm_demurrage_pix_matches` (`is_financeiro_user`) | Bate |
+| `permissao:conciliar` | ✓ / ✓ / ○ / ○ / ○ | `link_pix_reconciliation_candidate`, `confirm_unified_pix_matches`, `upsert_pix_reconciliation_exceptions`, `resolve_pix_reconciliation_exception`, `itau_pix_mark_receipt_handled`, `list_itau_pix_receipt_candidates`, `itau_pix_settle_received`, `confirm_demurrage_pix_matches` (`is_financeiro_or_dev_user`, migration `583`; antes, `is_financeiro_user`) | Bate |
 | `permissao:editar-cliente` | ✓ / ✓ / ✓ / ✓ / ✓ | `create_customer_with_contacts`, `update_customer_with_audit` (ativo); `portal_list_provisioning_console` e `portal_list_provisioning_events` (os cinco); leitura dos Comunicados por todos | Bate |
 | `permissao:novo-cliente` | ✓ / ○ / ○ / ✓ / ✓ | `create_customer_with_contacts` exige `_can_edit_customer_contacts()` (migration `486`); o Cliente do manifesto pela ficha do B/L segue para todos (`create_customer_from_bl_manifest`) | Bate |
 | `permissao:contatos-comunicados` | ✓ / ○ / ○ / ✓ / ✓ | `internal_save_customer_contact_configuration`, `internal_fill_empty_contact_boxes`, preferências de contato (Adm, Doc, Equ) | Bate: desde 2026-10-27, o **Novo cliente** (`create_customer_with_contacts`, migration `486`), a Base de Clientes, a Revisão e `ensure_customer_contact_email` (migration `474`) também ficam com os três setores; o Cliente do manifesto pela ficha do B/L usa só o e-mail do documento (seção 2) |
@@ -366,7 +370,7 @@ Colunas da tela: Adm, Fin, Ope, Doc, Equ (✓ pode, ○ não pode).
 
 Telas que escondem botão por setor, sem decidir nada (o banco confere): vista
 **Disparo** de Comunicados (Adm, Doc, Equ); provisionamento do Portal (Adm,
-Doc); baixa, conciliação, restituição e Ajuste de COD (Adm, Fin); Informar
+Doc); baixa, cancelamento de baixa, conciliação e restituição (Fin e a conta Dev, desde a migration `583`); Ajuste de COD (Adm, Fin); cancelar fatura (Adm, Fin); cancelar Invoice de Demurrage e Régua (Adm, Fin, Equ); Informar
 PTAX e ROE manual (Adm, Fin, Equ); seleção para excluir em BLs, Containers e
 Clientes, Excluir e Reativar Viagem e escala (Adm); assinatura do ADR por
 seção (dono e Adm); interruptor do envio real (Adm).
@@ -411,7 +415,11 @@ checagem de setor dentro delas não vale para nenhuma pessoa.
 - O e-mail de login é único: quem precisa agir como dois setores só consegue
   com dois usuários (dois e-mails) ou com o setor Administrativo.
 - O Administrativo passa em todas as guardas de setor (inclusive as de
-  Financeiro, Equipamentos e Documentação) e cobre qualquer seção do ADR, mas
+  Financeiro, Equipamentos e Documentação), menos baixa, cancelamento de
+  baixa, preparar cancelamento financeiro, Restituição e Conciliação Pix, que
+  desde a migration `583` (decisão do dono de 2026-11-04) são do Financeiro e
+  só da conta Dev no Administrativo (`is_financeiro_or_dev_user`); a conta Dev
+  (ADR 0104) passa em todas. Ele cobre qualquer seção do ADR, mas
   no sino recebe só os 18 tipos dele (composição em ACE-119: os de que é
   responsável, os quatro críticos de contato e Portal da Documentação, migration
   `485`, e os que entraram depois) e os críticos sem destinatário: não recebe os
@@ -451,7 +459,7 @@ checagem de setor dentro delas não vale para nenhuma pessoa.
 
 | | O que o código faz |
 |---|---|
-| Só ele (com o Administrativo) | Baixa manual de fatura e de Invoice de Demurrage; confirmar a Restituição; liquidar Ajuste de COD; conciliar Pix (vincular, confirmar, tratar exceção, baixar Pix recebido, marcar recebimento Itaú). Com o Administrativo e Equipamentos: Informar PTAX e ROE manual |
+| Só ele (no Administrativo, só a conta Dev; desde a migration `583`) | Baixa manual de fatura e de Invoice de Demurrage; cancelar baixa (fatura e Invoice); preparar cancelamento financeiro de B/L; confirmar a Restituição; conciliar Pix (vincular, confirmar, tratar exceção, baixar Pix recebido, marcar recebimento Itaú). Com o Administrativo: liquidar Ajuste de COD; cancelar fatura sem pagamento. Com o Administrativo e Equipamentos: Informar PTAX e ROE manual; cancelar Invoice de Demurrage sem pagamento; intervalo da Régua |
 | Assina no ADR de Saída | Nada |
 | Recebe | 5 tipos no sino (PIX sem conciliação segura, Consulta de Pix do Itaú parada, Restituição pendente, Fatura desatualizada, Taxa alterada à mão mudou); não tem cartão no Painel: esses alertas contam no cartão **Administrativo** |
 | Todos os setores podem | Como na Documentação. |
@@ -460,8 +468,8 @@ checagem de setor dentro delas não vale para nenhuma pessoa.
 
 | | O que o código faz |
 |---|---|
-| Só ele | Administração (usuários, falhas de entrega, histórico de ações, sistema, Prazo do ADR); criar, editar acesso, desativar e reativar usuário; ligar o envio real; excluir Viagem, escala, atracação, B/L, container e cadastro sem uso (Cliente, só o sem CNPJ, que na prática não existe: desative); cancelar e reativar Viagem e B/L; excluir taxa manual; desativar, reativar e excluir tarifa, Local e serviço; incluir e corrigir item de tabela já usada e editar Condição de Cliente; cancelar fatura, Invoice de Demurrage e baixa; preparar cancelamento financeiro de B/L; intervalo da Régua; desativar e reativar Cliente; trocar o CNPJ do Portal; Liberação de faturamento |
-| Também pode | Tudo o que os outros setores fazem, inclusive as exclusivas de Financeiro, Equipamentos e Documentação |
+| Só ele | Administração (usuários, falhas de entrega, histórico de ações, sistema, Prazo do ADR); criar, editar acesso, desativar e reativar usuário; ligar o envio real; excluir Viagem, escala, atracação, B/L, container e cadastro sem uso (Cliente, só o sem CNPJ, que na prática não existe: desative); cancelar e reativar Viagem e B/L; excluir taxa manual; desativar, reativar e excluir tarifa, Local e serviço; incluir e corrigir item de tabela já usada e editar Condição de Cliente; desativar e reativar Cliente; trocar o CNPJ do Portal; Liberação de faturamento |
+| Também pode | Tudo o que os outros setores fazem, inclusive as exclusivas de Equipamentos e Documentação, e, com o Financeiro, cancelar fatura sem pagamento e liquidar Ajuste de COD; com o Financeiro e Equipamentos, cancelar Invoice de Demurrage sem pagamento e mudar o intervalo da Régua. Baixa, cancelamento de baixa, preparar cancelamento financeiro, Restituição e Conciliação Pix, só a conta Dev (desde a migration `583`; antes, todo Administrativo). A conta Dev pode tudo o que qualquer setor pode |
 | Assina no ADR de Saída | Qualquer seção (cobre quem faltar) |
 | Recebe | 18 tipos no sino (composição em ACE-119): os do cartão **Administrativo** (entre eles os 4 do Financeiro) e os quatro críticos de contato e Portal da Documentação (migration `485`), e os críticos sem destinatário no setor (**Entrega alternativa**); resumo diário do Portal por e-mail; a aba Falhas de entrega de alertas |
 | Todos os setores podem | Como na Documentação |

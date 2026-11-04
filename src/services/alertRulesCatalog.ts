@@ -426,7 +426,7 @@ const ALERT_RULES_BASE = [
     trigger: 'A transação não pode ser associada automaticamente a um recebível confiável, ou a associação anterior foi invalidada.',
     timing: 'Aparece após a importação ou tentativa de conciliação do PIX.',
     resolution: 'Investigue a transação e confirme a correspondência na Conciliação PIX.',
-    destination: '/reconciliacao?tab=pendencias',
+    destination: '/reconciliacao?tab=recebidos',
     destinationLabel: 'Abrir Conciliação PIX',
     afterResolution: derivedResolution,
   },

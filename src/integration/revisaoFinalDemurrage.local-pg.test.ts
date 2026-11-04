@@ -235,7 +235,8 @@ describeLocal('Revisão final de Demurrage, datas e Viagem Cancelada (migration 
       `('${id}', ${voyageId}, ${customerId}, 'CNSHA', 'BRSSA', 'container', 'pending', 'not_calculated', true, 5.5, '${ceOf(id)}')`
     psql(`
       INSERT INTO auth.users (id, email) VALUES ('${adminId}', 'r211-admin@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${adminId}', 'R211 Administrativo', 'administrativo', true);
+      -- Conta Dev: baixa e cancelamento de baixa são do Financeiro e da conta Dev (migration 583).
+      INSERT INTO public.user_profiles (id, full_name, role, active, is_dev) VALUES ('${adminId}', 'R211 Administrativo', 'administrativo', true, true);
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerId}, '${syntheticCnpj(211001)}', 'R211 CLIENTE');
       INSERT INTO public.customer_demurrage_agreements (customer_id, free_days, p1_usd, p2_usd, valid_from, active)
       VALUES (${customerId}, 5, 100, 200, '2026-01-01', true);

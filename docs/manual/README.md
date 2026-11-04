@@ -194,6 +194,27 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   B/L original entregue, sem solicitação; vale o anual vigente entre o pagamento
   e a entrega e a exportação (migration `582`); aviso "documentação validada" por B/L, no sino e por e-mail; o Portal
   explica a regra e mostra por B/L o que falta (DCE-091, DCE-111, DCE-113).
+- **Baixa e Conciliação só do Financeiro e da conta Dev** (decisão do dono de
+  2026-11-04, migration `583`; regra em
+  [Segurança](../operations/seguranca.md#modelo-de-permissões-por-perfil)):
+  registrar e cancelar baixa (Taxas Locais e Demurrage), confirmar
+  Restituição, preparar cancelamento financeiro de B/L e conciliar o Pix
+  passam a ser do Financeiro e, no Administrativo, só da conta Dev, que pode
+  tudo o que qualquer setor pode; cancelar fatura sem pagamento passa a ser do
+  Administrativo e do Financeiro; cancelar Invoice de Demurrage sem pagamento e
+  mudar o intervalo da Régua, do Administrativo, do Financeiro e de
+  Equipamentos. A matriz da tela tem 46 linhas, com `permissao:cancelar-baixa`
+  e `permissao:cancelar-baixa-invoice` novas (ACE-080, ACE-102, ACE-104,
+  ACE-107, ACE-110, ACE-112, ACE-131, ACE-132), e a conta de integração da
+  baixa automática precisa ser do Financeiro (REC-093). Texto: capítulos 2, 22,
+  23 e 24, e as menções em 4, 6, 9, 13, 18, 19, 25 e nos Apêndices A a C;
+  matriz: REC-002 e as linhas de conciliação, baixa, cancelamento de baixa e
+  Restituição de 10-recebimento, BLR-103, BLR-107, BLR-145, CEB-027, VIA-021,
+  FAT-037, FAT-085, FAT-092, FAT-124, FAT-146, FAT-153, DEM-062 a DEM-096,
+  DEM-116 e as mensagens novas da recusa do preparo do cancelamento financeiro e
+  da Régua. O aviso de **Cancelar B/L** e a recusa de **Remover CE** passaram a
+  dizer que o Administrativo ou o Financeiro cancela a fatura (BLR-103, BLR-107 e
+  CEB-027).
 - **Pix do QR estático e Histórico de baixas** (achado do dono no staging em
   2026-10-30, [ADR 0115](../adr/0115-qr-estatico-do-vela-e-historico-por-baixa.md),
   migrations `552` e `553`): o Pix do QR estático deixa de aparecer como ZPT
@@ -598,3 +619,13 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   - 17.11 com o aviso de que as páginas do site entram no ar com a publicação;
     capturas novas `prazo-do-adr` (25.9, com um ADR fechado no cenário) e
     `pix-itau-ligado` (24.1).
+- **Conciliação PIX em duas abas** (decisão do dono de 2026-11-04, opção A;
+  tela, sem migration): **Pendências** e **Conciliar extrato** entram em **Pix
+  recebidos**. O que pede ação fica no topo da aba e cada bloco só aparece com
+  o que tratar; o número da aba só aparece maior que zero; o extrato abre numa
+  janela no molde de importação, que pergunta antes de descartar linhas
+  prontas; o botão fica desativado, com a dica, para quem não concilia (19.6,
+  20.10, 24.1 a 24.3; REC-001 a REC-004, REC-006, REC-025, REC-033, REC-034,
+  REC-037, REC-039, REC-042, REC-043, REC-045, REC-047, REC-052, REC-053 e o
+  destino de `alerta:pix_unreconciled` na matriz 12; as capturas
+  `pix-recebidos` e `pix-itau-ligado` abrem o endereço novo).

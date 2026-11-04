@@ -154,7 +154,7 @@ Os termos que o Vela usa, em ordem alfabética, cada um em poucas palavras e com
 
 **Rateio da Demurrage entre Clientes**: a divisão em partes iguais da Demurrage do container que está em B/Ls de Clientes diferentes na mesma Viagem; com dois Clientes, a tela mostra "1/2 do container". Não confunda com o rateio das Taxas Locais entre B/Ls do mesmo Cliente. [9.6](09-containers-e-demurrage.md#96-saber-quando-a-invoice-de-demurrage-sai)
 
-**Régua de Cobrança**: os e-mails de cobrança que o Vela manda sozinho enquanto a Invoice de Demurrage está em aberto, a cada 7 dias se o {{Administrativo}} não mudou o intervalo. [19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio) e capítulo 23
+**Régua de Cobrança**: os e-mails de cobrança que o Vela manda sozinho enquanto a Invoice de Demurrage está em aberto, a cada 7 dias se ninguém mudou o intervalo (o {{Administrativo}}, o {{Financeiro}} ou {{Equipamentos}} mudam). [19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio) e capítulo 23
 
 **Revisão**: a fila dos B/Ls que a importação não deixou prontos para faturar: sem Cliente, sem Portal pronto ou sem o peso da carga solta. Capítulo 8.
 

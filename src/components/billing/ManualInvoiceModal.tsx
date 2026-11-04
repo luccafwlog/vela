@@ -169,7 +169,7 @@ export function ManualInvoiceModal({ open, onClose }: Props) {
       message: `${formatBRL(amount)} para ${customer?.name ?? 'o Cliente selecionado'}: ${parsed.data.itemName}${parsed.data.blId ? ` (B/L ${parsed.data.blId})` : ''}.`,
       confirmLabel: 'Emitir fatura avulsa',
       consequence: `A fatura sai emitida agora e aparece para o Cliente no Portal${parsed.data.description ? ', com a descrição informada' : ''}. ${quote?.currency === 'USD' ? 'O ROE vigente será conferido na emissão. ' : ''}É uma cobrança adicional: não altera a fatura de Taxas Locais do B/L.`,
-      reversibility: 'Sem pagamento, o Administrativo pode cancelá-la depois, com motivo.',
+      reversibility: 'Sem pagamento, o Administrativo ou o Financeiro pode cancelá-la depois, com motivo.',
     })
     if (!confirmed) return
 

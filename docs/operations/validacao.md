@@ -419,7 +419,8 @@ Regras em [Reconciliação PIX](../modules/reconciliacao-pix.md#fluxos-e-invaria
 2. pague e confirme a baixa em segundos, sem ação manual;
 3. provoque uma recusa (TXID sem fatura, fatura cancelada) e confirme o item em
    **Pix em análise** e o Alerta `pix_unreconciled`;
-4. confira o aviso da aba Pendências quando a consulta de recebimentos parar;
+4. confira o aviso do bloco Cobrança Pix Itaú, na aba Pix recebidos, quando a
+   consulta de recebimentos parar;
 5. faça um Pix digitando a chave, sem o QR, e confirme que ele aparece na aba
    **Pix recebidos** como "Sem identificador", sem Alerta, com a mensagem que
    você escreveu no Pix, e que **Baixar nesta fatura** dá a baixa.

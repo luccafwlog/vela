@@ -203,8 +203,8 @@ O Pix de uma cobrança do Vela que não pode ser baixado sozinho com segurança 
 
 | Alerta | Quando abre | O que fazer |
 |---|---|---|
-| **PIX sem conciliação segura** · crítico | Um Pix não pôde ser baixado sozinho, por exemplo com valor diferente da cobrança ou de fatura já paga ou cancelada. | **Resolver** abre **Conciliação PIX** › **Pendências**: dê a baixa na fatura certa ou registre a devolução (capítulo 24). |
-| **Consulta de Pix do Itaú parada** · crítico · com justificativa | A consulta dos Pix recebidos não avança há mais de 15 minutos: os Pix pagos deixam de ser baixados. Vale com a cobrança pelo Itaú ligada ou desligada, porque o Pix do QR estático também dá baixa por essa consulta. | Baixe pelo **Conciliar extrato**, em **Conciliação PIX**, e avise o suporte técnico. Fecha sozinho quando a consulta volta a andar. |
+| **PIX sem conciliação segura** · crítico | Um Pix não pôde ser baixado sozinho, por exemplo com valor diferente da cobrança ou de fatura já paga ou cancelada. | **Resolver** abre **Conciliação PIX** › **Pix recebidos**, com o Pix ou a exceção no alto da aba: dê a baixa na fatura certa ou registre a devolução (capítulo 24). |
+| **Consulta de Pix do Itaú parada** · crítico · com justificativa | A consulta dos Pix recebidos não avança há mais de 15 minutos: os Pix pagos deixam de ser baixados. Vale com a cobrança pelo Itaú ligada ou desligada, porque o Pix do QR estático também dá baixa por essa consulta. | Baixe pelo **Conciliar extrato**, em **Conciliação PIX** › **Pix recebidos**, e avise o suporte técnico. Fecha sozinho quando a consulta volta a andar. |
 | **Restituição pendente** | Há valor a devolver ao Cliente numa fatura ou numa Invoice de Demurrage, como pagamento a mais ou Pix em duplicidade. | Devolva o valor e marque a restituição como efetuada no detalhe da fatura ou da Invoice (capítulo 24). Fecha quando não resta nada a devolver. |
 
 ## 20.11 Desbloqueio de CE

@@ -15,6 +15,14 @@
   vez de ficar sem o NOB em silêncio. O banco recusa ATB anterior ao ATA; o ETB anterior ao ETA ganha aviso na
   janela. O Painel mostra **TBC** em âmbar, com o filtro **Terminal** › **Sem terminal**, e a ficha da Viagem ganha
   a coluna **Terminal** no Planejamento por escala ([Viagens](modules/viagens.md#escala-atracação-e-datas)).
+- **Baixa e Conciliação só do Financeiro e da conta Dev (2026-11-04, migration `583`; decisão do dono):** registrar
+  e cancelar baixa (Taxas Locais e Demurrage), confirmar Restituição, preparar cancelamento financeiro de B/L e
+  conciliar o Pix passam a ser do Financeiro e, no Administrativo, só da conta Dev, que pode tudo o que qualquer setor
+  pode. Cancelar fatura sem pagamento passa a ser do Administrativo e do Financeiro; cancelar Invoice de Demurrage sem
+  pagamento e mudar o intervalo da Régua, do Administrativo, do Financeiro e de Equipamentos. Liquidar Ajuste de COD,
+  Informar PTAX/ROE e responder Disputa não mudam. A conta de integração da baixa automática Itaú precisa ser do
+  Financeiro. A matriz "O que cada setor pode" passa a 46 linhas
+  ([Segurança](operations/seguranca.md#modelo-de-permissões-por-perfil)).
 - **Planilha do armador sem o container no free time (2026-11-03):** a aba **Demurrage** da Planilha do armador
   listava também o container devolvido dentro do free time, que a Invoice traz com US$ 0,00 (EXCESS 0). Ele sai da
   planilha, como no modelo que a equipe envia ao armador; o total das Invoices não muda

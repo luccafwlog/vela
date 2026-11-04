@@ -92,8 +92,9 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     psql(`
       INSERT INTO auth.users (id, email) VALUES ('${userId}', 'admin-150@example.test'), ('${spareAdminId}', 'admin-150-reserva@example.test'),
         ('${settlementActorId}', 'api-itau-150@example.test');
-      INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${userId}', 'Admin 150', 'administrativo', true),
-        ('${spareAdminId}', 'Admin 150 reserva', 'administrativo', true);
+      -- Conta Dev: baixa e cancelamento de baixa são do Financeiro e da conta Dev (migration 583).
+      INSERT INTO public.user_profiles (id, full_name, role, active, is_dev) VALUES ('${userId}', 'Admin 150', 'administrativo', true, true),
+        ('${spareAdminId}', 'Admin 150 reserva', 'administrativo', true, false);
       INSERT INTO public.user_profiles (id, full_name, role, active, account_kind)
         VALUES ('${settlementActorId}', 'API ITAÚ 150', 'financeiro', true, 'integracao');
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerId}, '${syntheticCnpj(98801)}', 'Cliente Itau 150');
@@ -587,17 +588,22 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
     expect(monitorOf().receipts.map((r) => r.end_to_end_id)).not.toContain('E153PAGA')
   })
 
-  it('Admin marca como tratado com motivo; sem motivo ou outro perfil é recusado', () => {
+  // Migration 583 (decisão do dono de 2026-11-04): tratar o Pix é do Financeiro
+  // e da conta Dev; o Administrativo comum passa a ser recusado.
+  it('Financeiro marca como tratado com motivo; sem motivo, Administrativo comum ou outro perfil é recusado', () => {
     setProvider('itau')
     expect(settle('E153TRATAR', 'VELA' + '1'.repeat(28), '2.00')).toBe('review') // TXID sem cobrança
     expect(asAuthenticated(`SELECT public.itau_pix_mark_receipt_handled('E153TRATAR', ' ')`)).toMatch(/motivo/)
-    psql(`UPDATE public.user_profiles SET role = 'operacoes' WHERE id = '${userId}'`)
     try {
+      psql(`UPDATE public.user_profiles SET is_dev = false WHERE id = '${userId}'`)
       expect(asAuthenticated(`SELECT public.itau_pix_mark_receipt_handled('E153TRATAR', 'Restituído ao pagador')`)).toMatch(/Sem permissão/)
+      psql(`UPDATE public.user_profiles SET role = 'operacoes' WHERE id = '${userId}'`)
+      expect(asAuthenticated(`SELECT public.itau_pix_mark_receipt_handled('E153TRATAR', 'Restituído ao pagador')`)).toMatch(/Sem permissão/)
+      psql(`UPDATE public.user_profiles SET role = 'financeiro' WHERE id = '${userId}'`)
+      asAuthenticated(`SELECT public.itau_pix_mark_receipt_handled('E153TRATAR', 'Restituído ao pagador')`)
     } finally {
-      psql(`UPDATE public.user_profiles SET role = 'administrativo' WHERE id = '${userId}'`)
+      psql(`UPDATE public.user_profiles SET role = 'administrativo', is_dev = true WHERE id = '${userId}'`)
     }
-    asAuthenticated(`SELECT public.itau_pix_mark_receipt_handled('E153TRATAR', 'Restituído ao pagador')`)
     expect(psql(`SELECT status || '|' || handled_by || '|' || handled_note FROM public.itau_pix_receipts WHERE end_to_end_id = 'E153TRATAR'`))
       .toBe(`handled|${userId}|Restituído ao pagador`)
     expect(reviewAlertOpen('E153TRATAR')).toBe('0')

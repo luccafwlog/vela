@@ -19,22 +19,22 @@ Com a cobrança pelo Itaú ligada, cada fatura em aberto, de Taxas Locais ou de 
 
 Com a cobrança pelo Itaú desligada, a fatura mostra o **QR estático**, que leva o número dela. O Pix pago nele aparece com a origem **QR estático do Vela** e também dá baixa sozinho, com as mesmas regras de valor. O que não é seguro baixar fica **Sem baixa**, com o **Motivo** na linha do Pix, e não abre alerta.
 
-Tudo isso se acompanha em **Conciliação PIX**, no menu **Financeiro**. Qualquer equipe lê; só o {{Financeiro}} e o {{Administrativo}} tratam e baixam.
+Tudo isso se acompanha em **Conciliação PIX**, no menu **Financeiro**. Qualquer equipe lê; só o {{Financeiro}} trata, baixa, cancela baixa e confirma restituição, e, no {{Administrativo}}, só a conta com a marca Dev. Desde 2026-11-04 (decisão do dono), o {{Administrativo}} comum não faz mais essas ações, e a aba **Conciliar extrato** mostra a ele o aviso **Conciliar extrato é do Financeiro**.
 
 | Aba | Para que serve |
 |---|---|
 | **Histórico de baixas** | Cada baixa recebida, uma linha por B/L, com a forma da baixa (abaixo). |
-| **Pix recebidos** | Todo Pix que entrou na conta e a situação de cada um. |
-| **Pendências** | Só o que pede decisão; o número na aba conta essas linhas. |
-| **Conciliar extrato** | O plano B, pelo extrato do Itaú ([24.3](#243-baixar-pelo-extrato-quando-a-baixa-automática-para)). |
+| **Pix recebidos** | Em cima, o que pede decisão, só quando existe; embaixo, todo Pix que entrou na conta e a situação de cada um. O número na aba conta o que pede decisão e só aparece quando há. |
 
 ::: tela pix-itau-ligado
-O bloco **Cobrança Pix Itaú**, em **Pendências**, com a cobrança pelo Itaú ligada: há quanto tempo o Vela consultou os recebimentos.
+O bloco **Cobrança Pix Itaú**, no alto de **Pix recebidos**, com a cobrança pelo Itaú ligada: há quanto tempo o Vela consultou os recebimentos.
 :::
 
-O bloco **Cobrança Pix Itaú**, no alto de **Pendências**, diz se a cobrança pelo Itaú está ligada ou desligada e há quanto tempo os Pix recebidos foram consultados (**Recebimentos consultados há N min** e **Recebimentos consultados até**). A consulta é a mesma nos dois casos: desligada, é ela que dá baixa no Pix do QR estático. Se o bloco mostra **Consulta parada há N min**, em âmbar, os Pix pagos depois daquela hora não deram baixa: avise o suporte técnico e baixe pelo extrato ([24.3](#243-baixar-pelo-extrato-quando-a-baixa-automática-para)).
+O bloco **Cobrança Pix Itaú**, no alto de **Pix recebidos**, diz se a cobrança pelo Itaú está ligada ou desligada e há quanto tempo os Pix recebidos foram consultados (**Recebimentos consultados há N min** e **Recebimentos consultados até**). A consulta é a mesma nos dois casos: desligada, é ela que dá baixa no Pix do QR estático. Se o bloco mostra **Consulta parada há N min**, em âmbar, os Pix pagos depois daquela hora não deram baixa: avise o suporte técnico e baixe pelo extrato ([24.3](#243-baixar-pelo-extrato-quando-a-baixa-automática-para)).
 
-No mesmo **Pendências**, **Cobranças aguardando o Itaú** lista as faturas cujo QR o Itaú ainda não confirmou; até lá, a fatura impressa diz "QR Code em preparação". Não há o que repetir: o Vela tenta de novo sozinho e consulta o Itaú antes de repetir. Se uma linha em âmbar não sai da lista, avise o suporte técnico.
+No mesmo bloco, **Aguardando o Itaú** conta as faturas cujo QR o Itaú ainda não confirmou; até lá, a fatura impressa diz "QR Code em preparação". Não há o que repetir: o Vela tenta de novo sozinho e consulta o Itaú antes de repetir. Quando uma delas fica com erro ou sem resposta do Itaú, aparece embaixo o bloco **Cobranças aguardando o Itaú**, com a fila e a linha em âmbar. Se ela não sai da lista, avise o suporte técnico.
+
+Os blocos **Pix em análise**, **Exceções do extrato** e **Cobranças aguardando o Itaú** só aparecem quando têm o que tratar. No dia normal, a aba é o bloco **Cobrança Pix Itaú** e a lista dos Pix recebidos.
 
 ::: atencao
 - Com a cobrança pelo Itaú ligada, o Pix do **QR estático do Vela** nunca dá baixa sozinho e fica **Sem baixa**. O ambiente de testes usa a mesma conta e numera as faturas do mesmo jeito, e o Pix pode ser de um teste de lá: confira a fatura e confirme o pagamento com o Cliente antes de baixar à mão.
@@ -44,7 +44,7 @@ No mesmo **Pendências**, **Cobranças aguardando o Itaú** lista as faturas cuj
 
 Cada baixa aparece uma vez por B/L. A consolidada paga por um Pix tem uma linha para cada B/L, com o que a baixa pôs nele; o valor da baixa inteira aparece ao passar o mouse em **Valor pago**. A fatura que ficou **Coberta** pela consolidada continua mostrando as baixas que recebeu antes. O resumo diz "N baixas · R$ X pagos" do recorte.
 
-A **Forma da baixa**, coluna e filtro em **Mais filtros**, diz de onde a baixa veio: **Automática (Itaú)** é a que o Vela fez sozinho, também a do QR estático; **Pelo extrato**, a da **Conciliar extrato**; **Manual**, a registrada no detalhe da fatura ou escolhida para um Pix em **Pix recebidos**; e **Isenção**, a Invoice de Demurrage com desconto integral.
+A **Forma da baixa**, coluna e filtro em **Mais filtros**, diz de onde a baixa veio: **Automática (Itaú)** é a que o Vela fez sozinho, também a do QR estático; **Pelo extrato**, a do **Conciliar extrato**; **Manual**, a registrada no detalhe da fatura ou escolhida para um Pix em **Pix recebidos**; e **Isenção**, a Invoice de Demurrage com desconto integral.
 
 **Saldo** e **Situação** são os de agora da fatura, não os do dia da baixa. A baixa cancelada sai da lista. Em Taxas Locais, o número da fatura abre o detalhe já com a baixa daquela linha ([24.5](#245-cancelar-uma-baixa)).
 
@@ -52,15 +52,15 @@ A **Forma da baixa**, coluna e filtro em **Mais filtros**, diz de onde a baixa v
 
 Procure o Pix em **Pix recebidos**, pelo **Valor** e pelas datas em **Recebido de** e **Recebido até**:
 
-- **Em análise**: o Pix não deu baixa sozinho. Trate em **Pendências** ([24.2](#242-tratar-um-pix-em-análise)).
+- **Em análise**: o Pix não deu baixa sozinho. Trate no bloco **Pix em análise**, no alto da mesma aba ([24.2](#242-tratar-um-pix-em-análise)).
 - **Sem baixa**: o Pix não veio de uma cobrança do Vela (o Cliente digitou a chave, por exemplo), ou veio do QR estático e não pôde ser baixado com segurança; o **Motivo**, na linha aberta, diz por quê. Não abre alerta. Dê a baixa pela linha dele ([24.4](#244-registrar-um-pagamento-à-mão)).
 - Nenhum Pix: confira se a consulta parou. Se não parou, peça o comprovante ao Cliente.
 
 ## 24.2 Tratar um Pix em análise
 
-**Quem faz:** {{Financeiro}} e {{Administrativo}}. As outras equipes leem.
+**Quem faz:** {{Financeiro}}. As outras equipes leem.
 
-O Pix em análise é um Pix pago pelo QR do Vela que não deu baixa sozinho. Ele abre o alerta **PIX sem conciliação segura** ([20.10](20-alertas.md#2010-pix-e-pagamento)), que leva a **Conciliação PIX** › **Pendências**, bloco **Pix em análise**. Para saber de qual fatura era o QR, procure o mesmo Pix em **Pix recebidos**: a coluna **Fatura** abre o detalhe.
+O Pix em análise é um Pix pago pelo QR do Vela que não deu baixa sozinho. Ele abre o alerta **PIX sem conciliação segura** ([20.10](20-alertas.md#2010-pix-e-pagamento)), que leva a **Conciliação PIX** › **Pix recebidos**, bloco **Pix em análise**, no alto da aba. Para saber de qual fatura era o QR, procure o mesmo Pix na lista embaixo: a coluna **Fatura** abre o detalhe.
 
 | Caso | O que fazer |
 |---|---|
@@ -82,31 +82,34 @@ O Pix sai da lista e o alerta fecha. A ação não baixa nem devolve nada.
 
 ## 24.3 Baixar pelo extrato quando a baixa automática para
 
-**Quem faz:** {{Financeiro}} e {{Administrativo}}
+**Quem faz:** {{Financeiro}}
 
 **Conciliar extrato** é o plano B, não a rotina. Use quando a consulta do Itaú para (o alerta **Consulta de Pix do Itaú parada**, [20.10](20-alertas.md#2010-pix-e-pagamento), com a cobrança pelo Itaú ligada ou desligada): sem ela, nenhum Pix dá baixa sozinho, nem o do QR estático. O Vela lê o relatório "QR Codes recebidos" do Itaú e acha a fatura só pelo identificador de cada linha: o CNPJ e o valor não acham fatura, só conferem.
 
 1. No Itaú, baixe o relatório "QR Codes recebidos", em .xlsx ou .xls.
-2. Em **Conciliação PIX** › **Conciliar extrato**, escolha o arquivo. A leitura não baixa nada.
-3. Confira a **Conferência do extrato**. **Prontas para baixa** são as linhas com uma fatura só e o valor certo.
+2. Em **Conciliação PIX** › **Pix recebidos**, clique em **Conciliar extrato**, no bloco **Cobrança Pix Itaú**, e escolha o arquivo na janela. A leitura não baixa nada.
+3. Confira a **Prévia**. **Prontas para baixa** são as linhas com uma fatura só e o valor certo.
 4. Clique em **Confirmar N baixas**. O lote é tudo ou nada: se uma linha é recusada, nenhuma entra.
+5. Clique em **Concluir** para fechar a janela.
+
+Se fechar a janela antes de confirmar, o Vela pergunta se quer descartar a leitura: as linhas prontas não são baixadas, e para baixá-las é preciso ler o extrato de novo. Enquanto o Vela lê o arquivo ou baixa o lote, a janela não fecha.
 
 O mesmo Pix nunca é baixado duas vezes, mesmo que você leia o arquivo de novo.
 
 ### As exceções do extrato
 
-Cada exceção fica em **Pendências** › **Exceções do extrato**, com o motivo, e abre o alerta **PIX sem conciliação segura**. Ela só se encerra pela própria linha:
+Cada exceção fica no bloco **Exceções do extrato**, no alto de **Pix recebidos**, com o motivo, e abre o alerta **PIX sem conciliação segura**. Ela só se encerra pela própria linha:
 
 - **Tentar de novo** procura a fatura outra vez e, achando uma segura, dá a baixa e encerra a exceção;
 - a seta da linha mostra as faturas que aceitam aquele identificador, e **Baixar nesta fatura** dá a baixa na escolhida e encerra.
 
 ::: atencao
-- Não baixe por outro caminho uma fatura que tem exceção do extrato. A exceção perde a fatura candidata e fica em **Pendências**, com o alerta aberto, sem botão que a feche.
+- Não baixe por outro caminho uma fatura que tem exceção do extrato. A exceção perde a fatura candidata e fica em **Exceções do extrato**, com o alerta aberto, sem botão que a feche.
 :::
 
 ## 24.4 Registrar um pagamento à mão
 
-**Quem faz:** {{Financeiro}} e {{Administrativo}}
+**Quem faz:** {{Financeiro}}
 
 Registre à mão o dinheiro que entrou sem o QR do Itaú (TED, DOC, boleto) e o Pix em análise. Confira antes no extrato. Este é o caminho das faturas de Taxas Locais, individual, consolidada e avulsa; a Invoice de Demurrage tem o dela ([23.7](23-demurrage-no-financeiro.md#237-registrar-o-pagamento-e-imprimir-o-recibo)).
 
@@ -114,6 +117,8 @@ Registre à mão o dinheiro que entrou sem o QR do Itaú (TED, DOC, boleto) e o 
 2. No bloco **Pagamentos**, clique em **Registrar pagamento**.
 3. Preencha **Valor recebido (R$)**, **Recebido em**, **Método** e **Referência bancária**, que é o número do extrato ou do comprovante. Para um Pix, use o **Identificador do Pix**.
 4. Clique em **Registrar pagamento** e, conferidos o valor e o saldo, em **Confirmar pagamento recebido**.
+
+Para as outras equipes, o bloco diz "Somente o Financeiro registra recebimentos. Pix com identificador entra pela Conciliação."
 
 O pagamento pode ser parcial: a fatura fica **Parcialmente paga** e o QR passa a cobrar o saldo. O que passa do saldo vira restituição **A devolver** ([24.6](#246-devolver-dinheiro-ao-cliente)), e a confirmação avisa antes.
 
@@ -132,13 +137,15 @@ Um Pix do QR estático **Sem baixa**, aberto: o **Motivo** e o **Baixar numa fat
 
 ## 24.5 Cancelar uma baixa
 
-**Quem faz:** {{Administrativo}}
+**Quem faz:** {{Financeiro}}
 
 Cancelar a baixa desfaz um pagamento lançado por engano: o recebimento que não existiu, ou que foi posto na fatura errada. Ele não devolve dinheiro ao Cliente. Se o dinheiro entrou de verdade e precisa voltar, é restituição ([24.6](#246-devolver-dinheiro-ao-cliente)).
 
 1. No detalhe da fatura, em **Taxas Locais**, clique no ícone **Cancelar baixa** da linha do pagamento. Aberto pelo **Histórico de baixas** da **Conciliação PIX**, o detalhe já vem com o formulário e a baixa daquela linha marcada.
 2. Confira a **Baixa a cancelar** e escreva a **Justificativa**.
 3. Clique em **Cancelar baixa** e confirme.
+
+Para as outras equipes, o detalhe diz "Somente o Financeiro cancela a baixa de um pagamento." Até 2026-11-04, cancelar a baixa era só do {{Administrativo}}.
 
 O saldo volta, a fatura volta a **Emitida** ou **Parcialmente paga** e o QR passa a cobrar o saldo. O excedente dessa baixa ainda não devolvido é cancelado junto. Se a baixa era de um Pix do Itaú, o Pix volta para **Pix em análise**, com o alerta, para ser baixado na fatura certa ([24.2](#242-tratar-um-pix-em-análise)). A baixa da Invoice de Demurrage se cancela no detalhe dela ([23.8](23-demurrage-no-financeiro.md#238-cancelar-a-baixa-de-uma-invoice)).
 
@@ -148,7 +155,7 @@ O saldo volta, a fatura volta a **Emitida** ou **Parcialmente paga** e o QR pass
 
 ## 24.6 Devolver dinheiro ao Cliente
 
-**Quem faz:** {{Financeiro}} e {{Administrativo}}
+**Quem faz:** {{Financeiro}}
 
 A **restituição** é dinheiro recebido que volta ao Cliente. O Vela a registra como **A devolver** e abre o alerta **Restituição pendente** ([20.10](20-alertas.md#2010-pix-e-pagamento)). A transferência é feita fora do Vela e confirmada aqui depois.
 
@@ -159,7 +166,7 @@ A **restituição** é dinheiro recebido que volta ao Cliente. O Vela a registra
 | O Cliente pagou a individual e depois o Pix da consolidada que a incluía | Sozinha: o Pix quita a consolidada que substituiu a antiga, e o que passa do saldo vira restituição. Sem consolidada nova em aberto, o valor todo vira restituição e o Pix fica em análise até a devolução ([24.2](#242-tratar-um-pix-em-análise)). |
 | Uma correção do B/L ou de uma taxa reduziu uma fatura paga além do saldo | Sozinha, no bloco **Ajustes pela correção do B/L** ([18.6](18-o-que-muda-sozinho.md#186-corrigir-um-bl)). |
 | O B/L trocou de Cliente depois do pagamento | Sozinha; a fatura do novo Cliente só sai depois da devolução ao Cliente original ([7.4](07-ficha-do-bl.md#74-vincular-ou-trocar-o-cliente-do-bl)). |
-| A cobrança de um B/L pago deve sair, para cancelar o B/L ou a Viagem | Do **Preparar cancelamento financeiro**, que o {{Administrativo}} faz no detalhe da fatura (capítulo 22). |
+| A cobrança de um B/L pago deve sair, para cancelar o B/L ou a Viagem | Do **Preparar cancelamento financeiro**, que o {{Financeiro}} faz no detalhe da fatura (capítulo 22). |
 | Um COD baixou o valor de um B/L pago | Do ajuste de COD ([24.8](#248-concluir-um-ajuste-de-cod)). |
 | Uma avulsa ou uma Invoice de Demurrage paga deve devolver dinheiro, inclusive antes de trocar o Cliente do B/L | Da restituição excepcional ([24.7](#247-autorizar-uma-restituição-excepcional)). |
 
@@ -179,12 +186,12 @@ Na troca de Cliente, a confirmação emite a fatura do novo Cliente, com o valor
 
 ::: atencao
 - O botão não transfere dinheiro: ele registra uma transferência já feita. Confirme só depois dela.
-- A devolução confirmada não se altera nem se apaga. Devolução para a conta errada se resolve com o {{Administrativo}}, guardando os dois comprovantes.
+- A devolução confirmada não se altera nem se apaga. Devolução para a conta errada se resolve com o {{Administrativo}} e o {{Financeiro}}, guardando os dois comprovantes.
 :::
 
 ## 24.7 Autorizar uma restituição excepcional
 
-**Quem faz:** autorizar, {{Qualquer equipe}} · devolver e confirmar, {{Financeiro}} e {{Administrativo}}
+**Quem faz:** autorizar, {{Qualquer equipe}} · devolver e confirmar, {{Financeiro}}
 
 A avulsa e a Invoice de Demurrage não se corrigem sozinhas depois do pagamento. Quando parte do que foi pago deve voltar, ou tudo, alguém autoriza a devolução no bloco **Restituição excepcional** do detalhe (em **Taxas Locais** ou em **Demurrage**), que mostra o recebido, o devolvido e o disponível.
 
