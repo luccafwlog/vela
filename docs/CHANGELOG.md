@@ -6,6 +6,10 @@
 
 ## 2026-11
 
+- **B/L cancelado não pede terminal (2026-11-04, migration `588`; decisão do dono):** o B/L cancelado, ou cancelado
+  no financeiro, deixa de criar frente de operação na escala. A carga que só ele trazia sai de **Escala sem
+  terminal**, do TBC em âmbar do Painel e da trava do **Fechar ADR**, e Editar escala não a mostra mais em TBC.
+  Antes, a saída era escolher um terminal para uma carga que não veio ([Viagens](modules/viagens.md#escala-atracação-e-datas)).
 - **Alertas do Pix e da Restituição no setor Financeiro (2026-11-04, migration `587`; decisão do dono):**
   **Pix não conciliado**, **Consulta de Pix do Itaú parada** e **Restituição pendente**, que desde a `583` só o
   Financeiro e a conta Dev resolvem, passam do setor Administrativo para o Financeiro, que ganha cartão no Painel e

@@ -95,6 +95,41 @@ describeLocal('584 — o terminal da escala é cobrado antes da chegada', () => 
     expect(opened?.message).toMatch(/^ETA em \d{2}\/\d{2}\/\d{4}\. Frentes sem terminal: carga cheia, carga solta\. Escolha o terminal em Editar escala/)
   })
 
+  // 588 (decisão do dono de 2026-11-04): o B/L cancelado, ou cancelado no
+  // financeiro, não cria frente; a carga solta que só ele trazia sai do
+  // alerta, da leitura do Painel e do Fechar ADR.
+  it('B/L cancelado não pede terminal: a carga solta só dele sai da conta', () => {
+    const withBl2 = (change: string) => scenario(`
+      ${eta(5)}
+      ${asUser}
+      ${save('0', [front('carga_cheia', T1)], `'[{"terminal_id":"${T1}","terminal_etb":"' || ${at(6, '08:00')} || '"}]'`)}
+      ${commit}
+      RESET ROLE;
+      SET LOCAL session_replication_role = replica;
+      ${change}
+      SET LOCAL session_replication_role = origin;
+      ${asDetector} SELECT public.reconcile_voyage_operation_alerts(${VOYAGE});
+      ${report}
+      RESET ROLE;
+      SELECT '>frentes|' || array_to_string(public._escala_fronts_without_terminal(${VOYAGE}, 'BRVIX'), ',');`)
+
+    const active = withBl2('')
+    expect(active.stderr).toBe('')
+    expect(item(active.lines, 'voyage_escala_terminal_missing', SCALE)?.message).toMatch(/Frente sem terminal: carga solta\./)
+    expect(active.lines).toContain('>frentes|importacao:carga_solta')
+
+    for (const change of [
+      `UPDATE public.bls SET cancelled_at = now() WHERE id = 'R584-BL2';`,
+      `UPDATE public.bls SET financial_status = 'cancelled' WHERE id = 'R584-BL2';`,
+    ]) {
+      const cancelled = withBl2(change)
+      expect(cancelled.stderr, change).toBe('')
+      // Aberto na gravação, antes do cancelamento; a rodada o fecha.
+      expect(item(cancelled.lines, 'voyage_escala_terminal_missing', SCALE)?.status, change).toBe('resolved')
+      expect(cancelled.lines, change).toContain('>frentes|')
+    }
+  })
+
   it('ATA confirmado em Chegadas e Saídas com frente em TBC: o alerta muda de marco; gravar o terminal o fecha', () => {
     const { lines, stderr } = scenario(`
       ${eta(-1)}
