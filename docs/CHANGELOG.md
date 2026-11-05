@@ -6,6 +6,11 @@
 
 ## 2026-11
 
+- **Novo cliente com convite do Portal (2026-11-05; pedido do dono):** Documentação e Administrativo marcam
+  **Enviar o convite do Portal agora** no **Novo cliente** e o convite sai, depois do cadastro, para o e-mail do
+  contato principal (botão **Cadastrar e convidar**). Recusa do convite não desfaz o Cliente: o aviso diz o motivo e
+  aponta Clientes › Portal. O cadastro deixa de pedir **Notas** (ficam na ficha), e Endereço, Cidade e UF dividem uma
+  linha ([Clientes](modules/clientes.md)).
 - **THD mínimo da carga solta de Vitória (2026-11-05, migration `594`, ADR 0125; decisão do dono):** o THD por
   tonelada em R$ da tabela de carga solta de Vitória (BRVIX) cobra por B/L o maior entre toneladas × unitário e
   R$ 380,00, também com Condição do Cliente e no B/L misto (2 t × R$ 62,50 = R$ 125,00 → R$ 380,00). Quantidade e

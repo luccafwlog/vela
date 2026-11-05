@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   supabaseOr: vi.fn(),
   exportCustomerBaseWorkbook: vi.fn(),
   fetchCustomerRows: vi.fn(),
+  sendPortalInvite: vi.fn(),
 }))
 
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -49,6 +50,7 @@ vi.mock('../../hooks/useCustomers', () => ({
 }))
 vi.mock('../../hooks/usePortalProvisioning', () => ({
   usePortalProvisioning: () => mocks.portalQuery,
+  useSendPortalInvite: () => ({ mutateAsync: mocks.sendPortalInvite }),
 }))
 vi.mock('../../components/ui/Toast', () => ({
   useToast: () => ({ showToast: mocks.showToast }),
@@ -139,7 +141,7 @@ describe('Clientes page behaviours', () => {
     mocks.useCustomerSummary.mockReturnValue({
       data: { pendingBalance: 150, totalCustomers: 1, totalBls: 1, chargePending: 1, chargeReady: 0, customersWithoutEmail: 0 },
     })
-    mocks.createCustomer.mockResolvedValue({ cnpj_cpf: '12345678000195' })
+    mocks.createCustomer.mockResolvedValue({ id: 99, cnpj_cpf: '12345678000195' })
     mocks.parseCustomerBaseFile.mockResolvedValue(parsedBase)
     mocks.compareCustomerBaseWithExisting.mockResolvedValue(parsedBase)
     mocks.importCustomerBaseRows.mockResolvedValue({ ok: true, imported: 1, updated: 0, contactsCreated: 1, blsLinked: 1, errors: [] })
@@ -537,5 +539,73 @@ describe('Clientes page behaviours', () => {
     expect((within(dialog).getByRole('button', { name: 'Voltar' }) as HTMLButtonElement).disabled).toBe(true)
     await user.keyboard('{Escape}')
     expect(screen.getByRole('dialog', { name: 'Novo cliente' })).toBeTruthy()
+  })
+
+  // Pedido do dono de 2026-11-05: o cadastro pode já mandar o convite do Portal.
+  async function fillNewCustomer(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
+    await user.type(screen.getByLabelText(/^Razão social/), 'Cliente Novo')
+    await user.type(within(screen.getByRole('dialog')).getByLabelText(/^E-mail/), 'Novo@Example.com')
+  }
+
+  it('o cadastro não pede Notas; Notas ficam na ficha', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    expect(within(screen.getByRole('dialog')).queryByLabelText('Notas')).toBeNull()
+  })
+
+  it('cadastra e envia o convite do Portal ao e-mail do contato principal', async () => {
+    const user = userEvent.setup()
+    mocks.confirm.mockResolvedValue(true)
+    mocks.sendPortalInvite.mockResolvedValue(undefined)
+    renderPage()
+
+    await fillNewCustomer(user)
+    await user.click(screen.getByRole('checkbox', { name: /Enviar o convite do Portal agora/ }))
+    expect(screen.getByText(/O convite vai para novo@example.com/)).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Cadastrar e convidar' }))
+
+    await waitFor(() => expect(mocks.sendPortalInvite).toHaveBeenCalledWith({ customerId: 99, recoveryEmail: 'novo@example.com', source: 'informado_manualmente' }))
+    expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ confirmLabel: 'Cadastrar e convidar' }))
+    expect(mocks.showToast).toHaveBeenCalledWith('Cliente cadastrado e convite do Portal enviado para novo@example.com.', 'success')
+    expect(mocks.navigate).toHaveBeenCalledWith('/clientes/12345678000195')
+  })
+
+  it('convite recusado não desfaz o cadastro: avisa o motivo e leva à ficha', async () => {
+    const user = userEvent.setup()
+    mocks.confirm.mockResolvedValue(true)
+    mocks.sendPortalInvite.mockRejectedValue(new Error('Endereço suprimido.'))
+    renderPage()
+
+    await fillNewCustomer(user)
+    await user.click(screen.getByRole('checkbox', { name: /Enviar o convite do Portal agora/ }))
+    await user.click(screen.getByRole('button', { name: 'Cadastrar e convidar' }))
+
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Cliente cadastrado, mas o convite do Portal não saiu (Endereço suprimido). Envie de novo em Clientes › Portal.', 'error'))
+    expect(mocks.createCustomer).toHaveBeenCalledTimes(1)
+    expect(mocks.navigate).toHaveBeenCalledWith('/clientes/12345678000195')
+  })
+
+  it('sem marcar o convite, nenhum convite sai', async () => {
+    const user = userEvent.setup()
+    mocks.confirm.mockResolvedValue(true)
+    renderPage()
+
+    await fillNewCustomer(user)
+    await user.click(screen.getByRole('button', { name: 'Cadastrar cliente' }))
+
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalled())
+    expect(mocks.sendPortalInvite).not.toHaveBeenCalled()
+  })
+
+  it('quem edita contatos sem provisionar o Portal (Equipamentos) não vê a opção de convite', async () => {
+    const user = userEvent.setup()
+    mocks.can.mockImplementation((permission: string) => permission !== 'portal_provisioning')
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    expect(within(screen.getByRole('dialog')).queryByRole('checkbox', { name: /convite do Portal/ })).toBeNull()
   })
 })

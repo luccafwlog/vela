@@ -28,7 +28,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useFilteredSelection } from '../hooks/useFilteredSelection'
 import { fetchCustomerRows, useCustomers, useCustomerSummary, type CustomerFilters } from '../hooks/useCustomers'
-import { usePortalProvisioning } from '../hooks/usePortalProvisioning'
+import { usePortalProvisioning, useSendPortalInvite } from '../hooks/usePortalProvisioning'
 import { formatBRL, formatCnpjCpf, formatCountLabel } from '../lib/utils'
 import { userFacingErrorMessage } from '../lib/errors'
 import { isValidCnpj } from '../lib/cnpj'
@@ -68,6 +68,10 @@ export function Clientes() {
   // Novo cliente grava contatos: só os setores que editam contatos (decisão do
   // dono de 2026-10-27, P10; os demais trazem o Cliente pela Base ou Revisão).
   const canCreateCustomer = can('edit_customer_contacts')
+  // O convite do Portal é da Documentação e do Administrativo: a Edge Function
+  // `portal-invite-send` recusa os demais, então só eles veem a opção no cadastro.
+  const canInvitePortal = canCreateCustomer && can('portal_provisioning')
+  const sendPortalInvite = useSendPortalInvite()
   const narrow = useNarrowViewport()
   // Excluir e desativar exigem o Administrativo no banco; a tela só oferece
   // as ações a quem pode executá-las.
@@ -197,16 +201,21 @@ export function Clientes() {
     setCreateErrors(fieldErrors)
     if (Object.keys(fieldErrors).length > 0) return
 
+    const inviteEmail = canInvitePortal && createForm.sendPortalInvite ? primaryContact!.email.trim().toLowerCase() : null
     const confirmed = await confirm({
-      title: 'Cadastrar cliente',
+      title: inviteEmail ? 'Cadastrar cliente e enviar o convite' : 'Cadastrar cliente',
       message: `Cadastrar o cliente "${createForm.name.trim()}" (${formatCnpjCpf(createForm.cnpjCpf)})?`,
-      confirmLabel: 'Cadastrar cliente',
+      confirmLabel: inviteEmail ? 'Cadastrar e convidar' : 'Cadastrar cliente',
       affected: {
         summary: `${createForm.name.trim()} · CNPJ ${formatCnpjCpf(createForm.cnpjCpf)} · ${formatCountLabel(activeContacts.length, 'contato', 'contatos')}`,
         items: activeContacts.map((c) => `${c.name.trim() ? `${c.name.trim()} (${c.email})` : c.email}${c.is_primary ? ' · principal' : ''}`),
       },
-      consequence: 'O cliente entra no cadastro ativo, pode ser vinculado a B/Ls e aparece na fila de Clientes › Portal como "Aguardando análise". Nenhum convite é enviado.',
-      reversibility: 'Os dados podem ser editados na ficha; cadastros sem vínculos operacionais podem ser desativados ou excluídos pelo Administrativo.',
+      consequence: inviteEmail
+        ? `O cliente entra no cadastro ativo e pode ser vinculado a B/Ls. Em seguida, o convite do Portal é enviado para ${inviteEmail}, válido por 48 horas.`
+        : 'O cliente entra no cadastro ativo, pode ser vinculado a B/Ls e aparece na fila de Clientes › Portal como "Aguardando análise". Nenhum convite é enviado.',
+      reversibility: inviteEmail
+        ? 'Os dados podem ser editados na ficha; o convite pendente pode ser cancelado em Clientes › Portal. O e-mail enviado não volta.'
+        : 'Os dados podem ser editados na ficha; cadastros sem vínculos operacionais podem ser desativados ou excluídos pelo Administrativo.',
     })
     if (!confirmed) return
 
@@ -220,9 +229,20 @@ export function Clientes() {
         city: createForm.city,
         state: createForm.state,
         zip: createForm.zip,
-        notes: createForm.notes,
         contacts: activeContacts,
       })
+
+      // O cadastro já está gravado: uma recusa do convite não desfaz o Cliente
+      // nem prende o formulário; vira aviso com o motivo e o caminho do reenvio.
+      let inviteFailure: string | null = null
+      if (inviteEmail) {
+        try {
+          await sendPortalInvite.mutateAsync({ customerId: customer.id, recoveryEmail: inviteEmail, source: 'informado_manualmente' })
+        } catch (cause) {
+          // `sendPortalInvite` já traduz a recusa do servidor (POR-D01).
+          inviteFailure = (cause instanceof Error && cause.message ? cause.message : 'Não foi possível enviar o convite do Portal').replace(/\.$/, '')
+        }
+      }
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['customers'] }),
@@ -232,7 +252,11 @@ export function Clientes() {
         queryClient.invalidateQueries({ queryKey: ['customer-ficha'] }),
       ])
 
-      showToast('Cliente cadastrado.', 'success')
+      if (inviteFailure) {
+        showToast(`Cliente cadastrado, mas o convite do Portal não saiu (${inviteFailure}). Envie de novo em Clientes › Portal.`, 'error')
+      } else {
+        showToast(inviteEmail ? `Cliente cadastrado e convite do Portal enviado para ${inviteEmail}.` : 'Cliente cadastrado.', 'success')
+      }
       setCreateOpen(false)
       setCreateForm(emptyCreateCustomerForm)
       navigate(`/clientes/${encodeURIComponent(customer.cnpj_cpf)}`)
@@ -600,6 +624,7 @@ export function Clientes() {
         form={createForm}
         errors={createErrors}
         saving={saving}
+        canInvitePortal={canInvitePortal}
         // Fechar durante a gravação deixaria o resultado cair num modal
         // fechado (erro antigo na próxima abertura, segundo cadastro).
         onClose={() => { if (!saving) resetCreateModal() }}

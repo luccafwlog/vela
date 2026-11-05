@@ -31,7 +31,11 @@ export type CreateCustomerForm = {
   city: string
   state: string
   zip: string
-  notes: string
+  /**
+   * Envia o convite do Portal ao contato principal logo depois do cadastro.
+   * Notas ficam na ficha do Cliente, não no cadastro (pedido do dono de 2026-11-05).
+   */
+  sendPortalInvite: boolean
   contacts: CustomerContactForm[]
 }
 
@@ -57,6 +61,6 @@ export const emptyCreateCustomerForm: CreateCustomerForm = {
   city: '',
   state: '',
   zip: '',
-  notes: '',
+  sendPortalInvite: false,
   contacts: [newCustomerContact(true)],
 }
