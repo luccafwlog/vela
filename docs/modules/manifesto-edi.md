@@ -1321,13 +1321,13 @@ vigentes: ADR 0078, item 21; ADR 0079, decisões 5 e 6; migrations `182`,
   que zero; carga perigosa em quantidade limitada (LQ) descarta só o DGS em
   LQ, e carga só LQ é carga normal, sem THD de IMO.
 - **Arquivo completo, peso e portos (2026-10-21).** Cada mensagem termina em UNT
-  e o arquivo termina em UNZ; arquivo sem eles (cortado) é recusado inteiro
-  ([ADR 0092](../adr/0092-importacao-com-erro-e-recusada-inteira.md)). Contagem
-  de segmentos ou de mensagens diferente do que chegou só avisa, e os containers
-  lidos entram ([ADR 0096](../adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md), decisão 1). O Baplie 1.5 (SMDG15) da COSCO declara no
-  UNT sempre um segmento a menos que o padrão (UNH a UNT inclusive): essa
-  diferença exata é a convenção do gerador e não avisa (2026-10-27); qualquer
-  outra diferença, ou a mesma num Baplie 2.2, avisa. O peso é o VGM;
+  e o arquivo termina em UNZ; arquivo sem eles (cortado), ou com um deles sem o
+  número da contagem, é recusado inteiro
+  ([ADR 0092](../adr/0092-importacao-com-erro-e-recusada-inteira.md)). A
+  contagem de segmentos (UNT) e de mensagens (UNZ) não é conferida: diferença
+  do que chegou não avisa, porque todo Baplie da COSCO a traz
+  ([ADR 0096](../adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md),
+  decisão 1, situação de 2026-11-05). O peso é o VGM;
   sem VGM, o WT, em qualquer ordem. Os códigos de 3 letras do Baplie 1.5 (SSZ, ITJ, PNG,
   RIG, SSA, PEC, SUA, REC, NVT) valem como os de 5; BRNVT e BRITJ, BRREC e BRSUA são portos
   distintos; BRSEP, BRSPB, SPB, SEP e SEPETIBA são apelidos de BRIGI (Itaguaí,

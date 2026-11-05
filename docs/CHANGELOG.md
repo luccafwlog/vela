@@ -6,6 +6,13 @@
 
 ## 2026-11
 
+- **Baplie: a contagem do fim da mensagem e do arquivo não avisa mais (2026-11-05; decisão do dono):** sem
+  migration nem ADR nova (faixa "Situação atual" na
+  [ADR 0096](adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md)). A prévia do Baplie deixa de mostrar
+  "O trailer UNT declara N segmentos, mas a mensagem tem M" e "O trailer UNZ declara…": todo Baplie da COSCO traz a
+  contagem diferente (o do GREEN SEPETIBA / 8 declarava um segmento a mais, o que a exceção de 2026-10-27, de um a
+  menos no 1.5, não cobria). Arquivo sem UNT ou UNZ, ou com eles sem o número, continua recusado. Prova:
+  `baplieParserReaderFixes.test.ts`.
 - **Conferência dos CEs no Comunicado de CE e Taxas (2026-11-05; pedido do dono):** as duas versões do e-mail
   ("CE Mercante e Taxas Locais disponíveis" e "CE Mercante disponível") pedem, logo abaixo da lista de CEs, que o
   Cliente confira os CEs e avise importacao@fwlog.com.br de qualquer erro ou inconsistência

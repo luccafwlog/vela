@@ -738,10 +738,8 @@ function preferredWeight(items: ParsedSegment[], delimiters: Delimiters): Parsed
 }
 
 /**
- * Arquivo truncado é erro no arquivo (ADR 0092): sem UNT e UNZ, ou com as
- * contagens deles diferentes do que chegou, a importação inteira é recusada.
- * UNT 0074 = segmentos da mensagem, do UNH ao UNT inclusive; UNZ 0036 = nº de
- * mensagens (ou de grupos UNG, quando o intercâmbio usa grupos).
+ * Arquivo truncado é erro no arquivo (ADR 0092): sem UNT ou UNZ, ou com um
+ * deles sem a contagem (UNT 0074, UNZ 0036), a importação inteira é recusada.
  */
 function validateTrailers(segments: Array<ParsedSegment & { index: number }>): ImportIssue[] {
   const issues: ImportIssue[] = []
@@ -749,58 +747,29 @@ function validateTrailers(segments: Array<ParsedSegment & { index: number }>): I
     row, field: 'eof', code: 'invalid_group', severity: 'error',
     message: `${message} O arquivo parece cortado ou incompleto; peça o Baplie de novo ao armador.`,
   })
-  // ADR 0096, decisão 1: contagem do trailer diferente do que chegou só avisa;
-  // falta de trailer continua erro, porque aí o arquivo foi de fato cortado.
-  // O Baplie 1.5 (SMDG15) da COSCO declara no UNT sempre um segmento a menos
-  // que o padrão: essa diferença exata é a convenção do gerador e não avisa.
-  const countWarning = (row: number, message: string) => issues.push({
-    row, field: 'eof', code: 'invalid_group', severity: 'warning',
-    message: `${message} Os containers lidos entram; se faltar algum, peça o Baplie de novo ao armador.`,
-  })
-  const countOf = (segment: ParsedSegment) => {
-    const raw = (segment.components[1]?.[0] ?? '').trim()
-    return /^\d+$/.test(raw) ? Number(raw) : null
-  }
+  // ADR 0096, decisão 1 (2026-11-05): a contagem que o UNT e o UNZ declaram
+  // não é conferida. Todo Baplie da COSCO chega com ela diferente do que traz,
+  // e o aviso não indicava perda. Só a falta do trailer (arquivo cortado) pesa.
+  const hasCount = (segment: ParsedSegment) => /^\d+$/.test((segment.components[1]?.[0] ?? '').trim())
 
   let messageStart: number | null = null
-  let messageIsSmdg15 = false
-  let messages = 0
-  let groups = 0
   let sawUnt = false
   let sawUnz = false
   for (const segment of segments) {
-    if (segment.tag === 'UNG') groups += 1
     if (segment.tag === 'UNH') {
       if (messageStart !== null) fileError(segment.index + 1, `Mensagem iniciada no segmento ${messageStart + 1} sem trailer UNT antes da seguinte.`)
       messageStart = segment.index
-      messageIsSmdg15 = (segment.components[2] ?? []).some((part) => part.trim().toUpperCase() === 'SMDG15')
       continue
     }
     if (segment.tag === 'UNT') {
       sawUnt = true
-      messages += 1
-      const declared = countOf(segment)
-      // Sem UNH, a mensagem começa logo depois do UNB (ou no primeiro segmento).
-      const start = messageStart ?? (segments[0]?.tag === 'UNB' ? 1 : 0)
-      const actual = segment.index - start + 1
-      if (declared === null) {
-        fileError(segment.index + 1, 'Trailer UNT sem a contagem de segmentos.')
-      } else if (declared !== actual && !(messageIsSmdg15 && messageStart !== null && declared === actual - 1)) {
-        countWarning(segment.index + 1, `O trailer UNT declara ${declared} segmentos, mas a mensagem tem ${actual}.`)
-      }
+      if (!hasCount(segment)) fileError(segment.index + 1, 'Trailer UNT sem a contagem de segmentos.')
       messageStart = null
-      messageIsSmdg15 = false
       continue
     }
     if (segment.tag === 'UNZ') {
       sawUnz = true
-      const declared = countOf(segment)
-      const expected = groups > 0 ? groups : messages
-      if (declared === null) {
-        fileError(segment.index + 1, 'Trailer UNZ sem a contagem de mensagens.')
-      } else if (declared !== expected) {
-        countWarning(segment.index + 1, `O trailer UNZ declara ${declared} ${declared === 1 ? 'mensagem' : 'mensagens'}, mas o arquivo tem ${expected}.`)
-      }
+      if (!hasCount(segment)) fileError(segment.index + 1, 'Trailer UNZ sem a contagem de mensagens.')
     }
   }
   const lastRow = (segments[segments.length - 1]?.index ?? 0) + 1
