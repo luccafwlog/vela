@@ -291,6 +291,35 @@ describe('Demurrage page behaviours', () => {
     }
   })
 
+  it('Gerar Invoice com veículo LCL suspenso pede confirmação, também no grupo misto em A emitir (migration 593)', async () => {
+    const [group] = await mocks.listContainers()
+    const lclBox = { ...group.boxes[0], container_id: 99, container_number: 'MSCU5930001', free_days: 30, free_source: 'veiculo_lcl', state: 'lcl_vehicle', usd: 300 }
+    mocks.listContainers.mockResolvedValue([{ ...group, boxes: [...group.boxes, lclBox] }])
+    const user = userEvent.setup()
+    renderPage(['/demurrage?divisao=a_emitir'])
+
+    // Recusada a confirmação, nada é emitido.
+    mocks.confirm.mockResolvedValueOnce(false)
+    await user.click(await screen.findByRole('button', { name: 'Gerar Invoice do B/L BL-001' }))
+    await waitFor(() => expect(mocks.confirm).toHaveBeenCalledTimes(1))
+    expect(mocks.confirm.mock.calls[0][0]).toMatchObject({
+      title: 'Cobrar a Demurrage do veículo LCL',
+      message: 'Gerar a Invoice de Demurrage do B/L BL-001, cobrando também o veículo LCL (MSCU5930001)?',
+    })
+    expect(mocks.createInvoice).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Gerar Invoice do B/L BL-001' }))
+    await waitFor(() => expect(mocks.createInvoice).toHaveBeenCalledWith('BL-001'))
+  })
+
+  it('Gerar Invoice de grupo sem veículo LCL não pede confirmação', async () => {
+    const user = userEvent.setup()
+    renderPage(['/demurrage?divisao=a_emitir'])
+    await user.click(await screen.findByRole('button', { name: 'Gerar Invoice do B/L BL-001' }))
+    await waitFor(() => expect(mocks.createInvoice).toHaveBeenCalledWith('BL-001'))
+    expect(mocks.confirm).not.toHaveBeenCalled()
+  })
+
   it('mostra a recusa da emissão na linha do B/L, não só em aviso passageiro', async () => {
     mocks.createInvoice.mockRejectedValue(new Error('Aguardando a devolução de todos os containers do B/L (grupo do B/L BL-000).'))
     const user = userEvent.setup()

@@ -44,7 +44,10 @@ casos, escolheu uma divisão nova, Veículo LCL, na aba Containers.
 4. **Container dividido.** A suspensão vale quando todo B/L ativo do mesmo
    Cliente com o container na Viagem é de veículo LCL. Container que divide B/L
    com outra carga do Cliente é cobrado como sempre; o free time segue o B/L da
-   linha que a emissão escolhe (âncora primeiro), como a condição do B/L.
+   linha que a emissão escolhe (âncora primeiro), como a condição do B/L. No
+   grupo misto, a emissão automática cobra só os outros containers; o **Gerar
+   Invoice** cobra também o de veículo LCL e, por isso, pede a mesma
+   confirmação, dizendo quais containers vão junto.
 5. **Depois do Gerar Invoice.** A Invoice emitida à mão é uma Invoice como as
    outras (Régua, Portal, baixa, Disputa). Cancelada pelo sistema (datas, SOC,
    divisão do container, troca de CNPJ), é reemitida sozinha, porque o

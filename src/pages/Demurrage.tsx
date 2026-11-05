@@ -327,15 +327,23 @@ export function Demurrage() {
     waiveMutation.mutate({ box, reason })
   }
   // Veículo LCL (migration 593, ADR 0124): a cobrança nasce suspensa, e gerar a
-  // Invoice é a decisão de cobrar; pede confirmação antes.
+  // Invoice é a decisão de cobrar; pede confirmação antes. Vale também para o
+  // grupo misto em A emitir: o Gerar Invoice cobra o container suspenso junto,
+  // além do US$ que a linha mostra (a emissão automática o deixa de fora).
   async function handleGenerateInvoice(blId: string) {
     const group = boardQuery.data?.find((item) => item.anchor_bl_id === blId)
-    if (group?.division === 'veiculo_lcl') {
+    const suspended = group?.boxes.filter((box) => box.state === 'lcl_vehicle').map((box) => box.container_number) ?? []
+    if (group && (group.division === 'veiculo_lcl' || suspended.length)) {
+      const mixed = group.division !== 'veiculo_lcl'
       const confirmed = await confirm({
         title: 'Cobrar a Demurrage do veículo LCL',
-        message: `Gerar a Invoice de Demurrage do B/L ${blId}?`,
+        message: mixed
+          ? `Gerar a Invoice de Demurrage do B/L ${blId}, cobrando também o veículo LCL (${suspended.join(', ')})?`
+          : `Gerar a Invoice de Demurrage do B/L ${blId}?`,
         confirmLabel: 'Gerar Invoice',
-        consequence: 'A cobrança do veículo LCL está suspensa por padrão. A Invoice sai com 30 dias de free time, entra na Régua de Cobrança e aparece no Portal do Cliente.',
+        consequence: mixed
+          ? 'A cobrança do veículo LCL está suspensa por padrão e o valor dele não entra no US$ da linha. A Invoice cobra o grupo e esse container, com 30 dias de free time, entra na Régua de Cobrança e aparece no Portal do Cliente. Para não cobrar o veículo LCL, dispense a cobrança dele antes.'
+          : 'A cobrança do veículo LCL está suspensa por padrão. A Invoice sai com 30 dias de free time, entra na Régua de Cobrança e aparece no Portal do Cliente.',
         reversibility: 'Sem pagamento, a Invoice pode ser cancelada (Administrativo, Financeiro ou Equipamentos); o container volta para Veículo LCL.',
       })
       if (!confirmed) return

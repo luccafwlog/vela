@@ -821,7 +821,10 @@ lido dos dados atuais do B/L (`_bl_is_lcl_vehicle`).
   motivo pendente, a linha diz "Cobrança suspensa: gere a Invoice só se for
   cobrar" e oferece **Gerar Invoice** (ou **Gerar complementar**), com
   confirmação ("Cobrar a Demurrage do veículo LCL"); a chamada direta da RPC
-  cobra tudo, com os 30 dias. Com container fora, "Cobrança suspensa: N
+  cobra tudo, com os 30 dias. No grupo misto em A emitir, o **Gerar Invoice**
+  também cobra o container suspenso (o US$ da linha não o inclui), então a
+  tela pede a mesma confirmação, com os containers de veículo LCL que vão
+  junto; para não cobrá-los, dispense a cobrança antes. Com container fora, "Cobrança suspensa: N
   container(s) pendente(s) de devolução", e em âmbar o que vai travar a
   emissão (`warning`). Sem Cliente, sem tarifa, sem CE ou com o Gate do
   Portal fechado, o motivo (`reason_code` `sem_cliente`, `sem_tarifa`,
