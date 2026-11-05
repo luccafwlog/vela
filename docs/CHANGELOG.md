@@ -6,6 +6,11 @@
 
 ## 2026-11
 
+- **Solicitar acesso no login do Portal (2026-11-05; decisão do dono):** abaixo de **Entrar no Portal**, o botão com
+  borda **Solicitar acesso** abre em outra aba o formulário da página do Portal no site
+  (`https://fwlog.com.br/portal-do-cliente/#solicitar-acesso`), que envia o pedido ao suporte. Sem formulário,
+  endpoint ou e-mail novos no Portal; as telas de recuperação, redefinição, ativação e confirmação de e-mail não
+  mudam ([Portal do Cliente](modules/portal-cliente.md#portallogin)).
 - **Veículo LCL na Demurrage (2026-11-05, migration `593`, ADR 0124; decisão do dono):** o B/L de veículo LCL
   (container, com veículo, Movement To com LCL ou CFS) tem free time fixo de 30 dias, acima da condição do B/L, do
   acordo e da tarifa, no cálculo, no status do container, na aba B/Ls do Portal e na Consulta de container. A
