@@ -446,6 +446,9 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   números de Manifesto Mercante, o seu **Ver B/Ls** e o seu EDI; o B/L misto
   fica na BB. O número da outra natureza é recusado (VIA-053, VIA-146,
   VIA-147).
+- **CE pelo Retorno Mercante** (pedido do dono de 2026-11-05): **Importar CE
+  Mercante** aceita também o arquivo de Retorno do Mercante (.TXT), com o Nº do
+  Manifesto lido do arquivo; a planilha continua valendo (6.5; CEB-101).
 - **Sincronização de 2026-11-02** (PRs luccafwlog/vela#1132, #1133, #1135,
   #1141, #1143 a #1160 e #1163 a #1172; migrations `554` a `566`). A matriz veio
   atualizada nas PRs; o texto do manual e do guia passou a descrever:

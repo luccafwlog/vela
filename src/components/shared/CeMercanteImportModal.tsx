@@ -68,6 +68,7 @@ export function CeMercanteImportModal({
     if (selectedVoyageId == null) return parsed
     const partition = await partitionRowsByVoyage(parsed.rows, selectedVoyageId)
     return {
+      ...parsed,
       rows: partition.rows,
       rowErrors: [
         ...parsed.rowErrors,
@@ -119,11 +120,15 @@ export function CeMercanteImportModal({
   async function handleFiles(files: File[]) {
     const nextFile = files[0] ?? null
     const request = ++previewRequestRef.current
+    // Retorno Mercante: o Nº do Manifesto é o do arquivo. Trocar o Retorno por
+    // outro arquivo limpa o número que veio dele.
+    if (parsedFile?.retorno) setNumeroManifesto('')
     resetPreviewState()
     setParsedFile(null)
     try {
       const result = await readFile(nextFile)
       if (request !== previewRequestRef.current) return
+      if (result?.retorno) setNumeroManifesto(result.retorno.manifesto)
       if (result) {
         setParsedFile(result)
         const restricted = await restrictToVoyage(result, voyageIdRef.current)
@@ -218,7 +223,7 @@ export function CeMercanteImportModal({
       }
 
       showToast(
-        `Nada foi gravado: ${plural(result.errorCount, 'erro', 'erros')}. Corrija a planilha e envie de novo.`,
+        `Nada foi gravado: ${plural(result.errorCount, 'erro', 'erros')}. Corrija o arquivo e envie de novo.`,
         'error',
       )
     } catch (error) {
@@ -304,6 +309,7 @@ export function CeMercanteImportModal({
   else if (preview) footnote = 'Tudo ou nada: se algum B/L falhar, nada é gravado.'
   const submitCount = preview?.rows.length ?? 0
   const step = recorded ? 'resultado' : preview || readError ? 'previa' : 'arquivo'
+  const retorno = parsedFile?.retorno ?? null
 
   return (
     <Modal open={open} onClose={requestClose} title="Importar CE Mercante">
@@ -312,11 +318,14 @@ export function CeMercanteImportModal({
         <Field
           label="Nº de Manifesto Mercante"
           required
-          hint="13 caracteres, letras ou dígitos (espaços e separadores são ignorados). Cada importação é um manifesto: todos os B/Ls da planilha precisam ser da mesma rota (POL → POD). Outro número para B/L já vinculado move o B/L, com confirmação e motivo."
+          hint={retorno
+            ? `Lido do Retorno Mercante (rota no Mercante ${retorno.pol} → ${retorno.pod}). Para outro número, escolha outro arquivo.`
+            : 'Na planilha, digite: 13 caracteres, letras ou dígitos (espaços e separadores são ignorados). No Retorno Mercante (.TXT), o número vem do arquivo. Cada importação é um manifesto: todos os B/Ls precisam ser da mesma rota (POL → POD) e da mesma natureza (contêiner ou carga solta). Outro número para B/L já vinculado move o B/L, com confirmação e motivo.'}
         >
           <Input
             required
             value={numeroManifesto}
+            readOnly={Boolean(retorno)}
             onChange={(e) => { setNumeroManifesto(e.target.value); resetServerPreview() }}
             placeholder="Ex.: 1226501860578"
           />
@@ -333,16 +342,17 @@ export function CeMercanteImportModal({
 
         <ImportFileBlock templates={<ImportTemplateLinks baseName="ce-mercante-modelo" />}>
           <ImportGuide
-            required={<><strong>BL</strong> e <strong>CE MERCANTE</strong>.</>}
+            required={<>Planilha com <strong>BL</strong> e <strong>CE MERCANTE</strong>, ou o arquivo de <strong>Retorno Mercante</strong> (.TXT) do manifesto.</>}
             details={
               <p>
+                O Retorno Mercante traz o Nº do Manifesto e o CE de cada B/L; o Retorno de vazios não tem CE e é recusado.
                 O CE de 15 dígitos é conferido e não pode haver B/L repetido. A gravação é tudo ou nada: se algo falhar,
-                nada é gravado, nem o vínculo com o manifesto. B/L cancelado na planilha não é tocado; o resto entra.
+                nada é gravado, nem o vínculo com o manifesto. B/L cancelado no arquivo não é tocado; o resto entra.
               </p>
             }
           />
           <ImportFilePicker
-            accept=".xlsx,.xls,.csv"
+            accept=".xlsx,.xls,.csv,.txt"
             files={file ? [file] : []}
             onFiles={(files) => void handleFiles(files)}
             disabled={submitting || Boolean(billing)}
@@ -363,7 +373,7 @@ export function CeMercanteImportModal({
             title="Prévia"
             aside={
               <SummaryStrip
-                label="Resumo da planilha"
+                label={retorno ? 'Resumo do Retorno Mercante' : 'Resumo da planilha'}
                 items={[
                   { label: validCount === 1 ? 'linha válida' : 'linhas válidas', value: validCount },
                   { label: preview.rowErrors.length === 1 ? 'linha com erro' : 'linhas com erro', value: preview.rowErrors.length, tone: preview.rowErrors.length ? 'danger' : 'default' },
