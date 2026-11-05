@@ -1,5 +1,7 @@
 # 0116 — O Vela gera o EDI Mercante de importação a partir da Viagem e dos B/Ls
 
+> **Situação atual (2026-11-05).** Estendida pela [ADR 0123](./0123-manifesto-mercante-separado-por-natureza.md) (migration `592`): contêiner e carga solta da mesma rota são linhas separadas em Rotas e Manifestos (**CNTR** e **BB**; a linha **CNTR/BB** dos itens 1 e 8 deixou de existir), cada uma com os seus Manifestos Mercante e só o seu arquivo. O B/L misto segue no arquivo e no Manifesto de carga solta. O restante desta ADR vale.
+
 Status: aceito — 2026-11-02 (pedido do responsável na
 [issue #560](https://github.com/luccafwlog/vela/issues/560): substituir o
 sistema externo que lê os B/Ls e gera o EDI). Implementada no botão

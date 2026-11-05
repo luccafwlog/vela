@@ -8,6 +8,7 @@
 > Ainda no item 21, a [ADR 0098](./0098-baplie-nao-cria-nem-exige-escala.md) (migration `418`, 2026-10-23) faz o container de porto brasileiro fora das escalas entrar no Baplie sem escala quando o operador marca o porto; o Baplie não cria nem exige escala. O de porto estrangeiro continua ignorado.
 > A [ADR 0092](./0092-importacao-com-erro-e-recusada-inteira.md) (2026-10-19) estende esta: importação com qualquer erro é recusada inteira e não grava nada, sem "forçar a importação"; B/L cancelado no arquivo é aviso.
 > Regra vigente nos módulos [Manifestos & EDI](../modules/manifesto-edi.md), [Viagens](../modules/viagens.md), [Demurrage](../modules/demurrage.md), [Faturamento](../modules/faturamento.md) e [Granito](../modules/granito.md).
+> A [ADR 0123](./0123-manifesto-mercante-separado-por-natureza.md) (2026-11-05, migration `592`) estende os itens 6 e 7: o Manifesto Mercante de carga é por rota **e natureza** (contêiner ou carga solta, o B/L misto no de carga solta), e a planilha de CE, Mover e Informar recusam a natureza trocada.
 
 > **Nota editorial — 2026-10-11 · supersedida parcialmente.** A [ADR 0079](./0079-decisoes-pendentes-da-revisao-da-pr-929.md) refina o item 19 (Invoice de Demurrage com desconto ou disputa não é reemitida sozinha), o item 21 (a referência de "outro operador" no Baplie são os containers dos B/Ls da Viagem) e o item 25 (planilha de Granito sem B/L em comum é manifesto novo; a reimportação fica nos manifestos que ela toca).
 >

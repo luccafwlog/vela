@@ -213,7 +213,7 @@ export function PolScheduleModal({
               <div className="app-escala-summary__meta">Rota: {polSchedule.pol} -&gt; {polSchedule.pod}</div>
             </div>
             <div className="app-escala-summary__chips">
-              <Badge tone="blue">{polSchedule.cargoMode === 'vazios' ? 'Manifesto de Vazios' : 'Rota / Manifesto'}</Badge>
+              <Badge tone="blue">{polSchedule.cargoMode === 'vazios' ? 'Manifesto de Vazios' : polSchedule.cargoMode === 'carga_solta' ? 'Manifesto de carga solta' : 'Manifesto de contêiner'}</Badge>
             </div>
           </div>
 

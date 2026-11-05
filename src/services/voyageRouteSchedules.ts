@@ -777,7 +777,8 @@ export async function deleteEscala(
 /**
  * CE Master por ROTA (POL/POD), independente de batch de manifesto (#322).
  * Viagem só-B/L não tem batch onde guardar a CE agrupadora; aqui fica por rota.
- * A chave do mapa é `${voyageId}::${POL}__${POD}` (portos em maiúsculas).
+ * A chave do mapa é `${voyageId}::${POL}__${POD}` (portos em maiúsculas), com
+ * `__BB` na linha de carga solta (migration 592) e `__VAZIOS` na de vazios.
  */
 export function buildVoyageRouteCeMasterKey(
   voyageId: number,
@@ -785,7 +786,8 @@ export function buildVoyageRouteCeMasterKey(
   pod: string | null | undefined,
   cargoMode?: string | null,
 ) {
-  const mode = cargoMode && cargoMode.toLowerCase() === 'vazios' ? '__VAZIOS' : ''
+  const normalized = cargoMode?.toLowerCase()
+  const mode = normalized === 'vazios' ? '__VAZIOS' : normalized === 'carga_solta' ? '__BB' : ''
   return `${voyageId}::${normalizeRoutePort(pol)}__${normalizeRoutePort(pod)}${mode}`
 }
 

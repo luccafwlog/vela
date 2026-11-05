@@ -366,7 +366,7 @@ async function readRouteBls(
   return { bls, others }
 }
 
-/** Dados de uma rota de carga em contêiner (linha CNTR ou CNTR/BB de Rotas e Manifestos). */
+/** Dados de uma rota de carga em contêiner (linha CNTR de Rotas e Manifestos). */
 export async function loadMercanteCargoInput(voyageId: number, pol: string, pod: string): Promise<MercanteCargoInput> {
   const { header, depotCodes, podFronts, ...context } = await readHeader(voyageId, pol, pod, 'carga_cheia')
   const { bls, others } = await readRouteBls(voyageId, pol, pod, new Set(['container']), { depotCodes, podFronts }, false)
@@ -378,7 +378,7 @@ export async function loadMercanteCargoInput(voyageId: number, pol: string, pod:
 }
 
 /**
- * Dados do arquivo parcial de carga solta de uma rota (linha BB ou CNTR/BB): B/Ls
+ * Dados do arquivo parcial de carga solta de uma rota (linha BB): B/Ls
  * de carga solta e mistos. O terminal do manifesto é o da frente de carga solta.
  */
 export async function loadMercanteBreakbulkInput(voyageId: number, pol: string, pod: string): Promise<MercanteCargoInput> {

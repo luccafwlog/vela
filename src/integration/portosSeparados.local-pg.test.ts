@@ -211,9 +211,9 @@ describeLocal('Lote 3 das importações — Navegantes ≠ Itajaí e Recife ≠ 
     insertBl('P390-M1', mixedVoyage, 'BRITJ', 'PQCU3900021')
     insertBl('P390-M2', mixedVoyage, 'BRNVT', 'PQCU3900022')
     psql(`
-      INSERT INTO public.manifestos_mercante (id, voyage_id, pol, pod, numero, natureza) VALUES
-        ('00000000-0000-0000-0000-000099390101', ${repairVoyage}, 'CNSHA', 'BRITJ', '1226P39000001', 'carga'),
-        ('00000000-0000-0000-0000-000099390102', ${mixedVoyage}, 'CNSHA', 'BRITJ', '1226P39000002', 'carga');
+      INSERT INTO public.manifestos_mercante (id, voyage_id, pol, pod, numero, natureza, cargo_mode) VALUES
+        ('00000000-0000-0000-0000-000099390101', ${repairVoyage}, 'CNSHA', 'BRITJ', '1226P39000001', 'carga', 'container'),
+        ('00000000-0000-0000-0000-000099390102', ${mixedVoyage}, 'CNSHA', 'BRITJ', '1226P39000002', 'carga', 'container');
       -- O resto sem gatilhos: com a régua nova, a conciliação documental do
       -- próprio cenário reescreveria o status antes da migration.
       SET LOCAL session_replication_role = replica;

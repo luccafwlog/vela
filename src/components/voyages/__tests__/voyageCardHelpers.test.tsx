@@ -112,6 +112,22 @@ describe('collectVoyageManifestBatchRows', () => {
     expect(rows[0]).toMatchObject({ routeKey: 'CNTAC__BRVIX', batchIds: [], ceMaster: '25BR09999' })
   })
 
+  it('o Nº do espelho da natureza vence a cópia antiga do lote (migration 592)', () => {
+    // Lote de contêiner editado na antiga linha CNTR/BB com o Nº de carga solta.
+    const batch: VoyageImportBatch = {
+      id: 11, voyage_id: 14, cargo_mode: 'container', filename: 'bl.xlsx', uploaded_at: '2026-07-01T10:00:00Z',
+      status: 'completed', total_bls: 1, ce_master: '1226502044464',
+    }
+    const bls = [makeBl({ id: 'BL-001', batch_id: 11, ce_mercante: null })]
+
+    expect(collectVoyageManifestBatchRows({ voyageId: 14, batches: [batch], bls })[0].ceMaster).toBe('1226502044464')
+    const rows = collectVoyageManifestBatchRows({
+      voyageId: 14, batches: [batch], bls,
+      routeCeMasters: new Map([['14::CNTAC__BRVIX', '1226502020123'], ['14::CNTAC__BRVIX__BB', '1226502044464']]),
+    })
+    expect(rows[0]).toMatchObject({ routeKey: 'CNTAC__BRVIX', cargoMode: 'container', ceMaster: '1226502020123' })
+  })
+
   // Reunião de testes de 2026-10-26: omissão, Porto de Transbordo e destino final na própria rota.
   it('rota em transbordo diz o porto omitido, o Porto de Transbordo e o destino final', () => {
     const rows = collectVoyageManifestBatchRows({
@@ -311,7 +327,7 @@ describe('VoyageManifestosTab', () => {
     expect(html).toContain('title="POD omitido: BRVIX">BRVIX</s> (Omitida) → BRSSZ (Transbordo) → BRVIX (Destino Final)')
     expect(html).not.toContain('· Omissão')
     expect(html).toContain('A informar')
-    expect(html).toContain('aria-label="Informar Nº de Manifesto Mercante de TAICANG → VITORIA (Omitida) → SANTOS (Transbordo) → VITORIA (Destino Final)"')
+    expect(html).toContain('aria-label="Informar Nº de Manifesto Mercante de TAICANG → VITORIA (Omitida) → SANTOS (Transbordo) → VITORIA (Destino Final) (contêiner)"')
     expect(html).not.toContain('manifesto não informado')
     expect(html).not.toContain('Informe o CE Master pelo lápis desta linha')
   })
@@ -341,7 +357,7 @@ describe('VoyageManifestosTab', () => {
       </MemoryRouter>,
     )
 
-    const button = screen.getByRole('button', { name: 'Informar Nº de Manifesto Mercante de TAICANG → VITORIA' })
+    const button = screen.getByRole('button', { name: 'Informar Nº de Manifesto Mercante de TAICANG → VITORIA (contêiner)' })
     fireEvent.click(button)
 
     expect(onEditPol).toHaveBeenCalledTimes(1)
@@ -354,6 +370,7 @@ describe('VoyageManifestosTab', () => {
       atd: '2026-07-16',
       ceMaster: null,
       batchIds: [],
+      cargoMode: 'container',
     })
   })
 
@@ -388,7 +405,7 @@ describe('VoyageManifestosTab', () => {
     const link = screen.getByRole('link', { name: 'TAICANG → VITORIA' })
     expect(link.getAttribute('href')).toBe('/vazios-importacao?voyage=14&pod=BRVIX')
 
-    const button = screen.getByRole('button', { name: 'Informar Nº de Manifesto Mercante de TAICANG → VITORIA' })
+    const button = screen.getByRole('button', { name: 'Informar Nº de Manifesto Mercante de TAICANG → VITORIA (vazios)' })
     fireEvent.click(button)
 
     expect(onEditPol).toHaveBeenCalledWith({

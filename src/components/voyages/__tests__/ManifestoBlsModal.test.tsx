@@ -18,6 +18,9 @@ const bls = [
   // Sinônimos do mesmo porto (BRVIT, VITORIA = BRVIX; SHANGHAI = CNSHA): mesma rota.
   { id: 'BL-5', pol: 'SHANGHAI', pod: 'BRVIT', cancelled: false, manifestoNumero: null },
   { id: 'BL-6', pol: 'cnsha', pod: 'VITORIA', cancelled: false, manifestoNumero: null },
+  // Mesma rota, carga solta e misto: ficam na linha de carga solta (migration 592).
+  { id: 'BL-7', pol: 'CNSHA', pod: 'BRVIX', cargoMode: 'carga_solta', cancelled: false, manifestoNumero: '1226502044464' },
+  { id: 'BL-8', pol: 'CNSHA', pod: 'BRVIX', cargoMode: 'misto', cancelled: false, manifestoNumero: null },
 ]
 
 vi.mock('../../../hooks/useManifestosMercante', () => ({
@@ -35,9 +38,21 @@ afterEach(() => {
   vi.clearAllMocks()
 })
 
-function renderModal() {
-  return render(<ManifestoBlsModal open voyageId={7} route={{ pol: 'CNSHA', pod: 'BRVIX', label: 'Xangai → Vitória' }} onClose={vi.fn()} />)
+function renderModal(cargoMode: 'container' | 'carga_solta' = 'container') {
+  return render(<ManifestoBlsModal open voyageId={7} route={{ pol: 'CNSHA', pod: 'BRVIX', label: 'Xangai → Vitória', cargoMode }} onClose={vi.fn()} />)
 }
+
+it('a linha de cada natureza lista só os B/Ls dela; o misto fica na de carga solta (migration 592)', () => {
+  renderModal()
+  expect(screen.getByText('BL-1')).toBeTruthy()
+  expect(screen.queryByText('BL-7')).toBeNull()
+  expect(screen.queryByText('BL-8')).toBeNull()
+  cleanup()
+  renderModal('carga_solta')
+  expect(screen.getByText('BL-7')).toBeTruthy()
+  expect(screen.getByText('BL-8')).toBeTruthy()
+  expect(screen.queryByText('BL-1')).toBeNull()
+})
 
 it('lista só os B/Ls da rota e Shift seleciona o intervalo, sem o cancelado', () => {
   renderModal()
