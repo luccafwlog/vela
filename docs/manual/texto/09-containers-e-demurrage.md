@@ -283,6 +283,6 @@ A Invoice sai com os 30 dias de free time e segue como qualquer outra: o Cliente
 ::: atencao
 - Se não for cobrar, não precisa fazer nada. Para tirar a linha da divisão, dispense a cobrança do container ([9.11](#911-dispensar-a-cobrança-de-um-container)).
 - O container que o veículo LCL divide com um B/L de outra carga do mesmo Cliente é cobrado como qualquer outro, e a Invoice dele sai sozinha.
-- Num grupo em **A emitir** que também tem container de veículo LCL, o **Gerar Invoice** cobra os dois, e o Vela pede a confirmação dizendo qual container de veículo LCL vai junto. Para não cobrá-lo, dispense a cobrança dele antes.
+- Num grupo em **A emitir** que também tem container de veículo LCL, o **Gerar Invoice** cobra só o que a linha mostra. O container de veículo LCL passa para a divisão **Veículo LCL** e espera a sua decisão.
 - Cancelar o B/L de veículo LCL não esbarra na Demurrage suspensa.
 :::

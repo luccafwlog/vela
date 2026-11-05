@@ -17,7 +17,7 @@ const adminId = '00000000-0000-0000-0000-000000593001'
 const customerId = 99593001
 const carrierId = 99593003
 const vesselId = 99593004
-const CASES = ['inside', 'running', 'returned', 'reissue', 'mixed', 'noCustomer', 'noRate', 'cancel', 'config', 'vehicleTrigger'] as const
+const CASES = ['inside', 'running', 'returned', 'reissue', 'mixed', 'noCustomer', 'noRate', 'cancel', 'config', 'vehicleTrigger', 'mixedManual', 'mixedFree'] as const
 type Case = typeof CASES[number]
 const voyageOf = (name: Case) => 99593100 + CASES.indexOf(name)
 const voyageIds = CASES.map(voyageOf).join(', ')
@@ -187,6 +187,16 @@ describeLocal('Veículo LCL na Demurrage (migration 593)', () => {
     box('MIXA', 'RQCU5930042', { discharge: 45, returned: 5 })
     box('MIXB', 'RQCU5930041', { discharge: 45, returned: 5 }); box('MIXB', 'RQCU5930042', { discharge: 45, returned: 5 })
     vehicle('MIXB', 'RQCU5930041')
+    // O mesmo grupo misto, cobrado pelo Gerar Invoice.
+    bl('MMA', 'mixedManual', { movementTo: 'CY/FCL' }); bl('MMB', 'mixedManual')
+    box('MMA', 'RQCU5930102', { discharge: 45, returned: 5 })
+    box('MMB', 'RQCU5930101', { discharge: 45, returned: 5 }); box('MMB', 'RQCU5930102', { discharge: 45, returned: 5 })
+    vehicle('MMB', 'RQCU5930101')
+    // Grupo em Veículo LCL com outro container sem Invoice devolvido no free time.
+    bl('FREEA', 'mixedFree', { movementTo: 'CY/FCL' }); bl('FREEB', 'mixedFree')
+    box('FREEA', 'RQCU5930112', { discharge: 10, returned: 5 })
+    box('FREEB', 'RQCU5930111', { discharge: 45, returned: 5 }); box('FREEB', 'RQCU5930112', { discharge: 10, returned: 5 })
+    vehicle('FREEB', 'RQCU5930111')
     bl('NOCUST', 'noCustomer', { customer: null }); box('NOCUST', 'RQCU5930051', { discharge: 40 }); vehicle('NOCUST', 'RQCU5930051')
     bl('NORATE', 'noRate'); box('NORATE', 'RQCU5930061', { discharge: 40, type: 'R593ZZ' }); vehicle('NORATE', 'RQCU5930061')
     bl('CANCEL', 'cancel'); box('CANCEL', 'RQCU5930071', { discharge: 40 }); vehicle('CANCEL', 'RQCU5930071')
@@ -256,6 +266,37 @@ describeLocal('Veículo LCL na Demurrage (migration 593)', () => {
     expect(psql(`SELECT string_agg(item.container_number, ',') FROM public.demurrage_invoice_items AS item
       JOIN public.demurrage_invoices AS di ON di.id = item.invoice_id WHERE di.bl_id = '${blPrefix}MIXA' AND di.status = 'issued'`)).toBe('RQCU5930042')
     expect(board('mixed')[0]).toMatchObject({ division: 'veiculo_lcl', usd: expectedUsd(40, 30) })
+  })
+
+  it('Gerar Invoice em A emitir cobra o que a linha mostra; o veículo LCL fica para a divisão Veículo LCL', () => {
+    const issue = (blId: string) => {
+      const result = run(asAdmin(`SELECT public.issue_demurrage_invoice_for_bl('${blPrefix}${blId}')->>'status';`))
+      expect(result.status, result.stderr).toBe(0)
+      return result.stdout.trim()
+    }
+    const items = (blId: string) => psql(`SELECT string_agg(item.container_number || ':' || item.free_days, ',' ORDER BY item.container_number)
+      FROM public.demurrage_invoice_items AS item JOIN public.demurrage_invoices AS di ON di.id = item.invoice_id
+      WHERE di.bl_id = '${blPrefix}${blId}' AND di.status = 'issued'`)
+    const [before] = board('mixedManual')
+    // A linha mostra só o comum (free time da tabela, do B/L âncora de outra carga).
+    expect(before).toMatchObject({ division: 'a_emitir', usd: expectedUsd(40, tableFree) })
+    expect(issue('MMA')).toBe('issued')
+    // O comum, com o free time do B/L da linha que a emissão escolhe (o âncora, de outra carga).
+    expect(items('MMA')).toBe(`RQCU5930102:${tableFree}`)
+    expect(board('mixedManual')[0]).toMatchObject({ division: 'veiculo_lcl' })
+    // Na divisão Veículo LCL, o Gerar Invoice cobra a complementar do veículo LCL.
+    expect(issue('MMA')).toBe('issued')
+    expect(items('MMA')).toBe(`RQCU5930101:30,RQCU5930102:${tableFree}`)
+    expect(board('mixedManual')).toEqual([])
+  })
+
+  it('Gerar Invoice na divisão Veículo LCL cobra mesmo com outro container do grupo devolvido no free time', () => {
+    expect(board('mixedFree')[0]).toMatchObject({ division: 'veiculo_lcl', usd: expectedUsd(40, 30) })
+    const result = run(asAdmin(`SELECT public.issue_demurrage_invoice_for_bl('${blPrefix}FREEA')->>'status';`))
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout.trim()).toBe('issued')
+    expect(psql(`SELECT di.total_usd::numeric FROM public.demurrage_invoices AS di WHERE di.bl_id = '${blPrefix}FREEA' AND di.status = 'issued'`))
+      .toBe(expectedUsd(40, 30).toFixed(2))
   })
 
   it('sem Cliente ou com tipo sem tarifa: fica em Veículo LCL com o motivo, sem Travado nem Alerta', () => {

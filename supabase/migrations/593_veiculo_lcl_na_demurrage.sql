@@ -16,7 +16,10 @@
 --    automática (fila de efeitos, datas, CE, troca de Cliente, rotina de 15
 --    minutos). A classificação o põe na divisão nova `veiculo_lcl`, fora de
 --    Correndo, A emitir, Esperando, Travado, dos cartões em US$ e dos Alertas,
---    e o operador cobra pelo Gerar Invoice. A Invoice emitida à mão segue a
+--    e o operador cobra pelo Gerar Invoice. O Gerar Invoice de um grupo em A
+--    emitir (com outros containers a cobrar) cobra só os outros, o que a
+--    linha mostra; o veículo LCL fica para a divisão Veículo LCL, onde o
+--    Gerar Invoice o cobra. A Invoice emitida à mão segue a
 --    regra de qualquer Invoice: cancelada pelo sistema (datas, SOC, divisão,
 --    troca de CNPJ), é reemitida sozinha; cancelada à mão, o container volta a
 --    esperar o Gerar Invoice. O B/L de veículo LCL se cancela sem a recusa
@@ -776,9 +779,11 @@ $function$;
 
 -- ─── 4. Emissão: a automática não cobra o veículo LCL ───────────────────
 
--- Corpo da 548. Com `vela.demurrage_auto_issue` ligado (só o executor da
--- fila liga), o container de veículo LCL com a cobrança suspensa não entra:
--- grupo só com ele devolve `lcl_vehicle`. O Gerar Invoice cobra tudo.
+-- Corpo da 548. O container de veículo LCL com a cobrança suspensa só entra
+-- no Gerar Invoice do grupo que está na divisão Veículo LCL: em A emitir, a
+-- Invoice cobra só os outros containers, o que a linha mostra. Com
+-- `vela.demurrage_auto_issue` ligado (só o executor da fila liga), ele nunca
+-- entra, e o grupo só com ele devolve `lcl_vehicle`.
 CREATE OR REPLACE FUNCTION public.issue_demurrage_invoice_for_bl(p_bl_id text, p_doc_number text DEFAULT NULL::text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -819,19 +824,28 @@ BEGIN
   -- Cada caixa uma vez (214): a cobertura é por caixa na Viagem e no Cliente,
   -- não pelo grupo de hoje. A trava vale até o fim da transação.
   PERFORM public._lock_demurrage_box_billing(v_voyage_id, v_customer_id);
-  -- 593: na emissão automática, o container de veículo LCL espera o Gerar Invoice.
-  IF current_setting('vela.demurrage_auto_issue', true) = 'on' THEN
-    SELECT COALESCE(array_agg(boxes.container_key ORDER BY boxes.container_key), ARRAY[]::text[]) INTO v_lcl_skipped
-    FROM (
-      SELECT DISTINCT upper(btrim(c.container_number)) AS container_key
-      FROM public.bl_containers AS c
-      WHERE c.bl_id = ANY(v_group) AND c.ownership IS DISTINCT FROM 'SOC'
-        AND NULLIF(btrim(c.container_number), '') IS NOT NULL
-    ) AS boxes
-    WHERE NOT EXISTS (
-        SELECT 1 FROM public._demurrage_billed_container_keys(v_voyage_id, v_customer_id) AS billed
-        WHERE billed.container_key = boxes.container_key)
-      AND public._demurrage_lcl_vehicle_exempt_box(v_voyage_id, v_customer_id, v_group, boxes.container_key);
+  -- 593: o container de veículo LCL sem Invoice, com a cobrança suspensa.
+  SELECT COALESCE(array_agg(boxes.container_key ORDER BY boxes.container_key), ARRAY[]::text[]) INTO v_lcl_skipped
+  FROM (
+    SELECT DISTINCT upper(btrim(c.container_number)) AS container_key
+    FROM public.bl_containers AS c
+    WHERE c.bl_id = ANY(v_group) AND c.ownership IS DISTINCT FROM 'SOC'
+      AND NULLIF(btrim(c.container_number), '') IS NOT NULL
+  ) AS boxes
+  WHERE NOT EXISTS (
+      SELECT 1 FROM public._demurrage_billed_container_keys(v_voyage_id, v_customer_id) AS billed
+      WHERE billed.container_key = boxes.container_key)
+    AND public._demurrage_lcl_vehicle_exempt_box(v_voyage_id, v_customer_id, v_group, boxes.container_key);
+  -- Na emissão automática ele espera sempre. No Gerar Invoice, entra só quando
+  -- o grupo está na divisão Veículo LCL (o que a linha mostra é ele); em A
+  -- emitir, a Invoice cobra os outros containers, e ele fica para lá.
+  IF current_setting('vela.demurrage_auto_issue', true) IS DISTINCT FROM 'on'
+     AND cardinality(v_lcl_skipped) > 0
+     AND EXISTS (
+       SELECT 1 FROM jsonb_array_elements(public._demurrage_billing_board_core(v_customer_id, v_voyage_id)) AS grp(value)
+        WHERE grp.value->'bl_ids' ? v_anchor AND grp.value->>'division' = 'veiculo_lcl')
+  THEN
+    v_lcl_skipped := ARRAY[]::text[];
   END IF;
   WITH boxes AS (
     SELECT DISTINCT upper(btrim(c.container_number)) AS container_key

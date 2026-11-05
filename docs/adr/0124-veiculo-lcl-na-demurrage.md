@@ -45,9 +45,10 @@ casos, escolheu uma divisão nova, Veículo LCL, na aba Containers.
    Cliente com o container na Viagem é de veículo LCL. Container que divide B/L
    com outra carga do Cliente é cobrado como sempre; o free time segue o B/L da
    linha que a emissão escolhe (âncora primeiro), como a condição do B/L. No
-   grupo misto, a emissão automática cobra só os outros containers; o **Gerar
-   Invoice** cobra também o de veículo LCL e, por isso, pede a mesma
-   confirmação, dizendo quais containers vão junto.
+   grupo misto, a emissão automática e o **Gerar Invoice** em A emitir cobram
+   só os outros containers, o que a linha mostra; o de veículo LCL vai para a
+   divisão Veículo LCL, onde o Gerar Invoice o cobra (autorizado pelo dono em
+   2026-11-05, depois da revisão da PR).
 5. **Depois do Gerar Invoice.** A Invoice emitida à mão é uma Invoice como as
    outras (Régua, Portal, baixa, Disputa). Cancelada pelo sistema (datas, SOC,
    divisão do container, troca de CNPJ), é reemitida sozinha, porque o
