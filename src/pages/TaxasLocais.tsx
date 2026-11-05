@@ -17,19 +17,19 @@ import { TabButton } from '../components/ui/TabButton'
 import { TabList } from '../components/ui/TabList'
 import { PageHeader } from '../components/ui/Card'
 import { Block } from '../components/ui/Block'
-import { StatusText } from '../components/ui/StatusText'
+import { MetricCard } from '../components/ui/MetricCard'
+import { NoValue } from '../components/ui/NoValue'
 import { useToast } from '../components/ui/Toast'
 import { useAuth } from '../hooks/useAuth'
-import { useInvoices } from '../hooks/useBilling'
-import { portalInvoicesInOpenBalance } from '../lib/portalInvoiceStatus'
+import { useInvoiceSummary, useInvoices } from '../hooks/useBilling'
 import { resolveLegacyFaturamentoRedirect, toRouteTarget } from '../lib/routeRedirects'
-import { listInvoicesForExport } from '../services/billing'
+import { listInvoicesForExport, type InvoiceListSummary } from '../services/billing'
 import { exportInvoicesWorkbook } from '../services/exports'
 import { listFinancialAlerts } from '../services/alerts'
 import { queryKeys } from '../services/queryKeys'
 import { describeEmptyState } from '../lib/operationalState'
 import { userFacingErrorMessage } from '../lib/errors'
-import { formatBRL } from '../lib/utils'
+import { formatBRL, formatCountLabel } from '../lib/utils'
 import { VALIDACAO_BL_PARAM, faturasFiltersFromSearch, fromLegacyValidacaoLink, tabFromSearch, withFaturasFilter, withoutFaturasFilters, withTab, withValidacaoBl, type TaxasLocaisTab } from './faturasListState'
 
 export function TaxasLocais() {
@@ -70,23 +70,11 @@ export function TaxasLocais() {
   const totalPages = Math.max(1, Math.ceil(totalCount / filters.pageSize))
   const invoices = useMemo(() => data?.rows ?? [], [data?.rows])
 
-  // Só a página carregada é conhecida aqui; o rótulo diz isso em vez de
-  // apresentar a soma da página como total da carteira.
-  // Cada B/L uma vez, como no Portal (ADR 0093, decisão 10): a consolidada
-  // aberta da página conta no lugar das individuais que agrupa.
-  const pageSummary = useMemo(() => {
-    const open = invoices.filter((row) => ['issued', 'partially_paid', 'draft'].includes(row.status ?? 'issued'))
-    const counted = portalInvoicesInOpenBalance(open.map((row) => ({
-      status: row.status,
-      invoice_type: row.invoice_type,
-      balance_brl: Number(row.balance_brl ?? 0),
-      bls: [...(row.invoice_bls ?? []), ...(row.invoice_receivable_links ?? [])].map((link) => link.bl_id).filter((bl): bl is string => Boolean(bl)),
-    })))
-    return {
-      openCount: open.length,
-      openBalance: counted.reduce((sum, row) => sum + Number(row.balance_brl ?? 0), 0),
-    }
-  }, [invoices])
+  // Cartões com o recorte inteiro dos filtros, não só a página carregada.
+  const summaryQuery = useInvoiceSummary(filters)
+  const summary = summaryQuery.data
+  const summaryValue = (value: (data: InvoiceListSummary) => string) =>
+    summary ? value(summary) : <NoValue label={summaryQuery.error ? 'Totais indisponíveis' : 'Carregando'} />
 
   // Link com ?page= além do total (recorte que encolheu, URL antiga): vai para
   // a última página que existe em vez de mostrar a lista vazia.
@@ -205,6 +193,22 @@ export function TaxasLocais() {
           <ValidacaoTab key={`validacao-${validacaoBl}`} userId={user?.id ?? null} initialBlockCode={validacaoInitialBlockCode} initialBlSearch={validacaoBl} />
         ) : (
           <>
+            {/* Totais do recorte dos filtros (pedido do dono de 2026-11-05): a soma
+                da página não servia com a lista paginada. */}
+            <div className="app-metric-row" role="group" aria-label="Totais das faturas no recorte">
+              <MetricCard label="Faturas" value={summaryValue((data) => data.count.toLocaleString('pt-BR'))} />
+              <MetricCard
+                label="Em aberto"
+                value={summaryValue((data) => formatBRL(data.openBalance))}
+                detail={summary ? formatCountLabel(summary.openCount, 'fatura a receber', 'faturas a receber') : null}
+              />
+              <MetricCard label="Recebido" value={summaryValue((data) => formatBRL(data.received))} />
+              <MetricCard
+                label="Faturado"
+                value={summaryValue((data) => formatBRL(data.received + data.openBalance))}
+                detail="Recebido mais em aberto"
+              />
+            </div>
             <Block
               title="Faturas"
               headingLevel={2}
@@ -212,12 +216,7 @@ export function TaxasLocais() {
               aside={(
                 <>
                   {!isLoading && !error ? (
-                    <span>
-                      {totalCount === 1 ? '1 fatura' : `${totalCount.toLocaleString('pt-BR')} faturas`}
-                      {pageSummary.openBalance > 0 ? (
-                        <> · <StatusText tone="warning">{formatBRL(pageSummary.openBalance)} em aberto{totalPages > 1 ? ' nesta página' : ''}</StatusText></>
-                      ) : null}
-                    </span>
+                    <span>{totalCount === 1 ? '1 fatura' : `${totalCount.toLocaleString('pt-BR')} faturas`}</span>
                   ) : null}
                   <Button variant="secondary" className="app-btn--sm" loading={exporting} loadingLabel="Exportando…" disabled={!isLoading && totalCount === 0} onClick={() => void handleExport()}>
                     <Download size={14} aria-hidden="true" />Exportar

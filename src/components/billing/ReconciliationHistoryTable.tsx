@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ArrowDown, ArrowUp, ArrowUpDown, Download } from 'lucide-react'
 import { Block } from '../ui/Block'
 import { Button } from '../ui/Button'
+import { MetricCard } from '../ui/MetricCard'
 import { EmptyState } from '../ui/Card'
 import { CopyValue } from '../ui/CopyValue'
 import { NoValue } from '../ui/NoValue'
@@ -16,7 +17,7 @@ import { TableFooterPagination } from '../ui/TableFooterPagination'
 import { useToast } from '../ui/Toast'
 import { useNarrowViewport } from '../bl/useNarrowViewport'
 import { extractErrorText } from '../../lib/errors'
-import { formatBRL, formatCnpjCpf, formatDate } from '../../lib/utils'
+import { formatBRL, formatCnpjCpf, formatPaymentDate } from '../../lib/utils'
 import { invoiceTypeLabel, listBillingCustomers } from '../../services/billing'
 import { historyRowStatus, pluralize } from './pixReconciliationPresentation'
 import { queryKeys } from '../../services/queryKeys'
@@ -27,6 +28,7 @@ import {
   listReconciliationHistory,
   paymentMethodLabel,
   type ReconciliationFilters,
+  type ReconciliationHistoryBucket,
   type ReconciliationHistoryRow,
 } from '../../services/reconciliacao'
 import {
@@ -198,8 +200,19 @@ export function ReconciliationHistoryTable({
     return row.blCount > 1 ? <>{pluralize(row.blCount, 'B/L', 'B/Ls')}</> : <NoValue label="Sem B/L" />
   }
 
+  const bucketValue = (bucket: ReconciliationHistoryBucket | undefined) =>
+    bucket ? formatBRL(bucket.received) : <NoValue label={failed ? 'Totais indisponíveis' : 'Carregando'} />
+  const bucketDetail = (bucket: ReconciliationHistoryBucket | undefined) => bucket ? pluralize(bucket.payments, 'baixa', 'baixas') : null
+
   return (
     <div className="grid min-w-0 gap-4">
+      {/* Totais do recorte dos filtros, não só da página (pedido do dono de 2026-11-05). */}
+      <div className="app-metric-row" role="group" aria-label="Totais das baixas no recorte">
+        <MetricCard label="Recebido" value={bucketValue(summary)} detail={bucketDetail(summary)} />
+        <MetricCard label="Taxas Locais" value={bucketValue(summary?.local)} detail={bucketDetail(summary?.local)} />
+        <MetricCard label="Demurrage" value={bucketValue(summary?.demurrage)} detail={bucketDetail(summary?.demurrage)} />
+        <MetricCard label="Baixa automática (Itaú)" value={bucketValue(summary?.itau)} detail={bucketDetail(summary?.itau)} />
+      </div>
       <div className="grid gap-3" role="group" aria-label="Filtros do histórico">
         <div className="app-filter-grid">
           <Field label="Pago de">
@@ -271,7 +284,7 @@ export function ReconciliationHistoryTable({
           <>
             <span aria-live="polite">
               {summary && !failed
-                ? `${pluralize(summary.payments, 'baixa', 'baixas')} · ${formatBRL(summary.received)} pagos${activeCount ? ' no recorte' : ''}`
+                ? `${pluralize(summary.payments, 'baixa', 'baixas')}${activeCount ? ' no recorte' : ''}`
                 : failed ? 'Histórico indisponível' : 'Carregando…'}
             </span>
             <Button
@@ -310,7 +323,7 @@ export function ReconciliationHistoryTable({
                   Pago <PaidAmount row={row} /> · Saldo <Balance row={row} />
                 </div>
                 <div>{row.customerName || <NoValue label="Sem Cliente" />}</div>
-                <p className="app-invoices__meta">{sourceLabel(row)} · {paymentMethodLabel(row.method)} · pago em {row.paidAt ? formatDate(row.paidAt) : <NoValue label="Sem data de pagamento" />}</p>
+                <p className="app-invoices__meta">{sourceLabel(row)} · {paymentMethodLabel(row.method)} · pago em {row.paidAt ? formatPaymentDate(row.paidAt) : <NoValue label="Sem data de pagamento" />}</p>
                 <div>{blValue(row)}</div>
               </article>
             ))}
@@ -348,7 +361,7 @@ export function ReconciliationHistoryTable({
                       <td className="whitespace-nowrap">{blValue(row)}</td>
                       <td className="app-table__text" title={row.customerName || undefined}>{row.customerName || <NoValue label="Sem Cliente" />}</td>
                       <td className="app-table__text" title={ship ?? undefined}>{ship ?? <NoValue label="Sem navio e viagem" />}</td>
-                      <td className="whitespace-nowrap tabular-nums">{row.paidAt ? formatDate(row.paidAt) : <NoValue label="Sem data de pagamento" />}</td>
+                      <td className="whitespace-nowrap tabular-nums">{row.paidAt ? formatPaymentDate(row.paidAt) : <NoValue label="Sem data de pagamento" />}</td>
                       <td className="whitespace-nowrap" title={row.bankReference ? `Referência bancária: ${row.bankReference}` : undefined}>{paymentMethodLabel(row.method)}</td>
                       <td className="whitespace-nowrap tabular-nums">{formatBRL(row.blAmount)}</td>
                       <td className="whitespace-nowrap tabular-nums"><PaidAmount row={row} /></td>

@@ -206,3 +206,37 @@ export function adjustedIssueNotice(adjustments: { items: readonly unknown[] } |
   if (count === 0) return ''
   return `Este B/L tem ${count === 1 ? '1 taxa alterada' : `${count} taxas alteradas`} à mão; a fatura sai com os valores alterados.`
 }
+
+export type ValidacaoBucket = { count: number; totalBrl: number }
+
+export type ValidacaoSummary = {
+  /** Todos os B/Ls do recorte da fila (filtros aplicados). */
+  all: ValidacaoBucket
+  /** Prontos para emitir: o Emitir da linha resolve. */
+  ready: ValidacaoBucket
+  /** Presos por Cliente, cálculo, CE Mercante ou Portal. */
+  blocked: ValidacaoBucket
+  /** Faturados ou isentos; só aparecem com "Incluir faturados e isentos". */
+  resolved: ValidacaoBucket
+}
+
+/**
+ * Totais dos cartões da Validação, do recorte inteiro dos filtros. O valor é
+ * o total calculado de Taxas Locais de cada B/L (`totals.total_brl`), o mesmo
+ * da coluna Subtotal.
+ */
+export function summarizeValidacao(rows: ReadonlyArray<Parameters<typeof getBillingBlock>[0]>): ValidacaoSummary {
+  const empty = (): ValidacaoBucket => ({ count: 0, totalBrl: 0 })
+  const summary: ValidacaoSummary = { all: empty(), ready: empty(), blocked: empty(), resolved: empty() }
+  for (const row of rows) {
+    const { code } = getBillingBlock(row)
+    const value = Number(row.totals.total_brl ?? 0)
+    const bucket = code === 'pronto' ? summary.ready : code === 'faturado' || code === 'isento' ? summary.resolved : summary.blocked
+    for (const target of [summary.all, bucket]) {
+      target.count += 1
+      target.totalBrl += value
+    }
+  }
+  for (const bucket of Object.values(summary)) bucket.totalBrl = Math.round(bucket.totalBrl * 100) / 100
+  return summary
+}

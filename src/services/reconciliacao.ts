@@ -6,6 +6,7 @@ import { supabase } from './supabase'
 import { invoiceTypeLabel } from './billing'
 import type { PixTransaction } from '../types/database'
 import { matchesAnyToken } from '../lib/searchTerms'
+import { formatPaymentDate, paymentDateParts } from '../lib/utils'
 import { INVOICE_STATUS_LABELS } from '../lib/statusLabels'
 
 export type UnifiedPixMatch = {
@@ -496,21 +497,37 @@ export function historyBalance(row: Pick<ReconciliationHistoryRow, 'source' | 'b
   return row.source === 'demurrage' ? 0 : row.balance ?? 0
 }
 
-export type ReconciliationHistorySummary = {
-  /** Baixas distintas no recorte (a da consolidada tem uma linha por B/L). */
-  payments: number
-  /** Soma do que as baixas do recorte puseram nos B/Ls. */
-  received: number
+/** Baixas distintas e o que elas puseram nos B/Ls. */
+export type ReconciliationHistoryBucket = { payments: number; received: number }
+
+export type ReconciliationHistorySummary = ReconciliationHistoryBucket & {
+  /** Taxas Locais (inclui a avulsa). */
+  local: ReconciliationHistoryBucket
+  demurrage: ReconciliationHistoryBucket
+  /** Baixa automática pelo Itaú, sem ninguém conciliar. */
+  itau: ReconciliationHistoryBucket
 }
 
 const paymentKey = (row: Pick<ReconciliationHistoryRow, 'source' | 'paymentId' | 'invoiceId'>) =>
   row.source === 'local' ? `local-${row.paymentId}` : `demurrage-${row.invoiceId}`
 
-/** Resumo do recorte inteiro, não só da página: cada baixa conta uma vez. */
-export function summarizeReconciliationHistory(rows: readonly ReconciliationHistoryRow[]): ReconciliationHistorySummary {
+function historyBucket(rows: readonly ReconciliationHistoryRow[]): ReconciliationHistoryBucket {
   const payments = new Set(rows.map(paymentKey))
   const received = rows.reduce((sum, row) => sum + row.amount, 0)
   return { payments: payments.size, received: Math.round(received * 100) / 100 }
+}
+
+/**
+ * Resumo do recorte inteiro, não só da página: cada baixa conta uma vez (a da
+ * consolidada tem uma linha por B/L) e o valor é o que ela pôs nos B/Ls.
+ */
+export function summarizeReconciliationHistory(rows: readonly ReconciliationHistoryRow[]): ReconciliationHistorySummary {
+  return {
+    ...historyBucket(rows),
+    local: historyBucket(rows.filter((row) => row.source === 'local')),
+    demurrage: historyBucket(rows.filter((row) => row.source === 'demurrage')),
+    itau: historyBucket(rows.filter((row) => row.method === 'itau')),
+  }
 }
 
 type PaymentHistoryRpcRow = {
@@ -586,8 +603,10 @@ export async function listReconciliationHistory(
   // Only show rows with a payment date — data de pagamento é obrigatória
   all = all.filter((r) => r.paidAt !== null)
 
-  if (filters.paidFrom) all = all.filter((r) => r.paidAt! >= filters.paidFrom)
-  if (filters.paidTo) all = all.filter((r) => r.paidAt! <= `${filters.paidTo}T23:59:59`)
+  // O dia da baixa é o de Brasília, o mesmo que a coluna Pago em mostra: o Pix
+  // das 22:00 fica no próprio dia, e não no seguinte do UTC.
+  if (filters.paidFrom) all = all.filter((r) => paymentDateParts(r.paidAt).date >= filters.paidFrom)
+  if (filters.paidTo) all = all.filter((r) => paymentDateParts(r.paidAt).date <= filters.paidTo)
   if (filters.source) all = all.filter((r) => r.source === filters.source)
   if (filters.method) all = all.filter((r) => r.method === filters.method)
   if (filters.blSearch) {
@@ -653,7 +672,7 @@ export async function exportReconciliationHistoryExcel(filters: Partial<Reconcil
     Navio: r.vesselName ?? '',
     Viagem: r.voyageNumber ?? '',
     POD: r.pod ?? '',
-    'Pago em': r.paidAt ?? '',
+    'Pago em': formatPaymentDate(r.paidAt),
     'Forma da baixa': paymentMethodLabel(r.method),
     'Referência bancária': r.bankReference ?? '',
     'Valor do B/L': r.blAmount,
@@ -872,6 +891,27 @@ export async function listItauPixReceipts(filters: ItauPixReceiptFilters): Promi
       raw: r.raw,
     })),
   }
+}
+
+export type ItauPixReceiptBucket = { count: number; amount: number }
+export type ItauPixReceiptSummary = Record<ItauPixReceiptSituation, ItauPixReceiptBucket>
+
+export const ITAU_PIX_RECEIPT_SITUATIONS: readonly ItauPixReceiptSituation[] = ['settled', 'received', 'review', 'handled']
+
+/**
+ * Totais por situação do recorte dos filtros (cartões da aba Pix recebidos).
+ * A situação filtrada zera as outras, como a tabela: o cartão soma o que a
+ * lista mostraria com aquela situação.
+ */
+// ponytail: uma chamada de `list_itau_pix_receipts` por situação, lendo só o
+// total (p_limit 1). Upgrade: a RPC devolver as somas por situação numa chamada.
+export async function summarizeItauPixReceipts(filters: Omit<ItauPixReceiptFilters, 'page' | 'pageSize'>): Promise<ItauPixReceiptSummary> {
+  const entries = await Promise.all(ITAU_PIX_RECEIPT_SITUATIONS.map(async (situation): Promise<[ItauPixReceiptSituation, ItauPixReceiptBucket]> => {
+    if (filters.situation && filters.situation !== situation) return [situation, { count: 0, amount: 0 }]
+    const page = await listItauPixReceipts({ ...filters, situation, page: 1, pageSize: 1 })
+    return [situation, { count: page.total, amount: page.totalAmount }]
+  }))
+  return Object.fromEntries(entries) as ItauPixReceiptSummary
 }
 
 export type ItauPixReceiptCandidate = {

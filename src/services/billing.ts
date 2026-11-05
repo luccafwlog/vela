@@ -7,6 +7,7 @@ import { canonicalizeDocument } from '../lib/cnpj'
 import { reportBestEffortFailure } from '../lib/telemetry'
 import { manualInvoiceCreationSchema } from './financialValidation'
 import { tokenIlikeClauses } from '../lib/searchTerms'
+import { portalInvoicesInOpenBalance } from '../lib/portalInvoiceStatus'
 
 // Filtro de status exposto na UI: 3 estados operacionais. Cada um cobre os
 // status documentais reais persistidos na coluna invoices.status.
@@ -268,10 +269,13 @@ function invoiceBlMatches(term: string) {
   ])
 }
 
-export async function listInvoices(filters: InvoiceFilters): Promise<{ rows: InvoiceListRow[]; count: number }> {
-  const from = (filters.page - 1) * filters.pageSize
-  const to = from + filters.pageSize - 1
-
+/**
+ * Consulta de faturas com todos os filtros da tela, sem a faixa da página.
+ * A lista e o resumo do recorte (`summarizeInvoices`) partem dela, para os
+ * cartões nunca contarem um recorte diferente do da tabela. `null` quando um
+ * filtro por B/L, POD, viagem ou pagamento não casa nenhuma fatura.
+ */
+async function invoiceListQuery(filters: InvoiceFilters, select: string) {
   // Filtros que dependem dos BLs vinculados resolvem invoice_ids e sao intersectados.
   let idFilter: Set<number> | null = null
 
@@ -357,9 +361,7 @@ export async function listInvoices(filters: InvoiceFilters): Promise<{ rows: Inv
     idFilter = intersectIds(idFilter, Array.from(ids))
   }
 
-  if (idFilter !== null && idFilter.size === 0) {
-    return { rows: [], count: 0 }
-  }
+  if (idFilter !== null && idFilter.size === 0) return null
 
   // Busca única: B/L (direto, consolidada ou avulsa) ou número da fatura.
   const anyTerm = sanitizeLikeTerm(normalizeText(filters.query ?? '').toUpperCase())
@@ -377,7 +379,7 @@ export async function listInvoices(filters: InvoiceFilters): Promise<{ rows: Inv
 
   let query = supabase
     .from('invoices')
-    .select(INVOICE_LIST_SELECT, { count: 'exact' })
+    .select(select, { count: 'exact' })
     .order('created_at', { ascending: false })
 
   if (filters.search) {
@@ -420,6 +422,18 @@ export async function listInvoices(filters: InvoiceFilters): Promise<{ rows: Inv
   if (idFilter !== null) {
     query = query.in('id', Array.from(idFilter))
   }
+
+  // Embrulhada: a consulta é "thenable", e devolvê-la solta de uma função
+  // async a executaria antes de quem chama pôr a faixa da página.
+  return { query }
+}
+
+export async function listInvoices(filters: InvoiceFilters): Promise<{ rows: InvoiceListRow[]; count: number }> {
+  const from = (filters.page - 1) * filters.pageSize
+  const to = from + filters.pageSize - 1
+  const built = await invoiceListQuery(filters, INVOICE_LIST_SELECT)
+  if (!built) return { rows: [], count: 0 }
+  const { query } = built
 
   const { data, error, count } = await query.range(from, to).overrideTypes<InvoiceListRow[], { merge: false }>()
   if (error?.code === 'PGRST103') {
@@ -559,6 +573,76 @@ export async function listInvoicesForExport(filters: InvoiceFilters): Promise<In
   }
 
   return rows
+}
+
+const INVOICE_SUMMARY_SELECT = 'id,status,invoice_type,total_paid_brl,balance_brl,invoice_bls(bl_id),invoice_receivable_links(bl_id)'
+
+type InvoiceSummaryRow = Pick<InvoiceListRow, 'id' | 'status' | 'invoice_type' | 'total_paid_brl' | 'balance_brl'> & {
+  invoice_bls?: Array<{ bl_id: string | null }> | null
+  invoice_receivable_links?: Array<{ bl_id: string | null }> | null
+}
+
+/** Totais do recorte inteiro dos filtros, não só da página da tabela. */
+export type InvoiceListSummary = {
+  /** Faturas que casam os filtros (a mesma contagem da tabela). */
+  count: number
+  /** Faturas que contam no saldo em aberto (cada B/L uma vez). */
+  openCount: number
+  /** Saldo a receber, com a consolidada aberta no lugar das individuais que agrupa. */
+  openBalance: number
+  /** Soma do que as faturas do recorte já receberam. */
+  received: number
+}
+
+const roundBrl = (value: number) => Math.round(value * 100) / 100
+
+/**
+ * Soma das faturas do recorte. O em aberto segue a regra do Portal
+ * (`portalInvoicesInOpenBalance`, ADR 0093 decisão 10): a consolidada aberta
+ * conta no lugar das individuais que agrupa. O recebido soma `total_paid_brl`
+ * de toda fatura, inclusive a coberta, que guarda só as baixas de antes da
+ * consolidada, e a cancelada, que não recebe baixa: cada baixa conta uma vez.
+ */
+export function summarizeInvoiceRows(rows: readonly InvoiceSummaryRow[]): Omit<InvoiceListSummary, 'count'> {
+  const open = portalInvoicesInOpenBalance(rows.map((row) => ({
+    status: row.status,
+    invoice_type: row.invoice_type,
+    balance_brl: Number(row.balance_brl ?? 0),
+    bls: [...(row.invoice_bls ?? []), ...(row.invoice_receivable_links ?? [])]
+      .map((link) => link.bl_id)
+      .filter((bl): bl is string => Boolean(bl)),
+  })))
+  return {
+    openCount: open.length,
+    openBalance: roundBrl(open.reduce((sum, row) => sum + row.balance_brl, 0)),
+    received: roundBrl(rows.reduce((sum, row) => sum + Number(row.total_paid_brl ?? 0), 0)),
+  }
+}
+
+/**
+ * Totais do recorte dos filtros da lista de faturas, lidos com uma seleção
+ * enxuta e página por página, com a mesma consulta da tabela.
+ */
+// ponytail: o navegador lê o recorte inteiro (1.000 faturas por requisição)
+// para somar. Serve enquanto a carteira tem poucos milhares de faturas; acima
+// disso, uma RPC que receba os mesmos filtros e devolva as somas.
+export async function summarizeInvoices(filters: InvoiceFilters): Promise<InvoiceListSummary> {
+  const built = await invoiceListQuery(filters, INVOICE_SUMMARY_SELECT)
+  if (!built) return { count: 0, openCount: 0, openBalance: 0, received: 0 }
+  // Desempate pelo id: páginas estáveis mesmo com faturas criadas no mesmo instante.
+  const ordered = built.query.order('id', { ascending: false })
+  const rows: InvoiceSummaryRow[] = []
+  let total = 0
+  for (let from = 0; ; from += INVOICE_EXPORT_PAGE_SIZE) {
+    const { data, error, count } = await ordered
+      .range(from, from + INVOICE_EXPORT_PAGE_SIZE - 1)
+      .overrideTypes<InvoiceSummaryRow[], { merge: false }>()
+    if (error) throw error
+    total = count ?? total
+    rows.push(...(data ?? []))
+    if ((data ?? []).length < INVOICE_EXPORT_PAGE_SIZE || rows.length >= total) break
+  }
+  return { count: total, ...summarizeInvoiceRows(rows) }
 }
 
 // ---- Sugestoes para os campos de busca preditiva (combobox) ----

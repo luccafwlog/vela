@@ -65,7 +65,7 @@ O que a emissão muda para o Cliente (aviso no Portal, Pix, Comunicado de CE e T
 
 **Quem faz:** {{Todas as equipes}}
 
-A aba **Faturas**, em **Financeiro** › **Taxas Locais**, lista as faturas da mais nova para a mais antiga: individuais, consolidadas (com o ícone de pilha) e avulsas. **Buscar fatura ou B/L** acha a fatura pelo número dela ou de qualquer B/L dela. A faixa do bloco diz quantas faturas há no recorte e quanto está em aberto (com mais de uma página, só na página aberta), e **Exportar** baixa a planilha do recorte.
+A aba **Faturas**, em **Financeiro** › **Taxas Locais**, lista as faturas da mais nova para a mais antiga: individuais, consolidadas (com o ícone de pilha) e avulsas. **Buscar fatura ou B/L** acha a fatura pelo número dela ou de qualquer B/L dela. Acima da lista, os cartões somam o recorte inteiro dos filtros, em todas as páginas: **Faturas**, **Em aberto** (quanto falta receber e de quantas faturas; a consolidada aberta conta no lugar das individuais que agrupa, para o B/L não contar duas vezes), **Recebido** e **Faturado** (recebido mais em aberto). A faixa do bloco diz quantas faturas há no recorte, e **Exportar** baixa a planilha do recorte.
 
 | Situação | Quer dizer |
 |---|---|

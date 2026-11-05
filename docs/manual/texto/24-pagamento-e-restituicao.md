@@ -24,7 +24,7 @@ Tudo isso se acompanha em **Conciliação PIX**, no menu **Financeiro**. Qualque
 | Aba | Para que serve |
 |---|---|
 | **Histórico de baixas** | Cada baixa recebida, uma linha por B/L, com a forma da baixa (abaixo). |
-| **Pix recebidos** | Em cima, o que pede decisão, só quando existe; embaixo, todo Pix que entrou na conta e a situação de cada um. O número na aba conta o que pede decisão e só aparece quando há. |
+| **Pix recebidos** | Em cima, o que pede decisão, só quando existe; embaixo, todo Pix que entrou na conta e a situação de cada um, com os cartões **Com baixa**, **Sem baixa**, **Em análise** e **Tratado** somando o recorte dos filtros. O número na aba conta o que pede decisão e só aparece quando há. |
 
 ::: tela pix-itau-ligado
 O bloco **Cobrança Pix Itaú**, no alto de **Pix recebidos**, com a cobrança pelo Itaú ligada: há quanto tempo o Vela consultou os recebimentos.
@@ -42,7 +42,7 @@ Os blocos **Pix em análise**, **Exceções do extrato** e **Cobranças aguardan
 
 ### O Histórico de baixas
 
-Cada baixa aparece uma vez por B/L. A consolidada paga por um Pix tem uma linha para cada B/L, com o que a baixa pôs nele; o valor da baixa inteira aparece ao passar o mouse em **Valor pago**. A fatura que ficou **Coberta** pela consolidada continua mostrando as baixas que recebeu antes. O resumo diz "N baixas · R$ X pagos" do recorte.
+Cada baixa aparece uma vez por B/L. A consolidada paga por um Pix tem uma linha para cada B/L, com o que a baixa pôs nele; o valor da baixa inteira aparece ao passar o mouse em **Valor pago**. A fatura que ficou **Coberta** pela consolidada continua mostrando as baixas que recebeu antes. Os cartões em cima somam o recorte inteiro dos filtros: **Recebido**, **Taxas Locais**, **Demurrage** e **Baixa automática (Itaú)**, cada um com quantas baixas; a faixa do bloco diz "N baixas". **Pago em** mostra o dia e a hora de Brasília quando a baixa tem hora (o Pix do Itaú); a baixa manual e a do extrato, informadas com o dia, e a de Demurrage mostram só o dia.
 
 A **Forma da baixa**, coluna e filtro em **Mais filtros**, diz de onde a baixa veio: **Automática (Itaú)** é a que o Vela fez sozinho, também a do QR estático; **Pelo extrato**, a do **Conciliar extrato**; **Manual**, a registrada no detalhe da fatura ou escolhida para um Pix em **Pix recebidos**; e **Isenção**, a Invoice de Demurrage com desconto integral.
 
