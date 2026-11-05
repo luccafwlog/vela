@@ -69,6 +69,7 @@ src/integration/alertasDoBlCanceladoExcluido.local-pg.test.ts
 src/integration/itauPixCharges.local-pg.test.ts
 src/integration/contaDeIntegracao.local-pg.test.ts
 src/integration/thdImoOog.local-pg.test.ts
+src/integration/thdMinimoVitoria.local-pg.test.ts
 src/integration/auditoriaImportacaoCargaSolta.local-pg.test.ts
 src/integration/auditoriaImportacaoBlContainer.local-pg.test.ts
 src/integration/auditoriaCeContainerCompartilhado.local-pg.test.ts

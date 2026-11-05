@@ -16,7 +16,8 @@ cálculo e onde recalcular (072 a 075), a ficha do B/L e a taxa manual (076 a
 085) e as leituras do cálculo em outras telas (086 a 090). Regras acrescentadas
 na conferência independente: 091 (troca de modalidade) e 092 (recusas com
 código na aba Condições de Cliente). Taxa alterada à mão (ADR 0111, 2026-10-28):
-093 a 100; isenção à mão (D12): 101 a 104.
+093 a 100; isenção à mão (D12): 101 a 104; THD mínimo da carga solta de Vitória
+(ADR 0125, 2026-11-05): 107.
 
 ## Regras
 
@@ -128,6 +129,7 @@ código na aba Condições de Cliente). Taxa alterada à mão (ADR 0111, 2026-10
 | TAX-104 | A isenção pelo veículo LCL (TAX-064) vale primeiro (Desde 2026-10-28 (ADR 0111, D12, migration `492`)): o B/L isento pelo veículo não mostra **Isentar Taxas Locais** nem **Retirar isenção**; isento à mão e depois com veículo em LCL, o motivo passa a ser o do veículo, e retirar a isenção à mão deixa a do veículo. **Isentar** e **Retirar isenção** entram no **Histórico das taxas** ("B/L isento das Taxas Locais", "Isenção retirada", coluna Taxa "B/L inteiro") e na aba Histórico da ficha. | Op 6; Op 17 | Todos | `src/components/bl/BlChargeHistory.tsx`, `src/components/bl/blChargeAdjustmentPresentation.ts` |
 | TAX-105 | A **Conferência do cálculo** marca a taxa **alterada** (o título mostra o valor da tabela e o alterado) e a **excluída**, e o Subtotal não soma a linha excluída (Desde 2026-10-28 (ADR 0111, migration `494`)). A aba Histórico da ficha e o **Histórico de ações** da Administração mostram a alteração com a frase do Histórico das taxas ("THD · Valor por unidade: R$ 1.420,00 → R$ 1.200,00"; justificativa e autor nas colunas próprias), e a edição da cobrança manual aparece como "Cobrança manual: quantidade 2 → 3". | Op 6; Op 17; Op 2 | Todos | `src/components/billing/ConferenciaCalculo.tsx`, `src/components/admin/auditLogPresentation.ts`, `src/components/bl/blTimelinePresentation.ts` |
 | TAX-106 | O aviso "As taxas mudaram depois da emissão" na ficha do B/L compara o total cobrado com a parte deste B/L na fatura; na consolidada, não com o total dela (Desde 2026-10-28 (ADR 0111, migration `494`)). O **Recalcular taxas** da Revisão avisa na confirmação o B/L com taxa alterada à mão ("1 B/L tem taxas alteradas à mão: as alterações se mantêm no recálculo.") e, depois, atualiza a ficha do B/L. | Op 6; Op 9 | Todos | `src/components/bl/BlCobrancasTab.tsx`, `src/pages/Revisao.tsx`, `src/services/billing.ts` |
+| TAX-107 | THD mínimo da carga solta de Vitória: na tabela de cobrança de carga solta de Vitória (porto BRVIX pela régua do sistema), o item THD por tonelada em R$ cobra por B/L o maior entre toneladas × unitário e R$ 380,00, também com Condição do Cliente e na parte de carga solta do B/L misto (2 t × R$ 62,50 = R$ 125,00 → R$ 380,00). **Qtd.** e **Unitário** ficam os da tabela; só o **Total** sobe. Outros itens por tonelada, THD em US$ e outros portos não têm mínimo. Fatura emitida antes não muda: cancelar, **Recalcular** e emitir; emitir sem recalcular repete o valor antigo (desde 2026-11-05, ADR 0125, migration `594`). | Op 17; Fin | Sistema | `funcao:calculate_bl_local_charges`, `funcao:_thd_weight_ton_minimum_brl` |
 
 ## Mensagens
 

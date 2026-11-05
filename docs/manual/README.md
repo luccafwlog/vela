@@ -198,6 +198,11 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   [ADR 0124](../adr/0124-veiculo-lcl-na-demurrage.md), migration `593`): free
   time fixo de 30 dias e cobrança suspensa, com a divisão **Veículo LCL** e o
   Gerar Invoice à mão (DEM-136; capítulo 9, seções 9.4 a 9.7 e 9.12).
+- **THD mínimo da carga solta de Vitória** (decisão do dono de 2026-11-05,
+  [ADR 0125](../adr/0125-thd-minimo-carga-solta-vitoria.md), migration `594`): o
+  THD por tonelada da tabela de carga solta de Vitória cobra no mínimo R$ 380,00
+  por B/L; a fatura emitida antes se refaz cancelando, recalculando e emitindo
+  (TAX-107; capítulo 21, seção 21.2, e capítulo 22, seção 22.9).
 - **Solicitar acesso no login do Portal** (decisão do dono de 2026-11-05): o
   botão abre o formulário da página do Portal no fwlog.com.br, em outra aba
   (POR-001; capítulo 15, seção 15.2).
