@@ -79,6 +79,11 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
   // polling do overview): mesmo padrao do PortalProfile, que inicializa o form
   // uma vez e nao sincroniza por cima de edicao suja.
   const dirtyRef = useRef(false)
+  // "Adicionar contato" cria o cartão no fim da lista, abaixo de todos os
+  // contatos (do B/L inclusive) e fora da tela: sem levar o foco até ele, o
+  // clique parecia não fazer nada (relato da Suntrans, 2026-11-05).
+  const formRef = useRef<HTMLFormElement>(null)
+  const focusNewContactRef = useRef(false)
   const changedContacts = useMemo(() => contactChanges(drafts, data?.contacts ?? []), [drafts, data])
 
   useEffect(() => {
@@ -104,8 +109,19 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
     dirtyRef.current = true
   }
 
+  useEffect(() => {
+    if (!focusNewContactRef.current) return
+    focusNewContactRef.current = false
+    const emailInputs = formRef.current?.querySelectorAll<HTMLInputElement>('input[type="email"]')
+    const newEmail = emailInputs?.[emailInputs.length - 1]
+    if (!newEmail) return
+    newEmail.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+    newEmail.focus({ preventScroll: true })
+  }, [drafts.length])
+
   function handleAddContact() {
     markDirty()
+    focusNewContactRef.current = true
     setDrafts((current) => [
       ...current,
       {
@@ -313,7 +329,7 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
       </>}
     >
       <BoxGuide drafts={drafts} />
-      <form className="grid gap-4" onSubmit={handleSubmit}>
+      <form ref={formRef} className="grid gap-4" onSubmit={handleSubmit}>
         {drafts.map((contact, index) => {
           const suppressionMsg = formatSuppression(currentSuppressionReason(contact))
           const legendName = contact.name || contact.email || 'novo contato'
