@@ -75,16 +75,22 @@ function bl(overrides: Partial<MercanteEdiBl> = {}): MercanteEdiBl {
 
 function lines(content: string | null) {
   expect(content).not.toBeNull()
-  expect(content!.startsWith('﻿')).toBe(true)
+  // Sem BOM: o arquivo começa direto pelo tipo do primeiro registro.
+  expect(content!.startsWith('M5')).toBe(true)
   expect(content!.endsWith('\r\n')).toBe(true)
-  return content!.slice(1).split('\r\n').filter(Boolean)
+  return content!.split('\r\n').filter(Boolean)
 }
 
 describe('buildMercanteCargoEdi', () => {
-  it('monta M5, C5 e I5 nas posições do manual, com BOM e CRLF', () => {
+  it('monta M5, C5 e I5 nas posições do manual, sem BOM, com CRLF', () => {
     const result = buildMercanteCargoEdi(header, [bl()])
     expect(result.issues.filter((issue) => issue.severity === 'impedimento')).toEqual([])
     const [m5, c5, i5] = lines(result.content)
+    const bytes = new TextEncoder().encode(result.content!)
+    expect([...bytes.slice(0, 3)]).not.toEqual([0xef, 0xbb, 0xbf])
+    expect(String.fromCharCode(bytes[0], bytes[1])).toBe('M5')
+    expect(result.content!.match(/\r\n/g)).toHaveLength(3)
+    expect(result.content!.replace(/\r\n/g, '')).not.toMatch(/[\r\n]/)
 
     expect(m5).toHaveLength(164)
     expect(m5.slice(0, 74).trimEnd()).toBe('M50001    CN001321      063529720001212026093020261109CNTAGBRVIX6')
