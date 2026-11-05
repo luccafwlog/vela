@@ -127,7 +127,23 @@ export function CustomerContactConfiguration({
   }, [loadConfig])
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  // "Adicionar contato" cria o cartão no fim da lista, fora da tela quando o
+  // Cliente já tem vários contatos: a tela rola até o e-mail dele e o foca,
+  // como no Meu perfil do Portal (PortalContactConfiguration).
+  const formRef = useRef<HTMLFormElement>(null)
+  const focusNewContactRef = useRef(false)
+  useEffect(() => {
+    if (!focusNewContactRef.current) return
+    focusNewContactRef.current = false
+    const emailInputs = formRef.current?.querySelectorAll<HTMLInputElement>('input[type="email"]')
+    const newEmail = emailInputs?.[emailInputs.length - 1]
+    if (!newEmail) return
+    newEmail.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+    newEmail.focus({ preventScroll: true })
+  }, [drafts.length])
+
   function handleAddContact() {
+    focusNewContactRef.current = true
     setDrafts((current) => [
       ...current,
       {
@@ -370,7 +386,7 @@ export function CustomerContactConfiguration({
         </p>
       )}
 
-      <form onSubmit={handleSubmit} className="app-customer-contacts__form" noValidate>
+      <form ref={formRef} onSubmit={handleSubmit} className="app-customer-contacts__form" noValidate>
         {drafts.map((contact, index) => {
           const suppressionMsg = formatSuppression(currentSuppressionReason(contact))
           const legendName = contact.name || contact.email || 'novo contato'

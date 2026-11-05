@@ -8,7 +8,7 @@
 
 Status: aceito — 2026-10-19 (decisão do responsável na página do lote 6a da
 identidade visual). Implementada no lote 6a
-([plano](../plans/2026-10-13-identidade-visual-tela-a-tela.md)).
+([plano](../archive/plans/2026-10-13-identidade-visual-tela-a-tela.md)).
 
 > **Nota editorial — 2026-10-20.** Escrita como ADR 0091 e renumerada para 0092
 > antes do merge, porque a [ADR 0091](./0091-promocao-feature-staging-main.md)

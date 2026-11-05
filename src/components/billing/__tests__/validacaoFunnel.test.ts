@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getBillingBlock, getBillingBlockReason, isAwaitingCeMercante, isBlLockedForRecalc, isPendingBillingReview } from '../validacaoPipeline'
+import { getBillingBlock, getBillingBlockReason, isAwaitingCeMercante, isBlLockedForRecalc, isPendingBillingReview, summarizeValidacao } from '../validacaoPipeline'
 
 const base = { customer_reconciliation_status: 'matched_document', financial_status: 'pending', charge_status: 'calculated', review_status: null, notes: null, billing_hold_reason: null, customer_reconciliation_notes: null, charge_exemption_reason: null, ce_mercante: null as string | null, cargo_mode: 'container', customer: { id: 1 }, totals: { total_brl: 100, line_count: 1, review_required_count: 0 } }
 describe('billing blocks', () => {
@@ -94,4 +94,24 @@ describe('legacy predicates', () => {
   it('trava financeiros faturados', () => expect(isBlLockedForRecalc('invoiced')).toBe(true))
   it('reconhece aguardando CE', () => expect(isAwaitingCeMercante(base)).toBe(true))
   it('conta carga solta sem CE no backlog de aguardando CE', () => expect(isAwaitingCeMercante({ ...base, cargo_mode: 'carga_solta' })).toBe(true))
+})
+
+describe('cartões da Validação', () => {
+  it('somam o recorte por grupo: prontos, com bloqueio e resolvidos', () => {
+    const withCe = { ...base, ce_mercante: '152605123456789' }
+    const summary = summarizeValidacao([
+      { ...withCe, totals: { total_brl: 100.1, line_count: 1, review_required_count: 0 } },
+      { ...withCe, totals: { total_brl: 200.2, line_count: 1, review_required_count: 0 } },
+      { ...base, totals: { total_brl: 50, line_count: 1, review_required_count: 0 } },
+      { ...withCe, customer: null, totals: { total_brl: 10, line_count: 1, review_required_count: 0 } },
+      { ...withCe, financial_status: 'invoiced', totals: { total_brl: 300, line_count: 1, review_required_count: 0 } },
+      { ...withCe, charge_status: 'exempt', totals: { total_brl: 0, line_count: 0, review_required_count: 0 } },
+    ])
+    expect(summary).toEqual({
+      all: { count: 6, totalBrl: 660.3 },
+      ready: { count: 2, totalBrl: 300.3 },
+      blocked: { count: 2, totalBrl: 60 },
+      resolved: { count: 2, totalBrl: 300 },
+    })
+  })
 })

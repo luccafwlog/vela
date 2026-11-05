@@ -175,8 +175,13 @@ chegada. A lista usa:
   ✓ Paga, Coberta, Cancelada em cinza com a linha inteira); sem coluna de
   Comunicado, sem CNPJ nem POD na linha (ficam no detalhe e no filtro); cartões
   abaixo de 1024 px, para Saldo e Situação não ficarem atrás da rolagem;
-- bloco Faturas com o total do recorte e o saldo em aberto na faixa do título
-  ("nesta página" quando há mais de uma página) e Exportar com os filtros;
+- cartões de total acima do bloco (pedido do dono de 2026-11-05), do recorte
+  inteiro dos filtros e não só da página: **Faturas**, **Em aberto** (com
+  "N faturas a receber"; a consolidada aberta conta no lugar das individuais
+  que agrupa, como no Portal), **Recebido** (soma de `total_paid_brl`, inclusive
+  as baixas que a coberta recebeu antes da consolidada) e **Faturado** (recebido
+  mais em aberto), lidos por `summarizeInvoices` com a mesma consulta da tabela;
+- bloco Faturas com a contagem do recorte na faixa do título e Exportar com os filtros;
 - loading, erro com Tentar novamente (sem lista vazia falsa) e vazio derivados
   de `useInvoices`.
 
@@ -234,6 +239,11 @@ do container compartilhado.
   dd/mm/aaaa." (`billing_calculation_blocked`), lidos da mesma consulta dos
   avisos financeiros (`src/components/billing/validacaoBand.ts`). O título
   resume "N B/Ls aguardando emissão" e só cita a seleção quando há B/L marcado.
+  Acima do bloco, cartões do recorte dos filtros com o Subtotal somado e a
+  contagem de B/Ls (`summarizeValidacao`, pedido do dono de 2026-11-05):
+  **Aguardando emissão** ("No recorte" com os resolvidos), **Prontos para
+  emitir**, **Com bloqueio** (Sem cliente, cálculo, CE Mercante ou Portal) e,
+  com "Incluir faturados e isentos", **Faturados ou isentos**.
 - **Exportar:** uma planilha só (`exportValidacaoWorkbook`), uma linha por B/L,
   com B/L, Cliente, CNPJ, Navio / Viagem, Trecho, Modo de carga, Motivo, Detalhe
   do motivo, Último cálculo, Subtotal, Contêiner compartilhado (ADR 0038: B/L com

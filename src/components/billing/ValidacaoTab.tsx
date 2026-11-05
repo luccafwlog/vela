@@ -3,12 +3,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, RefreshCw } from 'lucide-react'
 import { Block } from '../ui/Block'
 import { Button } from '../ui/Button'
+import { MetricCard } from '../ui/MetricCard'
+import { NoValue } from '../ui/NoValue'
 import { useToast } from '../ui/Toast'
 import { useConfirm } from '../ui/ConfirmDialog'
 import { useBatchCalculateLocalCharges, useCustomerReconciliationQueue, useLocalChargeOperations } from '../../hooks/useLocalCharges'
 import { queryKeys } from '../../services/queryKeys'
+import { formatBRL } from '../../lib/utils'
 import { markBlReadyAndCreateInvoice } from '../../services/billing'
-import { adjustedIssueNotice, adjustedRecalcNotice, getBillingBlock, hasOpenReviewPendency, isBlLockedForRecalc } from './validacaoPipeline'
+import { adjustedIssueNotice, adjustedRecalcNotice, getBillingBlock, hasOpenReviewPendency, isBlLockedForRecalc, summarizeValidacao, type ValidacaoBucket } from './validacaoPipeline'
 import { ValidacaoControls } from './ValidacaoControls'
 import { ValidacaoOperationsTable } from './ValidacaoOperationsTable'
 import type { ReasonEvent } from './validacaoBand'
@@ -38,6 +41,12 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
       return !opsFilters.blockCode || block.code === opsFilters.blockCode
     })
   }, [operationsRows, opsFilters.blockCode, opsFilters.includeResolved, opsFilters.onlyAdjusted])
+  // Cartões do recorte inteiro dos filtros (pedido do dono de 2026-11-05).
+  const summary = useMemo(() => summarizeValidacao(displayedRows), [displayedRows])
+  const bucketValue = (bucket: ValidacaoBucket) => operationsLoading
+    ? <NoValue label="Carregando" />
+    : operationsError ? <NoValue label="Totais indisponíveis" /> : formatBRL(bucket.totalBrl)
+  const bucketDetail = (bucket: ValidacaoBucket) => operationsLoading || operationsError ? null : `${bucket.count} B/L${bucket.count === 1 ? '' : 's'}`
   const selectedRows = useMemo(() => new Set(selectedOpsRows), [selectedOpsRows])
   const areAllOpsRowsSelected = displayedRows.length > 0 && displayedRows.every((row) => selectedRows.has(row.id))
 
@@ -153,26 +162,36 @@ export function ValidacaoTab({ userId, initialBlockCode, initialBlSearch }: { us
 
   const exportCount = selectedOpsRows.length || displayedRows.length
   return (
-    <Block
-      title="Validação"
-      headingLevel={2}
-      flush
-      aside={(
-        <>
-          <span aria-live="polite">{operationsLoading ? 'Carregando…' : `${displayedRows.length} B/L${displayedRows.length === 1 ? '' : 's'} ${opsFilters.includeResolved ? 'no recorte' : 'aguardando emissão'}${selectedOpsRows.length ? ` · ${selectedOpsRows.length} selecionado${selectedOpsRows.length === 1 ? '' : 's'}` : ''}`}</span>
-          <Button variant="secondary" className="app-btn--sm" onClick={() => void runBatchOperation('recalculate')} loading={batchCalculateMutation.isPending} disabled={!selectedOpsRows.length}>
-            <RefreshCw size={14} aria-hidden="true" />Recalcular selecionados
-          </Button>
-          <Button variant="secondary" className="app-btn--sm" loading={exportingOps} loadingLabel="Exportando…" disabled={!exportCount} onClick={() => void handleExport()}>
-            <Download size={14} aria-hidden="true" />Exportar {exportCount} B/L{exportCount === 1 ? '' : 's'}
-          </Button>
-        </>
-      )}
-    >
-      <div className="app-block__body">
-        <ValidacaoControls filters={opsFilters} truncated={Boolean(operationsResult?.truncated)} onUpdateFilter={updateOpsFilter} />
+    <>
+      <div className="app-metric-row" role="group" aria-label="Totais da Validação no recorte">
+        <MetricCard label={opsFilters.includeResolved ? 'No recorte' : 'Aguardando emissão'} value={bucketValue(summary.all)} detail={bucketDetail(summary.all)} />
+        <MetricCard label="Prontos para emitir" value={bucketValue(summary.ready)} detail={bucketDetail(summary.ready)} />
+        <MetricCard label="Com bloqueio" value={bucketValue(summary.blocked)} detail={bucketDetail(summary.blocked)} />
+        {opsFilters.includeResolved ? (
+          <MetricCard label="Faturados ou isentos" value={bucketValue(summary.resolved)} detail={bucketDetail(summary.resolved)} />
+        ) : null}
       </div>
-      <ValidacaoOperationsTable rows={displayedRows} isLoading={operationsLoading} hasError={Boolean(operationsError)} selectedRowIds={selectedOpsRows} areAllRowsSelected={areAllOpsRowsSelected} expandedBlId={expandedBlId} reconciliationQueue={reconciliationQueue ?? []} reasonEvents={reasonEvents} onToggleAllRows={toggleAllOpsRows} onToggleRow={toggleOpsRow} onToggleExpandedRow={(id) => setExpandedBlId((current) => current === id ? null : id)} onIssueSingleInvoice={(row) => void handleIssueSingleInvoice(row)} onRecalculateRow={(row) => void handleRecalculateRow(row)} />
-    </Block>
+      <Block
+        title="Validação"
+        headingLevel={2}
+        flush
+        aside={(
+          <>
+            <span aria-live="polite">{operationsLoading ? 'Carregando…' : `${displayedRows.length} B/L${displayedRows.length === 1 ? '' : 's'} ${opsFilters.includeResolved ? 'no recorte' : 'aguardando emissão'}${selectedOpsRows.length ? ` · ${selectedOpsRows.length} selecionado${selectedOpsRows.length === 1 ? '' : 's'}` : ''}`}</span>
+            <Button variant="secondary" className="app-btn--sm" onClick={() => void runBatchOperation('recalculate')} loading={batchCalculateMutation.isPending} disabled={!selectedOpsRows.length}>
+              <RefreshCw size={14} aria-hidden="true" />Recalcular selecionados
+            </Button>
+            <Button variant="secondary" className="app-btn--sm" loading={exportingOps} loadingLabel="Exportando…" disabled={!exportCount} onClick={() => void handleExport()}>
+              <Download size={14} aria-hidden="true" />Exportar {exportCount} B/L{exportCount === 1 ? '' : 's'}
+            </Button>
+          </>
+        )}
+      >
+        <div className="app-block__body">
+          <ValidacaoControls filters={opsFilters} truncated={Boolean(operationsResult?.truncated)} onUpdateFilter={updateOpsFilter} />
+        </div>
+        <ValidacaoOperationsTable rows={displayedRows} isLoading={operationsLoading} hasError={Boolean(operationsError)} selectedRowIds={selectedOpsRows} areAllRowsSelected={areAllOpsRowsSelected} expandedBlId={expandedBlId} reconciliationQueue={reconciliationQueue ?? []} reasonEvents={reasonEvents} onToggleAllRows={toggleAllOpsRows} onToggleRow={toggleOpsRow} onToggleExpandedRow={(id) => setExpandedBlId((current) => current === id ? null : id)} onIssueSingleInvoice={(row) => void handleIssueSingleInvoice(row)} onRecalculateRow={(row) => void handleRecalculateRow(row)} />
+      </Block>
+    </>
   )
 }

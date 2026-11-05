@@ -1,7 +1,7 @@
 // Quadro "Chegadas e saídas" público do fwlog.com.br (ADR 0114). Sem sessão:
 // Turnstile, limite por IP e cache no Upstash, todos fail-closed; regras em
 // ../_shared/publicFwlog.ts.
-import { createClient } from 'npm:@supabase/supabase-js@2.117.2'
+import { createClient } from '@supabase/supabase-js'
 import { handlePublicSchedule, runtimeDeps } from '../_shared/publicFwlog.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 

@@ -217,11 +217,11 @@ As falhas que a rotina absorve sem mudar o status vão direto por
 `charges_renew` (renovação da vez) e `charges_release` (liberação das reservas
 não chamadas). `supabase/functions/itau-pix/index.test.ts` confere o status, o
 log e o envelope enviado a um Sentry falso.
-As dezesseis entradas em `supabase/config.toml` apontam para o manifesto Deno
-compartilhado em `supabase/functions/deno.json`; a configuração não altera
-`verify_jwt` nem os contratos HTTP. `edgeTelemetryConfiguration.test.ts` tira
-a lista das `supabase/functions/*/index.ts` que chamam `instrumentEdgeHandler`,
-então função nova com o wrapper e sem o import map derruba o teste.
+Todas as entradas de função em `supabase/config.toml` apontam para o manifesto
+Deno compartilhado em `supabase/functions/deno.json` (desde 2026-11-05, também as
+sem o wrapper); a configuração não altera `verify_jwt` nem os contratos HTTP.
+`edgeTelemetryConfiguration.test.ts` derruba o teste quando uma função fica sem
+o import map ou importa com versão escrita no código.
 
 O segredo server-side `SENTRY_DSN` e `SENTRY_ENVIRONMENT=production` foram
 configurados no Supabase de produção em 2026-09-24. O SDK Deno não faz escopo

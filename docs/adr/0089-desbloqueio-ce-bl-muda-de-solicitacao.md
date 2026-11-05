@@ -4,7 +4,7 @@
 
 Status: aceito — 2026-10-18 (decisão do responsável na aprovação do lote 4 da
 identidade visual, "caminho A"). Implementada na migration `299`, com testes no
-Postgres local; ver o [plano da identidade visual](../plans/2026-10-13-identidade-visual-tela-a-tela.md).
+Postgres local; ver o [plano da identidade visual](../archive/plans/2026-10-13-identidade-visual-tela-a-tela.md).
 
 ## Contexto
 

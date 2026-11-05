@@ -384,10 +384,15 @@ Em 2026-11-03 o esm.sh passou a servir ao empacotador outro build de
 merges das PRs 1189 e 1190 na `staging` não publicaram as funções; a 1190 também
 não publicou o frontend do staging, porque trazia a migration `575`. O motivo
 aparece em Logs da branch, fonte `workflow_run_logs` ("Integrity check failed for
-remote specifier"). Desde então as funções importam o `supabase-js` pelo npm
-(`npm:@supabase/supabase-js@2.117.2`), como o `svix` (2026-10-29): nenhum import
-vem do esm.sh, o lock guarda só a integridade dos pacotes npm, que não muda, e
-cobre todas as funções. Depois de
+remote specifier"). Desde então as funções importam o `supabase-js` pelo npm,
+como o `svix` (2026-10-29): nenhum import vem do esm.sh, o lock guarda só a
+integridade dos pacotes npm, que não muda, e cobre todas as funções. Desde
+2026-11-05 toda dependência tem nome lógico no import map
+`supabase/functions/deno.json` (uma versão exata por pacote), que todas as
+entradas de `supabase/config.toml` declaram; o código importa só o nome
+(`@supabase/supabase-js`), e o Dependabot (ecossistema `deno`, que só lê o
+`deno.json`) propõe as atualizações. O CI faz o `deno check` de todas as
+funções com esse lock (`--frozen`). Depois de
 cada merge, confira em Supabase → Edge Functions a data de atualização das
 funções alteradas, ou baixe o código publicado com `supabase functions download`
 e compare com o `main`. Se alguma não foi publicada:
@@ -1051,17 +1056,31 @@ para eles vale o backup do próprio Supabase.
   esperando o check do Supabase; previews pela etiqueta `preview`),
   `provision-preview-admin.yml` (usuário admin na branch de preview, pela mesma
   etiqueta), `main-only-from-staging.yml` (check da PR contra a `main`) e
-  `staging-to-main-pr.yml` (abre ou atualiza a PR `staging` → `main`). Regras
-  em [ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md) e
-  [ADR 0091](../adr/0091-promocao-feature-staging-main.md).
+  `staging-to-main-pr.yml` (abre ou atualiza a PR `staging` → `main`, criada
+  em rascunho). O `ci.yml` não roda em PR rascunho. Regras em
+  [ADR 0086](../adr/0086-ci-confere-na-medida-da-mudanca.md),
+  [ADR 0091](../adr/0091-promocao-feature-staging-main.md) e
+  [ADR 0122](../adr/0122-ci-nao-roda-em-rascunho-e-promocao-nasce-rascunho.md).
+- **Minutos do Actions:** o repositório é público, e o Actions não cobra
+  minutos de repositório público. Medição de 2026-10-29 a 2026-11-04 (API de
+  runs, runner público): ~56 runs do `ci.yml` por dia, ~950 minutos cobráveis
+  por dia no total dos workflows. O plano gratuito privado dá cerca de 2.000 por
+  mês; a ADR 0122 registra o que foi enxugado e o que medir.
 - **Etiqueta `preview`:** dispara a preview e o usuário admin de uma PR; a
   limpeza ao fechar só roda em PR com essa etiqueta (existe no repositório).
-- **Ruleset da `main` ("auto-merge claude"):** impede apagar a branch e
+- **Ruleset "auto-merge claude":** impede apagar a branch e
   force-push, exige PR (sem aprovação obrigatória, decisão do dono em
   2026-10-15) e o check `checks` do GitHub Actions verde, sem exigir branch atualizada (conferido pela API em 2026-10-15).
-  O check `main-only-from-staging` existe para entrar nessa proteção; o dono
-  decidiu em 2026-10-22 (auditoria run-3) torná-lo obrigatório, passo dele no
-  ruleset.
+  Nas capturas do dono de 2026-11-04 ele está ativo, mira a branch padrão (a
+  `staging`), deixa o papel Repository admin passar sempre e marca Restrict
+  deletions, Require a pull request before merging e Require status checks to
+  pass; a lista de checks exigidos não aparece nelas. Na mesma data há também
+  regras clássicas de proteção (Settings › Branches) para `staging` e `main`,
+  com detalhes não conferidos. O check `main-only-from-staging` existe para
+  entrar na proteção da `main`; o dono decidiu em 2026-10-22 (auditoria run-3)
+  torná-lo obrigatório, passo dele. Um check pulado conta como verde para a
+  proteção: o `checks` de PR rascunho fica pulado, e o rascunho não pode ser
+  mergeado ([ADR 0122](../adr/0122-ci-nao-roda-em-rascunho-e-promocao-nasce-rascunho.md)).
 - **Repository secrets:** em 2026-10-08 havia `SUPABASE_PROJECT_REF` (Preview),
   `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (build de CI). Na mesma data
   foram apagadas as cópias de `CLOUDFLARE_PAGES_API_TOKEN`,
@@ -1096,8 +1115,8 @@ para eles vale o backup do próprio Supabase.
   A migração dos secrets para os environments foi concluída em 2026-10-08.
   Em 2026-10-08 a API de rulesets respondia que o repositório privado exigia
   GitHub Pro; em 2026-10-15 o ruleset "auto-merge claude" já estava ativo e
-  passou a exigir o `checks` (estado vigente no item "Ruleset da `main`"
-  acima).
+  passou a exigir o `checks` (estado vigente no item do ruleset
+  "auto-merge claude" acima).
 
   O provisionamento passou a consultar cada projeto Pages pelo nome e foi
   validado no run `37631613061`; Preview, limpeza, admin da Preview e produção

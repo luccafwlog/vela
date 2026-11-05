@@ -18,7 +18,7 @@ describe('summarizeReconciliationHistory', () => {
       row({ id: 'm-A', invoiceId: 17, paymentId: 9, status: 'covered', blId: 'A', amount: 2469, paymentAmount: 2469 }),
       row({ id: 'm-B', invoiceId: 18, paymentId: 10, status: 'covered', blId: 'B', amount: 2469.5, paymentAmount: 2469.5 }),
     ])
-    expect(summary).toEqual({ payments: 3, received: 4940 })
+    expect(summary).toMatchObject({ payments: 3, received: 4940 })
   })
 
   it('a Invoice de Demurrage conta pela própria fatura, sem colidir com o id de uma baixa local', () => {
@@ -26,6 +26,24 @@ describe('summarizeReconciliationHistory', () => {
       row({ id: 'l', paymentId: 10, amount: 200.005 }),
       row({ id: 'd', source: 'demurrage', invoiceId: 10, paymentId: null, amount: 50 }),
     ])
-    expect(summary).toEqual({ payments: 2, received: 250.01 })
+    expect(summary).toMatchObject({ payments: 2, received: 250.01 })
+    expect(summary.local).toEqual({ payments: 1, received: 200.01 })
+    expect(summary.demurrage).toEqual({ payments: 1, received: 50 })
+  })
+
+  it('cartões: separa Taxas Locais, Demurrage e a baixa automática do Itaú, cada baixa uma vez', () => {
+    const summary = summarizeReconciliationHistory([
+      row({ id: 'i-A', paymentId: 11, blId: 'A', amount: 1, method: 'itau' }),
+      row({ id: 'i-B', paymentId: 11, blId: 'B', amount: 0.5, method: 'itau' }),
+      row({ id: 'm', paymentId: 9, amount: 100, method: 'manual' }),
+      row({ id: 'd', source: 'demurrage', invoiceId: 7, paymentId: null, amount: 30, method: 'extract' }),
+    ])
+    expect(summary).toEqual({
+      payments: 3,
+      received: 131.5,
+      local: { payments: 2, received: 101.5 },
+      demurrage: { payments: 1, received: 30 },
+      itau: { payments: 1, received: 1.5 },
+    })
   })
 })

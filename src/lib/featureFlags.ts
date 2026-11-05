@@ -104,6 +104,10 @@ export function createPostHogConfig(apiHost: string): Partial<PostHogConfig> {
     capture_performance: false,
     disable_session_recording: true,
     disable_surveys: true,
+    // Sem <script> do eu-assets.i.posthog.com (host que serve outros projetos):
+    // a configuração remota vem em JSON pelo connect-src, e a CSP não libera o
+    // host em script-src (plano dos reforços da auditoria run-3, ponto 2).
+    disable_external_dependency_loading: true,
     persistence: 'memory',
     person_profiles: 'never',
     before_send: redactPostHogEvent,

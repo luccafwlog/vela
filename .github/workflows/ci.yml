@@ -5,6 +5,12 @@ permissions:
 
 # Só em PR (ADR 0086): o merge na `main` não repete o CI. A produção publica no
 # push e espera o Supabase aplicar as migrations (cloudflare-pages-production.yml).
+#
+# PR em rascunho não roda nada (ADR 0122): os jobs ficam pulados e o CI começa
+# em "Ready for review" (`ready_for_review`), que cria um run novo e pendente.
+# Rascunho não pode ser mergeado, então o `checks` pulado não libera merge. A
+# PR `staging` → `main` nasce rascunho (staging-to-main-pr.yml) e roda o CI
+# quando o dono a marca pronta para publicar, não a cada merge na staging.
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
@@ -19,6 +25,7 @@ jobs:
   quality:
     # Um computador para tudo que não é teste nem banco: um só `npm ci`.
     name: Quality + Build
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -54,72 +61,25 @@ jobs:
           npm run design:check
           npm run a11y:contrast
 
-      - name: CE document upload and cleanup contracts
-        # O download das dependências às vezes cai (main, 2026-10-13: "connection
-        # reset" no import do supabase-js, então pelo esm.sh). Baixa antes, com até 3
-        # tentativas; o teste roda só do cache, sem rede para os imports.
-        # O deno.lock da raiz cobre só os imports remotos desse teste: sem
-        # package.json nem deno.json, uma atualização de dependência npm ou do
-        # import map das funções não invalida o lock (`--frozen`).
-        # `scripts/deno-cache.sh` faz o download e devolve o lock a usar. Desde
-        # 2026-11-03 o supabase-js vem do npm (`npm:`), não do esm.sh, que servia
-        # dois builds do tslib conforme a borda.
+      - name: Edge Functions type check and contracts
+        # Toda Edge Function passa pelo `deno check` (plano dos reforços da
+        # auditoria run-3, ponto 1.3; antes eram 17 de 26) com o import map e o
+        # lock das funções (supabase/functions/deno.json e deno.lock, `--frozen`).
+        # Os testes rodam as funções contra dependências falsas, sem rede:
+        # upload e expurgo do Desbloqueio de CE, webhook de e-mail com assinatura
+        # Svix gerada, rotina do Itaú Pix (a v29 respondia 500 a toda rodada boa)
+        # e as páginas públicas da ADR 0114 (resposta só com a lista positiva).
+        # `scripts/deno-cache.sh` baixa antes, com até 3 tentativas; check e
+        # testes rodam só do cache.
         env:
           DENO_NO_PACKAGE_JSON: "1"
         run: |
-          for dir in supabase/functions/portal-ce-unlock-document supabase/functions/ce-unlock-cleanup; do
-            lock=$(scripts/deno-cache.sh deno.lock --no-config "$dir/index.ts" "$dir/index.test.ts") || exit 1
-            deno_lock="--no-config --lock=$lock --frozen"
-            npx --yes deno@2.9.6 test $deno_lock --cached-only --allow-env --allow-net "$dir/index.test.ts"
-          done
-
-      - name: Email Edge Functions type check and webhook contract
-        # Plano de correção dos e-mails, 5.4: `deno check` das Edges de e-mail
-        # e o handler do webhook com assinatura Svix gerada. Usa o manifesto e
-        # o lock das funções (supabase/functions/deno.json e deno.lock), que
-        # cobrem o @sentry/deno do wrapper de telemetria e os pacotes npm das funções.
-        # Mesmo esquema de download com nova tentativa do passo anterior.
-        env:
-          DENO_NO_PACKAGE_JSON: "1"
-        run: |
-          files=""
-          for fn in portal-email-webhook portal-email-events-runner portal-invite-send portal-password-recovery \
-                    portal-recovery-email-change portal-daily-digest ce-unlock-notify-email admin-users portal-password-reset \
-                    send-customer-communication demurrage-dunning customer-communication-auto-runner; do
-            files="$files supabase/functions/$fn/index.ts"
-          done
-          webhook_test=supabase/functions/portal-email-webhook/index.test.ts
-          lock=$(scripts/deno-cache.sh supabase/functions/deno.lock --config supabase/functions/deno.json $files $webhook_test) || exit 1
+          files=$(ls supabase/functions/*/index.ts)
+          tests=$(ls supabase/functions/*/index.test.ts supabase/functions/_shared/*.test.ts)
+          lock=$(scripts/deno-cache.sh supabase/functions/deno.lock --config supabase/functions/deno.json $files $tests) || exit 1
           deno_flags="--config supabase/functions/deno.json --lock=$lock --frozen"
-          npx --yes deno@2.9.6 check $deno_flags --cached-only $files
-          npx --yes deno@2.9.6 test $deno_flags --cached-only --allow-env --allow-net $webhook_test
-
-      - name: Itaú Pix Edge Function type check and routine status
-        # A v29 da itau-pix (2026-10-22) respondia 500 a toda rodada boa, sem log
-        # nem Sentry. O teste roda a função contra banco, Itaú e Sentry falsos.
-        # Mesmo manifesto, lock e download com nova tentativa do passo anterior.
-        env:
-          DENO_NO_PACKAGE_JSON: "1"
-        run: |
-          files="supabase/functions/itau-pix/index.ts supabase/functions/itau-pix/index.test.ts"
-          lock=$(scripts/deno-cache.sh supabase/functions/deno.lock --config supabase/functions/deno.json $files) || exit 1
-          deno_flags="--config supabase/functions/deno.json --lock=$lock --frozen"
-          npx --yes deno@2.9.6 check $deno_flags --cached-only $files
-          npx --yes deno@2.9.6 test $deno_flags --cached-only --allow-env --allow-net supabase/functions/itau-pix/index.test.ts
-
-      - name: Public fwlog Edge Functions type check and contract
-        # ADR 0114: quadro e consulta de container públicos. O teste roda os
-        # handlers contra Turnstile, Upstash e banco falsos (sem rede) e falha
-        # se a resposta ganhar chave fora da lista positiva. Mesmo manifesto,
-        # lock e download com nova tentativa dos passos anteriores.
-        env:
-          DENO_NO_PACKAGE_JSON: "1"
-        run: |
-          files="supabase/functions/public-ship-schedule/index.ts supabase/functions/public-container-lookup/index.ts supabase/functions/_shared/publicFwlog.test.ts"
-          lock=$(scripts/deno-cache.sh supabase/functions/deno.lock --config supabase/functions/deno.json $files) || exit 1
-          deno_flags="--config supabase/functions/deno.json --lock=$lock --frozen"
-          npx --yes deno@2.9.6 check $deno_flags --cached-only $files
-          npx --yes deno@2.9.6 test $deno_flags --cached-only --allow-env --allow-net supabase/functions/_shared/publicFwlog.test.ts
+          npx --yes deno@2.9.6 check $deno_flags --cached-only $files $tests
+          npx --yes deno@2.9.6 test $deno_flags --cached-only --allow-env --allow-net $tests
 
       - name: Squash generator self-check
         run: node scripts/build-squash-migrations.mjs --self-check
@@ -166,6 +126,7 @@ jobs:
 
   test:
     name: Test (${{ matrix.shard }}/2)
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -194,9 +155,11 @@ jobs:
   #
   # Schema, invariantes, catálogo de RPCs e seed rodam em toda PR. As suítes SQL
   # e a bateria financeira só quando o diff toca o banco (scripts/ci-db-paths.mjs,
-  # ADR 0086); a condição fica nos passos, para o job nunca ser `skipped`.
+  # ADR 0086); a condição fica nos passos, para o job nunca ser `skipped` fora
+  # do rascunho (ADR 0122).
   db:
     name: Database (Postgres real)
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -325,7 +288,9 @@ jobs:
     name: checks
     runs-on: ubuntu-latest
     needs: [quality, test, db]
-    if: always()
+    # Em rascunho fica pulado junto com os jobs acima; fora dele sempre roda,
+    # para um job falho ou cancelado deixar o gate vermelho.
+    if: ${{ always() && !github.event.pull_request.draft }}
     steps:
       - name: Verify all jobs succeeded
         run: |

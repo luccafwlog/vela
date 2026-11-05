@@ -61,7 +61,7 @@ Grave o CE só depois de importar todos os B/Ls que dividem um container. O B/L 
 
 **Quem faz:** {{Qualquer equipe}}
 
-A **Validação** é a fila dos B/Ls que ainda não viraram fatura. Ela fica em **Financeiro** › **Taxas Locais**, na segunda aba; a primeira, **Faturas**, está no capítulo 22. Cada B/L mostra um só **Motivo**, o primeiro que segura a fatura, nesta ordem:
+A **Validação** é a fila dos B/Ls que ainda não viraram fatura. Ela fica em **Financeiro** › **Taxas Locais**, na segunda aba; a primeira, **Faturas**, está no capítulo 22. Em cima, os cartões somam o valor calculado dos B/Ls do filtro: **Aguardando emissão**, **Prontos para emitir**, **Com bloqueio** (os quatro primeiros motivos abaixo) e, com **Incluir faturados e isentos**, **Faturados ou isentos**. Cada B/L mostra um só **Motivo**, o primeiro que segura a fatura, nesta ordem:
 
 | Motivo | Quer dizer | Ação da linha |
 |---|---|---|

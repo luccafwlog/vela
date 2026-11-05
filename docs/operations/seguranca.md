@@ -534,7 +534,7 @@ Function:
   o iframe ao login. `src/lib/publicEmbedHeaders.test.ts` e
   `scripts/cloudflare-pages-stage.test.mjs` falham se outra rota ou outra
   Function ficar embedável.
-- **CSP** sem `unsafe-inline` em scripts; `connect-src` restrito a Supabase, `olinda.bcb.gov.br`, Sentry, PostHog EU e Turnstile; `script-src`/`frame-src` só abrem o Turnstile e a configuração do PostHog; `form-action 'self'` e `frame-ancestors 'none'`. O browser não chama o provedor de e-mail (MillionSend) diretamente; o envio permanece nas Edge Functions. Ver [Deploy](../setup/deploy.md#headers-rotas-e-cors).
+- **CSP** sem `unsafe-inline` em scripts; `connect-src` restrito a Supabase, `olinda.bcb.gov.br`, Sentry, PostHog EU e Turnstile; `script-src` e `frame-src` só abrem o Turnstile (desde 2026-11-05 o `posthog-js` roda com `disable_external_dependency_loading` e lê a configuração em JSON pelo `connect-src`, sem script do host compartilhado `eu-assets.i.posthog.com`); `form-action 'self'` e `frame-ancestors 'none'`. O browser não chama o provedor de e-mail (MillionSend) diretamente; o envio permanece nas Edge Functions. Ver [Deploy](../setup/deploy.md#headers-rotas-e-cors).
 
 ## Outras defesas
 

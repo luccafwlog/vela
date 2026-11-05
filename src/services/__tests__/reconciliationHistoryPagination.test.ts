@@ -59,14 +59,31 @@ it('filtra pela forma da baixa e mantém juntas as linhas de B/L da mesma baixa'
 
   const all = await listReconciliationHistory({})
   expect(all.rows.map((r) => `${r.paymentId}-${r.blId}`)).toEqual(['11-A', '11-B', '9-A'])
-  expect(all.summary).toEqual({ payments: 2, received: 2470.5 })
+  expect(all.summary).toMatchObject({ payments: 2, received: 2470.5 })
 
   const itau = await listReconciliationHistory({ method: 'itau' })
   expect(itau.rows.map((r) => r.amount)).toEqual([1, 0.5])
-  expect(itau.summary).toEqual({ payments: 1, received: 1.5 })
+  expect(itau.summary).toMatchObject({ payments: 1, received: 1.5, itau: { payments: 1, received: 1.5 } })
 })
 
 it('erro da RPC falha a leitura em vez de devolver lista vazia', async () => {
   mockRpc.mockResolvedValue({ data: null, error: { message: 'Sem permissão para consultar o histórico de baixas.' } })
   await expect(listReconciliationHistory({})).rejects.toMatchObject({ message: 'Sem permissão para consultar o histórico de baixas.' })
+})
+
+it('o filtro de data usa o dia de Brasília que a coluna Pago em mostra', async () => {
+  mockRpc.mockResolvedValue({
+    data: [
+      // 22:30 de 30/10 em Brasília: no UTC já é 31/10.
+      rpcRow({ payment_id: 21, invoice_id: 30, bl_id: 'NOITE', method: 'itau', paid_at: '2026-10-31T01:30:12.5+00:00' }),
+      // Extrato: o dia 31/10 gravado como meia-noite UTC continua 31/10.
+      rpcRow({ payment_id: 22, invoice_id: 31, bl_id: 'EXTRATO', method: 'extract', paid_at: '2026-10-31T00:00:00+00:00' }),
+    ],
+    error: null,
+  })
+
+  const day30 = await listReconciliationHistory({ paidFrom: '2026-10-30', paidTo: '2026-10-30' })
+  expect(day30.rows.map((r) => r.blId)).toEqual(['NOITE'])
+  const day31 = await listReconciliationHistory({ paidFrom: '2026-10-31', paidTo: '2026-10-31' })
+  expect(day31.rows.map((r) => r.blId)).toEqual(['EXTRATO'])
 })

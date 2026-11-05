@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { Link2 } from 'lucide-react'
 import { Block, Fact, FactList } from '../ui/Block'
 import { Button } from '../ui/Button'
+import { MetricCard } from '../ui/MetricCard'
 import { EmptyState } from '../ui/Card'
 import { CopyValue } from '../ui/CopyValue'
 import { Field, Input, Select } from '../ui/Input'
@@ -23,6 +24,8 @@ import {
   listItauPixReceiptCandidates,
   listItauPixReceipts,
   settleItauPixReceipt,
+  summarizeItauPixReceipts,
+  type ItauPixReceiptBucket,
   type ItauPixReceipt,
   type ItauPixReceiptCandidate,
   type ItauPixReceiptFilters,
@@ -74,16 +77,15 @@ export function PixReceivedPanel({ onOpenInvoice }: { onOpenInvoice: OpenInvoice
   const amountInvalid = Number.isNaN(amount)
   const [openId, setOpenId] = useState<string | null>(null)
 
-  const filters: ItauPixReceiptFilters = {
+  const scope: Omit<ItauPixReceiptFilters, 'page' | 'pageSize'> = {
     from: state.from,
     to: state.to,
     situation: state.situation,
     origin: state.origin,
     amount: amountInvalid ? null : amount,
     search,
-    page: state.page,
-    pageSize: state.pageSize,
   }
+  const filters: ItauPixReceiptFilters = { ...scope, page: state.page, pageSize: state.pageSize }
   const activeCount = countActiveReceivedFilters(state)
 
   const query = useQuery({
@@ -93,6 +95,19 @@ export function PixReceivedPanel({ onOpenInvoice }: { onOpenInvoice: OpenInvoice
     // A consulta do Itaú grava Pix novos a cada minuto.
     refetchInterval: 60_000,
   })
+
+  // Cartões por situação do recorte inteiro (pedido do dono de 2026-11-05).
+  const summaryQuery = useQuery({
+    queryKey: [...queryKeys.reconciliation.itauPixReceipts(), 'summary', scope],
+    queryFn: () => summarizeItauPixReceipts(scope),
+    enabled: !amountInvalid,
+    refetchInterval: 60_000,
+  })
+  const summary = amountInvalid ? undefined : summaryQuery.data
+  const bucketValue = (bucket: ItauPixReceiptBucket | undefined) => bucket
+    ? formatBRL(bucket.amount)
+    : <NoValue label={amountInvalid ? 'Sem totais: valor do filtro ilegível' : summaryQuery.error ? 'Totais indisponíveis' : 'Carregando'} />
+  const bucketDetail = (bucket: ItauPixReceiptBucket | undefined) => bucket ? pluralize(bucket.count, 'Pix', 'Pix') : null
 
   // Valor ilegível não consulta: a tabela não mostra o recorte anterior como se fosse este.
   const page = amountInvalid ? undefined : query.data
@@ -125,6 +140,12 @@ export function PixReceivedPanel({ onOpenInvoice }: { onOpenInvoice: OpenInvoice
 
   return (
     <div className="grid min-w-0 gap-4 pt-1">
+      <div className="app-metric-row" role="group" aria-label="Totais dos Pix recebidos no recorte">
+        <MetricCard label="Com baixa" value={bucketValue(summary?.settled)} detail={bucketDetail(summary?.settled)} />
+        <MetricCard label="Sem baixa" value={bucketValue(summary?.received)} detail={bucketDetail(summary?.received)} />
+        <MetricCard label="Em análise" value={bucketValue(summary?.review)} detail={bucketDetail(summary?.review)} />
+        <MetricCard label="Tratado" value={bucketValue(summary?.handled)} detail={bucketDetail(summary?.handled)} />
+      </div>
       <div className="grid gap-3" role="group" aria-label="Filtros dos Pix recebidos">
         <div className="app-filter-grid">
           <Field label="Recebido de">

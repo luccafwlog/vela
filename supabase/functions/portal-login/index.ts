@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@supabase/supabase-js@2.117.2'
+import { createClient } from '@supabase/supabase-js'
 import { corsHeaders } from '../_shared/cors.ts'
 import { openAlertOnce } from '../_shared/portalAlerts.ts'
 import { confirmLoginFailure, confirmLoginSuccess, requestIp, reserveLoginAttempt, voidLoginAttempt } from '../_shared/portalLoginRateLimit.ts'
@@ -8,6 +8,12 @@ import { verifyTurnstileRequest } from '../_shared/turnstile.ts'
 import { derivePortalAuthPassword, portalPasswordPepper } from '../_shared/portalPasswordSecret.ts'
 import { createPasswordCheckClient } from '../_shared/passwordCheckClient.ts'
 import { SMALL_JSON_MAX_BYTES, readBoundedJsonBody } from '../_shared/boundedBody.ts'
+import type { PortalDb } from '../_shared/portalDb.ts'
+
+// O cliente do supabase-js não satisfaz o tipo estrutural dos helpers do Portal
+// (PortalDb, _shared/portalDb.ts) para o deno check; a forma usada é a mesma.
+const asPortalDb = <T,>(client: T) => client as T & PortalDb
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | undefined
 
 const GENERIC_ERROR = 'CNPJ ou senha inválidos.'
 
@@ -48,7 +54,7 @@ if (typeof Deno !== 'undefined') {
       if (!url || !serviceKey || !dummyUserId) return json(500, { error: 'Portal indisponível.' }, origin)
 
       const pepper = portalPasswordPepper()
-      const admin = createClient(url, serviceKey)
+      const admin = asPortalDb(createClient(url, serviceKey))
       const rateLimitContext = { ip: requestIp(req) }
       // Reserva atômica (migration 422): a tentativa já conta antes de a senha
       // ser conferida, então pedidos em paralelo não passam das 5 por CNPJ.

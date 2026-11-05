@@ -53,6 +53,7 @@ vi.mock('../../hooks/useBilling', () => ({
   useUpdateInvoiceDueDate: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useInvoiceDetail: () => ({ data: null, isLoading: false, error: null }),
   useInvoices: () => ({ data: { rows: [], count: 0 }, isLoading: false, error: null }),
+  useInvoiceSummary: () => ({ data: undefined, isLoading: true, error: null }),
   useRegisterInvoicePayment: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useRetryPendingConsolidatedReissue: () => ({ mutateAsync: vi.fn(), isPending: false, variables: undefined }),
   useInvoiceReissueLinks: () => ({ data: null }),

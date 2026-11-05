@@ -928,7 +928,13 @@ CE não é cancelado: é excluído (ADR 0071).
   conferida de novo na reativação (ver [CE Mercante](#ce-mercante)).
 - **Excluir B/L ou container** passa por `delete_records` (migrations `087` e
   `088`), só do Administrativo e com motivo; a prévia do banco lista o que não
-  pode sair. B/L com CE Mercante não sai (cancele em vez de excluir), e a mesma
+  pode sair. O B/L sai pela seleção na lista `/bls` ou, um de cada vez, por
+  **Excluir B/L** na faixa do alto da ficha, ao lado de **Reimportar B/L**, em
+  todo B/L não cancelado (pedidos do dono de 2026-11-04); o B/L excluído leva
+  de volta à lista. A trava vira aviso na ficha com o caminho: só o CE segura →
+  **Remover CE** e excluir de novo; CE e documento financeiro → cancelar ou
+  resolver a fatura e depois **Cancelar B/L**, que o aviso oferece
+  (`deleteRefusalGuidance`). B/L com CE Mercante não sai (cancele em vez de excluir), e a mesma
   trava vale para os containers dele; também travam os documentos financeiros
   emitidos — fatura ou Invoice de Demurrage, em qualquer situação, e recebível
   com baixa ou ligado a fatura viva (`bl_delete_lock_reasons`, migration

@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@supabase/supabase-js@2.117.2'
+import { createClient } from '@supabase/supabase-js'
 
 // Cliente da conferência de senha feita pelo servidor (portal-login e troca do
 // Email de Recuperação). O captcha do Auth vale para o projeto inteiro, e o

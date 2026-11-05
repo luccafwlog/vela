@@ -619,6 +619,12 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   - 17.11 com o aviso de que as páginas do site entram no ar com a publicação;
     capturas novas `prazo-do-adr` (25.9, com um ADR fechado no cenário) e
     `pix-itau-ligado` (24.1).
+- **Excluir B/L na ficha** (pedidos do dono de 2026-11-04; tela, sem
+  migration): o Administrativo vê **Excluir B/L** ao lado de **Reimportar
+  B/L** em todo B/L não cancelado, com a mesma conferência e o mesmo motivo da
+  lista. A trava aparece como aviso na ficha com o caminho: só o CE segura →
+  **Remover CE** e excluir; CE com fatura → resolver a fatura e **Cancelar
+  B/L**, que o aviso oferece (7.8; BLR-102, BLR-150).
 - **Conciliação PIX em duas abas** (decisão do dono de 2026-11-04, opção A;
   tela, sem migration): **Pendências** e **Conciliar extrato** entram em **Pix
   recebidos**. O que pede ação fica no topo da aba e cada bloco só aparece com

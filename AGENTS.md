@@ -32,7 +32,7 @@ database schema, consult the corresponding source below.
 | Terminology | [CONTEXT.md](CONTEXT.md) (glossary only) |
 | Business rule | The affected module from [docs/README.md](docs/README.md); cross-module rules in [regras-de-negocio.md](docs/operations/regras-de-negocio.md); the "why" in the linked ADR |
 | Screen, route or user action | [RASTREABILIDADE.md](docs/RASTREABILIDADE.md), then the linked implementation and module |
-| Appearance, layout or UI component | [Visual identity](docs/identidade-visual.md): nine rules, shared pieces and the screen-by-screen approval in its plan |
+| Appearance, layout or UI component | [Visual identity](docs/identidade-visual.md): nine rules, shared pieces and how a screen change is approved |
 | Shared code, imports or architecture | Relevant sections of [ARCHITECTURE.md](docs/ARCHITECTURE.md) and [ADR index](docs/adr/README.md) |
 | Authentication, permissions or customer data | [Security](docs/operations/seguranca.md), affected policies/RPCs and session contracts in [WORKFLOW.md](WORKFLOW.md) |
 | Schema, commands, environment, testing or deployment | Relevant procedure in [WORKFLOW.md](WORKFLOW.md); exact commands in [package.json](package.json) |
@@ -161,15 +161,26 @@ planos e specs"):
 
 ## Verify the claim you will make
 
-Choose checks by impact using [WORKFLOW.md](WORKFLOW.md) §11:
+Choose checks by impact using [WORKFLOW.md](WORKFLOW.md) §11. Local checks
+catch what you broke before it reaches CI; CI on the final commit is the
+full-suite evidence ([ADR 0122](docs/adr/0122-ci-nao-roda-em-rascunho-e-promocao-nasce-rascunho.md)).
+A pull request cannot merge without the `checks` gate, so do not repeat the
+full suite locally when CI will run it on the same commit.
 
-| Change | Required local evidence |
-| --- | --- |
-| Markdown or agent instructions only | `npm run docs:check` and `git diff --check`; inspect the meaning and referenced paths too |
-| Application or configuration affecting its contracts | `npm run docs:check`, `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` |
-| Screen appearance, CSS or UI components | Above, plus `npm run design:check` and `npm run a11y:contrast` |
-| Schema or RPC contract | Above gates as applicable, plus `npm run migrations:check` and `npm run rpc:check`; follow the database validation procedure |
-| Skill scripts | Documentation checks plus verification of the changed scripts |
+| Change | Before each push (local) | Full-suite evidence |
+| --- | --- | --- |
+| Markdown or agent instructions only | `npm run docs:check` and `git diff --check`; inspect the meaning and referenced paths too | Same; no application suite |
+| Application code | `npm run docs:check`, `npm run typecheck`, `npx eslint <changed files>`, `npx vitest related --run <changed files>` | CI `checks` green on the final commit |
+| Build, routes, lazy imports, dependencies or Vite/TypeScript config | Above, plus `npm run build` and `npm run size-limit` | CI `checks` green on the final commit |
+| Screen appearance, CSS or UI components | Above, plus `npm run design:check` and `npm run a11y:contrast` | CI `checks` green on the final commit |
+| Schema or RPC contract | Above, plus `npm run migrations:check`, the local replay, `npm run rpc:check` and the affected `*.local-pg.test.ts` suites; follow the database validation procedure | CI `checks` green, which runs every SQL suite |
+| Skill scripts | Documentation checks plus verification of the changed scripts | Same |
+
+When no CI will run on the delivered commit (no pull request), run the full
+local gate once, on the final tree: `npm run docs:check`, `npm run lint`,
+`npm test` and `npm run build` (the build already type-checks), plus the rows
+above that apply. Run suites with a quiet reporter and keep only failures in
+context.
 
 Use focused checks during implementation. Keep successful results for unchanged
 code and environment; rerun affected checks after fixes or new evidence, not
@@ -199,8 +210,22 @@ unverified configuration as a proven result.
 
 After creating a pull request, monitor it ONLY until CI finishes for the pushed
 commit: stay subscribed, fix CI failures and push, and once every check
-completes green, report the green status, unsubscribe, and stop. Do NOT keep
-watching until merge, and do NOT schedule recurring check-ins
+completes green, report the green status, unsubscribe, and stop. Every push
+runs the whole CI, so push deliberately:
+
+- Push once per round: finish the change, or every fix from one CI failure or
+  one review round, pass the local row above, then push. Do not push to find
+  out whether CI passes.
+- On a red run, read every failed job first, reproduce only the failing check
+  locally, fix all of them and push once. If a failure looks unrelated to the
+  diff, re-run only the failed jobs once; if it fails again, treat it as real.
+  Never push an empty commit.
+- A draft pull request does not run CI. Mark it ready before waiting for
+  checks.
+- In the delivery, state which checks ran locally, which were left to CI, and
+  the CI result for the final commit.
+
+Do NOT keep watching until merge, and do NOT schedule recurring check-ins
 (send_later/hourly polling) — that burns credits silently. Full babysitting
 until merge is allowed only when the user explicitly asks to monitor, watch,
 babysit, or autofix the PR.

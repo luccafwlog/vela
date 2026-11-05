@@ -56,7 +56,7 @@ cinza, IBM Plex Sans).
   botões `ghost` em todas as telas de uma vez, sem reorganizar nenhuma.
 - As etapas 13 a 23 da campanha de 2026-10-07 deixam de ser executadas como
   prompts sequenciais; o trabalho restante é o
-  [plano de migração tela a tela](../plans/2026-10-13-identidade-visual-tela-a-tela.md).
+  [plano de migração tela a tela](../archive/plans/2026-10-13-identidade-visual-tela-a-tela.md).
   Os registros das etapas 00 a 12 continuam como histórico no plano arquivado.
 - Telas novas compõem as peças comuns; a revisão de aparência deixa de ser
   necessária, e a aprovação passa a cobrir só a organização.
@@ -127,7 +127,7 @@ sublinhado (inclusive nas famílias de página citadas na nota anterior), traço
 discreto para dado vazio, ícone de copiar e ação como botão com nome. A
 reorganização de cada tela (faixa de identidade, blocos, dado principal,
 colunas) continua passando pela aprovação, em lotes, conforme o
-[plano tela a tela](../plans/2026-10-13-identidade-visual-tela-a-tela.md).
+[plano tela a tela](../archive/plans/2026-10-13-identidade-visual-tela-a-tela.md).
 Documentos impressos ficam fora: seguem só as regras de impressão.
 
 ## Nota de 2026-10-14: tabela limpa e situação em texto
@@ -151,7 +151,7 @@ todo o sistema. A regra 9 passa a pedir, em linha de tabela, `Button` só com
 faixa do bloco e das janelas continuam com texto. Substitui, para as linhas de
 tabela, o item "ação como botão com nome" da passada única de 2026-10-13. Como
 a passada única, vale em todas as telas de uma vez, conforme o
-[plano tela a tela](../plans/2026-10-13-identidade-visual-tela-a-tela.md).
+[plano tela a tela](../archive/plans/2026-10-13-identidade-visual-tela-a-tela.md).
 
 Nota de 2026-10-19 (mesmo dia, depois da entrega do lote 5b): o responsável
 confirmou duas exceções que mantêm o texto em tabela — a ação cujo texto é a
@@ -160,3 +160,14 @@ e as ações dentro do painel da linha aberta, que são de bloco ou de formulár
 ("Reenviar CE e Taxas", "Adicionar atracação", Voltar e "Marcar como tratado"
 no formulário do Pix). A regra 9 de
 [identidade-visual.md](../identidade-visual.md#as-nove-regras) registra as duas.
+
+## Nota de 2026-11-05: plano tela a tela encerrado
+
+O responsável considerou concluída a migração tela a tela e mandou arquivar o
+[plano](../archive/plans/2026-10-13-identidade-visual-tela-a-tela.md): as 22
+telas foram entregues até 2026-10-20. O critério que o plano usava para
+terminar, a linha de base de `npm run design:check` sem famílias de CSS de
+página nem violações em TSX, deixa de ser meta: o que a linha de base ainda
+guarda fica como teto, que a catraca do CI impede de subir. A aprovação da
+organização de cada tela continua valendo para as mudanças novas, como diz a
+[identidade visual](../identidade-visual.md#como-uma-tela-muda).

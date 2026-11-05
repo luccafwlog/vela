@@ -32,6 +32,8 @@ export const queryKeys = {
   invoices: {
     all: () => ['invoices'] as const,
     list: (filters: unknown) => ['invoices', filters] as const,
+    /** Totais do recorte da lista (sem página): cai junto com `invoices.all()`. */
+    summary: (filters: unknown) => ['invoices', 'summary', filters] as const,
     detail: (id: number | null | undefined) => ['invoice-detail', id] as const,
     links: (blIds: string[]) => ['invoice-links', blIds.slice().sort().join(',')] as const,
     blSubtotal: (blId: string) => ['invoice-bl-subtotal', blId] as const,
