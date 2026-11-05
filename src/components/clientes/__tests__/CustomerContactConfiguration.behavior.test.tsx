@@ -88,6 +88,8 @@ describe('CustomerContactConfiguration (behavior)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Adicionar contato' }))
     const emailInputs = screen.getAllByPlaceholderText('email@empresa.com')
+    // O cartão novo nasce no fim da lista: o foco vai ao e-mail dele.
+    expect(document.activeElement).toBe(emailInputs[emailInputs.length - 1])
     await user.type(emailInputs[emailInputs.length - 1], 'novo@cliente.com')
     // Give the new contact a box so client-side validation passes and the
     // server-side duplicate is what fails.

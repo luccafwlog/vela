@@ -141,6 +141,9 @@ describe('PortalContactConfiguration', () => {
     // Preenche email do novo contato sem marcar caixas
     const emailInputs = screen.getAllByPlaceholderText('email@empresa.com')
     expect(emailInputs).toHaveLength(2)
+    // O cartão novo nasce no fim da lista: o foco vai ao e-mail dele, senão o
+    // clique parece não fazer nada com vários contatos na tela.
+    expect(document.activeElement).toBe(emailInputs[1])
     await user.type(emailInputs[1], 'novo@cliente.com')
 
     // Tenta salvar
