@@ -42,6 +42,13 @@ describe('Retorno Mercante', () => {
     ])
   })
 
+  it('lê o arquivo salvo com BOM UTF-8 pelo caminho do upload', () => {
+    const text = `\uFEFF${[m5('1226502020077'), c5('1226502020077', '122605363113416', 'CSC45640602Q00')].join('\n')}\n`
+    const parsed = parseRetornoMercanteBuffer(new TextEncoder().encode(text).buffer)
+    expect(parsed.retorno?.manifesto).toBe('1226502020077')
+    expect(parsed.rows).toEqual([{ rowNumber: 2, bl_id: 'CSC45640602Q00', ce_mercante: '122605363113416' }])
+  })
+
   it('aplica as regras da planilha: CE fora de 15 dígitos, B/L e CE repetidos e conhecimento de outro manifesto', () => {
     const parsed = parseRetornoMercanteBuffer(buffer([
       m5('1226502020077'),

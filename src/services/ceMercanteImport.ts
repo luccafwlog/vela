@@ -197,8 +197,12 @@ export async function parseCeMercanteFile(file: File): Promise<ParsedCeMercanteF
  * pelas mesmas regras da planilha; o Nº do Manifesto é o do M5.
  */
 export function parseRetornoMercanteBuffer(buffer: ArrayBuffer): ParsedCeMercanteFile {
-  // O retorno é ASCII; latin1 lê qualquer byte sem recusar o arquivo.
-  const retorno = parseRetornoMercanteText(new TextDecoder('latin1').decode(buffer))
+  // O retorno é ASCII; latin1 lê qualquer byte sem recusar o arquivo. Salvo
+  // com BOM UTF-8, o arquivo é lido como UTF-8, que descarta o BOM (em latin1
+  // ele viraria "ï»¿" e o M5 não seria achado).
+  const bytes = new Uint8Array(buffer)
+  const utf8Bom = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf
+  const retorno = parseRetornoMercanteText(new TextDecoder(utf8Bom ? 'utf-8' : 'latin1').decode(bytes))
   const mismatched: ParsedCeMercanteFile['rowErrors'] = retorno.entries
     .filter((entry) => entry.manifesto !== retorno.manifesto)
     .map((entry) => ({

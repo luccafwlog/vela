@@ -112,6 +112,22 @@ describe('collectVoyageManifestBatchRows', () => {
     expect(rows[0]).toMatchObject({ routeKey: 'CNTAC__BRVIX', batchIds: [], ceMaster: '25BR09999' })
   })
 
+  it('o Nº do espelho da natureza vence a cópia antiga do lote (migration 592)', () => {
+    // Lote de contêiner editado na antiga linha CNTR/BB com o Nº de carga solta.
+    const batch: VoyageImportBatch = {
+      id: 11, voyage_id: 14, cargo_mode: 'container', filename: 'bl.xlsx', uploaded_at: '2026-07-01T10:00:00Z',
+      status: 'completed', total_bls: 1, ce_master: '1226502044464',
+    }
+    const bls = [makeBl({ id: 'BL-001', batch_id: 11, ce_mercante: null })]
+
+    expect(collectVoyageManifestBatchRows({ voyageId: 14, batches: [batch], bls })[0].ceMaster).toBe('1226502044464')
+    const rows = collectVoyageManifestBatchRows({
+      voyageId: 14, batches: [batch], bls,
+      routeCeMasters: new Map([['14::CNTAC__BRVIX', '1226502020123'], ['14::CNTAC__BRVIX__BB', '1226502044464']]),
+    })
+    expect(rows[0]).toMatchObject({ routeKey: 'CNTAC__BRVIX', cargoMode: 'container', ceMaster: '1226502020123' })
+  })
+
   // Reunião de testes de 2026-10-26: omissão, Porto de Transbordo e destino final na própria rota.
   it('rota em transbordo diz o porto omitido, o Porto de Transbordo e o destino final', () => {
     const rows = collectVoyageManifestBatchRows({

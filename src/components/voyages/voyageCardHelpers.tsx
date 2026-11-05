@@ -294,7 +294,10 @@ export function collectVoyageManifestBatchRows({
       blCount: group.blCount,
       ceFilled: group.ceFilled,
       ceTotal: group.ceTotal,
-      ceMaster: group.ceMaster ?? (routeCeMasters?.get(buildVoyageRouteCeMasterKey(voyageId, group.pol, group.pod, group.cargoMode)) ?? null),
+      // O espelho por rota é separado por natureza (migration 592) e vem antes da
+      // cópia antiga gravada no lote: um lote editado na linha CNTR/BB podia
+      // guardar o Nº da outra natureza.
+      ceMaster: routeCeMasters?.get(buildVoyageRouteCeMasterKey(voyageId, group.pol, group.pod, group.cargoMode)) ?? group.ceMaster ?? null,
       sortDate: group.sortDate,
     }))
     .sort((left, right) => {
