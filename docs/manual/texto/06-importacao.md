@@ -142,11 +142,11 @@ O CE Mercante é o número de 15 algarismos do conhecimento eletrônico de cada 
 
 Cada planilha corresponde a um Manifesto Mercante, que é de uma rota (porto de embarque → porto de descarga). Os B/Ls precisam estar importados antes: o CE nunca cria B/L.
 
-No lugar da planilha, você pode usar o **arquivo de Retorno Mercante** (o `.TXT` que o Mercante devolve depois do manifesto, por exemplo `RETFWL0023006.TXT`). Ele já traz o Nº do Manifesto e o CE de cada B/L: escolha o arquivo e o número aparece sozinho, sem precisar digitar. O resto é igual ao da planilha. O retorno do manifesto de vazios não tem CE e é recusado.
+No lugar da planilha, você pode usar o **arquivo de Retorno Mercante** (o `.TXT` que o Mercante devolve depois do manifesto, por exemplo `RETFWL0023006.TXT`). Ele já traz o Nº do Manifesto e o CE de cada B/L: escolha o arquivo: o campo do número some e um aviso mostra o manifesto lido, sem precisar digitar. O resto é igual ao da planilha. O retorno do manifesto de vazios não tem CE e é recusado.
 
 ::: lado
 1. Em **B/Ls**, clique em **Importar** › **CE Mercante**.
-2. Em **Nº de Manifesto Mercante**, digite os 13 caracteres do manifesto. Com o Retorno Mercante, pule este passo: o número vem do arquivo.
+2. Em **Nº de Manifesto Mercante**, digite os 13 caracteres do manifesto. Com o Retorno Mercante, pule este passo: o campo some quando você escolhe o arquivo.
 3. Escolha a planilha, com as colunas **BL** e **CE MERCANTE**, ou o arquivo de Retorno Mercante (`.TXT`).
 4. Confira a prévia e clique em **Importar N CEs**.
 

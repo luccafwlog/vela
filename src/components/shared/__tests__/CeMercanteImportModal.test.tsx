@@ -447,7 +447,7 @@ it('B/L cancelado aparece como aviso na conferência e não impede a importaçã
   await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('CE Mercante atualizado em 1 B/L; 1 B/L cancelado não foi tocado.', 'success'))
 })
 
-it('Retorno Mercante: o Nº do Manifesto vem do arquivo, sem edição, e vai junto com a importação', async () => {
+it('Retorno Mercante: o campo do Nº some, o aviso mostra o número lido e ele vai junto com a importação', async () => {
   const row = { rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }
   mocks.parse.mockResolvedValue({ rows: [row], rowErrors: [], retorno: { manifesto: '1226502020077', pol: 'CNQIN', pod: 'BRVIX' } })
   mocks.preview.mockResolvedValue(cleanPreview)
@@ -457,9 +457,9 @@ it('Retorno Mercante: o Nº do Manifesto vem do arquivo, sem edição, e vai jun
   fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
     target: { files: [new File(['x'], 'RETFWL0023006.TXT')] },
   })
-  const numero = await screen.findByDisplayValue('1226502020077')
-  expect((numero as HTMLInputElement).readOnly).toBe(true)
-  expect(screen.getByText(/Lido do Retorno Mercante \(rota no Mercante CNQIN → BRVIX\)/)).toBeTruthy()
+  expect(await screen.findByText('Manifesto Mercante 1226502020077, lido do Retorno')).toBeTruthy()
+  expect(screen.getByText(/Rota no Mercante CNQIN → BRVIX/)).toBeTruthy()
+  expect(screen.queryByLabelText(/Nº de Manifesto Mercante/i)).toBeNull()
 
   fireEvent.click(screen.getByRole('button', { name: /^Importar/ }))
   await waitFor(() => expect(mocks.importRows).toHaveBeenCalledWith([row], expect.objectContaining({ manifestoNumero: '1226502020077' })))
@@ -470,10 +470,10 @@ it('trocar o Retorno por uma planilha limpa o Nº que veio do Retorno', async ()
   const { container } = render(<CeMercanteImportModal open onClose={vi.fn()} />)
   const input = container.querySelector('input[type="file"]') as HTMLInputElement
   fireEvent.change(input, { target: { files: [new File(['x'], 'RET.TXT')] } })
-  await screen.findByDisplayValue('1226502020077')
+  await screen.findByText('Manifesto Mercante 1226502020077, lido do Retorno')
 
   mocks.parse.mockResolvedValueOnce({ rows: [{ rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }], rowErrors: [] })
   fireEvent.change(input, { target: { files: [new File(['x'], 'ce.xlsx')] } })
   await waitFor(() => expect(screen.getByText('Informe o Nº de Manifesto Mercante para importar.')).toBeTruthy())
-  expect((screen.getByLabelText(/Nº de Manifesto Mercante/i) as HTMLInputElement).readOnly).toBe(false)
+  expect((screen.getByLabelText(/Nº de Manifesto Mercante/i) as HTMLInputElement).value).toBe('')
 })

@@ -315,21 +315,22 @@ export function CeMercanteImportModal({
     <Modal open={open} onClose={requestClose} title="Importar CE Mercante">
       <div className="app-import">
         <ImportSteps current={step} />
-        <Field
-          label="Nº de Manifesto Mercante"
-          required
-          hint={retorno
-            ? `Lido do Retorno Mercante (rota no Mercante ${retorno.pol} → ${retorno.pod}). Para outro número, escolha outro arquivo.`
-            : 'Na planilha, digite: 13 caracteres, letras ou dígitos (espaços e separadores são ignorados). No Retorno Mercante (.TXT), o número vem do arquivo. Cada importação é um manifesto: todos os B/Ls precisam ser da mesma rota (POL → POD) e da mesma natureza (contêiner ou carga solta). Outro número para B/L já vinculado move o B/L, com confirmação e motivo.'}
-        >
-          <Input
+        {/* Retorno Mercante: o Nº vem do arquivo e o campo não aparece; o aviso
+            abaixo da escolha do arquivo diz qual manifesto foi lido. */}
+        {retorno ? null : (
+          <Field
+            label="Nº de Manifesto Mercante"
             required
-            value={numeroManifesto}
-            readOnly={Boolean(retorno)}
-            onChange={(e) => { setNumeroManifesto(e.target.value); resetServerPreview() }}
-            placeholder="Ex.: 1226501860578"
-          />
-        </Field>
+            hint="Na planilha, digite: 13 caracteres, letras ou dígitos (espaços e separadores são ignorados). No Retorno Mercante (.TXT), o número vem do arquivo e este campo some. Cada importação é um manifesto: todos os B/Ls precisam ser da mesma rota (POL → POD) e da mesma natureza (contêiner ou carga solta). Outro número para B/L já vinculado move o B/L, com confirmação e motivo."
+          >
+            <Input
+              required
+              value={numeroManifesto}
+              onChange={(e) => { setNumeroManifesto(e.target.value); resetServerPreview() }}
+              placeholder="Ex.: 1226501860578"
+            />
+          </Field>
+        )}
 
         {initialVoyageId != null ? (
           <VoyageCombobox
@@ -360,6 +361,12 @@ export function CeMercanteImportModal({
         </ImportFileBlock>
 
         {parsing ? <ImportReadProgress progress={progress} /> : null}
+
+        {retorno ? (
+          <ImportNotice tone="info" title={`Manifesto Mercante ${retorno.manifesto}, lido do Retorno`}>
+            <p>Rota no Mercante {retorno.pol} → {retorno.pod}. Não é preciso digitar o número; para outro manifesto, escolha outro arquivo.</p>
+          </ImportNotice>
+        ) : null}
 
         {readError ? (
           <ImportNotice tone="danger" role="alert" title="Não foi possível ler o arquivo">

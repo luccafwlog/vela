@@ -1107,7 +1107,7 @@ viagem da agência; o nome "CE Master" foi descontinuado na tela.
 - **Carga (Retorno Mercante).** O mesmo **Importar CE Mercante** aceita, no
   lugar da planilha, o arquivo de Retorno que o Mercante devolve ao manifesto
   (`RETFWL….TXT`, pedido do dono de 2026-11-05): o Nº do Manifesto vem do
-  registro M5 (o campo fica preenchido e travado) e cada conhecimento (C5) vira
+  registro M5 (o campo do número some e um aviso mostra o manifesto lido e a rota do Mercante) e cada conhecimento (C5) vira
   uma linha B/L + CE. Prévia, conferência com o gravado, confirmação de troca,
   gravação tudo ou nada e emissão das faturas são as da planilha. O arquivo é
   de largura fixa (1226 posições nos retornos conferidos): M5 com o Nº em 6–18
