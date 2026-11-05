@@ -1,6 +1,6 @@
 # Manifestos & EDI
 
-> **Status:** ativo · **Atualizado:** 2026-10-27 · **Rotas:** `/bls`, `/bls/:blId`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios`, `/embarquevazios/depots`
+> **Status:** ativo · **Atualizado:** 2026-11-05 · **Rotas:** `/bls`, `/bls/:blId`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios`, `/embarquevazios/depots`
 
 ## Propósito e escopo
 
@@ -153,7 +153,7 @@ falha no próprio lugar. **Código:** `src/components/ui/CopyValue.tsx`;
 - Para listagens e reconciliação por nome, o consignatário curto termina na natureza jurídica (`LTDA`, `S.A.`, `EIRELI`, `EI`, `MEI`, `SLU`, `EPP`, `ME`, incluindo combinações); sem marcador reconhecido, usa a primeira linha não vazia. O bloco completo permanece intacto como dado documental e para auditoria.
 - Pela ADR 0025, `Laden on Board` persiste o ATD do POL. Entre os B/Ls ativos da mesma Viagem e POL prevalece automaticamente a data mais antiga; ATD corrigido à mão não é recalculado e a prévia avisa a divergência (regra em [Viagens](viagens.md#etd-e-atd-do-pol-manifesto-mercante-da-rota); ADR 0095, decisão 23; migration `401`). ETD e ATD permanecem distintos; telas sem coluna própria mostram ATD em verde na célula de ETD.
 - O Administrativo exclui B/Ls, individualmente ou em lote, com motivo e prévia do banco; B/L com CE Mercante não é excluído, e sim cancelado (ver [B/L Cancelado e exclusão](#bl-cancelado-e-exclusão)).
-- O Nº de Manifesto Mercante é gerenciado na tabela `manifestos_mercante`, por Viagem e rota, com vários manifestos por rota e a natureza `carga` ou `vazio` (`natureza`). A edição é feita na aba Rotas e Manifestos de `/viagens/:voyageId` (**Editar**, em toda rota, que abre ETD previsto + ATD POL e Nº de Manifesto Mercante; **Informar**, na coluna Nº de manifesto Mercante da rota ainda sem número; **Ver B/Ls**, na rota de carga com B/L; e **Gerar EDI Mercante**, na rota de contêiner e na linha VAZIOS ([EDI Mercante](#edi-mercante)); **Código:** `src/components/voyages/VoyageManifestosTab.tsx`) e, por B/L, na ficha; desde a migration `212` a API só lê o cadastro. Ver B/Ls da rota pagina a lista da Viagem (sem o teto de 1.000 linhas do PostgREST). Regras em [Manifesto Mercante](#manifesto-mercante).
+- O Nº de Manifesto Mercante é gerenciado na tabela `manifestos_mercante`, por Viagem, rota e natureza, com vários manifestos por rota: a natureza é `carga` ou `vazio` (`natureza`) e, na carga, contêiner ou carga solta (`cargo_mode`, migration `592`, [ADR 0123](../adr/0123-manifesto-mercante-separado-por-natureza.md)). A edição é feita na aba Rotas e Manifestos de `/viagens/:voyageId`, numa linha por rota e natureza (CNTR, BB e VAZIOS): **Editar**, em toda linha, que abre ETD previsto + ATD POL e Nº de Manifesto Mercante; **Informar**, na coluna Nº de manifesto Mercante da linha ainda sem número; **Ver B/Ls**, na linha de carga com B/L, que lista só os B/Ls daquela natureza; e **Gerar EDI Mercante**, na linha CNTR e na linha VAZIOS, e **Gerar EDI Mercante da carga solta**, na linha BB ([EDI Mercante](#edi-mercante)); **Código:** `src/components/voyages/VoyageManifestosTab.tsx`) e, por B/L, na ficha; desde a migration `212` a API só lê o cadastro. Ver B/Ls da rota pagina a lista da Viagem (sem o teto de 1.000 linhas do PostgREST). Regras em [Manifesto Mercante](#manifesto-mercante).
 
 ### Atualização após ações próprias
 
@@ -1068,6 +1068,30 @@ viagem da agência; o nome "CE Master" foi descontinuado na tela.
 - **Cadastro.** `manifestos_mercante` guarda o número (único), a Viagem, o par
   de portos e a natureza (`carga` ou `vazio`); uma rota pode ter vários
   Manifestos, e o B/L aponta para o seu por `bls.manifesto_mercante_id`.
+- **Natureza: contêiner ou carga solta** (migration `592`;
+  [ADR 0123](../adr/0123-manifesto-mercante-separado-por-natureza.md)). Todo
+  Manifesto de carga é só de contêiner ou só de carga solta
+  (`manifestos_mercante.cargo_mode`), mesmo quando as duas naturezas dividem a
+  rota; o B/L misto vai no de carga solta, inteiro. A natureza do Manifesto vem
+  dos B/Ls (`manifesto_cargo_mode_of_bl`) e o banco a confere em todas as
+  portas: a planilha de CE com B/L das duas naturezas é recusada inteira ("A
+  planilha tem B/Ls de contêiner e de carga solta…"), e o número da outra
+  natureza também ("O Manifesto Mercante N é de contêiner e os B/Ls da
+  planilha são de carga solta…"); **Mover** recusa a seleção com as duas
+  naturezas e o Manifesto da outra natureza ("O Manifesto Mercante N é de
+  contêiner (não de carga solta)…"); **Informar**/**Editar** grava o número
+  na natureza da linha; o vínculo direto de natureza trocada é recusado
+  (`guard_bl_manifesto_cargo_mode`, 22023). O B/L cuja natureza muda (o
+  contêiner que ganha carga solta e vira misto, o misto que perde a carga
+  solta) sai do Manifesto, com o Histórico "Desvínculo automático: o B/L
+  passou a ser de carga solta e o Manifesto Mercante é de contêiner.", e, com
+  CE, abre o Alerta "CE fora do Manifesto da rota". A reativação só devolve o
+  B/L ao Manifesto guardado se ele ainda é da natureza do B/L. Os Manifestos
+  gravados antes da `592` receberam a natureza dos B/Ls vinculados (sem B/L,
+  a dos B/Ls ativos da rota quando todos são de uma natureza; senão,
+  contêiner), e o espelho por rota passou o número de carga solta para a linha
+  `carga_solta`, com o valor anterior no Histórico da Viagem. **Teste:**
+  `src/integration/manifestoPorNatureza.local-pg.test.ts`.
   O botão **Informar** da aba Rotas e Manifestos da Viagem, a planilha de CE e
   as importações de vazios gravam no mesmo cadastro; desde a migration `212` a API
   só lê a tabela, e cadastro, troca e vínculo passam pelas RPCs. A ação
@@ -1130,7 +1154,10 @@ O arquivo que a agência envia ao Siscomex Mercante para manifestar a carga de
 importação de uma rota (POL → POD) é gerado pelo Vela desde a
 [ADR 0116](../adr/0116-edi-mercante-gerado-pelo-vela.md) (issue #560). O botão
 **Gerar EDI Mercante** fica na aba **Rotas e Manifestos** da Viagem, **só para a conta Dev** (marca Dev, `useAuth().isDev`; decisão do dono de 2026-11-03: os demais não veem os botões), na linha
-de contêiner (Carga **CNTR** ou **CNTR/BB**) e na linha **VAZIOS**; na Viagem
+de contêiner (Carga **CNTR**) e na linha **VAZIOS**; desde a migration `592`
+([ADR 0123](../adr/0123-manifesto-mercante-separado-por-natureza.md)) cada
+linha é de uma natureza só e gera só o arquivo dela, mesmo quando contêiner e
+carga solta dividem a rota; na Viagem
 cancelada fica desabilitado. A janela mostra a prévia, os **Impedimentos** e os
 **Avisos**, e **Baixar arquivo** só baixa o `.TXT`: nada é gravado e o envio
 ao Mercante continua fora do Vela. **Código:**
@@ -1205,7 +1232,7 @@ ao Mercante continua fora do Vela. **Código:**
   arquivo de contêiner e entra no de carga solta).
 - **Arquivo parcial de carga solta** ([ADR 0116](../adr/0116-edi-mercante-gerado-pelo-vela.md),
   item 8; decisão do dono de 2026-11-03). **Gerar EDI Mercante da carga
-  solta** (ícone de arquivo com lápis), nas linhas **BB** e **CNTR/BB**, gera um
+  solta** (ícone de arquivo com lápis), na linha **BB**, gera um
   arquivo com os B/Ls ativos de carga solta e mistos da rota: C5 com o que o
   Vela tem (o bloco das partes ou, no Manifesto BB e no B/L avulso, o nome
   curto; CNPJ; descrição; NCM; cubagem de contêiner + carga solta) e um I5 por
@@ -1227,7 +1254,8 @@ ao Mercante continua fora do Vela. **Código:**
   do M5: o da frente de carga solta do POD. O que falta (data de emissão,
   frete, Type of Movement, terminal…) sai em branco e aparece em **A completar**,
   por B/L e campo; nada disso impede o download. Só a rota sem B/L de carga
-  solta impede. A rota CNTR/BB gera os dois arquivos.
+  solta impede. A rota com as duas naturezas tem duas linhas, cada uma com o
+  seu arquivo.
 - **Nome do arquivo.** `FWL_MERCANTE_<AAAAMMDDHHMM>_<sigla>.TXT`, com a sigla
   das iniciais do navio e o número da viagem (GREEN GUANGZHOU V.6 → `GG6`).
 - **Fora desta fase.** Registro da geração no Histórico e retificação.

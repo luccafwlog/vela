@@ -311,7 +311,7 @@ describe('VoyageManifestosTab', () => {
     expect(html).toContain('title="POD omitido: BRVIX">BRVIX</s> (Omitida) → BRSSZ (Transbordo) → BRVIX (Destino Final)')
     expect(html).not.toContain('· Omissão')
     expect(html).toContain('A informar')
-    expect(html).toContain('aria-label="Informar Nº de Manifesto Mercante de TAICANG → VITORIA (Omitida) → SANTOS (Transbordo) → VITORIA (Destino Final)"')
+    expect(html).toContain('aria-label="Informar Nº de Manifesto Mercante de TAICANG → VITORIA (Omitida) → SANTOS (Transbordo) → VITORIA (Destino Final) (contêiner)"')
     expect(html).not.toContain('manifesto não informado')
     expect(html).not.toContain('Informe o CE Master pelo lápis desta linha')
   })
@@ -341,7 +341,7 @@ describe('VoyageManifestosTab', () => {
       </MemoryRouter>,
     )
 
-    const button = screen.getByRole('button', { name: 'Informar Nº de Manifesto Mercante de TAICANG → VITORIA' })
+    const button = screen.getByRole('button', { name: 'Informar Nº de Manifesto Mercante de TAICANG → VITORIA (contêiner)' })
     fireEvent.click(button)
 
     expect(onEditPol).toHaveBeenCalledTimes(1)
@@ -354,6 +354,7 @@ describe('VoyageManifestosTab', () => {
       atd: '2026-07-16',
       ceMaster: null,
       batchIds: [],
+      cargoMode: 'container',
     })
   })
 
@@ -388,7 +389,7 @@ describe('VoyageManifestosTab', () => {
     const link = screen.getByRole('link', { name: 'TAICANG → VITORIA' })
     expect(link.getAttribute('href')).toBe('/vazios-importacao?voyage=14&pod=BRVIX')
 
-    const button = screen.getByRole('button', { name: 'Informar Nº de Manifesto Mercante de TAICANG → VITORIA' })
+    const button = screen.getByRole('button', { name: 'Informar Nº de Manifesto Mercante de TAICANG → VITORIA (vazios)' })
     fireEvent.click(button)
 
     expect(onEditPol).toHaveBeenCalledWith({

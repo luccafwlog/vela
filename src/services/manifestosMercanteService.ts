@@ -9,6 +9,8 @@ export type ManifestoMercante = {
   pod: string
   numero: string
   natureza: ManifestoMercanteNatureza
+  /** Natureza do Manifesto de carga (migration 592); nulo nos vazios. */
+  cargo_mode?: 'container' | 'carga_solta' | null
   created_at: string
   updated_at?: string
 }
@@ -60,6 +62,7 @@ export type VoyageManifestoBl = {
   pol: string | null
   pod: string | null
   cancelled: boolean
+  cargoMode: string | null
   manifestoNumero: string | null
 }
 
@@ -67,14 +70,14 @@ export type VoyageManifestoBl = {
 export const VOYAGE_BLS_PAGE_SIZE = 1000
 
 export async function listVoyageBlsForManifesto(voyageId: number): Promise<VoyageManifestoBl[]> {
-  type Row = { id: string; pol: string | null; pod: string | null; cancelled_at?: string | null; manifesto: { numero: string } | null }
+  type Row = { id: string; pol: string | null; pod: string | null; cargo_mode?: string | null; cancelled_at?: string | null; manifesto: { numero: string } | null }
   // Viagem com mais B/Ls que uma página: sem paginar, a lista de Mover /
   // Desvincular perdia os B/Ls além do teto, sem aviso.
   const rows: Row[] = []
   for (let from = 0; ; from += VOYAGE_BLS_PAGE_SIZE) {
     const { data, error } = await supabase
       .from('bls')
-      .select('id, pol, pod, cancelled_at, manifesto:manifestos_mercante!bls_manifesto_mercante_id_fkey(numero)')
+      .select('id, pol, pod, cargo_mode, cancelled_at, manifesto:manifestos_mercante!bls_manifesto_mercante_id_fkey(numero)')
       .eq('voyage_id', voyageId)
       .order('id')
       .range(from, from + VOYAGE_BLS_PAGE_SIZE - 1)
@@ -88,6 +91,7 @@ export async function listVoyageBlsForManifesto(voyageId: number): Promise<Voyag
     pol: row.pol,
     pod: row.pod,
     cancelled: Boolean(row.cancelled_at),
+    cargoMode: row.cargo_mode ?? null,
     manifestoNumero: row.manifesto?.numero ?? null,
   }))
 }

@@ -122,6 +122,7 @@ A fatura emitida nunca é editada. Quando a correção muda o valor ou o Cliente
 | O mesmo, com pagamento e valor maior | Abre **Fatura desatualizada**. A diferença se cobra por fatura avulsa. | **Alertas** |
 | Inclui, altera ou tira carga de um B/L faturado | Devolve o B/L à Revisão como **Pendente**, com o motivo "Carga … após faturamento", até a fatura ser corrigida. | **Revisão** (capítulo 8) |
 | Muda o POL, o POD ou a Viagem do B/L | Tira o B/L do Manifesto Mercante. Se ele tem CE, abre **CE fora do Manifesto da rota** para a {{Documentação}}. | **Rotas e Manifestos**; **Alertas** |
+| O B/L de contêiner ganha carga solta (vira misto), ou o misto perde a carga solta | Tira o B/L do Manifesto Mercante da outra natureza, com o motivo no Histórico. Se ele tem CE, abre **CE fora do Manifesto da rota** para a {{Documentação}}. | **Rotas e Manifestos**; **Alertas** |
 
 ::: atencao
 - Se a nova fatura não pode sair (por exemplo, o Portal do Cliente está fechado), nada é cancelado: a fatura antiga continua valendo e abre **Fatura desatualizada** com o motivo. Resolvido o motivo, use **Tentar aplicar correção** no detalhe da fatura.
