@@ -32,7 +32,7 @@ database schema, consult the corresponding source below.
 | Terminology | [CONTEXT.md](CONTEXT.md) (glossary only) |
 | Business rule | The affected module from [docs/README.md](docs/README.md); cross-module rules in [regras-de-negocio.md](docs/operations/regras-de-negocio.md); the "why" in the linked ADR |
 | Screen, route or user action | [RASTREABILIDADE.md](docs/RASTREABILIDADE.md), then the linked implementation and module |
-| Appearance, layout or UI component | [Visual identity](docs/identidade-visual.md): nine rules, shared pieces and the screen-by-screen approval in its plan |
+| Appearance, layout or UI component | [Visual identity](docs/identidade-visual.md): nine rules, shared pieces and how a screen change is approved |
 | Shared code, imports or architecture | Relevant sections of [ARCHITECTURE.md](docs/ARCHITECTURE.md) and [ADR index](docs/adr/README.md) |
 | Authentication, permissions or customer data | [Security](docs/operations/seguranca.md), affected policies/RPCs and session contracts in [WORKFLOW.md](WORKFLOW.md) |
 | Schema, commands, environment, testing or deployment | Relevant procedure in [WORKFLOW.md](WORKFLOW.md); exact commands in [package.json](package.json) |

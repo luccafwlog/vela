@@ -718,7 +718,7 @@ Cada lote passa por:
 4. revisão do dono.
 
 Os e-mails e impressos ainda estão na migração visual (lote 6b do
-[plano de identidade visual](../../plans/2026-10-13-identidade-visual-tela-a-tela.md)).
+[plano de identidade visual](2026-10-13-identidade-visual-tela-a-tela.md)).
 As imagens de e-mail do capítulo 16 são feitas por último ou refeitas depois do
 lote 6b.
 

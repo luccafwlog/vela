@@ -137,7 +137,7 @@ cada uma deixa o heartbeat vermelho, abre alerta ou chega ao Sentry.
 - Trocar de provedor de e-mail ou mudar DNS, SPF, DKIM ou DMARC.
 - Criar tipos novos de Comunicado.
 - Redesenhar a tela de Comunicados além do que os itens abaixo pedem. A
-  aparência segue o [plano da identidade visual](../../plans/2026-10-13-identidade-visual-tela-a-tela.md).
+  aparência segue o [plano da identidade visual](2026-10-13-identidade-visual-tela-a-tela.md).
 - Ligar a chave de envio real. A Fase 6 só lista o que precisa estar pronto; a
   decisão de ligar é do responsável.
 
@@ -585,7 +585,7 @@ handlers com heartbeat (`failed > 0` faz o heartbeat chamar `/fail`).
    - Corrigir:
      - `clientes.md:140`;
      - `taxas-locais.md:198`;
-     - a linha do [plano da identidade visual](../../plans/2026-10-13-identidade-visual-tela-a-tela.md)
+     - a linha do [plano da identidade visual](2026-10-13-identidade-visual-tela-a-tela.md)
        que diz que o comunicado já está em Comunicação.
 2. **Disparo em lote** (CLI-01 · média) **[Código]**
    - Hoje o lote para no primeiro erro, perde a contagem de quem recebeu,

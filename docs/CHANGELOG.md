@@ -6,6 +6,12 @@
 
 ## 2026-11
 
+- **Plano da identidade visual encerrado (2026-11-05; decisão do dono):** a migração tela a tela terminou com as
+  22 telas entregues até 2026-10-20 (o lote 6b, de e-mails e impressos, entrou pela PR luccafwlog/vela#1001), e o
+  [plano](archive/plans/2026-10-13-identidade-visual-tela-a-tela.md) foi arquivado. Não serão feitos o "par
+  repetitivo do convite", a linha de base de `npm run design:check` zerada (ela fica como teto e só desce) e as
+  conferências anotadas como não verificadas nos lotes. As regras seguem na
+  [identidade visual](identidade-visual.md) e na [ADR 0081](adr/0081-identidade-visual-unica.md).
 - **CI não roda em rascunho, e a promoção nasce rascunho (2026-11-04, ADR 0122; pedido do dono):** PR em rascunho
   não roda o `ci.yml`; o CI começa em **Ready for review**. A PR `staging` → `main` nasce rascunho e o dono a marca
   pronta na hora de publicar, em vez de o CI conferir a staging a cada merge (~16 runs por dia contra ~3
@@ -1231,7 +1237,7 @@
   inteiro numa página (o que não cabe numa página repete o número do B/L na continuação) e o topo traz a quantidade de B/Ls e de contêineres, sem a lista; no ADR
   impresso o cabeçalho (Armador, Porto, Navio / Viagem, Terminal) se repete em cada página, as
   assinaturas ficam juntas e o Anexo começa em página nova com identificação (lote 6b,
-  [plano](plans/2026-10-13-identidade-visual-tela-a-tela.md)).
+  [plano](archive/plans/2026-10-13-identidade-visual-tela-a-tela.md)).
 - **ADR conta cada container uma vez (2026-10-20):** vazios descarregados e a contagem do Baplie passam a
   deduplicar por número de container, como a carga descarregada já fazia; o mesmo vazio em dois
   manifestos de Vazios de Importação ou repetido no Baplie contava duas vezes.
@@ -1242,7 +1248,7 @@
   Cobrança de Demurrage buscavam a logo em `/portal/branding/fwlog-logo-white.png`, que em
   produção responde com a página do Portal, e chegavam com a imagem quebrada; agora usam a origem
   do site, como os e-mails do Portal (achado A1 do lote 6b,
-  [plano](plans/2026-10-13-identidade-visual-tela-a-tela.md)).
+  [plano](archive/plans/2026-10-13-identidade-visual-tela-a-tela.md)).
 - **Programação de navios exige sessão válida (2026-10-20):** `portal_ship_schedule()` passou a
   recusar conta `authenticated` sem perfil interno ativo nem conta ativa do Portal (migration `337`,
   [ADR 0090](adr/0090-programacao-de-navios-so-com-sessao.md)); antes bastava qualquer login, e o
@@ -1461,7 +1467,7 @@
   ficam as falhas de escrita direta pela API confirmadas no Postgres local (itens P2, P3 e P15 do
   plano; P1 junto com o A7, depois do A21). A revisão da PR acrescentou a falha 5 (escrita direta
   do Administrativo em faturas, pagamentos e numeração, item P15) e as decisões D16 a D19.
-- **Documentos impressos (2026-10-14, PR 939, tela 20 do [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md)):**
+- **Documentos impressos (2026-10-14, PR 939, tela 20 do [plano tela a tela](archive/plans/2026-10-13-identidade-visual-tela-a-tela.md)):**
   visual das faturas, recibos e ADR mantido; a folha A4 ganha margem em todas as páginas e
   "Página N de M"; Invoice de Demurrage paga ou cancelada não mostra mais o Pix; a complementar diz
   de qual Invoice completa; o recibo da individual coberta diz que o valor entrou pela consolidada;
@@ -1498,7 +1504,7 @@
   do índice, ADR supersedida sem faixa, documento datado fora do arquivo e link para seção
   inexistente. Ficaram com o dono 25 decisões de negócio, 32 defeitos em que o código desobedece
   uma decisão registrada e 1 registro, no [plano vivo](archive/plans/2026-10-13-revisao-geral-documentacao.md).
-- **Lote 1 da identidade visual (2026-10-14, [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md)):**
+- **Lote 1 da identidade visual (2026-10-14, [plano tela a tela](archive/plans/2026-10-13-identidade-visual-tela-a-tela.md)):**
   Lista de BLs, ficha da Viagem, ficha do Cliente (com a aba nova Contêineres), Taxas Locais ·
   Faturas e Validação e Faturas do Portal em tabela limpa: uma linha de título, nada embaixo do
   valor, situação em texto, âmbar só no que pede ação, Paga com ✓ e consolidada com o ícone de
@@ -1522,7 +1528,7 @@
   Demurrage em toda tela; os rótulos do relatório (`agencyReportLabels.ts`) e a cotação
   (`demurrageRoe.ts`) viraram módulos próprios. O JavaScript inicial do Vela caiu de 249,51 para
   225,72 KiB (limite de 250 KiB); o Portal não mudou.
-- **Passada única da identidade visual (2026-10-13, [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md#passada-única-2026-10-13)):**
+- **Passada única da identidade visual (2026-10-13, [plano tela a tela](archive/plans/2026-10-13-identidade-visual-tela-a-tela.md#passada-única-2026-10-13)):**
   o que vale igual em qualquer tela foi aplicado de uma vez no Vela e no Portal: toda tabela segue
   a tabela padrão (centralizada, com nome, descrição e observação à esquerda); a tabela dentro de
   outra tabela tem cabeçalho claro; número de B/L, fatura, navio e Invoice não fica mais sublinhado
@@ -1537,7 +1543,7 @@
   no tema escuro a aba ativa ganha traço e a faixa de identidade, borda; e
   `design:check -- --update` passa a recusar número que subiu.
 - **Ficha do B/L na identidade visual (2026-10-13, tela 1 do
-  [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md)):** a ficha passa a seguir
+  [plano tela a tela](archive/plans/2026-10-13-identidade-visual-tela-a-tela.md)):** a ficha passa a seguir
   a ordem fixa da identidade: faixa azul-marinho com número, navio, trecho, CE e Cliente; a próxima
   ação em faixa própria, com "Resolver na Revisão" como botão; os trilhos Operacional e Documental
   em blocos; e a Visão geral em cinco blocos (Embarque, Documento Mercante, Cliente, Carga e
@@ -1557,7 +1563,7 @@
   `LeadValue`, `FactList`, `IdentityBand`, `NextAction`, `NoValue`) e `npm run design:check`, uma
   catraca no CI sobre cor solta, tamanho fora da escala, caixa alta e CSS de página. A campanha de
   2026-10-07 foi encerrada e arquivada; as telas migram pelo
-  [plano tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md), com aprovação de cada uma.
+  [plano tela a tela](archive/plans/2026-10-13-identidade-visual-tela-a-tela.md), com aprovação de cada uma.
 - **Autor da baixa no detalhe da fatura e na Ficha do Cliente (2026-10-13, migration `221`):**
   "Pagamentos registrados" do detalhe da fatura passa a mostrar quem registrou cada baixa e a
   referência bancária (antes só Observação, que ficava "—" quando a referência era o único
