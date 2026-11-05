@@ -1,5 +1,5 @@
-import { createClient } from "npm:@supabase/supabase-js@2.117.2";
-import * as XLSX from "npm:@e965/xlsx@0.20.3";
+import { createClient } from "@supabase/supabase-js";
+import * as XLSX from "@e965/xlsx";
 import { withCors } from "../_shared/cors.ts";
 import { zptRows } from "../../../src/services/ceUnlockRules.ts";
 const json = (body: unknown, status = 200) =>

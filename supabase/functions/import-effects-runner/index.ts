@@ -5,7 +5,7 @@
 // transação, a classificação de erro e a conclusão idempotente vivem em
 // `process_import_effect`.
 
-import { createClient } from 'npm:@supabase/supabase-js@2.117.2'
+import { createClient } from '@supabase/supabase-js'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { drainImportEffects } from './drain.ts'
 

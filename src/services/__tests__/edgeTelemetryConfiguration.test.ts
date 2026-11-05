@@ -30,6 +30,29 @@ describe('Edge telemetry configuration', () => {
     expect(deno.imports?.['@sentry/deno']).toMatch(/^npm:@sentry\/deno@\d+\.\d+\.\d+$/)
   })
 
+  // Plano dos reforços da auditoria run-3, ponto 1.1: toda dependência das
+  // funções tem nome lógico no import map, para o Dependabot (que só lê o
+  // deno.json) atualizá-la. Versão escrita no código ficaria parada.
+  it('resolves every Edge Function dependency through the import map', () => {
+    const functions = readdirSync('supabase/functions', { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith('_'))
+      .map((entry) => entry.name)
+    expect(functions.length).toBeGreaterThan(20)
+    for (const functionName of functions) {
+      expect(config, functionName).toContain(`[functions.${functionName}]\nverify_jwt = false\nimport_map = "./functions/deno.json"`)
+    }
+    const sources = readdirSync('supabase/functions', { recursive: true, encoding: 'utf8' })
+      .filter((file) => file.endsWith('.ts'))
+    expect(sources.length).toBeGreaterThan(50)
+    for (const file of sources) {
+      const text = readFileSync(`supabase/functions/${file}`, 'utf8')
+      expect(text, file).not.toMatch(/from\s+['"](npm:|jsr:|https:)/)
+    }
+    for (const [name, target] of Object.entries(deno.imports ?? {})) {
+      expect(target, name).toMatch(/^npm:(@[^/]+\/)?[^@]+@\d+\.\d+\.\d+$/)
+    }
+  })
+
   // A integração do Supabase só publica no merge a função declarada aqui;
   // admin-users ficou de fora e parou numa versão antiga em produção.
   it('declares every Edge Function of the repository in config.toml', () => {

@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@supabase/supabase-js@2.117.2'
+import { createClient } from '@supabase/supabase-js'
 import { runCronWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { processPortalEmailEvent } from '../_shared/portalEmailEventProcessor.ts'
 import { runPortalEmailEventsBatch } from '../_shared/portalEmailEventsRunner.ts'

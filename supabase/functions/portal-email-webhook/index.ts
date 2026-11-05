@@ -1,5 +1,5 @@
-import { createClient } from 'npm:@supabase/supabase-js@2.117.2'
-import { Webhook } from 'npm:svix@1.99.1'
+import { createClient } from '@supabase/supabase-js'
+import { Webhook } from 'svix'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { isBodyTooLarge, readBoundedText } from '../_shared/boundedBody.ts'
 

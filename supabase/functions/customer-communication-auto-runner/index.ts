@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@supabase/supabase-js@2.117.2'
+import { createClient } from '@supabase/supabase-js'
 import { runCronWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { runAutomaticCommunications } from '../_shared/customerCommunicationAutoRunner.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'

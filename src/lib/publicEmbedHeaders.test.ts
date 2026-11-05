@@ -133,4 +133,14 @@ describe('Pages Function /portal/publico/*', () => {
     expect(securityHeaders('https://abcd.supabase.co')['X-Frame-Options']).toBe('DENY')
     expect(securityHeaders('https://abcd.supabase.co')['Content-Security-Policy']).toContain("frame-ancestors 'none'")
   })
+
+  // Plano dos reforços da auditoria run-3, ponto 2: script só do próprio site
+  // e do Turnstile; o host compartilhado do PostHog fica só em connect-src.
+  it('keeps third-party script hosts out of script-src', () => {
+    for (const csp of [securityHeaders('https://abcd.supabase.co')['Content-Security-Policy'], publicEmbedSecurityHeaders('https://abcd.supabase.co')['Content-Security-Policy']]) {
+      const scriptSrc = csp.split('; ').find((directive) => directive.startsWith('script-src '))
+      expect(scriptSrc).toBe("script-src 'self' https://challenges.cloudflare.com")
+      expect(csp).toMatch(/connect-src [^;]*https:\/\/eu-assets\.i\.posthog\.com/)
+    }
+  })
 })

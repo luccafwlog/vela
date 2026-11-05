@@ -7,6 +7,28 @@ e as demais decisões da auditoria (migrations `419` a `439`).
 
 ## Estado
 
+**Encerrado em 2026-11-05 e arquivado.** Por decisão do dono, depois da
+revisão abaixo, foram feitos os passos pertinentes e o 2.3 fica de fora:
+
+- **1.1 e 1.3:** todas as dependências das funções têm nome lógico no import
+  map `supabase/functions/deno.json`, que todas as entradas de
+  `supabase/config.toml` declaram; o código importa só o nome. O CI faz o
+  `deno check` das 26 funções e roda os testes Deno delas num passo só, com o
+  lock das funções (`--frozen`); o `deno.lock` da raiz saiu. Os 25 erros de
+  tipo de `portal-login`, `portal-invite-activate` e `recalc-demurrage-ptax`
+  foram corrigidos sem mudar o comportamento. `edgeTelemetryConfiguration.test.ts`
+  falha se uma função ficar sem o import map ou importar com versão no código.
+- **2.1:** o `posthog-js` roda com `disable_external_dependency_loading`, e o
+  `script-src` deixou de listar `https://eu-assets.i.posthog.com` (fica só no
+  `connect-src`); `publicEmbedHeaders.test.ts` confere o novo `script-src`.
+- **2.2:** obsoleto (ver a revisão).
+- **2.3:** não será feito, por decisão do dono: o `style-src` mantém
+  `'unsafe-inline'`, de que a janela de impressão depende.
+
+Não verificado: o evento de teste chegando ao PostHog com a opção nova e a
+publicação das funções com o import map na integração do Supabase; os dois só
+aparecem depois do merge.
+
 Do ponto 1, o passo 2 foi feito em 2026-11-03 (ver "Andamento"); o resto
 continua pendente. A [revisão de 2026-11-05](#revisão-de-2026-11-05) confirmou
 que os passos que faltam continuam pertinentes, com dois ajustes de escopo: o
@@ -18,17 +40,17 @@ de exploração demonstrado; são defesa em profundidade.
 
 Varredura do código, do CI (`ci.yml`), do Dependabot e das decisões
 posteriores a 2026-10-23 (ADRs 0100 a 0122,
-[serviços externos](../operations/servicos-externos.md) e
-[segurança](../operations/seguranca.md#headers-http--csp)). Nenhuma decisão
+[serviços externos](../../operations/servicos-externos.md) e
+[segurança](../../operations/seguranca.md#headers-http--csp)). Nenhuma decisão
 posterior tornou um ponto obsoleto por inteiro: o PostHog continua em uso, e a
-[ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md)
+[ADR 0114](../../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md)
 acrescentou eventos das páginas públicas, que o fwlog.com.br põe em iframe e
 que usam a mesma CSP.
 
 | Passo | Situação | Evidência |
 |---|---|---|
 | 1.1 Import map | Pertinente, por outro motivo | O risco de cadeia de fornecimento que motivou o ponto foi resolvido em 2026-11-03: nenhum import vem do esm.sh, os quatro pacotes (`@supabase/supabase-js`, `svix`, `@e965/xlsx`, `@sentry/deno`) estão no `deno.lock` com versão exata, e a publicação confere o lock. O que sobra é a atualização: o Dependabot do Deno lê só o `deno.json` e o `deno.jsonc` (documentação do GitHub, "Supported ecosystems and repositories"), e o `deno.json` das funções só declara o `@sentry/deno`. As versões escritas direto no código, em cerca de 30 arquivos, não recebem atualização: as funções estão no `supabase-js` 2.117.2, e o frontend já está no 2.118.0. |
-| 1.2 Publicação respeita o lock | Feito em 2026-11-03 | [Serviços externos § Edge Functions](../operations/servicos-externos.md#edge-functions) diz como a publicação trata o lock. |
+| 1.2 Publicação respeita o lock | Feito em 2026-11-03 | [Serviços externos § Edge Functions](../../operations/servicos-externos.md#edge-functions) diz como a publicação trata o lock. |
 | 1.3 `deno check` de todas as funções | Pertinente | O CI confere 17 das 26 funções. Das 9 que ficam fora, 6 passam sem erro hoje (`alerts-detector`, `ce-unlock-document-download`, `ce-unlock-export`, `import-effects-runner`, `portal-account-suspend` e `portal-dispute-attachment`; `deno check` local com o lock das funções, `--frozen`). As outras 3 têm 25 erros de tipo: `portal-login` (6, `PortalDb`), `portal-invite-activate` (10 de "'invite' possibly null" e 2 de `EdgeRuntime`) e `recalc-demurrage-ptax` (7, tipo do cliente do Supabase). Pela leitura do código, nenhum é defeito de execução: o convite nulo já é barrado por `valid`, antes do uso. Como cada merge na `main` republica todas as funções, e mudança em `_shared/` chega a todas, uma função fora do CI pode quebrar sem aviso. |
 | 2.1 PostHog ainda baixa script | Respondido: baixa | O `posthog-js` 1.443.0 instalado insere, a cada carga, `<script src="https://eu-assets.i.posthog.com/array/<chave>/config.js">` (a configuração remota). Isso vale no Vela e no Portal, porque os dois recebem a chave. Com `disable_external_dependency_loading: true` em `createPostHogConfig` (`src/lib/featureFlags.ts`), a biblioteca não insere script nenhum e busca a mesma configuração em JSON (`/array/<chave>/config`), que o `connect-src` já permite. Leitura do código da biblioteca, não conferida no navegador. |
 | 2.2 Carregador pelo próprio domínio | Obsoleto | Com a opção acima não há script a servir: proxy reverso e cópia em `public/` deixam de ser necessários. |
@@ -71,13 +93,13 @@ deploy quando o esm.sh serviu outro build do `tslib` (log da branch staging,
 `workflow_run_logs`). Todas as funções passaram a importar o `supabase-js` por
 `npm:@supabase/supabase-js@2.117.2`; nenhum import vem mais do esm.sh, e o lock
 das funções cobre todas elas
-([serviços externos § Edge Functions](../operations/servicos-externos.md#edge-functions)).
+([serviços externos § Edge Functions](../../operations/servicos-externos.md#edge-functions)).
 Faltam o import map único (ponto 1, nome lógico por dependência) e o `deno
 check` de todas as funções no CI (ponto 3).
 
 **Pronto quando** toda função resolve dependências pelo import map e pelo
 lock, o CI confere todas com `--frozen`, e o manual de
-[serviços externos](../operations/servicos-externos.md) diz como a publicação
+[serviços externos](../../operations/servicos-externos.md) diz como a publicação
 trata o lock.
 
 ## 2. CSP sem o host compartilhado do PostHog

@@ -1,7 +1,7 @@
 // Consulta de container pública do fwlog.com.br (ADR 0114). Sem sessão:
 // Turnstile por consulta e limites por IP e globais no Upstash, fail-closed;
 // regras em ../_shared/publicFwlog.ts.
-import { createClient } from 'npm:@supabase/supabase-js@2.117.2'
+import { createClient } from '@supabase/supabase-js'
 import { handlePublicContainerLookup, runtimeDeps } from '../_shared/publicFwlog.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 

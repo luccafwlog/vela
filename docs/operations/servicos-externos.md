@@ -384,10 +384,15 @@ Em 2026-11-03 o esm.sh passou a servir ao empacotador outro build de
 merges das PRs 1189 e 1190 na `staging` não publicaram as funções; a 1190 também
 não publicou o frontend do staging, porque trazia a migration `575`. O motivo
 aparece em Logs da branch, fonte `workflow_run_logs` ("Integrity check failed for
-remote specifier"). Desde então as funções importam o `supabase-js` pelo npm
-(`npm:@supabase/supabase-js@2.117.2`), como o `svix` (2026-10-29): nenhum import
-vem do esm.sh, o lock guarda só a integridade dos pacotes npm, que não muda, e
-cobre todas as funções. Depois de
+remote specifier"). Desde então as funções importam o `supabase-js` pelo npm,
+como o `svix` (2026-10-29): nenhum import vem do esm.sh, o lock guarda só a
+integridade dos pacotes npm, que não muda, e cobre todas as funções. Desde
+2026-11-05 toda dependência tem nome lógico no import map
+`supabase/functions/deno.json` (uma versão exata por pacote), que todas as
+entradas de `supabase/config.toml` declaram; o código importa só o nome
+(`@supabase/supabase-js`), e o Dependabot (ecossistema `deno`, que só lê o
+`deno.json`) propõe as atualizações. O CI faz o `deno check` de todas as
+funções com esse lock (`--frozen`). Depois de
 cada merge, confira em Supabase → Edge Functions a data de atualização das
 funções alteradas, ou baixe o código publicado com `supabase functions download`
 e compare com o `main`. Se alguma não foi publicada:

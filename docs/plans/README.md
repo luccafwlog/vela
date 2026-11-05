@@ -10,8 +10,7 @@ verdade sobre o estado atual.
 
 ## Planos ativos
 
-
-- [2026-10-23 — Reforços adiados da auditoria de segurança run-3](2026-10-23-reforcos-adiados-da-auditoria-run-3.md) — rodada própria decidida pelo dono em 2026-10-22: dependências das Edge Functions fixadas pelo import map e pelo `deno.lock` (com o `deno check` do CI em todas as funções) e CSP sem o host compartilhado do PostHog em `script-src`. A publicação já confere o lock e nada vem mais do esm.sh (2026-11-03); a revisão de 2026-11-05 manteve como pertinentes o import map (para o Dependabot atualizar as dependências), o `deno check` das 9 funções fora do CI, a CSP sem o `eu-assets` (com uma opção do `posthog-js`) e, de ganho baixo, o `style-src` sem `unsafe-inline`.
+Nenhum plano ativo.
 
 
 Planos concluídos, encerrados ou superados ficam no [índice dos planos arquivados](../archive/plans/README.md). As notas de estado que este índice acumulou até 2026-10-13 estão no [registro histórico](../archive/reports/2026-10-14-estado-planos-vivos-ate-2026-10-13.md); as anteriores, no [registro de 2026-09-18](../archive/reports/2026-09-18-notas-historicas-indice-planos.md).

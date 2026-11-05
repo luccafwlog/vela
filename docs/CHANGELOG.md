@@ -6,6 +6,13 @@
 
 ## 2026-11
 
+- **Reforços da auditoria de segurança run-3 (2026-11-05; plano arquivado):** as Edge Functions importam toda
+  dependência pelo nome lógico do import map `supabase/functions/deno.json`, declarado por todas as funções em
+  `supabase/config.toml`, e o Dependabot passa a atualizá-las; o CI faz o `deno check` das 26 funções (antes 17),
+  com os erros de tipo de `portal-login`, `portal-invite-activate` e `recalc-demurrage-ptax` corrigidos sem mudar o
+  comportamento, e o `deno.lock` da raiz saiu. A CSP deixa de liberar `eu-assets.i.posthog.com` em `script-src`: o
+  `posthog-js` roda com `disable_external_dependency_loading` e lê a configuração em JSON. O `style-src` mantém
+  `'unsafe-inline'` por decisão do dono ([Segurança](operations/seguranca.md#headers-http--csp)).
 - **Plano da identidade visual encerrado (2026-11-05; decisão do dono):** a migração tela a tela terminou com as
   22 telas entregues até 2026-10-20 (o lote 6b, de e-mails e impressos, entrou pela PR luccafwlog/vela#1001), e o
   [plano](archive/plans/2026-10-13-identidade-visual-tela-a-tela.md) foi arquivado. Não serão feitos o "par
@@ -862,7 +869,7 @@
   administrador, sessão de 12 h na staging e nos previews. Preview não provisiona admin na
   staging; promoção `staging` → `main` no push, com o token no environment `staging-release`.
   Desconto integral segue com todos os setores (nota na ADR 0085). Fixar dependências das Edge
-  Functions e tirar o PostHog da CSP ficaram para a [rodada própria](plans/2026-10-23-reforcos-adiados-da-auditoria-run-3.md).
+  Functions e tirar o PostHog da CSP ficaram para a [rodada própria](archive/plans/2026-10-23-reforcos-adiados-da-auditoria-run-3.md).
 - **Reforços da auditoria de segurança run-3 (2026-10-22, notas de endurecimento):** migrations
   `419` a `432`. Banco: guardas de permissão antes das travas (baixa de 8 argumentos, rascunho do
   Desbloqueio de CE), rotinas só do sistema recusam outro chamador, Cliente desativado sai do Portal
