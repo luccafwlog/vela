@@ -58,6 +58,8 @@ export type DemurrageContainerRow = DemurrageContainerListItem & {
   box_share_count?: number
   /** Cobrança da caixa dispensada (migration 517): nem correndo nem a emitir. */
   waived?: boolean
+  /** B/L de veículo LCL (migration 593): free time de 30 dias e cobrança suspensa. */
+  lcl_vehicle?: boolean
 }
 
 type BilledItemRow = {

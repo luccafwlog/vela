@@ -8,6 +8,7 @@ import { readAllPages as readAll } from './demurragePages'
 import { indexBilledBoxes, type DemurrageBilledInvoiceRef, type DemurrageContainerRow } from './demurrageContainers'
 import { listDemurrageBillingBoard } from './demurrageBoard'
 import { containerFreeTimeDays, daysSince, effectiveDemurrage, freeTimeSource, FREE_TIME_SOURCE_LABELS } from './demurragePresentation'
+import { LCL_VEHICLE_FREE_DAYS } from './lclVehicle'
 
 /**
  * Containers dos B/Ls de um Cliente (aba Containers da ficha, lote 1 da
@@ -28,7 +29,7 @@ const SELECT = `
 
 export async function listCustomerContainers(customerId: number): Promise<DemurrageContainerRow[]> {
   await ensureDemurrageRatesLoaded()
-  const [containers, items, agreements, board, waivers] = await Promise.all([
+  const [containers, items, agreements, board, waivers, lclBls] = await Promise.all([
     readAll<DemurrageContainerRow & { bl: { customer_id: number | null; cancelled_at: string | null } | null }>((from, to) => supabase
       .from('bl_containers')
       .select(SELECT)
@@ -63,7 +64,18 @@ export async function listCustomerContainers(customerId: number): Promise<Demurr
       .is('revoked_at', null)
       .order('id')
       .range(from, to)),
+    // B/Ls de veículo LCL do Cliente (migration 593): a mesma regra de
+    // `_bl_is_lcl_vehicle` (container, com veículo, Movement To LCL ou CFS).
+    readAll<{ id: string }>((from, to) => supabase
+      .from('bls')
+      .select('id, vehicles!inner(bl_id)')
+      .eq('customer_id', customerId)
+      .eq('cargo_mode', 'container')
+      .or('movement_to.ilike.*LCL*,movement_to.ilike.*CFS*')
+      .order('id')
+      .range(from, to)),
   ])
+  const lclVehicleBls = new Set(lclBls.map((bl) => bl.id))
   const billed = indexBilledBoxes(items)
   const boxKey = (voyageId: number | null | undefined, number: string | null | undefined) => `${voyageId}|${(number ?? '').trim().toUpperCase()}`
   const shares = new Map<string, number>(board.flatMap((group) => group.boxes.map((box) =>
@@ -78,6 +90,7 @@ export async function listCustomerContainers(customerId: number): Promise<Demurr
       billed_in: key ? billed.get(key) ?? [] : [],
       box_share_count: shares.get(boxKey(row.bl?.voyage_id, row.container_number)) ?? 1,
       waived: waived.has(boxKey(row.bl?.voyage_id, row.container_number)),
+      lcl_vehicle: lclVehicleBls.has(row.bl_id),
     }
   })
 }
@@ -90,6 +103,8 @@ export type CustomerContainerDemurrage =
   | { kind: 'invoice'; invoice: DemurrageBilledInvoiceRef }
   /** Cobrança dispensada na Demurrage (ADR 0112, D24): fora de "correndo" e "a emitir". */
   | { kind: 'waived' }
+  /** Veículo LCL passado dos 30 dias (migration 593): cobrança suspensa, fora de "correndo" e "a emitir". */
+  | { kind: 'lcl_vehicle'; usd: number }
   | { kind: 'error'; message: string }
 
 export type CustomerContainerView = {
@@ -104,12 +119,14 @@ export type CustomerContainerView = {
 }
 
 /** O que a linha mostra: dias, free time e a coluna Demurrage em uma palavra. */
-export function customerContainerView(row: DemurrageContainerRow, today = saoPauloTodayIso()): CustomerContainerView {
-  const soc = row.ownership === 'SOC'
-  const days = row.discharge_date ? daysSince(row.discharge_date, row.return_date ?? today) : null
+export function customerContainerView(source: DemurrageContainerRow, today = saoPauloTodayIso()): CustomerContainerView {
+  const soc = source.ownership === 'SOC'
+  const days = source.discharge_date ? daysSince(source.discharge_date, source.return_date ?? today) : null
   if (soc) return { soc, days, freeTimeDays: null, freeTimeSourceLabel: null, overFreeTime: false, demurrage: { kind: 'soc' } }
+  // Veículo LCL (migration 593): 30 dias fixos no lugar do free time do B/L.
+  const row = source.lcl_vehicle && source.bl ? { ...source, bl: { ...source.bl, free_time_override: LCL_VEHICLE_FREE_DAYS } } : source
   const freeTimeDays = containerFreeTimeDays(row)
-  const freeTimeSourceLabel = freeTimeDays == null ? null : FREE_TIME_SOURCE_LABELS[freeTimeSource(row)]
+  const freeTimeSourceLabel = freeTimeDays == null ? null : FREE_TIME_SOURCE_LABELS[source.lcl_vehicle ? 'veiculo_lcl' : freeTimeSource(row)]
   const overFreeTime = days != null && freeTimeDays != null && days > freeTimeDays
   // A fatura viva que cobra a caixa vence o valor previsto; a mais recente primeiro.
   const invoice = [...(row.billed_in ?? [])].sort((left, right) => right.id - left.id)[0]
@@ -128,5 +145,6 @@ export function customerContainerView(row: DemurrageContainerRow, today = saoPau
     return { soc, days, freeTimeDays, freeTimeSourceLabel, overFreeTime, demurrage: { kind: 'error', message: error instanceof Error ? error.message : String(error) } }
   }
   if (usd <= 0) return { soc, days, freeTimeDays, freeTimeSourceLabel, overFreeTime, demurrage: { kind: 'none' } }
+  if (row.lcl_vehicle) return { soc, days, freeTimeDays, freeTimeSourceLabel, overFreeTime, demurrage: { kind: 'lcl_vehicle', usd } }
   return { soc, days, freeTimeDays, freeTimeSourceLabel, overFreeTime, demurrage: row.return_date ? { kind: 'to_bill', usd } : { kind: 'running', usd } }
 }

@@ -6,6 +6,14 @@
 
 ## 2026-11
 
+- **Veículo LCL na Demurrage (2026-11-05, migration `593`, ADR 0124; decisão do dono):** o B/L de veículo LCL
+  (container, com veículo, Movement To com LCL ou CFS) tem free time fixo de 30 dias, acima da condição do B/L, do
+  acordo e da tarifa, no cálculo, no status do container, na aba B/Ls do Portal e na Consulta de container. A
+  cobrança nasce suspensa: nenhuma emissão automática o cobra, e a aba Containers ganha a divisão **Veículo LCL**,
+  fora dos cartões em US$, de Por Cliente, da Exposição e dos Alertas, com **Gerar Invoice** (com confirmação) quando
+  tudo voltou. A Invoice emitida à mão segue como as outras; cancelar o B/L de veículo LCL não esbarra na Demurrage;
+  a condição do B/L recusa free time próprio. Fichas do B/L e do Cliente mostram "cobrança suspensa (veículo LCL)"
+  ([Demurrage § Veículo LCL](modules/demurrage.md#veículo-lcl)).
 - **Conferência dos CEs no Comunicado de CE e Taxas (2026-11-05; pedido do dono):** as duas versões do e-mail
   ("CE Mercante e Taxas Locais disponíveis" e "CE Mercante disponível") pedem, logo abaixo da lista de CEs, que o
   Cliente confira os CEs e avise importacao@fwlog.com.br de qualquer erro ou inconsistência

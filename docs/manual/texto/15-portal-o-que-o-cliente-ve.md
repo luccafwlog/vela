@@ -72,7 +72,7 @@ O valor de **Taxas locais** abre as faturas daquele B/L em **Faturas**. A coluna
 
 Só container descarregado conta como sem devolução: o que ainda está no navio fica fora do cartão **Containers sem devolução** do Painel e de **Com container sem devolução**. Na coluna **Devolução**, "N de M devolvidos" conta só os descarregados, e os que esperam a descarga aparecem à parte, como "1 sem descarga".
 
-A aba **Containers** mostra, para cada container, a **Descarga**, a **Devolução**, os **Dias de uso**, o **Free time**, os **Dias em demurrage** e a **Situação**.
+A aba **Containers** mostra, para cada container, a **Descarga**, a **Devolução**, os **Dias de uso**, o **Free time**, os **Dias em demurrage** e a **Situação**. O container de B/L de veículo LCL aparece com 30 dias de free time, e a Invoice de Demurrage dele só existe se alguém a gerar no Vela ([9.12](09-containers-e-demurrage.md#912-cobrar-a-demurrage-de-um-veículo-lcl)).
 
 Duas situações pedem explicação: **SOC (sem devolução)** é container do próprio Cliente, sem devolução nem Demurrage; **Tarifa indisponível** quer dizer que o Vela não achou o free time oficial do container.
 

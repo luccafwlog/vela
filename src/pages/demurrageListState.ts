@@ -3,9 +3,9 @@
 // Cliente, Alertas) abrem a Invoice por `?fatura=` e a Disputa por `?dispute=`.
 
 export type DemurrageTab = 'containers' | 'emitidas' | 'pagas' | 'canceladas' | 'clientes' | 'disputas'
-import { DEMURRAGE_DIVISIONS, type DemurrageDivision } from '../services/demurrage/demurrageDivisions'
+import { BOARD_DIVISIONS, type BoardDivision, type DemurrageDivision } from '../services/demurrage/demurrageDivisions'
 
-export type { DemurrageDivision }
+export type { BoardDivision, DemurrageDivision }
 
 const TAB_PARAM: Record<DemurrageTab, string> = {
   containers: 'containers',
@@ -21,8 +21,8 @@ const TAB_BY_PARAM = new Map(Object.entries(TAB_PARAM).map(([tab, param]) => [pa
 export type DemurrageListState = {
   tab: DemurrageTab
   search: string
-  /** Divisão da aba Containers (ADR 0112, D1); `?divisao=`. */
-  division: DemurrageDivision
+  /** Divisão da aba Containers (ADR 0112, D1; Veículo LCL, migration 593); `?divisao=`. */
+  division: BoardDivision
   invoiceId: number | null
   disputeId: number | null
 }
@@ -41,7 +41,7 @@ export function demurrageStateFromSearch(params: URLSearchParams): DemurrageList
     tab: requested ?? (disputeId ? 'disputas' : 'containers'),
     search: params.get('busca') ?? '',
     // O link antigo `?lente=atraso` (cabeçalho, ficha do Cliente) abre Correndo.
-    division: (DEMURRAGE_DIVISIONS as readonly string[]).includes(division ?? '') ? division as DemurrageDivision : 'correndo',
+    division: (BOARD_DIVISIONS as readonly string[]).includes(division ?? '') ? division as BoardDivision : 'correndo',
     invoiceId: positiveId(params.get('fatura')),
     disputeId,
   }

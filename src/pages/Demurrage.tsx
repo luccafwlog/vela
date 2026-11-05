@@ -10,7 +10,7 @@ import { Modal } from '../components/ui/Modal'
 import { TabButton } from '../components/ui/TabButton'
 import { TabList } from '../components/ui/TabList'
 import { useToast } from '../components/ui/Toast'
-import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
+import { useConfirm, useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { ImportNotice } from '../components/shared/ImportParts'
 import { ContainerDatesImportModal } from '../components/shared/ContainerDatesImportModal'
 import { CustomerReportModal } from '../components/demurrage/CustomerReportModal'
@@ -38,7 +38,7 @@ import { useDemurrageComplementOf } from '../hooks/useDemurrageComplementOf'
 import { useAuth } from '../hooks/useAuth'
 import { afterDatasContainerAlteradas, afterFaturaDemurrageAlterada } from '../services/cacheEffects'
 import { updateContainerDates, type DemurrageContainerRow } from '../services/demurrage/demurrageContainers'
-import { divisionTotals, listDemurrageBillingBoard, waiveDemurrageBox, type BoardBox, type BoardGroup, type DemurrageDivision } from '../services/demurrage/demurrageBoard'
+import { divisionTotals, listDemurrageBillingBoard, waiveDemurrageBox, type BoardBox, type BoardDivision, type BoardGroup } from '../services/demurrage/demurrageBoard'
 import {
   applyDemurrageDiscount,
   cancelDemurrageInvoice,
@@ -120,6 +120,7 @@ export function Demurrage() {
   const { effectiveRole, can } = useAuth()
   const { showToast } = useToast()
   const confirmWithReason = useConfirmWithReason()
+  const confirm = useConfirm()
   const [searchParams, setSearchParams] = useSearchParams()
   const state = demurrageStateFromSearch(searchParams)
   const { tab, search, division } = state
@@ -240,8 +241,8 @@ export function Demurrage() {
   }
   const selectTab = (next: DemurrageTab) => updateParams((params) => withDemurrageTab(params, next))
   const setSearch = (value: string) => updateParams((params) => withDemurrageParam(params, 'busca', value))
-  const setDivision = (value: DemurrageDivision) => updateParams((params) => withDemurrageParam(params, 'divisao', value))
-  const openDivision = (value: DemurrageDivision) => updateParams((params) => withDemurrageParam(withDemurrageTab(params, 'containers'), 'divisao', value))
+  const setDivision = (value: BoardDivision) => updateParams((params) => withDemurrageParam(params, 'divisao', value))
+  const openDivision = (value: BoardDivision) => updateParams((params) => withDemurrageParam(withDemurrageTab(params, 'containers'), 'divisao', value))
   const openInvoice = (invoiceId: number) => {
     setOpenedHere(invoiceId)
     updateParams((params) => withDemurrageParam(params, 'fatura', invoiceId))
@@ -324,6 +325,24 @@ export function Demurrage() {
     })
     if (reason === null) return
     waiveMutation.mutate({ box, reason })
+  }
+  // Veículo LCL (migration 593, ADR 0124): a cobrança nasce suspensa, e gerar a
+  // Invoice é a decisão de cobrar; pede confirmação antes.
+  async function handleGenerateInvoice(blId: string) {
+    const group = boardQuery.data?.find((item) => item.anchor_bl_id === blId)
+    if (group?.division === 'veiculo_lcl') {
+      const confirmed = await confirm({
+        title: 'Cobrar a Demurrage do veículo LCL',
+        message: `Gerar a Invoice de Demurrage do B/L ${blId}?`,
+        confirmLabel: 'Gerar Invoice',
+        consequence: 'A cobrança do veículo LCL está suspensa por padrão. A Invoice sai com 30 dias de free time, entra na Régua de Cobrança e aparece no Portal do Cliente.',
+        reversibility: 'Sem pagamento, a Invoice pode ser cancelada (Administrativo, Financeiro ou Equipamentos); o container volta para Veículo LCL.',
+      })
+      if (!confirmed) return
+    }
+    setGenerateError(null)
+    setGeneratingBl(blId)
+    generateMutation.mutate(blId)
   }
   const generateMutation = useMutation({
     mutationFn: (blId: string) => createInvoiceForBL(blId),
@@ -566,7 +585,7 @@ export function Demurrage() {
             onRetry={() => void boardQuery.refetch()}
             onSearchChange={setSearch}
             onDivisionChange={setDivision}
-            onGenerateInvoice={(blId) => { setGenerateError(null); setGeneratingBl(blId); generateMutation.mutate(blId) }}
+            onGenerateInvoice={(blId) => void handleGenerateInvoice(blId)}
             onEditContainer={(box, group) => { setDatesError(null); setEditingContainer(boxAsContainer(box, group)) }}
             onOpenInvoice={openInvoice}
             onWaiveBox={canIssue ? (box, group) => void handleWaiveBox(box, group) : undefined}

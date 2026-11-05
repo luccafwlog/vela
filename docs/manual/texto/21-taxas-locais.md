@@ -49,7 +49,7 @@ Quatro situações mudam a conta:
 
 ### Veículos
 
-O B/L só de container com veículo e **Movement To** com LCL ou CFS fica **Isento**: não paga taxa e o CE não emite fatura. Para pôr ou tirar a isenção, corrija o **Movement To** na ficha ([7.2](07-ficha-do-bl.md#72-corrigir-os-dados-do-bl)).
+O B/L só de container com veículo e **Movement To** com LCL ou CFS fica **Isento**: não paga taxa e o CE não emite fatura. Na Demurrage, o mesmo B/L tem 30 dias de free time e a cobrança suspensa ([9.12](09-containers-e-demurrage.md#912-cobrar-a-demurrage-de-um-veículo-lcl)). Para pôr ou tirar a isenção, corrija o **Movement To** na ficha ([7.2](07-ficha-do-bl.md#72-corrigir-os-dados-do-bl)).
 
 No exemplo, o CSC45810B01K00 é de carga solta e paga por tonelada as 38,5 toneladas do manifesto; o CSC45810A02K00, de baterias de lítio, paga o THD IMO se o container dele estiver marcado IMO.
 
