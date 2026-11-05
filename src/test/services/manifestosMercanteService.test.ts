@@ -105,7 +105,7 @@ describe('manifestosMercanteService', () => {
     expect(eqMock).toHaveBeenCalledWith('voyage_id', 10)
     expect(rangeMock.mock.calls).toEqual([[0, VOYAGE_BLS_PAGE_SIZE - 1], [VOYAGE_BLS_PAGE_SIZE, 2 * VOYAGE_BLS_PAGE_SIZE - 1]])
     expect(results).toHaveLength(VOYAGE_BLS_PAGE_SIZE + 1)
-    expect(results.at(-1)).toEqual({ id: bl(VOYAGE_BLS_PAGE_SIZE).id, pol: 'CNSHA', pod: 'BRVIX', cancelled: true, manifestoNumero: '1226501860578' })
+    expect(results.at(-1)).toEqual({ id: bl(VOYAGE_BLS_PAGE_SIZE).id, pol: 'CNSHA', pod: 'BRVIX', cancelled: true, cargoMode: null, manifestoNumero: '1226501860578' })
   })
 
   it('reconhece a recusa por estado visto na tela (migration 209)', () => {

@@ -1,5 +1,6 @@
 import {
   buildVoyagePolEntityId,
+  buildVoyageRouteCeMasterKey,
   getVoyagePodCeStatusLabel,
   type VoyagePodCeStatus,
 } from '../../services/voyageRouteSchedules'
@@ -8,17 +9,32 @@ import { normalizePortCode } from '../../services/portCode'
 import { collectVoyagePorts, type VoyageBl } from '../../services/voyageSummaries'
 import type { ManifestoMercante } from '../../services/manifestosMercanteService'
 
-type ManifestRouteRef = { pol: string; pod: string; isVazios: boolean; ceMaster: string | null }
+type ManifestRouteRef = { pol: string; pod: string; isVazios: boolean; ceMaster: string | null; cargoMode?: ManifestRowCargoMode }
+
+/** Natureza da linha de Rotas e Manifestos: cada uma tem os seus Manifestos Mercante. */
+export type ManifestRowCargoMode = 'container' | 'carga_solta' | 'vazios'
+
+/**
+ * Natureza do Manifesto Mercante de um B/L (migration 592): o B/L misto vai no
+ * Manifesto de carga solta, como no EDI Mercante (ADR 0116, item 8).
+ */
+export function manifestoCargoModeOfBl(cargoMode: string | null | undefined): 'container' | 'carga_solta' {
+  return cargoMode === 'carga_solta' || cargoMode === 'misto' ? 'carga_solta' : 'container'
+}
 
 // A rota de vazios compartilha POL/POD com a de carga (ex.: Taicang -> Vitória),
 // mas o manifesto Mercante é outro: casar só por POL/POD exibia o número da carga.
+// Desde a migration 592, contêiner e carga solta da mesma rota também têm
+// Manifestos próprios: cada linha mostra só os da sua natureza.
 export function manifestosOfRoute(row: ManifestRouteRef, manifestos: ManifestoMercante[] | undefined) {
   const natureza = row.isVazios ? 'vazio' : 'carga'
+  const cargoMode = row.isVazios ? null : (row.cargoMode === 'carga_solta' ? 'carga_solta' : 'container')
   const pol = normalizePortCode(row.pol) ?? row.pol
   const pod = normalizePortCode(row.pod) ?? row.pod
   return (manifestos ?? []).filter((m) =>
     (normalizePortCode(m.pol) ?? m.pol) === pol &&
-    (normalizePortCode(m.pod) ?? m.pod) === pod && m.natureza === natureza,
+    (normalizePortCode(m.pod) ?? m.pod) === pod && m.natureza === natureza &&
+    (cargoMode === null || (m.cargo_mode ?? 'container') === cargoMode),
   )
 }
 
@@ -139,7 +155,7 @@ export function collectVoyageManifestBatchRows({
     ceMaster: string | null
     blIds: Set<string>
     sortDate: number
-    cargoMode?: 'container' | 'vazios' | 'carga_solta'
+    cargoMode: ManifestRowCargoMode
     isVazios?: boolean
   }
 
@@ -149,10 +165,13 @@ export function collectVoyageManifestBatchRows({
     return normalizePortCode(value) ?? (String(value ?? '').trim().toUpperCase() || '-')
   }
 
-  function getGroup(polValue: string | null | undefined, podValue: string | null | undefined) {
+  // Uma linha por rota e natureza (migration 592): contêiner e carga solta da
+  // mesma rota têm Manifestos e EDI próprios. A chave da linha de contêiner
+  // continua `POL__POD`; a de carga solta ganha `__BB`.
+  function getGroup(polValue: string | null | undefined, podValue: string | null | undefined, cargoMode: 'container' | 'carga_solta') {
     const pol = normalizeManifestPort(polValue)
     const pod = normalizeManifestPort(podValue)
-    const routeKey = `${pol}__${pod}`
+    const routeKey = cargoMode === 'carga_solta' ? `${pol}__${pod}__BB` : `${pol}__${pod}`
     const existing = groups.get(routeKey)
     if (existing) return existing
 
@@ -173,6 +192,7 @@ export function collectVoyageManifestBatchRows({
       ceMaster: null,
       blIds: new Set(),
       sortDate: Number.POSITIVE_INFINITY,
+      cargoMode,
     }
 
     groups.set(routeKey, group)
@@ -180,6 +200,9 @@ export function collectVoyageManifestBatchRows({
   }
 
   function attachBatchMetadata(group: ManifestGroup, batch: VoyageImportBatch) {
+    // O arquivo de outra natureza (o B/L de contêiner que virou misto) não dá
+    // o Nº nem recebe o Nº desta linha.
+    if (batch.cargo_mode && batch.cargo_mode !== group.cargoMode) return
     if (!group.batchIds.includes(batch.id)) {
       group.batchIds.push(batch.id)
     }
@@ -205,7 +228,7 @@ export function collectVoyageManifestBatchRows({
   }
 
   for (const bl of bls ?? []) {
-    const group = getGroup(bl.pol, bl.pod)
+    const group = getGroup(bl.pol, bl.pod, manifestoCargoModeOfBl(bl.cargo_mode))
     group.blIds.add(bl.id)
     group.blCount += 1
     group.ceTotal += 1
@@ -260,13 +283,8 @@ export function collectVoyageManifestBatchRows({
           .join(' → ')
       })(),
       omission: findRouteOmission(group.pod, group.blIds),
-      modeLabel: group.isVazios
-        ? 'VAZIOS'
-        : (group.modes.has('container') || group.modes.has('misto')) && (group.modes.has('carga_solta') || group.modes.has('misto'))
-          ? 'CNTR/BB'
-          : group.modes.has('carga_solta') || group.modes.has('misto')
-            ? 'BB'
-            : 'CNTR',
+      modeLabel: group.isVazios ? 'VAZIOS' : group.cargoMode === 'carga_solta' ? 'BB' : 'CNTR',
+      hasMisto: group.modes.has('misto'),
       cargoMode: group.cargoMode,
       containerCount: group.containerCount,
       isVazios: group.isVazios ?? false,
@@ -276,7 +294,10 @@ export function collectVoyageManifestBatchRows({
       blCount: group.blCount,
       ceFilled: group.ceFilled,
       ceTotal: group.ceTotal,
-      ceMaster: group.ceMaster ?? (group.isVazios ? (routeCeMasters?.get(`${voyageId}::${group.pol}__${group.pod}__VAZIOS`) ?? null) : (routeCeMasters?.get(`${voyageId}::${group.routeKey}`) ?? null)),
+      // O espelho por rota é separado por natureza (migration 592) e vem antes da
+      // cópia antiga gravada no lote: um lote editado na linha CNTR/BB podia
+      // guardar o Nº da outra natureza.
+      ceMaster: routeCeMasters?.get(buildVoyageRouteCeMasterKey(voyageId, group.pol, group.pod, group.cargoMode)) ?? group.ceMaster ?? null,
       sortDate: group.sortDate,
     }))
     .sort((left, right) => {

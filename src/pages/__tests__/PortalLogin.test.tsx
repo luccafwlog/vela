@@ -140,3 +140,20 @@ it('exibe o aviso quando a revogacao remota falha depois que a tela de login ja 
   )
   expect(screen.queryByText(/A revogação no servidor não pôde ser confirmada/)).toBeNull()
 })
+
+// Decisão do dono de 2026-11-05: quem ainda não tem conta pede acesso pelo
+// formulário do site, numa aba nova para não perder o login; o suporte continua.
+it('"Solicitar acesso" abre o formulário do site em outra aba e o suporte segue no rodapé', () => {
+  render(
+    <MemoryRouter>
+      <PortalLogin />
+    </MemoryRouter>,
+  )
+
+  const cta = screen.getByRole('link', { name: /^Solicitar acesso/ })
+  expect(cta.getAttribute('href')).toBe('https://fwlog.com.br/portal-do-cliente/#solicitar-acesso')
+  expect(cta.getAttribute('target')).toBe('_blank')
+  expect(cta.getAttribute('rel')).toBe('noopener noreferrer')
+  expect(cta.className).toContain('app-btn--secondary')
+  expect(screen.getByRole('link', { name: 'Fale com o suporte' }).getAttribute('href')).toBe('mailto:suporte@portalfwlog.com.br')
+})

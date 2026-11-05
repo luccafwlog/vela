@@ -145,10 +145,10 @@ Para corrigir navio, IMO ou número, clique em **Editar** na ficha.
 
 **Quem faz:** {{Qualquer equipe}}
 
-A aba **Rotas e Manifestos** organiza os B/Ls da Viagem por rota, do porto de embarque (POL) ao de descarga (POD). Cada rota tem duas informações que não estão na escala:
+A aba **Rotas e Manifestos** organiza os B/Ls da Viagem por rota, do porto de embarque (POL) ao de descarga (POD), e por natureza da carga: contêiner (**CNTR**), carga solta (**BB**) e vazios (**VAZIOS**). Uma rota com contêiner e carga solta tem duas linhas, porque cada natureza tem o seu Manifesto Mercante. O B/L misto, com contêiner e carga solta, fica na linha **BB**. Cada linha tem duas informações que não estão na escala:
 
 - o **ATD do POL**, a data em que o navio saiu do porto de embarque. O Vela calcula sozinho pela data de embarque dos B/Ls;
-- o **Nº de Manifesto Mercante**, os 13 caracteres do manifesto daquela rota. Enquanto falta, a rota mostra "A informar".
+- o **Nº de Manifesto Mercante**, os 13 caracteres do manifesto daquela rota e natureza. Enquanto falta, a linha mostra "A informar". Um número já usado no manifesto da outra natureza é recusado, com a natureza dele ("O Manifesto Mercante … é de carga solta (não de contêiner)…").
 
 ::: tela rotas-manifestos
 Cada rota com o lápis (rota com número) ou Informar Nº de Manifesto Mercante (rota sem número).
@@ -160,7 +160,7 @@ Cada rota com o lápis (rota com número) ou Informar Nº de Manifesto Mercante 
 
 O ATD que você digita vale mais que o calculado, e nenhuma importação o muda depois. Para voltar ao calculado, apague a data.
 
-Para tirar B/Ls de um manifesto ou passá-los para outro, use **Ver B/Ls** na rota: marque os B/Ls, escolha **Mover** ou **Desvincular** e escreva o motivo.
+Para tirar B/Ls de um manifesto ou passá-los para outro, use **Ver B/Ls** na linha: ela lista os B/Ls da rota daquela natureza. Marque os B/Ls, escolha **Mover** ou **Desvincular** e escreva o motivo. B/L de contêiner não entra em manifesto de carga solta, nem o contrário.
 
 ## 4.7 Quando o armador omite uma escala
 

@@ -204,6 +204,8 @@ function DemurrageCell({ view }: { view: CustomerContainerView }) {
   if (d.kind === 'none') return <NoValue label="Sem Demurrage" />
   if (d.kind === 'error') return <span className="app-status-text app-status-text--muted" title={d.message}>Sem tarifa</span>
   if (d.kind === 'waived') return <StatusText tone="muted">Cobrança dispensada</StatusText>
+  // Veículo LCL (migration 593): o valor se for cobrado, sem entrar no total em aberto.
+  if (d.kind === 'lcl_vehicle') return <><span className="tabular-nums">{fmtUSD(d.usd)}</span>{' '}<StatusText tone="muted">cobrança suspensa (veículo LCL)</StatusText></>
   if (d.kind === 'invoice') {
     const status = INVOICE_STATUS_TEXT[d.invoice.status] ?? d.invoice.status
     return (

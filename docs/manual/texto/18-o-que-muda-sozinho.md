@@ -99,7 +99,7 @@ O Cliente é quem vê o B/L no Portal e quem recebe a fatura. Mudar o Cliente le
 | Importa B/Ls | Vincula o Cliente pelo CNPJ, aplica as marcas do Baplie (se ele já foi importado), calcula as Taxas Locais provisórias e põe na Revisão o B/L com pendência. | Ficha do B/L; **Revisão** |
 | | Recalcula a saída do porto de origem, pelo menor **Laden on Board**, e o status **B/Ls e CEs** de cada escala. | **Rotas e Manifestos**; ficha da Viagem |
 | Importa o Baplie | Aplica as marcas IMO, OOG e SOC/COC aos containers dos B/Ls e recalcula as Taxas Locais dos que não têm fatura; nos faturados, a fatura segue a correção ([18.6](#186-corrigir-um-bl)). Fecha o alerta **Baplie ausente**. | **Baplie EDI**; **Alertas** |
-| Importa veículos | Recalcula as Taxas Locais de cada B/L sem fatura. Se um B/L ficou isento, cancela em até um minuto as faturas dele sem pagamento. | **Taxas Locais** |
+| Importa veículos | Recalcula as Taxas Locais de cada B/L sem fatura. Se um B/L ficou isento, cancela em até um minuto as faturas dele sem pagamento. O B/L que passa a ser de veículo LCL ganha 30 dias de free time e a cobrança da Demurrage suspensa na hora ([9.12](09-containers-e-demurrage.md#912-cobrar-a-demurrage-de-um-veículo-lcl)). | **Taxas Locais**; **Demurrage** |
 | Importa o CE | Veja [18.1](#181-vincular-o-ce-ao-bl). | |
 
 O B/L importado ainda não aparece ao Cliente: ele só chega ao Portal com o CE.
@@ -122,6 +122,7 @@ A fatura emitida nunca é editada. Quando a correção muda o valor ou o Cliente
 | O mesmo, com pagamento e valor maior | Abre **Fatura desatualizada**. A diferença se cobra por fatura avulsa. | **Alertas** |
 | Inclui, altera ou tira carga de um B/L faturado | Devolve o B/L à Revisão como **Pendente**, com o motivo "Carga … após faturamento", até a fatura ser corrigida. | **Revisão** (capítulo 8) |
 | Muda o POL, o POD ou a Viagem do B/L | Tira o B/L do Manifesto Mercante. Se ele tem CE, abre **CE fora do Manifesto da rota** para a {{Documentação}}. | **Rotas e Manifestos**; **Alertas** |
+| O B/L de contêiner ganha carga solta (vira misto), ou o misto perde a carga solta | Tira o B/L do Manifesto Mercante da outra natureza, com o motivo no Histórico. Se ele tem CE, abre **CE fora do Manifesto da rota** para a {{Documentação}}. | **Rotas e Manifestos**; **Alertas** |
 
 ::: atencao
 - Se a nova fatura não pode sair (por exemplo, o Portal do Cliente está fechado), nada é cancelado: a fatura antiga continua valendo e abre **Fatura desatualizada** com o motivo. Resolvido o motivo, use **Tentar aplicar correção** no detalhe da fatura.
@@ -155,7 +156,7 @@ A descarga e a devolução são do container físico, e é por elas que corre a 
 |---|---|---|
 | Grava a descarga ou a devolução | Leva a mesma data a todos os B/Ls ativos da Viagem que dividem o container. | Ficha de cada B/L |
 | | Recalcula a situação de Demurrage (**No free time**, **Em atraso** ou **Devolvido**) e a divisão do grupo na página **Demurrage** ([9.5](09-containers-e-demurrage.md#95-acompanhar-a-demurrage-dos-containers)). | **Demurrage**; aba Carga do B/L |
-| Grava a última devolução de um grupo (os B/Ls do mesmo Cliente na Viagem que dividem containers) | Se algum container passou do free time, emite sozinho a Invoice de Demurrage do grupo, em cerca de um minuto. Sem CE ou sem Portal pronto (nem Liberação), o grupo fica em **Travado** e a Invoice sai sozinha quando o CE chega, o Portal é ativado ou a Liberação é concedida. O Cliente é avisado e a Régua de Cobrança começa ([19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio)). | **Demurrage**; Portal: "Nova fatura de demurrage" |
+| Grava a última devolução de um grupo (os B/Ls do mesmo Cliente na Viagem que dividem containers) | Se algum container passou do free time, emite sozinho a Invoice de Demurrage do grupo, em cerca de um minuto, menos a do veículo LCL, que espera o **Gerar Invoice** na divisão **Veículo LCL** ([9.12](09-containers-e-demurrage.md#912-cobrar-a-demurrage-de-um-veículo-lcl)). Sem CE ou sem Portal pronto (nem Liberação), o grupo fica em **Travado** e a Invoice sai sozinha quando o CE chega, o Portal é ativado ou a Liberação é concedida. O Cliente é avisado e a Régua de Cobrança começa ([19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio)). | **Demurrage**; Portal: "Nova fatura de demurrage" |
 | Muda o free time de um grupo já devolvido (condição do B/L, acordo, tarifa ou cadastro de tipos) ou desfaz uma dispensa | Se o grupo passa a ter Demurrage a cobrar, emite a Invoice sozinho, em até 15 minutos. | **Demurrage**; Portal: "Nova fatura de demurrage" |
 | Muda a data de um container já cobrado, sem pagamento, desconto ou Disputa | Cancela a Invoice e a reemite com as datas novas. | **Demurrage** |
 | Passa a SOC um container já cobrado, na ficha ou pelo Baplie | Cancela a Invoice e a reemite sem ele. | **Demurrage** |

@@ -11,7 +11,6 @@ import { StatusText } from '../ui/StatusText'
 import { NoValue } from '../ui/NoValue'
 import { formatCountLabel, formatDate } from '../../lib/utils'
 import type { VoyagePolSchedule } from '../../services/voyageRouteSchedules'
-import { normalizePortCode } from '../../services/portCode'
 import { collectVoyageManifestBatchRows, countRouteManifestNumbers, formatPolDeparture, manifestosOfRoute, OMISSION_ROUTE_ROLE_LABELS, omissionRouteParts, type VoyageImportBatch } from './voyageCardHelpers'
 import type { EditingPolPayload, Voyage } from './voyageCardTypes'
 
@@ -44,17 +43,9 @@ export function VoyageManifestosTab({
   onEditPol: (payload: EditingPolPayload) => void
 }) {
   const { data: transshipmentData } = useVoyageTransshipments(voyage.id)
-  const [blsRoute, setBlsRoute] = useState<{ pol: string; pod: string; label: string } | null>(null)
+  const [blsRoute, setBlsRoute] = useState<{ pol: string; pod: string; label: string; cargoMode: 'container' | 'carga_solta' } | null>(null)
   const [ediRoute, setEdiRoute] = useState<MercanteEdiRoute | null>(null)
   const { data: dbManifestos } = useManifestosMercanteByVoyage(voyage.id)
-  // Rotas com B/L de contêiner (não misto): só elas têm o arquivo de contêiner. A
-  // rota CNTR/BB só com B/L misto mostraria um botão que sempre impede.
-  const routePort = (value: string | null | undefined) => normalizePortCode(value) ?? (String(value ?? '').trim().toUpperCase() || '-')
-  const containerRoutes = new Set(
-    (voyage.bls ?? [])
-      .filter((bl) => bl.cargo_mode === 'container')
-      .map((bl) => `${routePort(bl.pol)}__${routePort(bl.pod)}`),
-  )
   const manifestRows = collectVoyageManifestBatchRows({
     voyageId: voyage.id,
     batches: importBatches,
@@ -66,10 +57,11 @@ export function VoyageManifestosTab({
     vaziosRoutes,
   })
   const totalBls = manifestRows.reduce((total, row) => total + row.blCount, 0)
-  const manifestosOfRow = (row: { pol: string; pod: string; isVazios: boolean; ceMaster: string | null }) =>
-    manifestosOfRoute(row, dbManifestos)
-  const hasRouteManifest = (row: { pol: string; pod: string; isVazios: boolean; ceMaster: string | null }) =>
-    countRouteManifestNumbers(row, dbManifestos) > 0
+  // Uma linha por rota e natureza (migration 592): a contagem do topo é de rotas.
+  const routeCount = new Set(manifestRows.map((row) => `${row.pol}__${row.pod}`)).size
+  type RowRef = Parameters<typeof manifestosOfRoute>[0]
+  const manifestosOfRow = (row: RowRef) => manifestosOfRoute(row, dbManifestos)
+  const hasRouteManifest = (row: RowRef) => countRouteManifestNumbers(row, dbManifestos) > 0
   const pendingManifestCount = manifestRows.filter(
     (row) => (row.blCount > 0 || row.isVazios) && !hasRouteManifest(row),
   ).length
@@ -84,7 +76,7 @@ export function VoyageManifestosTab({
         flush
         aside={(
           <>
-            {formatCountLabel(manifestRows.length, 'rota', 'rotas')} · {formatCountLabel(totalBls, 'B/L', 'B/Ls')} · CE Mercante {ceCoverage.filled} de {ceCoverage.total}
+            {formatCountLabel(routeCount, 'rota', 'rotas')} · {formatCountLabel(totalBls, 'B/L', 'B/Ls')} · CE Mercante {ceCoverage.filled} de {ceCoverage.total}
             {pendingManifestCount ? <> · <StatusText tone="warning">{formatCountLabel(pendingManifestCount, 'manifesto a informar', 'manifestos a informar')}</StatusText></> : null}
           </>
         )}
@@ -110,14 +102,17 @@ export function VoyageManifestosTab({
                   const routeTargetUrl = row.isVazios
                     ? `/vazios-importacao?voyage=${voyage.id}&pod=${encodeURIComponent(row.pod)}`
                     : `/bls?voyage=${voyage.id}&pol=${encodeURIComponent(row.pol)}&pod=${encodeURIComponent(row.pod)}`
+                  // A mesma rota aparece numa linha por natureza: o nome acessível diz qual.
+                  const rowLabel = `${row.routeLabel} (${row.isVazios ? 'vazios' : row.cargoMode === 'carga_solta' ? 'carga solta' : 'contêiner'})`
                   const routeManifestos = manifestosOfRow(row)
                   const manifestPending = !routeManifestos.length && !row.ceMaster && (row.blCount > 0 || row.isVazios)
                   const editPayload = { voyageId: voyage.id, voyageLabel, pol: row.pol, pod: row.pod, etd: row.etd, atd: row.atd, ceMaster: row.ceMaster, batchIds: row.batchIds, cargoMode: row.cargoMode }
                   const cannotEdit = !canEdit || !row.pol || row.pol === '-'
-                  // EDI Mercante: arquivo de contêiner (CNTR, CNTR/BB) e de vazios; a carga
-                  // solta (BB, CNTR/BB) tem arquivo próprio, parcial, que a equipe completa.
-                  const canGenerateEdi = canGenerateMercanteEdi && (row.isVazios ? (row.containerCount ?? 0) > 0 : containerRoutes.has(`${row.pol}__${row.pod}`))
-                  const canGenerateBreakbulkEdi = canGenerateMercanteEdi && !row.isVazios && row.blCount > 0 && (row.modeLabel === 'BB' || row.modeLabel === 'CNTR/BB')
+                  // EDI Mercante: cada linha gera o arquivo da sua natureza (migration 592).
+                  // Contêiner e vazios têm arquivo completo; a carga solta (com os B/Ls
+                  // mistos) tem arquivo próprio, parcial, que a equipe completa.
+                  const canGenerateEdi = canGenerateMercanteEdi && (row.isVazios ? (row.containerCount ?? 0) > 0 : row.cargoMode === 'container' && row.blCount > 0)
+                  const canGenerateBreakbulkEdi = canGenerateMercanteEdi && row.cargoMode === 'carga_solta' && row.blCount > 0
                   return (
                     <tr key={`${voyage.id}-manifest-${row.routeKey}`}>
                       <td className="app-table__text whitespace-nowrap">
@@ -135,7 +130,7 @@ export function VoyageManifestosTab({
                           ) : `${row.pol} → ${row.pod}`}
                         </Link>
                       </td>
-                      <td className="whitespace-nowrap">{row.modeLabel}</td>
+                      <td className="whitespace-nowrap" title={row.hasMisto ? 'Carga solta, com B/L misto (contêiner e carga solta)' : undefined}>{row.modeLabel}</td>
                       <td className="whitespace-nowrap tabular-nums">
                         {!departure.value ? <NoValue label="Sem ATD nem ETD" /> : departure.isActual ? formatDate(departure.value) : (
                           <span className="text-[var(--app-muted)]" title="ETD previsto">{formatDate(departure.value)}</span>
@@ -149,23 +144,23 @@ export function VoyageManifestosTab({
                       </td>
                       <td className="whitespace-nowrap tabular-nums">
                         {routeManifestos.length ? (
-                          routeManifestos.map((m) => <span key={m.id} className="block" title={`Manifesto Mercante: ${m.numero} (${m.natureza})`}>{m.numero}</span>)
+                          routeManifestos.map((m) => <span key={m.id} className="block" title={`Manifesto Mercante de ${row.isVazios ? 'vazios' : row.cargoMode === 'carga_solta' ? 'carga solta' : 'contêiner'}: ${m.numero}`}>{m.numero}</span>)
                         ) : row.ceMaster ? row.ceMaster : manifestPending ? <StatusText tone="warning">A informar</StatusText> : <NoValue label="Sem Nº de manifesto Mercante" />}
                       </td>
                       <td className="whitespace-nowrap">
                         <div className="flex items-center justify-center gap-1.5">
                           {!row.isVazios && row.blCount > 0 ? (
                             <RowActionButton
-                              label={`Ver B/Ls de ${row.routeLabel}`}
+                              label={`Ver B/Ls de ${rowLabel}`}
                               icon={List}
                               title="Ver B/Ls: mover ou desvincular de Manifesto Mercante"
-                              onClick={() => setBlsRoute({ pol: row.pol, pod: row.pod, label: row.routeLabel })}
+                              onClick={() => setBlsRoute({ pol: row.pol, pod: row.pod, label: rowLabel, cargoMode: row.cargoMode === 'carga_solta' ? 'carga_solta' : 'container' })}
                               disabled={!canEdit}
                             />
                           ) : null}
                           {canGenerateEdi ? (
                             <RowActionButton
-                              label={`Gerar EDI Mercante de ${row.routeLabel}${row.isVazios ? ' (vazios)' : ''}`}
+                              label={`Gerar EDI Mercante de ${rowLabel}`}
                               icon={FileDown}
                               title="Gerar EDI Mercante"
                               onClick={() => setEdiRoute({ pol: row.pol, pod: row.pod, label: row.routeLabel, kind: row.isVazios ? 'vazio' : 'carga' })}
@@ -174,7 +169,7 @@ export function VoyageManifestosTab({
                           ) : null}
                           {canGenerateBreakbulkEdi ? (
                             <RowActionButton
-                              label={`Gerar EDI Mercante da carga solta de ${row.routeLabel} (parcial)`}
+                              label={`Gerar EDI Mercante de ${rowLabel} (parcial)`}
                               icon={FilePen}
                               title="Gerar EDI Mercante da carga solta (parcial, a equipe completa)"
                               onClick={() => setEdiRoute({ pol: row.pol, pod: row.pod, label: row.routeLabel, kind: 'carga_solta' })}
@@ -183,14 +178,14 @@ export function VoyageManifestosTab({
                           ) : null}
                           {manifestPending ? (
                             <RowActionButton
-                              label={`Informar Nº de Manifesto Mercante de ${row.routeLabel}`}
+                              label={`Informar Nº de Manifesto Mercante de ${rowLabel}`}
                               icon={FilePlus2}
                               onClick={() => onEditPol(editPayload)}
                               disabled={cannotEdit}
                             />
                           ) : (
                             <RowActionButton
-                              label={`Editar ETD previsto + ATD POL e Nº de Manifesto Mercante de ${row.routeLabel}`}
+                              label={`Editar ETD previsto + ATD POL e Nº de Manifesto Mercante de ${rowLabel}`}
                               icon={Pencil}
                               title="Editar ETD previsto + ATD POL e Nº de Manifesto Mercante"
                               onClick={() => onEditPol(editPayload)}

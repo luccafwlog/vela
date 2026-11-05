@@ -61,11 +61,11 @@ it('exclui do preview o BL de outra viagem e mostra erro bloqueante', async () =
   expect((screen.getByRole('button', { name: /^Importar/ }) as HTMLButtonElement).disabled).toBe(true)
 })
 
-it('exige o Nº de Manifesto Mercante antes de importar CE de B/L e aceita só planilha', async () => {
+it('exige o Nº de Manifesto Mercante antes de importar CE de B/L e aceita planilha ou Retorno Mercante', async () => {
   mocks.parse.mockResolvedValue({ rows: [{ rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }], rowErrors: [] })
   const { container } = render(<CeMercanteImportModal open onClose={vi.fn()} />)
 
-  expect((container.querySelector('input[type="file"]') as HTMLInputElement).accept).toBe('.xlsx,.xls,.csv')
+  expect((container.querySelector('input[type="file"]') as HTMLInputElement).accept).toBe('.xlsx,.xls,.csv,.txt')
   fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
     target: { files: [new File(['x'], 'ce.xlsx')] },
   })
@@ -445,4 +445,35 @@ it('B/L cancelado aparece como aviso na conferência e não impede a importaçã
   fireEvent.click(importar)
   await waitFor(() => expect(mocks.importRows).toHaveBeenCalledWith(rows, expect.objectContaining({ confirmChanges: true })))
   await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('CE Mercante atualizado em 1 B/L; 1 B/L cancelado não foi tocado.', 'success'))
+})
+
+it('Retorno Mercante: o campo do Nº some, o aviso mostra o número lido e ele vai junto com a importação', async () => {
+  const row = { rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }
+  mocks.parse.mockResolvedValue({ rows: [row], rowErrors: [], retorno: { manifesto: '1226502020077', pol: 'CNQIN', pod: 'BRVIX' } })
+  mocks.preview.mockResolvedValue(cleanPreview)
+  mocks.importRows.mockResolvedValue({ processed: 1, updated: 1, overwritten: 0, unchanged: 0, errorCount: 0, errors: [], ignored: 0, warnings: [], billingPendingBlIds: [] })
+  const { container } = render(<CeMercanteImportModal open onClose={vi.fn()} />)
+
+  fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, {
+    target: { files: [new File(['x'], 'RETFWL0023006.TXT')] },
+  })
+  expect(await screen.findByText('Manifesto Mercante 1226502020077, lido do Retorno')).toBeTruthy()
+  expect(screen.getByText(/Rota no Mercante CNQIN → BRVIX/)).toBeTruthy()
+  expect(screen.queryByLabelText(/Nº de Manifesto Mercante/i)).toBeNull()
+
+  fireEvent.click(screen.getByRole('button', { name: /^Importar/ }))
+  await waitFor(() => expect(mocks.importRows).toHaveBeenCalledWith([row], expect.objectContaining({ manifestoNumero: '1226502020077' })))
+})
+
+it('trocar o Retorno por uma planilha limpa o Nº que veio do Retorno', async () => {
+  mocks.parse.mockResolvedValueOnce({ rows: [], rowErrors: [], retorno: { manifesto: '1226502020077', pol: 'CNQIN', pod: 'BRVIX' } })
+  const { container } = render(<CeMercanteImportModal open onClose={vi.fn()} />)
+  const input = container.querySelector('input[type="file"]') as HTMLInputElement
+  fireEvent.change(input, { target: { files: [new File(['x'], 'RET.TXT')] } })
+  await screen.findByText('Manifesto Mercante 1226502020077, lido do Retorno')
+
+  mocks.parse.mockResolvedValueOnce({ rows: [{ rowNumber: 2, bl_id: 'BL001', ce_mercante: '122605051526081' }], rowErrors: [] })
+  fireEvent.change(input, { target: { files: [new File(['x'], 'ce.xlsx')] } })
+  await waitFor(() => expect(screen.getByText('Informe o Nº de Manifesto Mercante para importar.')).toBeTruthy())
+  expect((screen.getByLabelText(/Nº de Manifesto Mercante/i) as HTMLInputElement).value).toBe('')
 })

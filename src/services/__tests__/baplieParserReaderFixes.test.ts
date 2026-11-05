@@ -34,7 +34,9 @@ const unit = (number: string, extra: string[] = [], slot = '010101') => [
 
 const trailerErrors = (text: string) => parseBaplieText(text).issues.filter((i) => i.field === 'eof' && i.severity === 'error')
 
-describe('F-09: UNT e UNZ obrigatórios; contagem diferente só avisa (ADR 0096, decisão 1)', () => {
+describe('F-09: UNT e UNZ obrigatórios; a contagem deles não é conferida (ADR 0096, decisão 1)', () => {
+  const eofIssues = (text: string) => parseBaplieText(text).issues.filter((i) => i.field === 'eof')
+
   it('o arquivo completo da fixture passa sem erro de trailer', () => {
     expect(trailerErrors(fixture)).toEqual([])
     expect(parseBaplieText(fixture).containers).toHaveLength(3)
@@ -52,34 +54,34 @@ describe('F-09: UNT e UNZ obrigatórios; contagem diferente só avisa (ADR 0096,
     expect(hasBlockingIssues(parsed.issues)).toBe(true)
   })
 
-  it('UNT com contagem de segmentos diferente do que chegou avisa e não bloqueia', () => {
-    const parsed = parseBaplieText(fixture.replace("LOC+147+0020082:9711:5'\n", ''))
-    expect(trailerErrors(fixture.replace("LOC+147+0020082:9711:5'\n", ''))).toEqual([])
-    expect(parsed.issues).toEqual(expect.arrayContaining([
-      expect.objectContaining({ field: 'eof', severity: 'warning', message: expect.stringMatching(/UNT declara 26 segmentos, mas a mensagem tem 25/) }),
-    ]))
-    expect(hasBlockingIssues(parsed.issues)).toBe(false)
-  })
+  it('UNT com contagem diferente do que chegou não avisa nem bloqueia, em qualquer versão', () => {
+    const missingSegment = fixture.replace("LOC+147+0020082:9711:5'\n", '')
+    expect(eofIssues(missingSegment)).toEqual([])
+    expect(hasBlockingIssues(parseBaplieText(missingSegment).issues)).toBe(false)
 
-  it('Baplie 1.5 com o UNT um segmento abaixo (convenção da COSCO) não avisa; outra diferença avisa', () => {
     const lines = unit('MSCU1234565')
-    const cosco = envelope(lines).replace(`UNT+${lines.length + 3}+1'`, `UNT+${lines.length + 2}+1'`)
-    expect(parseBaplieText(cosco).issues.filter((i) => i.field === 'eof')).toEqual([])
-    const twoShort = envelope(lines).replace(`UNT+${lines.length + 3}+1'`, `UNT+${lines.length + 1}+1'`)
-    expect(parseBaplieText(twoShort).issues).toEqual(expect.arrayContaining([
-      expect.objectContaining({ field: 'eof', severity: 'warning', message: expect.stringMatching(/UNT declara/) }),
-    ]))
-    const smdg22 = cosco.replace('SMDG15', 'SMDG22')
-    expect(parseBaplieText(smdg22).issues).toEqual(expect.arrayContaining([
-      expect.objectContaining({ field: 'eof', severity: 'warning', message: expect.stringMatching(/UNT declara/) }),
-    ]))
+    const right = `UNT+${lines.length + 3}+1'`
+    // Baplie da COSCO do GREEN SEPETIBA / 8: UNT declarando um segmento a mais.
+    for (const declared of [lines.length + 4, lines.length + 2, lines.length + 1]) {
+      const text = envelope(lines).replace(right, `UNT+${declared}+1'`)
+      expect(eofIssues(text)).toEqual([])
+      expect(eofIssues(text.replace('SMDG15', 'SMDG22'))).toEqual([])
+    }
   })
 
-  it('UNZ com contagem de mensagens diferente avisa; sem UNZ bloqueia', () => {
-    expect(trailerErrors(fixture.replace("UNZ+1+1'", "UNZ+2+1'"))).toEqual([])
-    expect(parseBaplieText(fixture.replace("UNZ+1+1'", "UNZ+2+1'")).issues).toEqual(expect.arrayContaining([
-      expect.objectContaining({ severity: 'warning', message: expect.stringMatching(/UNZ declara 2 mensagens, mas o arquivo tem 1/) }),
-    ]))
+  it('UNT ou UNZ sem número de contagem continua erro', () => {
+    const lines = unit('MSCU1234565')
+    const noUntCount = envelope(lines).replace(`UNT+${lines.length + 3}+1'`, "UNT++1'")
+    expect(trailerErrors(noUntCount)).toEqual([
+      expect.objectContaining({ message: expect.stringMatching(/Trailer UNT sem a contagem/) }),
+    ])
+    expect(trailerErrors(envelope(lines).replace("UNZ+1+1'", "UNZ++1'"))).toEqual([
+      expect.objectContaining({ message: expect.stringMatching(/Trailer UNZ sem a contagem/) }),
+    ])
+  })
+
+  it('UNZ com contagem de mensagens diferente não avisa; sem UNZ bloqueia', () => {
+    expect(eofIssues(fixture.replace("UNZ+1+1'", "UNZ+2+1'"))).toEqual([])
     expect(trailerErrors(fixture.replace("UNZ+1+1'", ''))).toEqual([
       expect.objectContaining({ message: expect.stringMatching(/Falta o trailer UNZ/) }),
     ])

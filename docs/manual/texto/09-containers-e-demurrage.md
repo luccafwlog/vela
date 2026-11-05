@@ -7,7 +7,8 @@ Cada container cheio descarregado no Brasil tem duas datas que importam: a **des
 - saber quando a Invoice de Demurrage sai e o que a segura;
 - cadastrar a tarifa, o acordo do Cliente, a condição de um B/L e um tipo de container;
 - responder e decidir a Disputa do Cliente;
-- dispensar a cobrança de um container.
+- dispensar a cobrança de um container;
+- cobrar, se for o caso, a Demurrage de um veículo LCL.
 :::
 
 ## 9.1 Encontrar um container
@@ -74,7 +75,7 @@ A planilha grava tudo ou nada. Um erro na prévia impede a importação inteira:
 
 **Quem faz:** {{Todas as equipes}}
 
-O free time conta em dias a partir da descarga. Ele sai, nesta ordem, da condição do B/L, do acordo do Cliente vigente na data da descarga ou da tarifa do grupo do tipo de container ([9.7](#97-cadastrar-tarifas-e-acordos-de-demurrage)). Passado o free time, a Demurrage cobra uma diária em dólar, que sobe a partir de certo dia: são o 1º e o 2º período da tarifa.
+O free time conta em dias a partir da descarga. Ele sai, nesta ordem, da condição do B/L, do acordo do Cliente vigente na data da descarga ou da tarifa do grupo do tipo de container ([9.7](#97-cadastrar-tarifas-e-acordos-de-demurrage)). O B/L de veículo LCL é a exceção: tem sempre 30 dias ([9.12](#912-cobrar-a-demurrage-de-um-veículo-lcl)). Passado o free time, a Demurrage cobra uma diária em dólar, que sobe a partir de certo dia: são o 1º e o 2º período da tarifa.
 
 Cada container tem uma situação, que aparece na coluna **Demurrage** da aba **Carga** da ficha do B/L:
 
@@ -87,9 +88,9 @@ Cada container tem uma situação, que aparece na coluna **Demurrage** da aba **
 
 Um exemplo: com free time de 21 dias, um container descarregado em 1º de outubro fica **Em atraso** a partir de 23 de outubro. Devolvido em 25 de outubro, ele ficou 24 dias fora e paga 3 dias de Demurrage.
 
-Gravar uma data refaz a situação na hora, e mudar o free time também: a condição do B/L, o acordo, a tarifa, o Cliente do B/L ou o cadastro de tipos. A virada do dia fica com a rotina da madrugada ([19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio)). Na página **Demurrage**, o grupo com container em atraso fica em **Correndo** ou, quando algo impede a cobrança (como o B/L sem Cliente), em **Travado** ([9.5](#95-acompanhar-a-demurrage-dos-containers)).
+Gravar uma data refaz a situação na hora, e mudar o free time também: a condição do B/L, o acordo, a tarifa, o Cliente do B/L, o cadastro de tipos, o Movement To do B/L ou os veículos dele. A virada do dia fica com a rotina da madrugada ([19.5](19-rotinas-por-horario.md#195-a-demurrage-pelo-relógio)). Na página **Demurrage**, o grupo com container em atraso fica em **Correndo** ou, quando algo impede a cobrança (como o B/L sem Cliente), em **Travado** ([9.5](#95-acompanhar-a-demurrage-dos-containers)).
 
-Na aba **Faturamento** da ficha, o bloco **Demurrage** soma o que está a emitir (container devolvido, ainda sem Invoice) e o que está correndo (ainda fora), e mostra o valor de cada container, "a emitir" ou "correndo"; passe o mouse no valor para ver cada período. O container já cobrado mostra a Invoice; o dispensado, "Cobrança dispensada" ([9.11](#911-dispensar-a-cobrança-de-um-container)); o dividido com outro Cliente, a parte deste, como "1/2 do container" ([9.6](#96-saber-quando-a-invoice-de-demurrage-sai)).
+Na aba **Faturamento** da ficha, o bloco **Demurrage** soma o que está a emitir (container devolvido, ainda sem Invoice) e o que está correndo (ainda fora), e mostra o valor de cada container, "a emitir" ou "correndo"; passe o mouse no valor para ver cada período. O container já cobrado mostra a Invoice; o dispensado, "Cobrança dispensada" ([9.11](#911-dispensar-a-cobrança-de-um-container)); o dividido com outro Cliente, a parte deste, como "1/2 do container" ([9.6](#96-saber-quando-a-invoice-de-demurrage-sai)); o de veículo LCL passado dos 30 dias, o valor seguido de "cobrança suspensa (veículo LCL)", fora do que está a emitir ou correndo ([9.12](#912-cobrar-a-demurrage-de-um-veículo-lcl)).
 
 ::: atencao
 - Tipo de container fora do cadastro **Tipos de container**, desativado ou sem tarifa no grupo não tem Demurrage calculada e segura a Invoice do grupo inteiro. O bloco **Demurrage** da ficha diz "Demurrage não calculada", a linha diz que o tipo está sem tarifa, e na página **Demurrage** o grupo vai para **Travado** até o tipo ou a tarifa ser cadastrado ([9.10](#910-cadastrar-um-tipo-de-container)).
@@ -99,7 +100,7 @@ Na aba **Faturamento** da ficha, o bloco **Demurrage** soma o que está a emitir
 
 **Quem faz:** {{Equipamentos}}
 
-A página **Demurrage**, no menu **Financeiro**, é onde você acompanha os containers até a cobrança. A aba **Containers** mostra só os grupos de B/L ([9.6](#96-saber-quando-a-invoice-de-demurrage-sai)) com Demurrage ainda sem Invoice, cada um numa de quatro divisões. O grupo devolvido todo no free time não aparece, e o grupo sai da aba quando a Invoice que o cobra é emitida.
+A página **Demurrage**, no menu **Financeiro**, é onde você acompanha os containers até a cobrança. A aba **Containers** mostra só os grupos de B/L ([9.6](#96-saber-quando-a-invoice-de-demurrage-sai)) com Demurrage ainda sem Invoice, cada um numa de cinco divisões. O grupo devolvido todo no free time não aparece, e o grupo sai da aba quando a Invoice que o cobra é emitida.
 
 | Divisão | Quer dizer | O que fazer |
 |---|---|---|
@@ -107,6 +108,7 @@ A página **Demurrage**, no menu **Financeiro**, é onde você acompanha os cont
 | **A emitir** | Todos voltaram e há Demurrage sem Invoice. | Em geral, nada: a Invoice sai sozinha ([9.6](#96-saber-quando-a-invoice-de-demurrage-sai)). Se a linha diz "Pronto para gerar a Invoice" ou "Invoice anterior DEM-… cancelada à mão: gere a nova", clique em **Gerar Invoice**. |
 | **Esperando** | Um container voltou com Demurrage, e outro do grupo ainda está fora, no free time. | Espere a volta dele: a linha diz "Aguarda …", com o container e o último dia livre. |
 | **Travado** | O Vela não tem como cobrar: tipo sem tarifa, B/L sem Cliente, B/L cancelado, sem CE Mercante ou com o Portal do Cliente segurando o faturamento. | Use o atalho da linha: **Cadastrar CE**, **Vincular Cliente**, **Abrir Cliente**, **Cadastrar tipo**, **Reativar tipo** ou **Cadastrar tarifa**. Abre um alerta para a equipe que destrava ([20.9](20-alertas.md#209-demurrage)). |
+| **Veículo LCL** | Container de veículo LCL passou dos 30 dias de free time. A cobrança está suspensa: nada sai sozinho. | Nada, se não for cobrar. Para cobrar, veja [9.12](#912-cobrar-a-demurrage-de-um-veículo-lcl). Não entra nos cartões em US$ nem nos alertas. |
 
 1. Clique no cartão **Correndo (US$)**, **A emitir (US$)** ou **Travado (US$)**, que somam o US$ previsto e contam os containers, ou escolha a divisão. A busca aceita container, B/L, Cliente, Navio / Viagem ou número da Invoice.
 2. Cada linha é um grupo, no B/L que emite a Invoice ("+ N B/L do grupo" quando há outros). Leia o **Próximo passo / motivo**.
@@ -131,7 +133,7 @@ Ela sai quando três coisas se juntam:
 - algum deles passou do free time;
 - o B/L tem CE Mercante e o Portal do Cliente está pronto para faturar, ou o Cliente tem a Liberação de faturamento sem Portal (capítulos 13 e 14). Sem isso, o grupo fica em **Travado**, com o motivo; sem o Portal pronto, a etapa **Demurrage** do trilho da ficha do B/L também diz "Retida: …", com o link para Clientes › Portal.
 
-Com isso, a Invoice sai sozinha logo depois da última devolução gravada ([18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container)). Também sai sozinha, em até 15 minutos, quando a Demurrage aparece sem uma data nova: o free time do B/L, o acordo, a tarifa ou o tipo mudaram, ou uma dispensa foi desfeita. Com a emissão na fila, a linha em **A emitir** diz "Emissão automática em andamento". A Invoice nasce emitida, em dólar, com o valor em reais pelo câmbio do dia (ou pelo ROE manual do B/L); o Cliente a vê no Portal e a Régua de Cobrança começa (capítulo 23). O container devolvido no free time entra nela com valor zero.
+Com isso, a Invoice sai sozinha logo depois da última devolução gravada, menos a do veículo LCL, que só sai pelo **Gerar Invoice** ([9.12](#912-cobrar-a-demurrage-de-um-veículo-lcl)) ([18.8](18-o-que-muda-sozinho.md#188-mudar-as-datas-de-um-container)). Também sai sozinha, em até 15 minutos, quando a Demurrage aparece sem uma data nova: o free time do B/L, o acordo, a tarifa ou o tipo mudaram, ou uma dispensa foi desfeita. Com a emissão na fila, a linha em **A emitir** diz "Emissão automática em andamento". A Invoice nasce emitida, em dólar, com o valor em reais pelo câmbio do dia (ou pelo ROE manual do B/L); o Cliente a vê no Portal e a Régua de Cobrança começa (capítulo 23). O container devolvido no free time entra nela com valor zero.
 
 Por exemplo, o CSC45810A01K00 tem dois containers, CSNU2401018 e CSNU2401023. Se o primeiro voltou em atraso e o segundo ainda está fora, no free time, o grupo fica em **Esperando**, com "Aguarda CSNU2401023 até …", e nada é cobrado até o segundo voltar.
 
@@ -169,7 +171,7 @@ O acordo vale pela data de descarga: mesmo encerrado, ele continua valendo para 
 
 ### A condição de um B/L
 
-Use quando uma negociação vale só para um B/L. Na ficha, aba **Faturamento**, bloco **Condições de Demurrage deste B/L**, **Definir condição do B/L** abre **Free time (dias)**, **Tarifa P1 (USD/dia)** e **Tarifa P2 (USD/dia)**; o campo em branco volta ao acordo ou à tarifa. Ao salvar, a página **Demurrage** e as fichas já mostram a condição nova. O B/L cancelado não oferece **Definir condição do B/L**.
+Use quando uma negociação vale só para um B/L. Na ficha, aba **Faturamento**, bloco **Condições de Demurrage deste B/L**, **Definir condição do B/L** abre **Free time (dias)**, **Tarifa P1 (USD/dia)** e **Tarifa P2 (USD/dia)**; o campo em branco volta ao acordo ou à tarifa. No B/L de veículo LCL, o **Free time (dias)** fica travado em 30 e só as diárias mudam. Ao salvar, a página **Demurrage** e as fichas já mostram a condição nova. O B/L cancelado não oferece **Definir condição do B/L**.
 
 ### A tarifa
 
@@ -259,4 +261,28 @@ Na ficha do B/L, aba **Faturamento**, o bloco **Demurrage** passa a mostrar o co
 - Só se dispensa o container que passou do free time ou é de tipo sem tarifa e que ainda não está numa Invoice. Para tirar valor de uma Invoice emitida, dê um desconto (capítulo 23).
 - A dispensa acompanha a troca de Cliente do B/L. A do B/L sem Cliente não passa ao Cliente vinculado depois: o container volta a ser cobrado.
 - No B/L cancelado, a dispensa fica só para leitura: reative o B/L antes de desfazê-la.
+:::
+
+## 9.12 Cobrar a Demurrage de um veículo LCL
+
+**Quem faz:** {{Qualquer equipe}}
+
+O B/L de veículo LCL é o B/L de container com veículo cujo **Movement To** diz LCL ou CFS, o mesmo que já não paga Taxas Locais ([21.2](21-taxas-locais.md#212-como-cada-taxa-é-contada)). Na Demurrage, ele tem duas regras próprias:
+
+- o free time é sempre de 30 dias, acima da condição do B/L, do acordo do Cliente e da tarifa. É o que o Cliente vê no Portal e na Consulta de container;
+- a cobrança está suspensa: o Vela não emite Invoice de Demurrage para ele sozinho, nem com tudo devolvido. Passados os 30 dias, o grupo aparece na divisão **Veículo LCL**, com o valor que seria cobrado, e espera a decisão de alguém.
+
+Para cobrar:
+
+1. Em **Demurrage**, aba **Containers**, escolha a divisão **Veículo LCL**.
+2. Leia o **Próximo passo / motivo** da linha. Com container ainda fora, ela diz "Cobrança suspensa: N container(s) pendente(s) de devolução": a Invoice só sai com todos devolvidos. Sem Cliente, sem tarifa, sem CE ou com o Portal segurando o faturamento, ela mostra o motivo e o atalho, como em **Travado**.
+3. Com a linha em "Cobrança suspensa: gere a Invoice só se for cobrar", clique em **Gerar Invoice** e confirme em **Cobrar a Demurrage do veículo LCL**.
+
+A Invoice sai com os 30 dias de free time e segue como qualquer outra: o Cliente a vê no Portal, a Régua de Cobrança começa e o pagamento entra pelo capítulo 24. Se as datas mudarem depois, ela é reemitida sozinha. Se for cancelada à mão, o container volta para **Veículo LCL** e espera de novo.
+
+::: atencao
+- Se não for cobrar, não precisa fazer nada. Para tirar a linha da divisão, dispense a cobrança do container ([9.11](#911-dispensar-a-cobrança-de-um-container)).
+- O container que o veículo LCL divide com um B/L de outra carga do mesmo Cliente é cobrado como qualquer outro, e a Invoice dele sai sozinha.
+- Num grupo em **A emitir** que também tem container de veículo LCL, o **Gerar Invoice** cobra só o que a linha mostra. O container de veículo LCL passa para a divisão **Veículo LCL** e espera a sua decisão.
+- Cancelar o B/L de veículo LCL não esbarra na Demurrage suspensa.
 :::

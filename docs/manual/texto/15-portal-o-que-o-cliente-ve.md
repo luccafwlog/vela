@@ -35,6 +35,8 @@ Com a conta não ativa, o Cliente não entra no Portal. A inspeção mostra o qu
 
 O acesso é da empresa, não da pessoa: o Cliente entra em portalfwlog.com.br com o **CNPJ** do cadastro e uma **Senha**. CPF e e-mail não servem de login.
 
+Quem ainda não tem conta usa **Solicitar acesso**, abaixo de **Entrar no Portal**: o botão abre, em outra aba, o formulário da página do Portal no fwlog.com.br. O pedido chega por e-mail ao suporte, com o assunto "[Portal] Solicitar acesso", e não aparece no Vela; a conta continua nascendo do convite da equipe (capítulo 14).
+
 Qualquer recusa mostra a mesma mensagem: "CNPJ ou senha inválidos. Após várias tentativas, o acesso fica suspenso por 15 minutos.…". Vale para senha errada, CNPJ sem conta, conta não ativa ou suspensa e Cliente desativado. É de propósito: a tela não revela quem tem conta. A causa você confere na fila do Provisionamento (capítulo 14).
 
 Com 5 erros do mesmo CNPJ em 15 minutos, o login fica bloqueado por até 15 minutos, em qualquer computador. A equipe não tem botão para desbloquear: o bloqueio passa sozinho.
@@ -72,7 +74,7 @@ O valor de **Taxas locais** abre as faturas daquele B/L em **Faturas**. A coluna
 
 Só container descarregado conta como sem devolução: o que ainda está no navio fica fora do cartão **Containers sem devolução** do Painel e de **Com container sem devolução**. Na coluna **Devolução**, "N de M devolvidos" conta só os descarregados, e os que esperam a descarga aparecem à parte, como "1 sem descarga".
 
-A aba **Containers** mostra, para cada container, a **Descarga**, a **Devolução**, os **Dias de uso**, o **Free time**, os **Dias em demurrage** e a **Situação**.
+A aba **Containers** mostra, para cada container, a **Descarga**, a **Devolução**, os **Dias de uso**, o **Free time**, os **Dias em demurrage** e a **Situação**. O container de B/L de veículo LCL aparece com 30 dias de free time, e a Invoice de Demurrage dele só existe se alguém a gerar no Vela ([9.12](09-containers-e-demurrage.md#912-cobrar-a-demurrage-de-um-veículo-lcl)).
 
 Duas situações pedem explicação: **SOC (sem devolução)** é container do próprio Cliente, sem devolução nem Demurrage; **Tarifa indisponível** quer dizer que o Vela não achou o free time oficial do container.
 

@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DemurrageContainersTab } from '../DemurrageContainersTab'
-import type { BoardBox, BoardGroup, DemurrageDivision } from '../../../services/demurrage/demurrageBoard'
+import type { BoardBox, BoardDivision, BoardGroup } from '../../../services/demurrage/demurrageBoard'
 
 afterEach(() => {
   cleanup()
@@ -37,7 +37,7 @@ function box(number: string, overrides: Partial<BoardBox> = {}): BoardBox {
   }
 }
 
-function group(anchor: string, division: DemurrageDivision, overrides: Partial<BoardGroup> = {}): BoardGroup {
+function group(anchor: string, division: BoardDivision, overrides: Partial<BoardGroup> = {}): BoardGroup {
   return {
     anchor_bl_id: anchor,
     bl_ids: [anchor],
@@ -81,7 +81,7 @@ const GROUPS: BoardGroup[] = [
   group('QV-14', 'travado', { reason_code: 'sem_tarifa', reason: 'Tipo 45HC sem tarifa de Demurrage.', no_rate_types: '45HC', usd: 0, boxes: [box('MSCU1400001', { bl_id: 'QV-14', type: '45HC', state: 'no_rate', usd: null, free_days: null, free_source: null })] }),
 ]
 
-function renderTab(division: DemurrageDivision, props: Partial<Parameters<typeof DemurrageContainersTab>[0]> = {}) {
+function renderTab(division: BoardDivision, props: Partial<Parameters<typeof DemurrageContainersTab>[0]> = {}) {
   const handlers = {
     onGenerateInvoice: vi.fn(),
     onEditContainer: vi.fn(),
@@ -189,6 +189,43 @@ describe('aba Containers por divisão (ADR 0112, D1 a D5)', () => {
 })
 
 // Dispensar a cobrança da caixa (ADR 0112, D24).
+describe('Veículo LCL na aba Containers (migration 593)', () => {
+  const lclBox = (number: string, overrides: Partial<BoardBox> = {}) =>
+    box(number, { bl_id: 'LCL-1', state: 'lcl_vehicle', free_days: 30, free_source: 'veiculo_lcl', usd: 500, ...overrides })
+  const LCL_GROUPS = [
+    ...GROUPS,
+    group('LCL-1', 'veiculo_lcl', { usd: 500, boxes: [lclBox('MSCU5920001', { return_date: '2026-10-24' })] }),
+    group('LCL-2', 'veiculo_lcl', { usd: 500, warning: 'B/L LCL-2 sem CE Mercante. Cadastre o CE antes de faturar.', boxes: [lclBox('MSCU5920002', { bl_id: 'LCL-2' })] }),
+  ]
+
+  it('divisão própria, fora das da cobrança, com o aviso de que nada sai sozinho', () => {
+    renderTab('veiculo_lcl', { groups: LCL_GROUPS })
+    const divisions = screen.getByRole('radiogroup', { name: 'Divisão da cobrança' })
+    expect(within(divisions).getByRole('radio', { name: 'Veículo LCL (2)' })).toBeTruthy()
+    expect(within(divisions).getByRole('radio', { name: 'Correndo (1)' })).toBeTruthy()
+    expect(screen.getByText(/free time fixo de 30 dias e a cobrança da Demurrage suspensa/)).toBeTruthy()
+  })
+
+  it('tudo devolvido: Gerar Invoice só se for cobrar; com container fora, a espera e o aviso', async () => {
+    const handlers = renderTab('veiculo_lcl', { groups: LCL_GROUPS })
+    const ready = screen.getByRole('link', { name: 'LCL-1' }).closest('tr')!
+    expect(within(ready).getByText('Cobrança suspensa: gere a Invoice só se for cobrar')).toBeTruthy()
+    await userEvent.setup().click(within(ready).getByRole('button', { name: 'Gerar Invoice do B/L LCL-1' }))
+    expect(handlers.onGenerateInvoice).toHaveBeenCalledWith('LCL-1')
+    const out = screen.getByRole('link', { name: 'LCL-2' }).closest('tr')!
+    expect(within(out).getByText(/Cobrança suspensa: 1 container pendente de devolução/)).toBeTruthy()
+    expect(within(out).getByText(/sem CE Mercante/)).toBeTruthy()
+    expect(within(out).queryByRole('button', { name: /Gerar Invoice/ })).toBeNull()
+  })
+
+  it('o container mostra o valor como suspenso e o free time do veículo LCL', async () => {
+    renderTab('veiculo_lcl', { groups: LCL_GROUPS })
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Abrir os containers do B/L LCL-1' }))
+    expect(screen.getByText('suspensa')).toBeTruthy()
+    expect(screen.getByTitle('Free time do veículo LCL, fixo').textContent).toBe('30')
+  })
+})
+
 describe('Dispensar cobrança na aba Containers', () => {
   // B/L importado por engano, sem Cliente: o banco aceita a dispensa (migration 530),
   // e só depois dela o B/L se cancela.

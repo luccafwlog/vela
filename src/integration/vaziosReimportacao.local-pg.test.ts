@@ -215,8 +215,8 @@ describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migr
   })
 
   it('Nº já cadastrado em outra rota, escrito com minúsculas, é recusado com a mensagem de negócio', () => {
-    psql(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza)
-      VALUES (${voyageId}, 'CNSHA', 'BRSSZ', '1226A23409999', 'carga');`)
+    psql(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza, cargo_mode)
+      VALUES (${voyageId}, 'CNSHA', 'BRSSZ', '1226A23409999', 'carga', 'container');`)
     const result = importRoute('AZCU2340031', 'BRVIX', '1226a2340.9999')
     expect(result.stderr).toMatch(/já foi cadastrado/)
     expect(result.stderr).not.toMatch(/duplicate key/)

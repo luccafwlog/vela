@@ -6,6 +6,31 @@
 
 ## 2026-11
 
+- **Solicitar acesso no login do Portal (2026-11-05; decisão do dono):** abaixo de **Entrar no Portal**, o botão com
+  borda **Solicitar acesso** abre em outra aba o formulário da página do Portal no site
+  (`https://fwlog.com.br/portal-do-cliente/#solicitar-acesso`), que envia o pedido ao suporte. Sem formulário,
+  endpoint ou e-mail novos no Portal; as telas de recuperação, redefinição, ativação e confirmação de e-mail não
+  mudam ([Portal do Cliente](modules/portal-cliente.md#portallogin)).
+- **Veículo LCL na Demurrage (2026-11-05, migration `593`, ADR 0124; decisão do dono):** o B/L de veículo LCL
+  (container, com veículo, Movement To com LCL ou CFS) tem free time fixo de 30 dias, acima da condição do B/L, do
+  acordo e da tarifa, no cálculo, no status do container, na aba B/Ls do Portal e na Consulta de container. A
+  cobrança nasce suspensa: nenhuma emissão automática o cobra, e a aba Containers ganha a divisão **Veículo LCL**,
+  fora dos cartões em US$, de Por Cliente, da Exposição e dos Alertas, com **Gerar Invoice** (com confirmação) quando
+  tudo voltou; no grupo misto em A emitir, o Gerar Invoice cobra só o que a linha mostra. A Invoice emitida à mão
+  segue como as outras; cancelar o B/L de veículo LCL não esbarra na Demurrage;
+  a condição do B/L recusa free time próprio. Fichas do B/L e do Cliente mostram "cobrança suspensa (veículo LCL)"
+  ([Demurrage § Veículo LCL](modules/demurrage.md#veículo-lcl)).
+- **Baplie: a contagem do fim da mensagem e do arquivo não avisa mais (2026-11-05; decisão do dono):** sem
+  migration nem ADR nova (faixa "Situação atual" na
+  [ADR 0096](adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md)). A prévia do Baplie deixa de mostrar
+  "O trailer UNT declara N segmentos, mas a mensagem tem M" e "O trailer UNZ declara…": todo Baplie da COSCO traz a
+  contagem diferente (o do GREEN SEPETIBA / 8 declarava um segmento a mais, o que a exceção de 2026-10-27, de um a
+  menos no 1.5, não cobria). Arquivo sem UNT ou UNZ, ou com eles sem o número, continua recusado. Prova:
+  `baplieParserReaderFixes.test.ts`.
+- **Conferência dos CEs no Comunicado de CE e Taxas (2026-11-05; pedido do dono):** as duas versões do e-mail
+  ("CE Mercante e Taxas Locais disponíveis" e "CE Mercante disponível") pedem, logo abaixo da lista de CEs, que o
+  Cliente confira os CEs e avise importacao@fwlog.com.br de qualquer erro ou inconsistência
+  ([Clientes](modules/clientes.md)).
 - **Reforços da auditoria de segurança run-3 (2026-11-05; plano arquivado):** as Edge Functions importam toda
   dependência pelo nome lógico do import map `supabase/functions/deno.json`, declarado por todas as funções em
   `supabase/config.toml`, e o Dependabot passa a atualizá-las; o CI faz o `deno check` das 26 funções (antes 17),

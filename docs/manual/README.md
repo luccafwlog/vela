@@ -194,6 +194,13 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   B/L original entregue, sem solicitação; vale o anual vigente entre o pagamento
   e a entrega e a exportação (migration `582`); aviso "documentação validada" por B/L, no sino e por e-mail; o Portal
   explica a regra e mostra por B/L o que falta (DCE-091, DCE-111, DCE-113).
+- **Veículo LCL na Demurrage** (decisão do dono de 2026-11-05,
+  [ADR 0124](../adr/0124-veiculo-lcl-na-demurrage.md), migration `593`): free
+  time fixo de 30 dias e cobrança suspensa, com a divisão **Veículo LCL** e o
+  Gerar Invoice à mão (DEM-136; capítulo 9, seções 9.4 a 9.7 e 9.12).
+- **Solicitar acesso no login do Portal** (decisão do dono de 2026-11-05): o
+  botão abre o formulário da página do Portal no fwlog.com.br, em outra aba
+  (POR-001; capítulo 15, seção 15.2).
 - **Baixa e Conciliação só do Financeiro e da conta Dev** (decisão do dono de
   2026-11-04, migration `583`; regra em
   [Segurança](../operations/seguranca.md#modelo-de-permissões-por-perfil)):
@@ -433,13 +440,22 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
 - **Gerar EDI Mercante** (pedido do dono na issue #560, 2026-11-02, ADR 0116):
   a linha de contêiner e a linha VAZIOS de Rotas e Manifestos geram o arquivo
   do Mercante da rota, com impedimentos e avisos, no lugar do sistema externo
-  (VIA-053, VIA-146). As linhas BB e CNTR/BB geram o arquivo parcial de carga
+  (VIA-053, VIA-146). A linha BB gera o arquivo parcial de carga
   solta, com o que falta em **A completar** (decisão do dono de 2026-11-03;
   VIA-147).
 - **EDI Mercante e Canal de envio só para a conta Dev** (decisão do dono de
   2026-11-03): os botões Gerar EDI Mercante e o bloco Canal de envio de
   Comunicação com Clientes deixam de aparecer para os demais usuários (VIA-146,
   VIA-147, CLI-052).
+- **Manifesto Mercante por natureza** (decisão do dono de 2026-11-05, migration
+  `592`, ADR 0123): em Rotas e Manifestos, contêiner e carga solta da mesma rota
+  são linhas separadas (CNTR e BB; a sigla CNTR/BB saiu), cada uma com os seus
+  números de Manifesto Mercante, o seu **Ver B/Ls** e o seu EDI; o B/L misto
+  fica na BB. O número da outra natureza é recusado (VIA-053, VIA-146,
+  VIA-147).
+- **CE pelo Retorno Mercante** (pedido do dono de 2026-11-05): **Importar CE
+  Mercante** aceita também o arquivo de Retorno do Mercante (.TXT), com o Nº do
+  Manifesto lido do arquivo; a planilha continua valendo (6.5; CEB-101).
 - **Sincronização de 2026-11-02** (PRs luccafwlog/vela#1132, #1133, #1135,
   #1141, #1143 a #1160 e #1163 a #1172; migrations `554` a `566`). A matriz veio
   atualizada nas PRs; o texto do manual e do guia passou a descrever:

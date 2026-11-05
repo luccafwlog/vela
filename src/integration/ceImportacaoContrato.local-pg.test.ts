@@ -186,11 +186,11 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
 
   it('o Nº de Manifesto Mercante é guardado na forma canônica e recusado fora de 13 caracteres', () => {
     // A API não grava o cadastro direto (212); as RPCs gravam como dono.
-    expect(asAdmin(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza) VALUES (${voyageId}, '${pol}', '${pod}', ' a228-b0000-0001 ', 'carga');`).error)
+    expect(asAdmin(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza, cargo_mode) VALUES (${voyageId}, '${pol}', '${pod}', ' a228-b0000-0001 ', 'carga', 'container');`).error)
       .toMatch(/permission denied/)
-    expect(asOwner(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza) VALUES (${voyageId}, '${pol}', '${pod}', ' a228-b0000-0001 ', 'carga');`).error).toBeNull()
+    expect(asOwner(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza, cargo_mode) VALUES (${voyageId}, '${pol}', '${pod}', ' a228-b0000-0001 ', 'carga', 'container');`).error).toBeNull()
     expect(psql(`SELECT numero FROM public.manifestos_mercante WHERE voyage_id = ${voyageId};`)).toBe('A228B00000001')
-    expect(asOwner(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza) VALUES (${voyageId}, '${pol}', '${pod}', 'A228-CURTO', 'carga');`).error)
+    expect(asOwner(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza, cargo_mode) VALUES (${voyageId}, '${pol}', '${pod}', 'A228-CURTO', 'carga', 'container');`).error)
       .toMatch(/13 caracteres/)
     // A busca acha pelo número digitado com separadores.
     expect(json<Array<{ numero: string }>>(`SELECT COALESCE(jsonb_agg(m), '[]') FROM public.find_manifesto_mercante('a228 b0000 0001') AS m;`)).toEqual([
