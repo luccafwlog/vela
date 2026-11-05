@@ -6,6 +6,12 @@
 
 ## 2026-11
 
+- **THD mínimo da carga solta de Vitória (2026-11-05, migration `594`, ADR 0125; decisão do dono):** o THD por
+  tonelada em R$ da tabela de carga solta de Vitória (BRVIX) cobra por B/L o maior entre toneladas × unitário e
+  R$ 380,00, também com Condição do Cliente e no B/L misto (2 t × R$ 62,50 = R$ 125,00 → R$ 380,00). Quantidade e
+  unitário ficam os da tabela; só o total sobe. Nenhuma linha existente é reescrita: o B/L já calculado muda no
+  próximo recálculo, e a fatura emitida antes se refaz cancelando, recalculando e emitindo. Prova:
+  `thdMinimoVitoria.local-pg.test.ts` ([Taxas Locais](modules/taxas-locais.md#thd-mínimo-da-carga-solta-de-vitória)).
 - **Solicitar acesso no login do Portal (2026-11-05; decisão do dono):** abaixo de **Entrar no Portal**, o botão com
   borda **Solicitar acesso** abre em outra aba o formulário da página do Portal no site
   (`https://fwlog.com.br/portal-do-cliente/#solicitar-acesso`), que envia o pedido ao suporte. Sem formulário,
