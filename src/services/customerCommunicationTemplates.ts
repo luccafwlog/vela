@@ -307,6 +307,13 @@ export function renderCeMercanteTaxasTemplate(input: CustomerCommunicationTempla
     ? 'Os CEs Mercantes abaixo já podem ser consultados no sistema Mercante. Os B/Ls desta viagem estão isentos de Taxas Locais.'
     : 'Os CEs Mercantes abaixo já podem ser consultados no sistema Mercante, e as Taxas Locais da viagem podem ser pagas no Portal do Cliente.'
   const value = (row: CustomerCommunicationCeMercanteRow) => (row.exempt ? 'Isento' : formatBrl(row.totalBrl))
+  // Pedido de conferência (2026-11-05): o Cliente confere os CEs e avisa a
+  // importação de qualquer erro, nas duas versões do e-mail.
+  const checkLead = 'Pedimos que confira os CEs Mercantes acima. Se encontrar algum erro ou inconsistência, avise a nossa equipe pelo e-mail'
+  const check: RenderedBody = {
+    html: emailParagraph(`${escapeHtml(checkLead)} ${kit.mailto(COMMUNICATIONS_CONTACT_EMAIL)}.`),
+    text: ['', `${checkLead} ${COMMUNICATIONS_CONTACT_EMAIL}.`],
+  }
   const greeting = hello(customer)
   const body: RenderedBody = onlyCe
     ? {
@@ -317,13 +324,15 @@ export function renderCeMercanteTaxasTemplate(input: CustomerCommunicationTempla
           `B/L ${escapeHtml(row.blId.trim())}`,
           '',
           '',
-        ])), { flush: true }),
+        ])), { flush: true })
+        + check.html,
       text: [
         ...greeting.text,
         sentence,
         '',
         'CE Mercante:',
         ...rows.map((row) => `- CE ${row.ceMercante.trim()} (B/L ${row.blId.trim()})`),
+        ...check.text,
       ],
     }
     : {
@@ -335,6 +344,7 @@ export function renderCeMercanteTaxasTemplate(input: CustomerCommunicationTempla
           escapeHtml(value(row)),
           '',
         ])) + kit.totalRow('Total da viagem', escapeHtml(formatBrl(totalBrl))), { flush: true })
+        + check.html
         + kit.button('Ver faturas e formas de pagamento', portalUrl),
       text: [
         ...greeting.text,
@@ -343,6 +353,7 @@ export function renderCeMercanteTaxasTemplate(input: CustomerCommunicationTempla
         'CE Mercante e Taxas Locais:',
         ...rows.map((row) => `- CE ${row.ceMercante.trim()} (B/L ${row.blId.trim()}): ${value(row)}`),
         `Total da viagem: ${formatBrl(totalBrl)}`,
+        ...check.text,
         '',
         `Ver faturas e formas de pagamento: ${portalUrl}`,
       ],
