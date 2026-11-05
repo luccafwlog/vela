@@ -1,5 +1,6 @@
 import { useCallback, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { ExternalLink } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { InlineError } from '../components/ui/Card'
 import { AuthLayout } from '../components/auth/AuthLayout'
@@ -20,6 +21,13 @@ function isNetworkError(error: unknown): boolean {
   const message = String((error as { message?: unknown }).message ?? '').toLowerCase()
   return name === 'AuthRetryableFetchError' || message.includes('failed to fetch') || message.includes('fetch failed')
 }
+
+/**
+ * Formulário "Solicitar acesso" da página do Portal no fwlog.com.br (Elementor,
+ * envia para o suporte). Decisão do dono de 2026-11-05: o login leva ao
+ * formulário do site em vez de ter um próprio.
+ */
+const PORTAL_ACCESS_REQUEST_URL = 'https://fwlog.com.br/portal-do-cliente/#solicitar-acesso'
 
 const SIGNOUT_NOTICE = 'Sua sessão foi encerrada neste dispositivo. A revogação no servidor não pôde ser confirmada devido a instabilidade de rede.'
 
@@ -143,6 +151,19 @@ export function PortalLogin() {
           Entrar no Portal
         </Button>
       </form>
+
+      {/* Só no login: as outras telas de acesso servem a conta já provisionada.
+          Nova aba, para o login continuar aberto enquanto o cliente pede acesso. */}
+      <a
+        href={PORTAL_ACCESS_REQUEST_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="app-btn app-btn--secondary"
+      >
+        Solicitar acesso
+        <ExternalLink size={14} aria-hidden="true" />
+        <span className="sr-only"> (abre em outra aba)</span>
+      </a>
 
       <PortalAccessHelp />
     </AuthLayout>

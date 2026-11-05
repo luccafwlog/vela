@@ -2,7 +2,7 @@
 
 > **Rotas internas:** `/clientes/portal` (Portal, em Clientes) e `/clientes/portal/inspecao/:customerId/*` (Modo Inspeção)
 
-> **Status:** ativo · **Atualizado:** 2026-11-03 · **Rotas:** `/portal/publico/chegadas-saidas`, `/portal/publico/consulta-container`, `/portal/publico/*`, `/portal/login`, `/portal/esqueci-senha`, `/portal/recuperar-senha`, `/portal/ativar`, `/portal/confirmar-email`, `/portal`, `/portal/billing`, `/portal/operacao`, `/portal/desbloqueio-ce`, `/portal/informacoes`, `/portal/informacoes/:section`, `/portal/perfil`
+> **Status:** ativo · **Atualizado:** 2026-11-05 · **Rotas:** `/portal/publico/chegadas-saidas`, `/portal/publico/consulta-container`, `/portal/publico/*`, `/portal/login`, `/portal/esqueci-senha`, `/portal/recuperar-senha`, `/portal/ativar`, `/portal/confirmar-email`, `/portal`, `/portal/billing`, `/portal/operacao`, `/portal/desbloqueio-ce`, `/portal/informacoes`, `/portal/informacoes/:section`, `/portal/perfil`
 
 ## Propósito e escopo
 
@@ -19,6 +19,8 @@ A interface e seus filtros não autorizam dados. RPCs de Portal resolvem o clien
 ### `/portal/login`
 
 `src/pages/PortalLogin.tsx` aceita CNPJ e senha. Se a sessão já foi hidratada, redireciona para `/portal`; durante submit chama `usePortalAuth.signIn`, que invoca `portal-login` e converte falhas em mensagem genérica de credenciais. Antes de chamar o servidor, a tela reprova CNPJ com menos de 14 caracteres (`isCompleteCnpjLogin`, `src/lib/portalCnpjLogin.ts`) com mensagem própria de digitação — o formato se confere offline, então avisar não revela nada sobre a base, e a tentativa não consome o rate limit de login.
+
+Abaixo do formulário, o botão com borda **Solicitar acesso** abre em outra aba o formulário da página do Portal no site (`https://fwlog.com.br/portal-do-cliente/#solicitar-acesso`, decisão do dono de 2026-11-05). Quem ainda não tem conta pede acesso por ali: o formulário é do WordPress (Elementor) e envia para o suporte; o Portal não tem formulário, endpoint nem e-mail próprios para esse pedido. O botão fica só no login: recuperação, redefinição, ativação e confirmação de email servem a uma conta já provisionada. O texto não varia por CNPJ. Se a página ou a âncora `#solicitar-acesso` mudarem no site, o endereço em `src/pages/PortalLogin.tsx` muda junto ([site fwlog.com.br](../operations/fwlog-site-embed.md#formulário-solicitar-acesso)).
 
 Quando o ambiente tem a Site Key (`VITE_TURNSTILE_SITE_KEY`), a tela mostra o desafio do Cloudflare Turnstile (ação `portal_login`) e só envia depois dele; sem token, avisa "Complete a verificação de segurança antes de continuar.". O servidor confere o token antes de qualquer outra verificação e recusa com HTTP `403` o token ausente ou inválido; sem `TURNSTILE_SECRET_KEY`, só o stack local passa (**Código:** `supabase/functions/portal-login/index.ts`, `supabase/functions/_shared/turnstile.ts`). Configuração e ordem de publicação em [serviços externos](../operations/servicos-externos.md#cloudflare-turnstile). Toda recusa devolvida pelo `portal-login` — credencial, bloqueio, Turnstile — e a falha de rede nessa chamada chegam à tela como a mesma mensagem genérica, porque `signIn` descarta o status da resposta (ver [Notas e divergências](#notas-e-divergências)).
 

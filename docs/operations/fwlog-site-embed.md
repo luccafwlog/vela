@@ -122,3 +122,13 @@ verdade é feito numa página **rascunho/privada** do WordPress em
    data limite batem com o que a Fwlog cobra).
 3. Retirar a planilha e o arquivo do WordPress (inclusive da biblioteca de
    mídia, para o link direto parar de funcionar).
+
+## Formulário "Solicitar acesso"
+
+Este formulário não é iframe: é o Elementor da página `/portal-do-cliente/`
+do site. O botão **Solicitar acesso** do login do Portal leva a
+`https://fwlog.com.br/portal-do-cliente/#solicitar-acesso`, numa aba nova
+(regra no [Portal do Cliente](../modules/portal-cliente.md#portallogin)).
+Mudar o endereço da página ou o identificador `solicitar-acesso` da seção
+quebra o botão: avise a equipe técnica antes, para o endereço em
+`src/pages/PortalLogin.tsx` mudar junto.

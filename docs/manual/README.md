@@ -198,6 +198,9 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   [ADR 0124](../adr/0124-veiculo-lcl-na-demurrage.md), migration `593`): free
   time fixo de 30 dias e cobrança suspensa, com a divisão **Veículo LCL** e o
   Gerar Invoice à mão (DEM-136; capítulo 9, seções 9.4 a 9.7 e 9.12).
+- **Solicitar acesso no login do Portal** (decisão do dono de 2026-11-05): o
+  botão abre o formulário da página do Portal no fwlog.com.br, em outra aba
+  (POR-001; capítulo 15, seção 15.2).
 - **Baixa e Conciliação só do Financeiro e da conta Dev** (decisão do dono de
   2026-11-04, migration `583`; regra em
   [Segurança](../operations/seguranca.md#modelo-de-permissões-por-perfil)):
