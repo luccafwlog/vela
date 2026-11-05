@@ -1179,13 +1179,24 @@ ao Mercante continua fora do Vela. **Código:**
 (montagem), `src/services/mercanteEdiTables.ts` (códigos);
 **Teste:** `mercanteEdi.test.ts`, `MercanteEdiModal.test.tsx`.
 
-- **Layout.** Manual do EDI Mercante 3.6: arquivo em UTF-8 com BOM, linhas
+- **Layout.** Manual do EDI Mercante 3.6: arquivo em UTF-8 **sem BOM**, linhas
   terminadas em CRLF (inclusive a última), texto em maiúsculas sem acento,
   alfanuméricos alinhados à esquerda e numéricos com zeros à esquerda e
   decimais implícitos. Carga: um M5 (manifesto), um C5 por B/L de contêiner
   ativo da rota (ordem do número do B/L) e um I5 por contêiner do B/L. Vazios:
   um M5 e um V5 por contêiner vazio da rota (substitui a planilha de três
   colunas). Carga solta: arquivo parcial (abaixo).
+- **Sem BOM.** O leiaute "Definições dos leiautes esquemáticos EDI/Upload"
+  (v3.2/v3.6) não pede BOM: o arquivo começa direto pelo tipo do primeiro
+  registro (`M5`). Com os bytes `EF BB BF` antes do `M5`, o tipo de registro
+  pode não ser reconhecido (código `EE0` no retorno). O envio pela VAN Zaptrade
+  com BOM já tinha sido aceito (GG6, manifesto 1226502020077), e em 2026-11-05
+  o arquivo sem BOM foi aceito em produção pelo Upload web do Mercante (GS8,
+  manifesto 1226502047331, protocolo 1105112539061, 12 B/Ls conferidos): TXT
+  sem BOM → ZIP com o TXT na raiz → **Assinar arquivo** na página do Mercante →
+  **Enviar**. O BOM não é necessário, e sem ele o arquivo serve aos dois
+  canais. Vale para os três arquivos (carga, vazios e o parcial de carga
+  solta); o download continua como `text/plain;charset=utf-8`.
 - **Cabeçalho (M5).** Armador pelo SCAC do cadastro, IMO e número da Viagem,
   POL e POD da rota, **encerramento** = ATD do POL da rota e **operação** = ETA
   do POD, terminal = o da frente de operação de importação do POD na escala

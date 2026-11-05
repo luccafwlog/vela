@@ -57,9 +57,9 @@ afterEach(() => {
 })
 
 describe('Gerar EDI Mercante (Rotas e Manifestos)', () => {
-  it('rota completa: mostra o resumo e baixa o arquivo com o nome do navio e da viagem', () => {
+  it('rota completa: mostra o resumo e baixa o arquivo com o nome do navio e da viagem', async () => {
     state.data = cargo()
-    const createObjectURL = vi.fn(() => 'blob:edi')
+    const createObjectURL = vi.fn<(blob: Blob) => string>(() => 'blob:edi')
     Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() })
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
     render(<MercanteEdiModal voyageId={169} route={route} onClose={vi.fn()} />)
@@ -70,6 +70,11 @@ describe('Gerar EDI Mercante (Rotas e Manifestos)', () => {
     expect(createObjectURL).toHaveBeenCalledTimes(1)
     const link = click.mock.contexts[0] as HTMLAnchorElement
     expect(link.download).toMatch(/^FWL_MERCANTE_\d{12}_GG6\.TXT$/)
+    // TXT sem BOM: os primeiros bytes são o tipo do registro M5, não EF BB BF.
+    const blob = createObjectURL.mock.calls[0][0]
+    expect(blob.type).toBe('text/plain;charset=utf-8')
+    const bytes = new Uint8Array(await blob.arrayBuffer())
+    expect(String.fromCharCode(...bytes.slice(0, 2))).toBe('M5')
   })
 
   it('impedimento bloqueia o download e aparece junto ao B/L', () => {

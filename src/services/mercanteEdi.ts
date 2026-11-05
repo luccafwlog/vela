@@ -3,10 +3,12 @@
 // (contêiner vazio). O arquivo de carga solta (e B/L misto) é parcial: sai com o
 // que o Vela tem e lista o que a equipe completa antes de enviar (decisão do dono,
 // 2026-11-03). Posições e regras do manual "Definições dos leiautes
-// esquemáticos EDI/Upload" do Mercante (v3.6); limpeza de texto, BOM, CRLF e o
+// esquemáticos EDI/Upload" do Mercante (v3.6); limpeza de texto, CRLF e o
 // preenchimento até 5000 posições iguais aos do sistema externo que o Vela
-// substitui. Função pura: recebe os dados já lidos e devolve o texto e o que
-// impede ou merece aviso. Nada é descartado em silêncio.
+// substitui. O arquivo sai sem BOM: o leiaute não pede BOM e o registro começa
+// direto pelo tipo (M5); o Upload web aceitou o arquivo sem BOM em 2026-11-05.
+// Função pura: recebe os dados já lidos e devolve o texto e o que impede ou
+// merece aviso. Nada é descartado em silêncio.
 
 import { COMPANY } from '../config/company'
 import { isValidCnpj } from '../lib/cnpj'
@@ -148,7 +150,6 @@ const C5_LENGTH = 4104
 // I5 e V5 têm menos posições úteis (2059 e 30), mas o sistema externo completa
 // com brancos até 5000 e esse arquivo é o que o Mercante já recebe.
 const ITEM_LENGTH = 5000
-const BOM = '﻿'
 const EOL = '\r\n'
 const PARTY_LENGTH = 253
 const MARK_LENGTH = 55
@@ -598,7 +599,8 @@ function repeated(values: string[]): string[] {
 
 function finish(ctx: Ctx, lines: string[]): MercanteEdiResult {
   const blocked = ctx.issues.some((issue) => issue.severity === 'impedimento')
-  const content = blocked ? null : `${BOM}${lines.map((line) => `${line}${EOL}`).join('')}`
+  // Sem BOM: o primeiro caractere é o tipo do primeiro registro (M5).
+  const content = blocked ? null : lines.map((line) => `${line}${EOL}`).join('')
   return { content, issues: ctx.issues }
 }
 
