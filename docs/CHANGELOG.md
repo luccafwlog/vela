@@ -6,6 +6,11 @@
 
 ## 2026-11
 
+- **Dados da Receita pelo CNPJ no Novo cliente (2026-11-05, ADR 0126; pedido do dono):** com o CNPJ completo, a
+  Edge Function nova `cnpj-lookup` consulta a BrasilAPI e a tela preenche só os campos vazios (razão social, nome
+  fantasia, CEP, endereço, cidade e UF), com aviso de situação diferente de ATIVA. Só equipe interna; resposta por
+  lista positiva (sem sócios, telefone ou e-mail); BrasilAPI fora do ar vira aviso e o cadastro segue à mão. A
+  função sai no próximo merge em `main` ([Clientes](modules/clientes.md)).
 - **Novo cliente com convite do Portal (2026-11-05; pedido do dono):** Documentação e Administrativo marcam
   **Enviar o convite do Portal agora** no **Novo cliente** e o convite sai, depois do cadastro, para o e-mail do
   contato principal (botão **Cadastrar e convidar**). Recusa do convite não desfaz o Cliente: o aviso diz o motivo e

@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
   exportCustomerBaseWorkbook: vi.fn(),
   fetchCustomerRows: vi.fn(),
   sendPortalInvite: vi.fn(),
+  useCnpjLookup: vi.fn(),
 }))
 
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -47,6 +48,9 @@ vi.mock('../../hooks/useCustomers', () => ({
   useCustomerSummary: mocks.useCustomerSummary,
   fetchCustomerRows: mocks.fetchCustomerRows,
   filterCustomerRowsByClientSideFilters: (rows: unknown[]) => rows,
+}))
+vi.mock('../../hooks/useCnpjLookup', () => ({
+  useCnpjLookup: (cnpj: string | null) => mocks.useCnpjLookup(cnpj),
 }))
 vi.mock('../../hooks/usePortalProvisioning', () => ({
   usePortalProvisioning: () => mocks.portalQuery,
@@ -131,6 +135,7 @@ describe('Clientes page behaviours', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.can.mockImplementation(() => true)
+    mocks.useCnpjLookup.mockReturnValue({ data: undefined, isFetching: false })
     mocks.useCustomers.mockImplementation(() => ({
       data: { rows: [customer], totalCount: 101 },
       isLoading: false,
@@ -607,5 +612,37 @@ describe('Clientes page behaviours', () => {
 
     await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
     expect(within(screen.getByRole('dialog')).queryByRole('checkbox', { name: /convite do Portal/ })).toBeNull()
+  })
+
+  // ADR 0126: com o CNPJ válido, os dados da Receita entram nos campos vazios.
+  it('CNPJ válido busca na Receita e preenche só os campos vazios', async () => {
+    const user = userEvent.setup()
+    mocks.useCnpjLookup.mockImplementation((cnpj: string | null) => cnpj === '12345678000195'
+      ? { isFetching: false, data: { status: 'encontrado', data: { cnpj, razao_social: 'EMPRESA DA RECEITA LTDA', nome_fantasia: 'EMPRESA', cep: '29010000', endereco: 'RUA A, 10 - CENTRO', cidade: 'VITORIA', uf: 'ES', situacao: 'BAIXADA' } } }
+      : { isFetching: false, data: undefined })
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    const dialog = screen.getByRole('dialog', { name: 'Novo cliente' })
+    await user.type(within(dialog).getByLabelText(/^Cidade/), 'Vitória')
+    await user.type(within(dialog).getByLabelText(/^CNPJ/), '12345678000195')
+
+    expect(mocks.useCnpjLookup).toHaveBeenLastCalledWith('12345678000195')
+    expect((within(dialog).getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('EMPRESA DA RECEITA LTDA')
+    expect((within(dialog).getByLabelText(/^Endereço/) as HTMLInputElement).value).toBe('RUA A, 10 - CENTRO')
+    expect((within(dialog).getByLabelText(/^UF/) as HTMLInputElement).value).toBe('ES')
+    expect((within(dialog).getByLabelText(/^Cidade/) as HTMLInputElement).value).toBe('Vitória')
+    expect(within(dialog).getAllByText(/Situação na Receita: BAIXADA/).length).toBeGreaterThan(0)
+  })
+
+  it('consulta indisponível avisa e deixa o cadastro à mão', async () => {
+    const user = userEvent.setup()
+    mocks.useCnpjLookup.mockImplementation((cnpj: string | null) => ({ isFetching: false, data: cnpj ? { status: 'indisponivel' } : undefined }))
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
+    expect(screen.getAllByText('Consulta à Receita indisponível agora. Preencha os dados à mão.').length).toBeGreaterThan(0)
+    expect((screen.getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('')
   })
 })

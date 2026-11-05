@@ -18,20 +18,23 @@ import { CustomerTable } from '../components/customers/CustomerTable'
 import { ClientesTabs } from '../components/customers/ClientesTabs'
 import { ImportBaseModal, type CustomerBaseRefusal } from '../components/customers/ImportBaseModal'
 import {
+  applyCnpjLookup,
   emptyCreateCustomerForm,
   newCustomerContact,
+  type CnpjAutofill,
   type CreateCustomerForm,
   type CustomerContactForm,
   type CustomerCreateErrors,
 } from '../components/customers/customerCreateForm'
 import { useAuth } from '../hooks/useAuth'
+import { useCnpjLookup } from '../hooks/useCnpjLookup'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useFilteredSelection } from '../hooks/useFilteredSelection'
 import { fetchCustomerRows, useCustomers, useCustomerSummary, type CustomerFilters } from '../hooks/useCustomers'
 import { usePortalProvisioning, useSendPortalInvite } from '../hooks/usePortalProvisioning'
 import { formatBRL, formatCnpjCpf, formatCountLabel } from '../lib/utils'
 import { userFacingErrorMessage } from '../lib/errors'
-import { isValidCnpj } from '../lib/cnpj'
+import { canonicalizeValidCnpj, isValidCnpj } from '../lib/cnpj'
 import { type CustomerSortKey } from '../lib/customerTableViewModel'
 import { CUSTOMER_COMMUNICATION_BOXES } from '../services/customerCommunicationBoxes'
 import { compareCustomerBaseWithExisting, customerNameChanges, importCustomerBaseRows, parseCustomerBaseFile, type ParsedCustomerBase } from '../services/customerBase'
@@ -139,6 +142,26 @@ export function Clientes() {
   const [importOpen, setImportOpen] = useState(false)
   const [createForm, setCreateForm] = useState<CreateCustomerForm>(emptyCreateCustomerForm)
   const [createErrors, setCreateErrors] = useState<CustomerCreateErrors>({})
+  // Consulta de CNPJ (ADR 0126): com o CNPJ válido, os dados da Receita entram
+  // nos campos vazios, uma vez por CNPJ (padrão "ajustar estado no render").
+  const lookupCnpjValue = createOpen ? canonicalizeValidCnpj(createForm.cnpjCpf) : null
+  const cnpjLookup = useCnpjLookup(lookupCnpjValue)
+  const [cnpjAutofill, setCnpjAutofill] = useState<{ cnpj: string | null; filled: CnpjAutofill }>({ cnpj: null, filled: {} })
+  if (lookupCnpjValue && cnpjLookup.data && lookupCnpjValue !== cnpjAutofill.cnpj) {
+    const result = cnpjLookup.data
+    const next = applyCnpjLookup(createForm, result.status === 'encontrado' ? result.data : null, cnpjAutofill.filled)
+    setCreateForm(next.form)
+    setCnpjAutofill({ cnpj: lookupCnpjValue, filled: next.filled })
+  }
+  const cnpjLookupState = !lookupCnpjValue
+    ? null
+    : cnpjLookup.data
+      ? cnpjLookup.data.status === 'encontrado'
+        ? { state: 'encontrado' as const, situacao: cnpjLookup.data.data.situacao }
+        : { state: cnpjLookup.data.status }
+      : cnpjLookup.isFetching
+        ? { state: 'buscando' as const }
+        : null
   const [saving, setSaving] = useState(false)
   const [baseFile, setBaseFile] = useState<File | null>(null)
   const [baseReadError, setBaseReadError] = useState<string | null>(null)
@@ -259,6 +282,7 @@ export function Clientes() {
       }
       setCreateOpen(false)
       setCreateForm(emptyCreateCustomerForm)
+      setCnpjAutofill({ cnpj: null, filled: {} })
       navigate(`/clientes/${encodeURIComponent(customer.cnpj_cpf)}`)
     } catch (cause) {
       // O formulário continua aberto com o motivo junto dos botões.
@@ -365,6 +389,7 @@ export function Clientes() {
   function resetCreateModal() {
     setCreateOpen(false)
     setCreateForm(emptyCreateCustomerForm)
+    setCnpjAutofill({ cnpj: null, filled: {} })
     setCreateErrors({})
     setSaving(false)
   }
@@ -625,6 +650,7 @@ export function Clientes() {
         errors={createErrors}
         saving={saving}
         canInvitePortal={canInvitePortal}
+        cnpjLookup={cnpjLookupState}
         // Fechar durante a gravação deixaria o resultado cair num modal
         // fechado (erro antigo na próxima abertura, segundo cadastro).
         onClose={() => { if (!saving) resetCreateModal() }}

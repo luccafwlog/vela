@@ -21,6 +21,7 @@ export function CreateCustomerModal({
   errors,
   saving,
   canInvitePortal,
+  cnpjLookup,
   onClose,
   onSubmit,
   onFieldChange,
@@ -35,6 +36,8 @@ export function CreateCustomerModal({
   saving: boolean
   /** Documentação e Administrativo: a Edge Function `portal-invite-send` recusa os demais. */
   canInvitePortal: boolean
+  /** Consulta do CNPJ na Receita (ADR 0126); null antes de o CNPJ ficar válido. */
+  cnpjLookup: CnpjLookupState | null
   onClose: () => void
   onSubmit: () => void
   onFieldChange: <K extends keyof Omit<CreateCustomerForm, 'contacts'>>(field: K, value: CreateCustomerForm[K]) => void
@@ -58,7 +61,7 @@ export function CreateCustomerModal({
         <section className="app-customer-form__section" aria-labelledby={`${primaryGroup}-identity`}>
           <h3 id={`${primaryGroup}-identity`} className="app-customer-form__title">Dados cadastrais</h3>
           <div className="app-customer-form__grid">
-            <Field label="CNPJ" required error={errors.cnpjCpf} hint="Com ou sem pontuação; letras são aceitas.">
+            <Field label="CNPJ" required error={errors.cnpjCpf} hint={cnpjLookupHint(cnpjLookup)}>
               <Input maxLength={CNPJ_INPUT_MAX_LENGTH} inputMode="text" autoComplete="off" value={form.cnpjCpf} onChange={(event) => onFieldChange('cnpjCpf', normalizeCnpj(event.target.value))} />
             </Field>
             <Field label="Razão social" required error={errors.name}>
@@ -83,6 +86,9 @@ export function CreateCustomerModal({
             </Field>
           </div>
         </section>
+
+        {/* O texto sob o CNPJ muda sozinho; esta região o anuncia ao leitor de tela. */}
+        <p className="sr-only" role="status">{cnpjLookup && cnpjLookup.state !== 'buscando' ? cnpjLookupHint(cnpjLookup) : ''}</p>
 
         <section className="app-customer-form__section" aria-labelledby={`${primaryGroup}-contacts`}>
           <div className="app-customer-form__head">
@@ -145,6 +151,25 @@ export function CreateCustomerModal({
       </form>
     </Modal>
   )
+}
+
+export type CnpjLookupState =
+  | { state: 'buscando' }
+  | { state: 'encontrado'; situacao: string }
+  | { state: 'nao_encontrado' }
+  | { state: 'indisponivel' }
+
+function cnpjLookupHint(lookup: CnpjLookupState | null): string {
+  if (!lookup) return 'Com ou sem pontuação; letras são aceitas. Com o CNPJ completo, os dados da Receita entram sozinhos.'
+  switch (lookup.state) {
+    case 'buscando': return 'Buscando os dados na Receita…'
+    case 'nao_encontrado': return 'CNPJ não encontrado na Receita. Preencha os dados à mão.'
+    case 'indisponivel': return 'Consulta à Receita indisponível agora. Preencha os dados à mão.'
+    case 'encontrado':
+      return lookup.situacao && lookup.situacao !== 'ATIVA'
+        ? `Situação na Receita: ${lookup.situacao}. Dados preenchidos nos campos vazios; confira antes de cadastrar.`
+        : 'Dados da Receita preenchidos nos campos vazios. Confira antes de cadastrar.'
+  }
 }
 
 function ContactFields({
