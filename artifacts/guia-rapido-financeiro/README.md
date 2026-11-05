@@ -1,14 +1,16 @@
 # Guia rápido do Financeiro
 
-Guia em PDF (A4, 8 páginas) para o setor Financeiro, pedido pelo dono em
-2026-11-05. Ele explica, tela por tela e com capturas reais, o que o Financeiro
-encontra no menu **Financeiro** (Conciliação PIX, Taxas Locais e Demurrage). Mostra
-também a conferência diária entre as baixas do Vela e o extrato do Itaú e o que
-depende do Financeiro: dar baixa num Pix sem baixa, registrar um pagamento,
-decidir um Pix em análise, cancelar uma baixa, devolver dinheiro (restituição),
-preparar o cancelamento financeiro de um B/L pago a pedido do Administrativo e
-cancelar uma fatura. Para cada tarefa, o guia diz o que a provoca e quem pede.
-Os casos raros ficam no Manual do Operador (capítulos 22 a 24).
+Guia em PDF (A4, 9 páginas) para o setor Financeiro, pedido pelo dono em
+2026-11-05, em duas partes. A **Parte 1, o dia a dia**, é o caminho feliz:
+a conferência entre as baixas do Vela e o extrato do Itaú, primeiro pelo
+Histórico de baixas e depois por Pix recebidos, e o acompanhamento de Taxas
+Locais e Demurrage, tela por tela e com capturas reais. A **Parte 2, ações
+pontuais**, começa com o que provoca cada ação (alerta no sino ou pedido de
+outra equipe). Depois vêm, com as telas, dar baixa num Pix sem baixa, registrar
+um pagamento, cancelar uma baixa, devolver dinheiro (restituição), decidir um
+Pix em análise, preparar o cancelamento financeiro de um B/L pago a pedido do
+Administrativo e cancelar uma fatura. Os casos raros ficam no Manual do
+Operador (capítulos 22 a 24).
 
 | Arquivo | O que é |
 | --- | --- |
