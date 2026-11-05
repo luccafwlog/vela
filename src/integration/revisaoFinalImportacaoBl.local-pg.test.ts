@@ -427,8 +427,8 @@ describeLocal('Importação de B/L: revisão final da PR 929 (migration 213)', (
   it('carga solta que muda de POD desvincula o Manifesto Mercante pelo gatilho, com o Histórico legível', () => {
     const out = scenario(`
       ${importBreakbulk([breakbulkLine('R213-B6')], [], 'first')}
-      INSERT INTO public.manifestos_mercante (id, voyage_id, pol, pod, numero, natureza, created_at, updated_at)
-      VALUES ('${manifestoId}', ${voyageId}, 'CNSHA', '${portP.code}', '2132132132131', 'carga', now(), now());
+      INSERT INTO public.manifestos_mercante (id, voyage_id, pol, pod, numero, natureza, cargo_mode, created_at, updated_at)
+      VALUES ('${manifestoId}', ${voyageId}, 'CNSHA', '${portP.code}', '2132132132131', 'carga', 'carga_solta', now(), now());
       SET LOCAL session_replication_role = replica;
       UPDATE public.bls SET manifesto_mercante_id = '${manifestoId}' WHERE id = 'R213-B6';
       SET LOCAL session_replication_role = origin;

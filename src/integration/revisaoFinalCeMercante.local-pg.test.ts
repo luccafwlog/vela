@@ -174,7 +174,7 @@ describeLocal('Revisão final da PR 929 — CE Mercante e Manifesto (migration 2
 
   it('o cadastro de Manifestos não aceita gravação direta pela API; Mover continua pela RPC', () => {
     for (const statement of [
-      `INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza) VALUES (${voyageId}, '${pol}', '${chargeTable.pod}', 'R212A00000009', 'carga');`,
+      `INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza, cargo_mode) VALUES (${voyageId}, '${pol}', '${chargeTable.pod}', 'R212A00000009', 'carga', 'container');`,
       `UPDATE public.manifestos_mercante SET numero = 'R212A00000008' WHERE voyage_id = ${voyageId};`,
       `DELETE FROM public.manifestos_mercante WHERE voyage_id = ${voyageId};`,
     ]) {
@@ -195,8 +195,8 @@ describeLocal('Revisão final da PR 929 — CE Mercante e Manifesto (migration 2
   })
 
   it('o vínculo do B/L com o Manifesto não muda por UPDATE ou INSERT direto; trocar o POL ainda desvincula', () => {
-    const otherId = psql(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza)
-      VALUES (${voyageId}, 'R212X', 'R212Y', 'R212A00000002', 'carga') RETURNING id;`)
+    const otherId = psql(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza, cargo_mode)
+      VALUES (${voyageId}, 'R212X', 'R212Y', 'R212A00000002', 'carga', 'container') RETURNING id;`)
 
     expect(asAdmin(`UPDATE public.bls SET manifesto_mercante_id = NULL WHERE id = 'R212-M1';`).error)
       .toMatch(/Manifesto Mercante do B\/L R212-M1 muda só por Mover ou Desvincular/)

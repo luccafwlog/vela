@@ -148,7 +148,7 @@ describeLocal('404 — Histórico: importação visível no B/L e no Cliente; tr
 
   it('Nº de Manifesto do lote grava import_batch e não colide com o gatilho do lote', () => {
     const numero = '1226501860578'
-    w.psql(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza) VALUES (${w.voyageId}, 'CNSHA', '${w.pod}', '${numero}', 'carga')`)
+    w.psql(`INSERT INTO public.manifestos_mercante (voyage_id, pol, pod, numero, natureza, cargo_mode) VALUES (${w.voyageId}, 'CNSHA', '${w.pod}', '${numero}', 'carga', 'container')`)
     const batch = w.psql(`INSERT INTO public.import_batches (voyage_id, filename, cargo_mode) VALUES (${w.voyageId}, 'h.xlsx', 'container') RETURNING id`)
     w.asOk('operacoes', `SELECT public.set_import_batch_ce_master(${batch}, '${numero}', '${w.actors.operacoes}')`)
     expect(w.psql(`SELECT string_agg(entity_type || ':' || entity_id, ',' ORDER BY entity_type) FROM public.audit_logs

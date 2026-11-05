@@ -20,6 +20,7 @@ import {
 } from '../../services/manifestosMercanteService'
 import { normalizePortCode } from '../../services/portCode'
 import { matchesAnyToken } from '../../lib/searchTerms'
+import { manifestoCargoModeOfBl } from './voyageCardHelpers'
 
 // A rota da Viagem e o Manifesto guardam o porto normalizado; o B/L pode trazer
 // sinônimo (BRVIT, VITORIA, ITAJAÍ). Compara como `manifestosOfRoute`.
@@ -43,7 +44,8 @@ export function ManifestoBlsModal({
   open: boolean
   onClose: () => void
   voyageId: number
-  route: { pol: string; pod: string; label: string }
+  /** A linha de Rotas e Manifestos: rota e natureza (migration 592). */
+  route: { pol: string; pod: string; label: string; cargoMode: 'container' | 'carga_solta' }
 }) {
   const { showToast } = useToast()
   const confirmWithReason = useConfirmWithReason()
@@ -58,8 +60,9 @@ export function ManifestoBlsModal({
   const lastIndex = useRef<number | null>(null)
 
   const routeBls = useMemo(
-    () => (data ?? []).filter((bl) => sameRoute(bl.pol, route.pol) && sameRoute(bl.pod, route.pod)),
-    [data, route.pol, route.pod],
+    () => (data ?? []).filter((bl) => sameRoute(bl.pol, route.pol) && sameRoute(bl.pod, route.pod)
+      && manifestoCargoModeOfBl(bl.cargoMode) === route.cargoMode),
+    [data, route.pol, route.pod, route.cargoMode],
   )
   const filtered = useMemo(() => {
     const term = search.trim().toUpperCase()
@@ -113,7 +116,7 @@ export function ManifestoBlsModal({
     const reason = await confirmWithReason({
       title: 'Mover B/Ls de Manifesto Mercante',
       message: `${selectedBls.length} B/L(s) sairão de ${origins()} e irão para ${canonicalTarget}.`,
-      consequence: 'Tudo ou nada: se um B/L não puder mudar, nenhum muda. Um número novo é cadastrado nesta rota.',
+      consequence: `Tudo ou nada: se um B/L não puder mudar, nenhum muda. Um número novo é cadastrado nesta rota como Manifesto de ${route.cargoMode === 'carga_solta' ? 'carga solta' : 'contêiner'}; número de Manifesto da outra natureza é recusado.`,
       reversibility: 'Mover de novo, com motivo.',
       confirmLabel: 'Mover',
       affected: { summary: `${selectedBls.length} B/L(s)`, items: selectedBls.map((bl) => bl.id) },

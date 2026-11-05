@@ -114,6 +114,12 @@ describe('templates de Comunicados', () => {
     expect(rendered.text).toContain('Total da viagem:')
     expect(rendered.html).toContain('https://portal.example/portal/billing')
     expect(rendered.html).not.toMatch(/PIX|vencimento|anexo/i)
+    // Pedido de conferência dos CEs, entre a lista e o botão das faturas.
+    const check = 'Pedimos que confira os CEs Mercantes acima. Se encontrar algum erro ou inconsistência, avise a nossa equipe pelo e-mail'
+    expect(rendered.html).toContain(`${check} <a href="mailto:importacao@fwlog.com.br"`)
+    expect(rendered.html.indexOf(check)).toBeGreaterThan(rendered.html.indexOf('Total da viagem'))
+    expect(rendered.html.indexOf(check)).toBeLessThan(rendered.html.indexOf('>Ver faturas e formas de pagamento</a>'))
+    expect(rendered.text).toContain(`${check} importacao@fwlog.com.br.`)
   })
 
   it('CE Mercante de Cliente só com B/Ls isentos sai só com os CEs, sem valor, total nem botão de pagamento', () => {
@@ -134,6 +140,8 @@ describe('templates de Comunicados', () => {
     expect(rendered.html).not.toMatch(/R\$|Total da viagem|Ver faturas e formas de pagamento|podem ser pagas/)
     expect(rendered.text).toContain('- CE 222222222222222 (B/L BL-21)')
     expect(rendered.text).not.toMatch(/R\$|Total da viagem|Ver faturas/)
+    expect(rendered.html).toContain('Pedimos que confira os CEs Mercantes acima. Se encontrar algum erro ou inconsistência, avise a nossa equipe pelo e-mail <a href="mailto:importacao@fwlog.com.br"')
+    expect(rendered.text).toMatch(/- CE 222222222222222 \(B\/L BL-21\)\n\nPedimos que confira os CEs Mercantes acima\. .* importacao@fwlog\.com\.br\.$/m)
   })
 
   it('CE Mercante com B/L isento e B/L faturado mostra "Isento" e soma só o faturado', () => {

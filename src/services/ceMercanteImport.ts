@@ -3,6 +3,7 @@ import { assertUploadFile } from '../lib/fileGuard'
 import { asString, chunkArray, onlyDigits } from '../lib/utils'
 import { supabase } from './supabase'
 import { matchHeaders, readSheet, type HeaderSpec, type SheetRow } from './importCore'
+import { parseRetornoMercanteText } from './retornoMercante'
 
 // Resposta de apply_ce_mercante_rows_atomic (migration 082); o tipo gerado é Json.
 type CeRowsAtomicResult = {
@@ -46,6 +47,11 @@ export type ParsedCeMercanteFile = {
     message: string
     raw: unknown
   }>
+  /**
+   * Arquivo de Retorno Mercante (.TXT): o Nº do Manifesto e a rota vêm do
+   * próprio arquivo. Sem este campo, a fonte é a planilha.
+   */
+  retorno?: { manifesto: string; pol: string; pod: string }
 }
 
 export type CeMercanteImportResult = {
@@ -178,10 +184,43 @@ export async function partitionRowsByVoyage<T extends { bl_id: string; rowNumber
 
 const CE_MERCANTE_LENGTH = 15
 
+/** Planilha de CE (.xlsx, .xls, .csv) ou arquivo de Retorno Mercante (.txt). */
 export async function parseCeMercanteFile(file: File): Promise<ParsedCeMercanteFile> {
-  assertUploadFile(file, ['xlsx', 'xls', 'csv'])
+  assertUploadFile(file, ['xlsx', 'xls', 'csv', 'txt'])
   const buffer = await file.arrayBuffer()
+  if (file.name.toLowerCase().endsWith('.txt')) return parseRetornoMercanteBuffer(buffer)
   return parseCeMercanteBuffer(buffer)
+}
+
+/**
+ * Retorno Mercante: cada conhecimento (C5) vira uma linha B/L + CE, conferida
+ * pelas mesmas regras da planilha; o Nº do Manifesto é o do M5.
+ */
+export function parseRetornoMercanteBuffer(buffer: ArrayBuffer): ParsedCeMercanteFile {
+  // O retorno é ASCII; latin1 lê qualquer byte sem recusar o arquivo. Salvo
+  // com BOM UTF-8, o arquivo é lido como UTF-8, que descarta o BOM (em latin1
+  // ele viraria "ï»¿" e o M5 não seria achado).
+  const bytes = new Uint8Array(buffer)
+  const utf8Bom = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf
+  const retorno = parseRetornoMercanteText(new TextDecoder(utf8Bom ? 'utf-8' : 'latin1').decode(bytes))
+  const mismatched: ParsedCeMercanteFile['rowErrors'] = retorno.entries
+    .filter((entry) => entry.manifesto !== retorno.manifesto)
+    .map((entry) => ({
+      row: entry.line,
+      message: `B/L ${entry.bl}: o conhecimento é do manifesto ${entry.manifesto}, diferente do manifesto do Retorno (${retorno.manifesto}).`,
+      raw: entry,
+    }))
+  const parsed = validateCeEntries(
+    retorno.entries
+      .filter((entry) => entry.manifesto === retorno.manifesto)
+      .map((entry) => ({ rowNumber: entry.line, bl: entry.bl, ce: entry.ce, raw: entry })),
+    'no Retorno',
+  )
+  return {
+    rows: parsed.rows,
+    rowErrors: [...mismatched, ...parsed.rowErrors].sort((left, right) => left.row - right.row),
+    retorno: { manifesto: retorno.manifesto, pol: retorno.pol, pod: retorno.pod },
+  }
 }
 
 export async function parseCeMercanteBuffer(buffer: ArrayBuffer): Promise<ParsedCeMercanteFile> {
@@ -293,6 +332,20 @@ export async function importCeMercanteRows(
 }
 
 function parseRows(rows: SheetRow[]): ParsedCeMercanteFile {
+  return validateCeEntries(
+    rows.map((row) => {
+      const mapped = mapRow(row)
+      return { rowNumber: row.rowNumber, bl: mapped.bl_id, ce: mapped.ce_mercante, raw: row }
+    }),
+    'na planilha',
+  )
+}
+
+/** Regras de linha comuns à planilha e ao Retorno Mercante. */
+function validateCeEntries(
+  entries: Array<{ rowNumber: number; bl: unknown; ce: unknown; raw: unknown }>,
+  where: 'na planilha' | 'no Retorno',
+): ParsedCeMercanteFile {
   const rowErrors: ParsedCeMercanteFile['rowErrors'] = []
   const validRows: CeMercanteRow[] = []
   const seenBls = new Set<string>()
@@ -300,9 +353,10 @@ function parseRows(rows: SheetRow[]): ParsedCeMercanteFile {
   // no arquivo é erro de linha e bloqueia a confirmação.
   const seenCes = new Map<string, { row: number; blId: string }>()
 
-  rows.forEach((row) => {
-    const mapped = mapRow(row)
-    const rowNumber = row.rowNumber
+  entries.forEach((entry) => {
+    const row = entry.raw
+    const mapped = { bl_id: entry.bl, ce_mercante: entry.ce }
+    const rowNumber = entry.rowNumber
     const bl_id = normalizeBlId(mapped.bl_id)
     const ce_mercante = normalizeCeMercante(mapped.ce_mercante)
 
@@ -334,7 +388,7 @@ function parseRows(rows: SheetRow[]): ParsedCeMercanteFile {
     if (seenBls.has(bl_id)) {
       rowErrors.push({
         row: rowNumber,
-        message: `BL ${bl_id} repetido na planilha de CE Mercante.`,
+        message: where === 'na planilha' ? `BL ${bl_id} repetido na planilha de CE Mercante.` : `BL ${bl_id} repetido no Retorno Mercante.`,
         raw: row,
       })
       return
@@ -344,7 +398,7 @@ function parseRows(rows: SheetRow[]): ParsedCeMercanteFile {
     if (firstCe) {
       rowErrors.push({
         row: rowNumber,
-        message: `CE Mercante ${ce_mercante} repetido na planilha: já está na linha ${firstCe.row} (BL ${firstCe.blId}). Um CE só pode estar em um B/L.`,
+        message: `CE Mercante ${ce_mercante} repetido ${where}: já está na linha ${firstCe.row} (BL ${firstCe.blId}). Um CE só pode estar em um B/L.`,
         raw: row,
       })
       return

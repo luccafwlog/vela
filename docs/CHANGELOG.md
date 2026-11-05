@@ -13,6 +13,10 @@
   contagem diferente (o do GREEN SEPETIBA / 8 declarava um segmento a mais, o que a exceção de 2026-10-27, de um a
   menos no 1.5, não cobria). Arquivo sem UNT ou UNZ, ou com eles sem o número, continua recusado. Prova:
   `baplieParserReaderFixes.test.ts`.
+- **Conferência dos CEs no Comunicado de CE e Taxas (2026-11-05; pedido do dono):** as duas versões do e-mail
+  ("CE Mercante e Taxas Locais disponíveis" e "CE Mercante disponível") pedem, logo abaixo da lista de CEs, que o
+  Cliente confira os CEs e avise importacao@fwlog.com.br de qualquer erro ou inconsistência
+  ([Clientes](modules/clientes.md)).
 - **Reforços da auditoria de segurança run-3 (2026-11-05; plano arquivado):** as Edge Functions importam toda
   dependência pelo nome lógico do import map `supabase/functions/deno.json`, declarado por todas as funções em
   `supabase/config.toml`, e o Dependabot passa a atualizá-las; o CI faz o `deno check` das 26 funções (antes 17),

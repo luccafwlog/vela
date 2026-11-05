@@ -235,3 +235,4 @@ src/integration/desbloqueioVeiculoLcl.local-pg.test.ts
 src/integration/terminalDaEscalaCobrado.local-pg.test.ts
 src/integration/alertasDeDinheiroNoFinanceiro.local-pg.test.ts
 src/integration/limpezaHistoricoCron.local-pg.test.ts
+src/integration/manifestoPorNatureza.local-pg.test.ts
