@@ -6,6 +6,14 @@
 
 ## 2026-11
 
+- **Veículo LCL na Demurrage (2026-11-05, migration `592`, ADR 0123; decisão do dono):** o B/L de veículo LCL
+  (container, com veículo, Movement To com LCL ou CFS) tem free time fixo de 30 dias, acima da condição do B/L, do
+  acordo e da tarifa, no cálculo, no status do container, na aba B/Ls do Portal e na Consulta de container. A
+  cobrança nasce suspensa: nenhuma emissão automática o cobra, e a aba Containers ganha a divisão **Veículo LCL**,
+  fora dos cartões em US$, de Por Cliente, da Exposição e dos Alertas, com **Gerar Invoice** (com confirmação) quando
+  tudo voltou. A Invoice emitida à mão segue como as outras; cancelar o B/L de veículo LCL não esbarra na Demurrage;
+  a condição do B/L recusa free time próprio. Fichas do B/L e do Cliente mostram "cobrança suspensa (veículo LCL)"
+  ([Demurrage § Veículo LCL](modules/demurrage.md#veículo-lcl)).
 - **Reforços da auditoria de segurança run-3 (2026-11-05; plano arquivado):** as Edge Functions importam toda
   dependência pelo nome lógico do import map `supabase/functions/deno.json`, declarado por todas as funções em
   `supabase/config.toml`, e o Dependabot passa a atualizá-las; o CI faz o `deno check` das 26 funções (antes 17),

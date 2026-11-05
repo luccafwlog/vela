@@ -5,7 +5,7 @@ import { saoPauloTodayIso } from '../lib/dates'
 import { storedPortAliases } from './portCode'
 import type { DemurrageInvoiceListItem } from './demurrage/demurrageInvoices'
 import { listDemurrageBillingBoard, type BoardBox, type BoardGroup } from './demurrage/demurrageBoard'
-import { DEMURRAGE_DIVISIONS, type DemurrageDivision } from './demurrage/demurrageDivisions'
+import { DEMURRAGE_DIVISIONS, isBillingDivision, type DemurrageDivision } from './demurrage/demurrageDivisions'
 import { invoiceNetUsd } from './demurrage/demurrageNetUsd'
 
 // ─── Leitura em páginas (achado R2 do lote 5b) ────────────────────────────
@@ -707,7 +707,8 @@ export type DemurrageExposureResult = {
 
 export function demurrageExposureRows(groups: readonly BoardGroup[], division: DemurrageReportFilters['division'] = ''): DemurrageExposureResult {
   const rows = groups
-    .filter((group) => !division || group.division === division)
+    // Veículo LCL (migration 592): cobrança suspensa, fora da Exposição.
+    .filter((group): group is BoardGroup & { division: DemurrageDivision } => isBillingDivision(group.division) && (!division || group.division === division))
     .flatMap((group) => group.boxes.filter((box) => EXPOSURE_STATES.has(box.state)).map((box): DemurrageExposureRow => ({
       ...box,
       usd: box.usd == null ? null : Number(box.usd),

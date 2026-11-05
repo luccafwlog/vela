@@ -14,7 +14,7 @@ import { QueryStateGate } from '../shared/QueryStateGate'
 import { useNarrowViewport } from '../bl/useNarrowViewport'
 import { FREE_TIME_SOURCE_LABELS, fmtUSD } from '../../services/demurrage/demurragePresentation'
 import {
-  DEMURRAGE_DIVISIONS,
+  BOARD_DIVISIONS,
   DEMURRAGE_DIVISION_LABELS,
   boxCounts,
   canWaiveBox,
@@ -22,8 +22,8 @@ import {
   matchesBoardSearch,
   nextStep,
   type BoardBox,
+  type BoardDivision,
   type BoardGroup,
-  type DemurrageDivision,
 } from '../../services/demurrage/demurrageBoard'
 import { formatDate } from '../../lib/utils'
 import { extractErrorText } from '../../lib/errors'
@@ -31,7 +31,7 @@ import { extractErrorText } from '../../lib/errors'
 type Props = {
   groups: BoardGroup[] | undefined
   search: string
-  division: DemurrageDivision
+  division: BoardDivision
   loading: boolean
   error: unknown
   canIssue: boolean
@@ -40,7 +40,7 @@ type Props = {
   generateError?: { blId: string; message: string } | null
   onRetry: () => void
   onSearchChange: (value: string) => void
-  onDivisionChange: (division: DemurrageDivision) => void
+  onDivisionChange: (division: BoardDivision) => void
   onGenerateInvoice: (blId: string) => void
   onEditContainer: (box: BoardBox, group: BoardGroup) => void
   onOpenInvoice: (invoiceId: number) => void
@@ -53,14 +53,20 @@ type Props = {
   /** Caixa (`container_id`) cuja dispensa está gravando: o botão dela gira e os outros esperam. */
   waivingBoxId?: number | null
   /** Planilha de Exposição do recorte da tela (lote 6). */
-  onExport?: (groups: BoardGroup[], division: DemurrageDivision) => void
+  onExport?: (groups: BoardGroup[], division: BoardDivision) => void
 }
 
-const EMPTY_TEXT: Record<DemurrageDivision, string> = {
+const EMPTY_TEXT: Record<BoardDivision, string> = {
   correndo: 'Nenhum container fora passou do free time.',
   a_emitir: 'Nenhum grupo com tudo devolvido e Demurrage sem Invoice.',
   esperando: 'Nenhum container devolvido com sobreestadia esperando outro container do grupo.',
   travado: 'Nada travado: toda sobreestadia tem como ser cobrada.',
+  veiculo_lcl: 'Nenhum container de veículo LCL passou dos 30 dias de free time sem Invoice.',
+}
+
+/** Cor do US$ previsto: Travado em vermelho; Veículo LCL, cobrança suspensa, sem cor (migration 592). */
+function usdTone(division: BoardDivision) {
+  return division === 'travado' ? 'danger' : division === 'veiculo_lcl' ? 'default' : 'warning'
 }
 
 /**
@@ -122,7 +128,7 @@ export function DemurrageContainersTab({
           label="Divisão da cobrança"
           value={division}
           onChange={onDivisionChange}
-          options={DEMURRAGE_DIVISIONS.map((value) => ({ value, label: `${DEMURRAGE_DIVISION_LABELS[value]} (${totals[value].groups})` }))}
+          options={BOARD_DIVISIONS.map((value) => ({ value, label: `${DEMURRAGE_DIVISION_LABELS[value]} (${totals[value].groups})` }))}
         />
       </div>
 
@@ -140,7 +146,7 @@ export function DemurrageContainersTab({
             items={[
               { label: visibleTotal.groups === 1 ? 'grupo de B/L' : 'grupos de B/L', value: String(visibleTotal.groups) },
               { label: visibleTotal.boxes === 1 ? 'container' : 'containers', value: String(visibleTotal.boxes) },
-              { label: 'US$ previsto hoje', value: fmtUSD(visibleTotal.usd), tone: visibleTotal.usd > 0 ? (division === 'travado' ? 'danger' : 'warning') : 'default' },
+              { label: division === 'veiculo_lcl' ? 'US$ se cobrado' : 'US$ previsto hoje', value: fmtUSD(visibleTotal.usd), tone: visibleTotal.usd > 0 ? usdTone(division) : 'default' },
             ]}
           />
           {onExport && visible.length ? (
@@ -151,6 +157,12 @@ export function DemurrageContainersTab({
           ) : null}
           {!canIssue ? <p className="app-dem-note">Gerar Invoice exige um perfil interno ativo.</p> : null}
         </div>
+        {division === 'veiculo_lcl' ? (
+          <p className="app-dem-note">
+            Veículo LCL tem free time fixo de 30 dias e a cobrança da Demurrage suspensa: nada é emitido sozinho. Gere a Invoice só se
+            for cobrar; se não for, a dispensa tira o container daqui.
+          </p>
+        ) : null}
 
         {visible.length === 0 ? (
           search.trim() ? (
@@ -267,7 +279,7 @@ export function DemurrageContainersTab({
                           <td className="app-table__text" title={group.customer_name ?? undefined}>{group.customer_name ?? <StatusText tone="warning">Cliente não vinculado</StatusText>}</td>
                           <td>{group.voyage_label ?? <NoValue label="Sem viagem" />}</td>
                           <td className="tabular-nums" title="Fora · devolvidos · total do grupo">{counts.out} fora · {counts.returned} devolvidos · {counts.total}</td>
-                          <td className="tabular-nums">{group.usd > 0 ? <StatusText tone={division === 'travado' ? 'danger' : 'warning'}>{fmtUSD(group.usd)}</StatusText> : <NoValue label="Sem valor calculado" />}</td>
+                          <td className="tabular-nums">{group.usd > 0 ? <StatusText tone={usdTone(division)}>{fmtUSD(group.usd)}</StatusText> : <NoValue label="Sem valor calculado" />}</td>
                           <td className="app-table__text app-table__text--wrap"><NextStepText group={group} /></td>
                           <td className="app-dem-row-action">
                             <NextStepAction group={group} canIssue={canIssue} generatingBl={generatingBl} onGenerateInvoice={onGenerateInvoice} iconOnly />
@@ -381,6 +393,12 @@ function BoxUsd({ box, onOpenInvoice }: { box: BoardBox; onOpenInvoice: (id: num
   if (box.state === 'no_discharge') return <NoValue label="Sem descarga" />
   if (box.state === 'in_free_time') return <span className="app-dem-meta">no free time{box.last_free_day ? ` até ${formatDate(box.last_free_day)}` : ''}</span>
   if (box.state === 'returned_free') return <NoValue label="Devolvido no free time" />
+  // Veículo LCL (migration 592): o valor se for cobrado; sem tarifa, não há como cobrar.
+  if (box.state === 'lcl_vehicle') {
+    return box.usd == null
+      ? <StatusText tone="warning">Tipo sem tarifa</StatusText>
+      : <span><span className="tabular-nums">{fmtUSD(box.usd)}</span> <span className="app-dem-meta">suspensa</span></span>
+  }
   return <span className="tabular-nums">{fmtUSD(box.usd ?? 0)}</span>
 }
 
@@ -389,13 +407,16 @@ function NextStepText({ group }: { group: BoardGroup }) {
   const step = nextStep(group)
   const warning = group.warning ? <span className="block"><StatusText tone="warning">{group.warning}</StatusText></span> : null
   if (step.kind === 'generate') {
+    if (step.lclVehicle) return <>{step.complement ? 'Cobrança suspensa: gere a complementar só se for cobrar' : 'Cobrança suspensa: gere a Invoice só se for cobrar'}</>
     // 525: A emitir mostra por que a linha espera alguém (ADR 0112, D10) ou que a emissão já está na fila.
     if (step.cancelledDoc) return <StatusText tone="warning">{`Invoice anterior ${step.cancelledDoc} cancelada à mão: gere a nova`}</StatusText>
     if (step.queued) return <>Emissão automática em andamento</>
     return <>{step.complement ? 'O grupo já tem Invoice: gerar a complementar dos containers sem Invoice' : 'Pronto para gerar a Invoice'}</>
   }
-  if (step.kind === 'link') return <><StatusText tone="danger">{step.note}</StatusText> <Link className="app-link" to={step.href}>{step.label}</Link></>
-  if (step.kind === 'note') return <StatusText tone="danger">{step.text}</StatusText>
+  // Em Veículo LCL o motivo é o que falta para cobrar, não uma cobrança travada (âmbar).
+  const tone = group.division === 'veiculo_lcl' ? 'warning' : 'danger'
+  if (step.kind === 'link') return <><StatusText tone={tone}>{step.note}</StatusText> <Link className="app-link" to={step.href}>{step.label}</Link></>
+  if (step.kind === 'note') return <StatusText tone={tone}>{step.text}</StatusText>
   return <>{step.text}{warning}</>
 }
 
@@ -413,7 +434,7 @@ function NextStepAction({
   iconOnly?: boolean
 }) {
   const step = nextStep(group)
-  // Gerar Invoice só onde o banco aceita: A emitir (D4).
+  // Gerar Invoice só onde o banco aceita: A emitir (D4) e Veículo LCL pronto (migration 592).
   if (step.kind !== 'generate' || !canIssue) return null
   const blId = group.anchor_bl_id
   const label = step.complement ? `Gerar Invoice complementar do B/L ${blId}` : `Gerar Invoice do B/L ${blId}`

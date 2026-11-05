@@ -899,7 +899,7 @@ Exige prova positiva: veículo em FCL ou sem Movimento declarado paga
 normalmente.
 → Regra: [Taxas Locais § Movimento e Isenção de Taxas Locais](docs/modules/taxas-locais.md#movimento-e-isenção-de-taxas-locais)
 
-- **Ver também:** Movimento (FCL/LCL), Taxas Locais
+- **Ver também:** Movimento (FCL/LCL), Taxas Locais, Veículo LCL
 
 **Taxa alterada à mão**
 Taxa Local de um B/L cujo valor o operador mudou (por unidade ou pelo total)
@@ -970,9 +970,19 @@ ATA da Viagem.
 **Free Time**
 Período após a descarga em que o container fica no pátio sem cobrança. Vem do
 override do B/L, do Acordo de Demurrage do Cliente ou da Tarifa de Demurrage,
-nessa ordem.
-- **Ver também:** P1, P2, Free Time Override
+nessa ordem; o Veículo LCL tem 30 dias fixos, acima dos três.
+- **Ver também:** P1, P2, Free Time Override, Veículo LCL
 → Regra: [Demurrage § Tarifa, free time, P1 e P2](docs/modules/demurrage.md#tarifa-free-time-p1-e-p2)
+
+**Veículo LCL**
+B/L de modalidade container, com veículo e Movement To com LCL ou CFS. Tem as
+Taxas Locais isentas, o Desbloqueio de CE só com o B/L original e, na
+Demurrage, free time fixo de 30 dias e cobrança suspensa: nada é emitido
+sozinho, e o container passado dos 30 dias espera o Gerar Invoice na divisão
+Veículo LCL.
+- **Evitar:** "isento de Demurrage" (a Demurrage existe e pode ser cobrada à mão)
+- **Ver também:** Isenção de Taxas Locais, Movimento (FCL/LCL), Free Time, Dispensa da cobrança
+→ Regra: [Demurrage § Veículo LCL](docs/modules/demurrage.md#veículo-lcl)
 
 **P1 (Período 1)**
 Primeira faixa tarifária após o free time: diária em USD dos dias entre o fim

@@ -45,6 +45,22 @@ describe('aba Contêineres da ficha do Cliente', () => {
     expect(inside).toMatchObject({ days: 3, freeTimeDays: 30, freeTimeSourceLabel: 'acordo do Cliente', overFreeTime: false, demurrage: { kind: 'none' } })
   })
 
+  it('veículo LCL: 30 dias de free time acima da condição do B/L e cobrança suspensa fora de correndo (migration 592)', () => {
+    __setDemurrageRateGroupsForTest([{ aliases: ['40HC'], freeUntil: 21, p1: { range: [22, 30], usd: 70 }, p2: { range: [31, Infinity], usd: 140 } }])
+    const lcl = (overrides: Partial<DemurrageContainerRow>) => row({
+      lcl_vehicle: true,
+      bl: { ...row({}).bl!, free_time_override: 7 },
+      ...overrides,
+    })
+    // 25 dias: passaria da tabela (21) e da condição do B/L (7), não dos 30.
+    expect(customerContainerView(lcl({ discharge_date: '2026-09-19' }), '2026-10-14'))
+      .toMatchObject({ days: 25, freeTimeDays: 30, freeTimeSourceLabel: 'do veículo LCL, fixo', overFreeTime: false, demurrage: { kind: 'none' } })
+    // 43 dias: o valor se for cobrado (P2 começa no dia 31), sem "correndo".
+    const over = customerContainerView(lcl({}), '2026-10-14')
+    expect(over).toMatchObject({ freeTimeDays: 30, overFreeTime: true })
+    expect(over.demurrage).toEqual({ kind: 'lcl_vehicle', usd: 13 * 140 })
+  })
+
   it('a caixa dividida entre Clientes prevê a parte do Cliente (D19)', () => {
     __setDemurrageRateGroupsForTest([{ aliases: ['40HC'], freeUntil: 21, p1: { range: [22, 30], usd: 70 }, p2: { range: [31, Infinity], usd: 140 } }])
     const half = customerContainerView(row({ return_date: '2026-09-28', box_share_count: 2 }), '2026-10-14')

@@ -1,6 +1,6 @@
 import { formatDate } from '../../lib/utils'
 import { boxCounts, nextStep, type BoardGroup } from './demurrageBoard'
-import { DEMURRAGE_DIVISION_LABELS, type DemurrageDivision } from './demurrageDivisions'
+import { DEMURRAGE_DIVISION_LABELS, type BoardDivision } from './demurrageDivisions'
 import { invoiceNetUsd } from './demurrageNetUsd'
 import { daysOpen, daysToPay, destinationText, paymentMethodLabel, voyageLabel, type DemurrageInvoiceDetails } from './demurrageInvoiceView'
 import type { DemurrageInvoiceListItem } from './demurrageInvoices'
@@ -19,13 +19,13 @@ const date = (value: string | null | undefined) => (value ? formatDate(value) : 
 function stepText(group: BoardGroup): string {
   const step = nextStep(group)
   switch (step.kind) {
-    case 'generate': return step.cancelledDoc ? `Invoice anterior ${step.cancelledDoc} cancelada à mão: gere a nova` : step.queued ? 'Emissão automática em andamento' : step.complement ? 'Gerar Invoice complementar' : 'Gerar Invoice'
+    case 'generate': return step.lclVehicle ? 'Cobrança suspensa: gere a Invoice só se for cobrar' : step.cancelledDoc ? `Invoice anterior ${step.cancelledDoc} cancelada à mão: gere a nova` : step.queued ? 'Emissão automática em andamento' : step.complement ? 'Gerar Invoice complementar' : 'Gerar Invoice'
     case 'link': return `${step.note} (${step.label})`
     default: return step.text
   }
 }
 
-export function containerTabSheetRows(groups: readonly BoardGroup[], division: DemurrageDivision) {
+export function containerTabSheetRows(groups: readonly BoardGroup[], division: BoardDivision) {
   return groups.map((group) => {
     const counts = boxCounts(group)
     return {

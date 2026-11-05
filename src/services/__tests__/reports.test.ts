@@ -376,6 +376,13 @@ describe('Exposição de Demurrage (D13)', () => {
     ])
     expect(demurrageExposureRows(groups, 'a_emitir').rows).toHaveLength(2)
   })
+
+  it('o veículo LCL com a cobrança suspensa fica fora da Exposição (migration 592)', () => {
+    const groups = [group('correndo', 300, [box('A', 'running', 300)]), group('veiculo_lcl', 400, [box('L', 'lcl_vehicle', 400)])]
+    const result = demurrageExposureRows(groups)
+    expect(result.rows.map((row) => row.container_number)).toEqual(['A'])
+    expect(Object.keys(result.byDivision)).not.toContain('veiculo_lcl')
+  })
 })
 
 // Achado 1: "Coberta" é Paga no Faturamento (paid|covered → Paga).

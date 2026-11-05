@@ -25,6 +25,12 @@ describe('Por Cliente (ADR 0112, D11)', () => {
     expect(rows.find((row) => row.customer_id === 2)).toMatchObject({ travado_usd: 50, invoice_count: 2, open_usd: 1000, open_brl: 5500 })
   })
 
+  it('veículo LCL com a cobrança suspensa fica fora de Por Cliente e do extrato (migration 592)', () => {
+    const lcl = group(6, 'veiculo_lcl', 400, [box('TGHU0000006', 'lcl_vehicle', 400)])
+    expect(buildCustomerExposure([lcl], [])).toEqual([])
+    expect(customerUnbilledBoxes([lcl], 6)).toEqual([])
+  })
+
   it('o Cliente travado só por tipo sem tarifa (sem valor) também aparece (D11)', () => {
     const rows = buildCustomerExposure([group(5, 'travado', 0)], [])
     expect(rows).toEqual([expect.objectContaining({ customer_id: 5, travado_usd: 0, travado_sem_valor: 1 })])

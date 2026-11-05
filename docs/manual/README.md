@@ -194,6 +194,10 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   B/L original entregue, sem solicitação; vale o anual vigente entre o pagamento
   e a entrega e a exportação (migration `582`); aviso "documentação validada" por B/L, no sino e por e-mail; o Portal
   explica a regra e mostra por B/L o que falta (DCE-091, DCE-111, DCE-113).
+- **Veículo LCL na Demurrage** (decisão do dono de 2026-11-05,
+  [ADR 0123](../adr/0123-veiculo-lcl-na-demurrage.md), migration `592`): free
+  time fixo de 30 dias e cobrança suspensa, com a divisão **Veículo LCL** e o
+  Gerar Invoice à mão (DEM-136; capítulo 9, seções 9.4 a 9.7 e 9.12).
 - **Baixa e Conciliação só do Financeiro e da conta Dev** (decisão do dono de
   2026-11-04, migration `583`; regra em
   [Segurança](../operations/seguranca.md#modelo-de-permissões-por-perfil)):

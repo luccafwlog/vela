@@ -21,6 +21,7 @@ import { daysSince } from '../../services/demurrage/demurragePresentation'
 import { saoPauloTodayIso } from '../../lib/dates'
 import { listBlDemurrageCoverage, listBlDemurrageWaivers, updateContainerReturnDate } from '../../services/demurrage/demurrageContainers'
 import { listDemurrageBillingBoard, revokeDemurrageBoxWaiver } from '../../services/demurrage/demurrageBoard'
+import { LCL_VEHICLE_FREE_DAYS, isLclVehicleBl } from '../../services/demurrage/lclVehicle'
 import { queryKeys } from '../../services/queryKeys'
 import { formatDate, formatUSD } from '../../lib/utils'
 import { userFacingErrorMessage } from '../../lib/errors'
@@ -65,16 +66,21 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
   const [revokingWaiver, setRevokingWaiver] = useState<number | null>(null)
 
   // Caixa dividida entre Clientes (D19, D23; migration 521): a parte do Cliente
-  // vem da classificação do banco, como na aba Containers e na Invoice.
-  const { data: shares } = useQuery({
+  // vem da classificação do banco, como na aba Containers e na Invoice. A
+  // classificação também diz se a cobrança do veículo LCL está suspensa (592).
+  const { data: boardBoxes } = useQuery({
     queryKey: ['demurrage-containers', 'board', 'shares', bl.customer_id, bl.voyage_id],
     queryFn: async () => {
       const groups = await listDemurrageBillingBoard({ customerId: bl.customer_id, voyageId: bl.voyage_id })
       return new Map(groups.flatMap((group) => group.boxes)
-        .map((box) => [box.container_number.trim().toUpperCase(), Math.max(1, Number(box.box_share_count ?? 1))] as const))
+        .map((box) => [box.container_number.trim().toUpperCase(), { share: Math.max(1, Number(box.box_share_count ?? 1)), state: box.state }] as const))
     },
     enabled: bl.customer_id != null && bl.voyage_id != null,
   })
+  // Veículo LCL (migration 592, ADR 0123): free time fixo de 30 dias e a
+  // cobrança da Demurrage suspensa até o Gerar Invoice.
+  const lclVehicle = isLclVehicleBl(bl, bl.vehicles?.length ?? 0)
+  const freeTimeOverride = lclVehicle ? LCL_VEHICLE_FREE_DAYS : bl.free_time_override
 
   // --- Config form state ---
   const [freeTime, setFreeTime] = useState<string>(
@@ -295,13 +301,13 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
   // critério do cálculo por container).
   const firstDischarge = containers.map((container) => container.discharge_date).filter(Boolean).sort()[0] ?? today
   const agreement = selectAgreementForDischargeDate(customerAgreements ?? [], firstDischarge)
-  const conditionSource = hasOverride ? 'Condição deste B/L' : agreement ? 'Acordo do Cliente' : 'Tabela de Demurrage'
+  const conditionSource = lclVehicle ? 'Veículo LCL' : hasOverride ? 'Condição deste B/L' : agreement ? 'Acordo do Cliente' : 'Tabela de Demurrage'
   // SOC não tem Demurrage; tipo sem tarifa vira "Sem tarifa" no bloco, não erro
   // na ficha inteira (o cálculo por container trata o mesmo caso na linha).
   const containerTypes = Array.from(new Set(containers.filter((container) => container.ownership !== 'SOC').map((container) => container.type ?? null)))
   const conditionFor = (type: string | null) => {
     try {
-      return demurrageRateFor(type, bl.free_time_override, bl.demurrage_rate_override_p1_usd, bl.demurrage_rate_override_p2_usd, agreement)
+      return demurrageRateFor(type, freeTimeOverride, bl.demurrage_rate_override_p1_usd, bl.demurrage_rate_override_p2_usd, agreement)
     } catch {
       return null
     }
@@ -316,13 +322,13 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
     if (!soc && ratesReady) {
       const matchingAgreement = selectAgreementForDischargeDate(customerAgreements ?? [], container.discharge_date ?? today)
       try {
-        freeTimeDays = demurrageFreeTimeDays(container.type, bl.free_time_override, matchingAgreement)
+        freeTimeDays = demurrageFreeTimeDays(container.type, freeTimeOverride, matchingAgreement)
         if (container.discharge_date) {
           calc = calculateDemurrage(
             container.type,
             container.discharge_date,
             returnDateVal || today,
-            bl.free_time_override,
+            freeTimeOverride,
             bl.demurrage_rate_override_p1_usd,
             bl.demurrage_rate_override_p2_usd,
             matchingAgreement,
@@ -336,15 +342,20 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
     const key = (container.container_number ?? '').trim().toUpperCase()
     const billedIn = soc ? undefined : coverage?.get(key)?.[0]
     const waiver = soc || billedIn ? undefined : waivers?.get(key)
-    const share = shares?.get(key) ?? 1
+    const boardBox = boardBoxes?.get(key)
+    const share = boardBox?.share ?? 1
     const usd = calc ? Math.round((calc.total_usd / share) * 100) / 100 : null
-    return { container, soc, returnDateVal, returnDateChanged: returnDateVal !== (container.return_date ?? ''), calc, usd, share, freeTimeDays, days, error, billedIn, waiver }
+    // A classificação do banco decide; sem ela (B/L sem Cliente), a regra do B/L.
+    const suspended = !billedIn && !waiver && calc?.status === 'overdue'
+      && (boardBox ? boardBox.state === 'lcl_vehicle' : lclVehicle)
+    return { container, soc, returnDateVal, returnDateChanged: returnDateVal !== (container.return_date ?? ''), calc, usd, share, freeTimeDays, days, error, billedIn, waiver, suspended }
   })
   const chargeable = lines.filter((line) => !line.soc && line.container.discharge_date)
   // A caixa já cobrada mostra a Invoice; só a sem Invoice é "a emitir" (devolvida)
   // ou "correndo" (ainda fora).
   const billed = chargeable.filter((line) => line.billedIn)
-  const overdue = chargeable.filter((line) => !line.billedIn && !line.waiver && line.calc?.status === 'overdue')
+  const overdue = chargeable.filter((line) => !line.billedIn && !line.waiver && !line.suspended && line.calc?.status === 'overdue')
+  const suspended = chargeable.filter((line) => line.suspended)
   const toIssue = overdue.filter((line) => line.returnDateVal)
   const running = overdue.filter((line) => !line.returnDateVal)
   const notCalculated = chargeable.filter((line) => !line.billedIn && !line.waiver && (line.error || !line.calc))
@@ -365,6 +376,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
     billed.length ? `${billed.length} cobrado${billed.length > 1 ? 's' : ''}` : null,
     toIssue.length ? `${toIssue.length} a emitir` : null,
     running.length ? `${running.length} correndo` : null,
+    suspended.length ? `${suspended.length} com cobrança suspensa` : null,
     notCalculated.length ? `${notCalculated.length} sem cálculo` : null,
   ].filter(Boolean)
 
@@ -378,6 +390,10 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
         <div className="app-block__body">
           {leadParts ? (
             <LeadValue tone="warning" detail={`${detailParts.join(' · ')} de ${chargeable.length} · ${invoicesText}`}>{leadParts}</LeadValue>
+          ) : suspended.length ? (
+            <LeadValue detail={`${detailParts.join(' · ')} de ${chargeable.length} · ${formatUSD(sumUsd(suspended))} se cobrado · ${invoicesText}`}>
+              Cobrança suspensa (veículo LCL)
+            </LeadValue>
           ) : notCalculated.length ? (
             <LeadValue tone="warning" detail={invoicesText}>{`Demurrage não calculada para ${notCalculated.length} de ${chargeable.length} ${chargeable.length > 1 ? 'containers' : 'container'}`}</LeadValue>
           ) : billed.length ? (
@@ -387,6 +403,12 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
           )}
           {cancelled ? (
             <p className="app-facts__detail" role="note">B/L cancelado: somente leitura. Reative para corrigir.</p>
+          ) : null}
+          {lclVehicle ? (
+            <p className="app-facts__detail" role="note">
+              Veículo LCL: free time fixo de {LCL_VEHICLE_FREE_DAYS} dias e cobrança da Demurrage suspensa. Nada é emitido sozinho; para cobrar,
+              use Gerar Invoice na divisão Veículo LCL da Demurrage.
+            </p>
           ) : null}
           {allInvoices.length ? (
             <FactList columns={4}>
@@ -469,6 +491,11 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
                           </span>
                         )
                         : line.error ? <span className="text-[var(--app-danger-fg)]">{line.error}</span>
+                        : line.suspended && calc ? (
+                          <span title={`1º período: ${calc.days_p1} d × ${formatUSD(calc.rate_p1_usd)} · 2º período: ${calc.days_p2} d × ${formatUSD(calc.rate_p2_usd)}`}>
+                            <span className="tabular-nums">{formatUSD(line.usd ?? calc.total_usd)}</span> <span className="text-[var(--app-muted)]">cobrança suspensa (veículo LCL)</span>
+                          </span>
+                        )
                         : over && calc ? (
                           <span title={`1º período: ${calc.days_p1} d × ${formatUSD(calc.rate_p1_usd)} · 2º período: ${calc.days_p2} d × ${formatUSD(calc.rate_p2_usd)}`}>
                             <StatusText tone="warning">{formatUSD(line.usd ?? calc.total_usd)}</StatusText> <span className="text-[var(--app-muted)]">{line.returnDateVal ? 'a emitir' : 'correndo'}{line.share > 1 ? ` · 1/${line.share} do container` : ''}</span>
@@ -492,7 +519,7 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
         // B/L cancelado é somente leitura (ADR 0094, B4): o banco recusa a condição também.
         aside={editingConditions || cancelled ? null : <Button variant="secondary" className="app-btn--sm" onClick={() => setEditingConditions(true)}>Definir condição do B/L</Button>}
       >
-        <LeadValue detail={hasOverride ? 'substitui o acordo do Cliente e a tabela neste B/L' : agreement ? 'sem condição própria do B/L' : 'sem acordo do Cliente nem condição própria do B/L'}>{conditionSource}</LeadValue>
+        <LeadValue detail={lclVehicle ? `free time fixo de ${LCL_VEHICLE_FREE_DAYS} dias, acima da condição do B/L, do acordo e da tabela; as diárias seguem a condição do B/L, o acordo ou a tabela` : hasOverride ? 'substitui o acordo do Cliente e a tabela neste B/L' : agreement ? 'sem condição própria do B/L' : 'sem acordo do Cliente nem condição própria do B/L'}>{conditionSource}</LeadValue>
         {ratesReady ? (
           <FactList columns={3}>
             {containerTypes.map((type) => {
@@ -507,8 +534,12 @@ export function BlDemurrageSection({ bl, invoices }: { bl: BLDetail; invoices?: 
         ) : null}
         {editingConditions ? (
           <div className="grid gap-3 md:grid-cols-[repeat(3,minmax(0,1fr))_auto] md:items-end">
-            <Field label="Free time (dias)">
-              <Input inputMode="numeric" value={freeTime} onChange={(e) => setFreeTime(e.target.value)} placeholder="Em branco: acordo ou tabela" />
+            <Field label="Free time (dias)" hint={lclVehicle ? `Veículo LCL: ${LCL_VEHICLE_FREE_DAYS} dias fixos.` : undefined}>
+              {lclVehicle ? (
+                <Input value={`${LCL_VEHICLE_FREE_DAYS} (veículo LCL)`} disabled readOnly />
+              ) : (
+                <Input inputMode="numeric" value={freeTime} onChange={(e) => setFreeTime(e.target.value)} placeholder="Em branco: acordo ou tabela" />
+              )}
             </Field>
             <Field label="Tarifa P1 (USD/dia)">
               <Input inputMode="decimal" value={p1} onChange={(e) => setP1(e.target.value)} placeholder="Em branco: acordo ou tabela" />

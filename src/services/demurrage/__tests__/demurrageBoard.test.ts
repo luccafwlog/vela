@@ -28,6 +28,29 @@ describe('nextStep do "sem tarifa" (migration 526)', () => {
   })
 })
 
+describe('Veículo LCL (migration 592)', () => {
+  const lcl = (patch: Partial<BoardGroup>) => group({ division: 'veiculo_lcl', reason_code: null, reason: null, no_rate_types: null, usd: 300, ...patch })
+  const suspended = (patch: Partial<BoardBox>) => box({ state: 'lcl_vehicle', free_days: 30, free_source: 'veiculo_lcl', usd: 300, ...patch })
+
+  it('conta só os containers com a cobrança suspensa, numa divisão própria', () => {
+    const totals = divisionTotals([lcl({ boxes: [suspended({}), box({ container_number: 'TGHU0000002', state: 'in_free_time', usd: null })] })])
+    expect(totals.veiculo_lcl).toEqual({ groups: 1, boxes: 1, usd: 300 })
+    expect(totals.correndo).toEqual({ groups: 0, boxes: 0, usd: 0 })
+  })
+
+  it('container fora: espera a devolução; tudo devolvido: Gerar Invoice da cobrança suspensa', () => {
+    expect(nextStep(lcl({ boxes: [suspended({})] })))
+      .toEqual({ kind: 'running', text: 'Cobrança suspensa: 1 container pendente de devolução' })
+    expect(nextStep(lcl({ boxes: [suspended({ return_date: '2026-10-20' })] })))
+      .toEqual({ kind: 'generate', complement: false, cancelledDoc: null, queued: false, lclVehicle: true })
+  })
+
+  it('o que falta para cobrar leva ao atalho, como em Travado', () => {
+    expect(nextStep(lcl({ reason_code: 'sem_cliente', reason: 'B/L BL1 sem Cliente vinculado.', boxes: [suspended({})] })))
+      .toMatchObject({ kind: 'link', label: 'Vincular Cliente', href: '/bls/BL1' })
+  })
+})
+
 describe('contagens e Esperando', () => {
   it('a divisão conta só as caixas com sobreestadia, não as que ainda estão no free time', () => {
     const correndo = group({

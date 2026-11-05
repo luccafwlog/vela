@@ -512,7 +512,9 @@ Desbloqueio de CE, esse B/L também dispensa termo, procuração e solicitação
 o B/L original entregue ([Desbloqueio de CE § B/L dispensado de solicitação](desbloqueio-ce.md#bl-dispensado-de-solicitação-veículo-lcl-isento-e-vip),
 migration `575`); a isenção à mão dispensa só o pagamento. Nos dois casos, o
 Comunicado de CE e Taxas não espera fatura do B/L isento, só o CE
-([Clientes](clientes.md), migration `580`).
+([Clientes](clientes.md), migration `580`). Na Demurrage, o B/L de veículo LCL tem free time
+fixo de 30 dias e a cobrança suspensa até o Gerar Invoice
+([Demurrage § Veículo LCL](demurrage.md#veículo-lcl), migration `592`).
 **Código:** `_calculate_bl_local_charges_impl_106` (migration `129`). Veículo
 gravado no B/L errado é corrigido na página Veículos
 ([Manifestos & EDI](manifesto-edi.md)); o efeito na fatura segue a

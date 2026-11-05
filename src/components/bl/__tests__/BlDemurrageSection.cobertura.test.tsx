@@ -81,3 +81,44 @@ describe('ficha do B/L › Demurrage com a Invoice do grupo', () => {
     expect(screen.getByText(/1\/2 do container/)).toBeTruthy()
   })
 })
+
+describe('ficha do B/L › Demurrage do veículo LCL (migration 592)', () => {
+  function renderLcl(free_time_override: number | null) {
+    // Tabela de 10 dias; o veículo LCL tem 30 fixos, acima até da condição do B/L.
+    __setDemurrageRateGroupsForTest([{ aliases: ['40HC'], freeUntil: 10, p1: { range: [11, 20], usd: 50 }, p2: { range: [21, 9999], usd: 80 } }])
+    coverage.map = new Map()
+    const bl = {
+      id: 'BL-VEICULO',
+      voyage_id: 5,
+      customer_id: 7,
+      cargo_mode: 'container',
+      movement_to: 'CFS/LCL',
+      free_time_override,
+      vehicles: [{ id: 1 }],
+      bl_containers: [
+        // 25 dias: no free time; 35 dias: passou dos 30.
+        { id: 1, container_number: 'MSCU5920001', type: '40HC', ownership: 'COC', discharge_date: '2026-05-01', return_date: '2026-05-26' },
+        { id: 2, container_number: 'MSCU5920002', type: '40HC', ownership: 'COC', discharge_date: '2026-05-01', return_date: '2026-06-05' },
+      ],
+    } as unknown as BLDetail
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter><BlDemurrageSection bl={bl} invoices={[]} /></MemoryRouter>
+      </QueryClientProvider>,
+    )
+  }
+
+  it('30 dias de free time e a sobreestadia como cobrança suspensa, nunca "a emitir"', async () => {
+    board.shares = [{ container_number: 'MSCU5920002', box_share_count: 1, state: 'lcl_vehicle' } as never]
+    renderLcl(7)
+    expect(await screen.findByText('Cobrança suspensa (veículo LCL)')).toBeTruthy()
+    expect(screen.getByText(/1 com cobrança suspensa de 2 · US\$ 400,00 se cobrado/)).toBeTruthy()
+    expect(screen.queryByText(/a emitir/)).toBeNull()
+    const inside = screen.getByText('MSCU5920001').closest('tr')!
+    expect(within(inside).getByText('30')).toBeTruthy()
+    expect(within(inside).queryByText(/suspensa|correndo/)).toBeNull()
+    // Condições do B/L: a origem é o veículo LCL, não a condição de 7 dias.
+    expect(screen.getByText('Veículo LCL')).toBeTruthy()
+    expect(screen.getByText(/30 dias · US\$ 50,00 por dia/)).toBeTruthy()
+  })
+})
