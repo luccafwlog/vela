@@ -76,7 +76,8 @@ export function containerFreeTimeDays(container: DemurrageContainerListItem & Pi
   }
 }
 
-export type FreeTimeSource = 'bl' | 'acordo' | 'tabela'
+/** `veiculo_lcl` (migration 593): 30 dias fixos do B/L de veículo LCL, só da classificação do banco. */
+export type FreeTimeSource = 'veiculo_lcl' | 'bl' | 'acordo' | 'tabela'
 
 /** De onde vem o free time aplicado ao container: B/L, acordo do Cliente ou tabela. */
 export function freeTimeSource(container: DemurrageContainerListItem & Pick<DemurrageContainerRow, 'customer_agreement'>): FreeTimeSource {
@@ -87,6 +88,7 @@ export function freeTimeSource(container: DemurrageContainerListItem & Pick<Demu
 }
 
 export const FREE_TIME_SOURCE_LABELS: Record<FreeTimeSource, string> = {
+  veiculo_lcl: 'do veículo LCL, fixo',
   bl: 'do B/L',
   acordo: 'acordo do Cliente',
   tabela: 'tabela',

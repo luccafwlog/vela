@@ -767,6 +767,7 @@ export async function exportCustomerContainersWorkbook(customerName: string, row
     if (d.kind === 'to_bill') return 'A emitir'
     if (d.kind === 'invoice') return `${d.invoice.doc_number} (${statusLabel(DEMURRAGE_INVOICE_STATUS_LABELS, d.invoice.status)})`
     if (d.kind === 'waived') return 'Cobrança dispensada'
+    if (d.kind === 'lcl_vehicle') return 'Cobrança suspensa (veículo LCL)'
     if (d.kind === 'error') return 'Sem tarifa para calcular'
     return ''
   }

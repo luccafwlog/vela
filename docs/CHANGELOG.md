@@ -6,6 +6,15 @@
 
 ## 2026-11
 
+- **Veículo LCL na Demurrage (2026-11-05, migration `593`, ADR 0124; decisão do dono):** o B/L de veículo LCL
+  (container, com veículo, Movement To com LCL ou CFS) tem free time fixo de 30 dias, acima da condição do B/L, do
+  acordo e da tarifa, no cálculo, no status do container, na aba B/Ls do Portal e na Consulta de container. A
+  cobrança nasce suspensa: nenhuma emissão automática o cobra, e a aba Containers ganha a divisão **Veículo LCL**,
+  fora dos cartões em US$, de Por Cliente, da Exposição e dos Alertas, com **Gerar Invoice** (com confirmação) quando
+  tudo voltou; no grupo misto em A emitir, o Gerar Invoice cobra só o que a linha mostra. A Invoice emitida à mão
+  segue como as outras; cancelar o B/L de veículo LCL não esbarra na Demurrage;
+  a condição do B/L recusa free time próprio. Fichas do B/L e do Cliente mostram "cobrança suspensa (veículo LCL)"
+  ([Demurrage § Veículo LCL](modules/demurrage.md#veículo-lcl)).
 - **Baplie: a contagem do fim da mensagem e do arquivo não avisa mais (2026-11-05; decisão do dono):** sem
   migration nem ADR nova (faixa "Situação atual" na
   [ADR 0096](adr/0096-baplie-sem-numero-da-viagem-e-sem-outro-armador.md)). A prévia do Baplie deixa de mostrar

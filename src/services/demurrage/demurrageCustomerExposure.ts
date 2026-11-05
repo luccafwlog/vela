@@ -1,4 +1,5 @@
 import type { BoardBox, BoardGroup } from './demurrageBoard'
+import { isBillingDivision } from './demurrageDivisions'
 import type { CustomerDemurrageDetailItem, CustomerDemurrageSummary } from './demurrageKpis'
 
 /**
@@ -40,7 +41,8 @@ export function buildCustomerExposure(
     return created
   }
   for (const group of groups) {
-    if (group.customer_id == null) continue
+    // Veículo LCL (migration 593): cobrança suspensa, fora de Por Cliente.
+    if (group.customer_id == null || !isBillingDivision(group.division)) continue
     // O travado por tipo sem tarifa não tem valor e ainda assim é "algo travado" (D11).
     if (group.usd <= 0 && group.division !== 'travado') continue
     const target = row(group.customer_id, group.customer_name, group.customer_cnpj)

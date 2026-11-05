@@ -1,6 +1,6 @@
 # Demurrage
 
-> **Status:** ativo · **Atualizado:** 2026-11-04 · **Rotas:** `/demurrage`, `/demurrage/taxas`
+> **Status:** ativo · **Atualizado:** 2026-11-05 · **Rotas:** `/demurrage`, `/demurrage/taxas`
 
 ## Propósito e escopo
 
@@ -157,8 +157,10 @@ As regras de datas, emissão, cobrança e Disputa que a tela aplica estão em
   a D5) lê a classificação do banco (`list_demurrage_billing_board`, ver
   [Classificação da cobrança](#classificação-da-cobrança-migration-515)), um
   grupo de cobrança por linha, nas divisões **Correndo**, **A emitir**,
-  **Esperando** e **Travado**, cada uma com o número de grupos. A divisão fica
-  em `?divisao=` (padrão Correndo; o link antigo `?lente=atraso` abre
+  **Esperando** e **Travado**, e, desde a migration `593`, **Veículo LCL**
+  (a cobrança suspensa do veículo LCL; ver [Veículo LCL](#veículo-lcl)), cada
+  uma com o número de grupos. A divisão fica
+  em `?divisao=` (padrão Correndo; `veiculo_lcl` abre Veículo LCL; o link antigo `?lente=atraso` abre
   Correndo) e a busca em `?busca=` (container, B/L, Cliente, Navio / Viagem ou
   Invoice; filtra as divisões e as contagens juntas). A linha mostra B/L (o
   âncora, com "+ N B/L do grupo"), Cliente ("Cliente não vinculado" em âmbar),
@@ -388,8 +390,11 @@ ordem:
    for cancelada sozinha, a reemissão automática segue. Limite conhecido: com
    o Gate de faturamento do Portal fechado o grupo está em Travado, e a
    reemissão, que passa pelo gate (migration `484`), ainda cobra a caixa.
-5. Fora: o resto (tudo coberto, só devolvidas no free time, SOC, Viagem
-   cancelada).
+5. **Veículo LCL** (migration `593`): nenhuma das quatro acima, e algum
+   container de veículo LCL passado dos 30 dias sem Invoice (estado
+   `lcl_vehicle`), com a cobrança suspensa; regra em [Veículo LCL](#veículo-lcl).
+6. Fora: o resto (tudo coberto, só devolvidas no free time, SOC, Viagem
+   cancelada, B/L cancelado de veículo LCL).
 
 Em Correndo e Esperando, o motivo que vai travar a emissão vem em `warning`.
 As contagens de containers da divisão, de `count_demurrage_running_boxes` (só
@@ -523,7 +528,8 @@ gatilho `guard_tariff_active_change` (migration `091`) e excluir pela RPC
   em foco ficam na URL (`?tab=`, `?busca=`, `?divisao=`, `?fatura=`,
   `?dispute=`; ver [Anatomia das telas](#anatomia-das-telas)).
 - **Tarifa efetiva:** precedência `override do B/L > acordo do Cliente
-  vigente na descarga > demurrage_rates vigente na emissão` (regra em
+  vigente na descarga > demurrage_rates vigente na emissão`; o free time do
+  veículo LCL é 30 dias acima de todos (migration `593`) (regra em
   [Tarifa, free time, P1 e P2](#tarifa-free-time-p1-e-p2) e
   [Acordo de Demurrage do Cliente](#acordo-de-demurrage-do-cliente)). A tarifa
   do banco é a única fonte de verdade; não existe fallback estático. `ensureDemurrageRatesLoaded`
@@ -720,8 +726,8 @@ migration `179`, e o que reagia à mudança de `voyages.ata`
   na seção Demurrage do B/L.
 - `demurrage_status` tem uma semântica: `returned` quando há devolução;
   sem devolução, `overdue` quando os dias desde a descarga passam do free time
-  (free time do B/L, acordo de Demurrage do Cliente vigente na descarga,
-  tabela vigente — a mesma ordem do cálculo da Invoice) e `within_free_time`
+  (30 dias do veículo LCL, free time do B/L, acordo de Demurrage do Cliente
+  vigente na descarga, tabela vigente — a mesma ordem do cálculo da Invoice) e `within_free_time`
   no prazo ou sem descarga; SOC nunca fica em atraso, nem container de B/L
   Cancelado ou de Viagem Cancelada (migration `200`): cancelar ou reativar o
   B/L e cancelar a Viagem refazem o status na hora. O gatilho
@@ -770,9 +776,84 @@ A aba `Containers` e a emissão (`createInvoiceForBL`) também o deixam de fora,
 congelado numa fatura ativa. Desde a migration `179`, o SOC também não conta
 como devolução pendente na planilha de datas nem na emissão automática.
 
+### Veículo LCL
+
+Decisão do dono de 2026-11-05 ([ADR 0124](../adr/0124-veiculo-lcl-na-demurrage.md),
+migration `593`). O B/L de veículo LCL é o mesmo que tem as Taxas Locais
+isentas e o Desbloqueio de CE só com o B/L original: modalidade container, ao
+menos um veículo e Movement To com `LCL` ou `CFS`
+([Taxas Locais § Movimento e Isenção](taxas-locais.md#movimento-e-isenção-de-taxas-locais)),
+lido dos dados atuais do B/L (`_bl_is_lcl_vehicle`).
+
+- **Free time fixo de 30 dias** (`_demurrage_lcl_vehicle_free_days`), acima da
+  condição do B/L, do acordo do Cliente e da tarifa, no cálculo da Invoice
+  (`_calculate_demurrage_invoice_authoritative`), na classificação
+  (`free_source = 'veiculo_lcl'`), no status gravado e em quem o lê
+  (`_container_free_days`: Consulta de container do site e recusa do
+  `cancel_bl`) e na aba B/Ls do Portal. As diárias P1/P2 e as faixas seguem a
+  [precedência de sempre](#tarifa-free-time-p1-e-p2). A **Condição de
+  Demurrage do B/L** recusa free time próprio no B/L de veículo LCL ("O B/L …
+  é de veículo LCL: o free time é fixo de 30 dias. Deixe o free time em
+  branco."); as diárias continuam editáveis, e o free time gravado antes fica
+  e não vale. O status gravado é refeito na hora em que muda Movement To ou
+  modalidade do B/L (`trg_bls_refresh_demurrage_status`) e quando um veículo
+  entra, sai ou troca de B/L (`trg_vehicles_refresh_demurrage`).
+- **Cobrança suspensa.** O container de veículo LCL passado dos 30 dias sem
+  Invoice tem o estado `lcl_vehicle` na classificação, quando todo B/L ativo
+  do mesmo Cliente com ele na Viagem é de veículo LCL
+  (`_demurrage_lcl_vehicle_exempt_box`; o container dividido com B/L de outra
+  carga do Cliente é cobrado como sempre, com o free time do B/L da linha que
+  a emissão escolhe). O grupo só com ele vai para a divisão **Veículo LCL**
+  (`veiculo_lcl`), fora de Correndo, A emitir, Esperando e Travado, dos
+  cartões em US$, de Por Cliente, do Extrato do Cliente, da Exposição, da
+  planilha do armador, do Alerta de Demurrage travada e de
+  `count_demurrage_running_boxes`. O B/L cancelado de veículo LCL fica fora da
+  aba.
+- **Nada sai sozinho.** O executor da fila (`_run_import_effect_demurrage`),
+  único caminho automático (datas, CE, troca de Cliente, rotina de 15 minutos,
+  reemissão), liga `vela.demurrage_auto_issue`, e
+  `issue_demurrage_invoice_for_bl` deixa o container suspenso de fora: o grupo
+  só com ele devolve `lcl_vehicle`; o grupo misto emite os outros, e a
+  conferência da emissão (`assert_demurrage_invoice_complete`) aceita a
+  Invoice sem o container suspenso. O container suspenso ainda fora segura o
+  grupo misto, como qualquer container fora.
+- **Gerar Invoice cobra.** Na divisão Veículo LCL, com tudo devolvido e sem
+  motivo pendente, a linha diz "Cobrança suspensa: gere a Invoice só se for
+  cobrar" e oferece **Gerar Invoice** (ou **Gerar complementar**), com
+  confirmação ("Cobrar a Demurrage do veículo LCL"), com os 30 dias; a RPC
+  cobra o container suspenso só quando o grupo está na divisão Veículo LCL
+  (`issue_demurrage_invoice_for_bl` lê a classificação). No grupo misto em A
+  emitir, o **Gerar Invoice** cobra o que a linha mostra, sem o container
+  suspenso, que vai para a divisão Veículo LCL esperando a decisão. Com
+  container fora, "Cobrança suspensa: N container(s) pendente(s) de
+  devolução", e em âmbar o que vai travar a emissão (`warning`). Sem Cliente, sem tarifa, sem CE ou com o Gate do
+  Portal fechado, o motivo (`reason_code` `sem_cliente`, `sem_tarifa`,
+  `sem_ce`, `portal`) e o atalho que destrava, como em Travado, sem Alerta.
+- **Depois da emissão à mão**, a Invoice segue como as outras (Régua, Portal,
+  baixa, Disputa). Se a última Invoice do container na Viagem foi cancelada
+  pelo sistema (datas, SOC, divisão do container, troca de CNPJ), ele deixa de
+  estar suspenso e a reemissão automática o cobra; cancelada à mão, volta para
+  Veículo LCL esperando o Gerar Invoice.
+- **Cancelar o B/L.** O container suspenso não entra na recusa "Demurrage
+  correndo ou a emitir" nem na "Demurrage travada" do `cancel_bl`
+  (`bl_open_financial_reasons`). **Dispensar cobrança** também vale para ele e
+  o tira da divisão.
+- **Telas.** A ficha do B/L mostra o free time de 30 dias, "Cobrança suspensa
+  (veículo LCL)" no lugar de "a emitir" ou "correndo" e o campo Free time
+  travado nas condições; a ficha do Cliente mostra "cobrança suspensa (veículo
+  LCL)" na aba Containers, fora do total em aberto. As duas repetem a regra na
+  prévia do navegador ([`lclVehicle.ts`](../../src/services/demurrage/lclVehicle.ts));
+  a ficha do B/L usa o estado da classificação quando ela traz o container.
+- **Limite conhecido.** Os containers de veículo LCL ainda fora em
+  2026-11-05 passam a contar 30 dias na próxima gravação do container ou do
+  B/L, ou na rotina diária do status; Invoices emitidas antes não mudam.
+
+**Teste local-pg:** [`veiculoLclDemurrage.local-pg.test.ts`](../../src/integration/veiculoLclDemurrage.local-pg.test.ts).
+
 ### Tarifa, free time, P1 e P2
 
-- **Precedência:** para free time, diária de P1 e diária de P2 vale o
+- **Precedência:** o free time do [veículo LCL](#veículo-lcl) é sempre 30 dias
+  (migration `593`). Fora dele, para free time, diária de P1 e diária de P2 vale o
   override do B/L (`free_time_override`, `demurrage_rate_override_p1_usd`,
   `demurrage_rate_override_p2_usd`), depois o
   [Acordo de Demurrage do Cliente](#acordo-de-demurrage-do-cliente) ativo e
@@ -831,7 +912,8 @@ recálculo diário não há `draft`, `overdue` nem vencimento (ADR 0014). Só é
 emitida quando todos os containers não-SOC do grupo de B/Ls foram devolvidos;
 com container ainda fora os dias continuam correndo, e a aba `Containers` só
 monitora. Sai pelo botão **Gerar Invoice** ou **Gerar complementar**
-(qualquer Departamento, migration `246`) ou sozinha: toda gravação de datas
+(qualquer Departamento, migration `246`) ou sozinha, salvo o
+[veículo LCL](#veículo-lcl), que só sai pelo botão: toda gravação de datas
 (planilha, **Editar datas** ou devolução na ficha do B/L, por
 `_after_container_dates`) enfileira `demurrage_billing` para o
 `import-effects-runner` quando o grupo fica todo devolvido com caixa ainda não
@@ -1517,7 +1599,10 @@ está em [Estado e dados](#estado-e-dados).
   ignora total, datas e tarifa vindos do navegador); `demurrageMoney` (baixa
   idempotente, desconto, janela de duas fotos e DML direto bloqueado);
   `exchangeRateIntegrity` (referência cambial); `correcoesRevisaoImportacoes`
-  (status em atraso, migrations `197` e `200`).
+  (status em atraso, migrations `197` e `200`); `veiculoLclDemurrage` (free
+  time de 30 dias, divisão Veículo LCL, emissão automática sem o veículo LCL,
+  Gerar Invoice, reemissão, grupo misto, `cancel_bl`, condição do B/L e
+  gatilhos de veículo e Movement To, migration `593`).
 - **Testes de contrato SQL** em
   [`src/services/__tests__/`](../../src/services/__tests__/), como
   `demurrageAuthorityMigration`, `demurrageDunningMigration`,

@@ -142,6 +142,8 @@ sem chave do Supabase, com o token do Turnstile do widget público
   Só B/L com CE Mercante, o mesmo recorte do Portal (`bl_has_portal_release`),
   e com Cliente vinculado (migration `545`): o B/L sem Cliente não está no
   Portal de ninguém, e o free time dele seria o da tabela, não o do acordo.
+  O container de B/L de veículo LCL mostra 30 dias de free time (migration
+  `593`, [Demurrage § Veículo LCL](demurrage.md#veículo-lcl)).
   Cobre Salvador, Vitória, Pecém e Suape: containers descarregados ou
   previstos nos últimos 90 dias e os que ainda não foram devolvidos, qualquer
   que seja a idade da descarga. A resposta é sempre a da Viagem mais recente
@@ -742,7 +744,9 @@ resolver oficial de importação. Demurrage lê `demurrage_rates`, uma linha por
 grupo de tarifa com o nome do grupo e os tipos de container que ele cobre
 (migration `514`, ADR 0112, D28); free time em
 Operação segue exceção do B/L, acordo do cliente vigente na descarga e tarifa
-geral. Sem referência oficial, exibe tarifa indisponível, sem número fixo.
+geral, e o do B/L de veículo LCL é 30 dias fixos (migration `593`): é a única
+diferença que o Cliente vê, porque a Invoice de Demurrage dele só existe se o
+operador a gerar ([Demurrage § Veículo LCL](demurrage.md#veículo-lcl)). Sem referência oficial, exibe tarifa indisponível, sem número fixo.
 Não inclui tabelas de exportação nem Detention. Devolução e Taxas Locais
 exibem apenas BRVIX, BRSSA e BRSUA, incluindo a consulta sem filtro e os
 containers selecionáveis. Agentes por porto mantém os demais portos. Os

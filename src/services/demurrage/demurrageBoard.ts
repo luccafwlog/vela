@@ -1,6 +1,6 @@
 import { supabase } from '../supabase'
 import { matchesAnyToken } from '../../lib/searchTerms'
-import { DEMURRAGE_DIVISIONS, DEMURRAGE_DIVISION_LABELS, type DemurrageDivision } from './demurrageDivisions'
+import { BOARD_DIVISIONS, DEMURRAGE_DIVISIONS, DEMURRAGE_DIVISION_LABELS, isBillingDivision, type BoardDivision, type DemurrageDivision } from './demurrageDivisions'
 
 /**
  * Classificação da cobrança de Demurrage feita pelo banco
@@ -8,11 +8,16 @@ import { DEMURRAGE_DIVISIONS, DEMURRAGE_DIVISION_LABELS, type DemurrageDivision 
  * de cobrança por linha, com a divisão, o motivo e as caixas não-SOC com o
  * cálculo de hoje. A tela só apresenta; não recalcula nem decide.
  */
-export { DEMURRAGE_DIVISIONS, DEMURRAGE_DIVISION_LABELS, type DemurrageDivision }
+export { BOARD_DIVISIONS, DEMURRAGE_DIVISIONS, DEMURRAGE_DIVISION_LABELS, isBillingDivision, type BoardDivision, type DemurrageDivision }
 
 export type TravadoReason = 'sem_tarifa' | 'bl_cancelado' | 'sem_cliente' | 'sem_ce' | 'portal'
 
-export type BoardBoxState = 'covered' | 'waived' | 'no_discharge' | 'no_rate' | 'running' | 'in_free_time' | 'returned_overstay' | 'returned_free'
+/**
+ * `lcl_vehicle` (migration 593): container de veículo LCL passado dos 30 dias
+ * de free time, sem Invoice; a cobrança está suspensa e só sai pelo Gerar
+ * Invoice. Fica fora das contas das divisões da cobrança.
+ */
+export type BoardBoxState = 'covered' | 'waived' | 'no_discharge' | 'no_rate' | 'running' | 'in_free_time' | 'returned_overstay' | 'returned_free' | 'lcl_vehicle'
 
 export type BoardBox = {
   container_id: number
@@ -24,13 +29,13 @@ export type BoardBox = {
   return_date: string | null
   total_days: number | null
   free_days: number | null
-  free_source: 'bl' | 'acordo' | 'tabela' | null
+  free_source: 'veiculo_lcl' | 'bl' | 'acordo' | 'tabela' | null
   last_free_day: string | null
   days_p1: number | null
   rate_p1_usd: number | null
   days_p2: number | null
   rate_p2_usd: number | null
-  /** US$ de hoje, só da caixa sem Invoice (Correndo ou devolvida com sobreestadia). */
+  /** US$ de hoje, só da caixa sem Invoice (Correndo, devolvida com sobreestadia ou veículo LCL suspenso). */
   usd: number | null
   state: BoardBoxState
   covered_by: number | null
@@ -52,10 +57,11 @@ export type BoardGroup = {
   customer_id: number | null
   customer_name: string | null
   customer_cnpj: string | null
-  division: DemurrageDivision
+  division: BoardDivision
+  /** Em Travado, o motivo; em Veículo LCL (migration 593), o que impede o Gerar Invoice. */
   reason_code: TravadoReason | null
   reason: string | null
-  /** Em Correndo e Esperando: o que vai travar a emissão (sem CE, Portal). */
+  /** Em Correndo, Esperando e Veículo LCL com container fora: o que vai travar a emissão (sem CE, Portal). */
   warning: string | null
   no_rate_types: string | null
   no_rate_kind?: NoRateKind | null
@@ -78,18 +84,26 @@ export async function listDemurrageBillingBoard(filters: DemurrageBoardFilters =
   return ((data ?? []) as BoardGroup[]).map((group) => ({ ...group, usd: Number(group.usd ?? 0) }))
 }
 
-export type DivisionTotals = Record<DemurrageDivision, { groups: number; boxes: number; usd: number }>
+export type DivisionTotals = Record<BoardDivision, { groups: number; boxes: number; usd: number }>
 
 /** Caixa com sobreestadia sem Invoice: a que a divisão conta (a mesma da Exposição). */
 export const OVERSTAY_STATES: ReadonlySet<BoardBoxState> = new Set(['running', 'returned_overstay', 'no_rate'])
 
-/** Contagem e US$ por divisão: caixas com sobreestadia sem Invoice. */
+/** Veículo LCL com a cobrança suspensa (migration 593): o que a divisão Veículo LCL conta. */
+const LCL_VEHICLE_STATES: ReadonlySet<BoardBoxState> = new Set(['lcl_vehicle'])
+
+/**
+ * Contagem e US$ por divisão: caixas com sobreestadia sem Invoice. Em Veículo
+ * LCL, as caixas com a cobrança suspensa (migration 593).
+ */
 export function divisionTotals(groups: readonly BoardGroup[]): DivisionTotals {
-  const totals = Object.fromEntries(DEMURRAGE_DIVISIONS.map((division) => [division, { groups: 0, boxes: 0, usd: 0 }])) as DivisionTotals
+  const totals = Object.fromEntries(BOARD_DIVISIONS.map((division) => [division, { groups: 0, boxes: 0, usd: 0 }])) as DivisionTotals
   for (const group of groups) {
     const total = totals[group.division]
+    if (!total) continue
+    const counted = isBillingDivision(group.division) ? OVERSTAY_STATES : LCL_VEHICLE_STATES
     total.groups += 1
-    total.boxes += group.boxes.filter((box) => OVERSTAY_STATES.has(box.state)).length
+    total.boxes += group.boxes.filter((box) => counted.has(box.state)).length
     total.usd += group.usd
   }
   return totals
@@ -115,7 +129,7 @@ export function matchesBoardSearch(group: BoardGroup, query: string): boolean {
  * destrava ou a espera. Gerar Invoice só em A emitir.
  */
 export type NextStep =
-  | { kind: 'generate'; complement: boolean; cancelledDoc: string | null; queued: boolean }
+  | { kind: 'generate'; complement: boolean; cancelledDoc: string | null; queued: boolean; lclVehicle?: boolean }
   | { kind: 'link'; label: string; href: string; note: string }
   | { kind: 'wait'; text: string }
   | { kind: 'running'; text: string }
@@ -130,7 +144,17 @@ export function nextStep(group: BoardGroup): NextStep {
       queued: Boolean(group.issue_queued),
     }
   }
-  if (group.division === 'travado') {
+  // Veículo LCL (migration 593): a cobrança está suspensa. Com o que falta para
+  // cobrar (Cliente, tarifa, CE, Portal), o atalho que destrava, como em
+  // Travado; com container fora, a espera; tudo devolvido, o Gerar Invoice.
+  if (group.division === 'veiculo_lcl' && !group.reason_code) {
+    const pending = group.boxes.filter((box) => !box.return_date && box.state !== 'covered' && box.state !== 'waived').length
+    if (pending) {
+      return { kind: 'running', text: `Cobrança suspensa: ${pending} ${pending === 1 ? 'container pendente' : 'containers pendentes'} de devolução` }
+    }
+    return { kind: 'generate', complement: group.boxes.some((box) => box.state === 'covered'), cancelledDoc: null, queued: false, lclVehicle: true }
+  }
+  if (group.division === 'travado' || group.division === 'veiculo_lcl') {
     const note = group.reason ?? 'A cobrança está travada.'
     const bl = encodeURIComponent(group.anchor_bl_id)
     switch (group.reason_code) {
@@ -170,9 +194,12 @@ function formatShort(iso: string) {
   return year && month && day ? `${day}/${month}` : iso
 }
 
-/** Caixa que ainda pode ter a cobrança dispensada (ADR 0112, D24). */
+/**
+ * Caixa que ainda pode ter a cobrança dispensada (ADR 0112, D24). O veículo
+ * LCL também: a dispensa tira da divisão Veículo LCL o que não vai ser cobrado.
+ */
 export function canWaiveBox(box: BoardBox): boolean {
-  return box.state === 'running' || box.state === 'returned_overstay' || box.state === 'no_rate'
+  return box.state === 'running' || box.state === 'returned_overstay' || box.state === 'no_rate' || box.state === 'lcl_vehicle'
 }
 
 /**

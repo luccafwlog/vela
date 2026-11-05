@@ -8,7 +8,7 @@ const db = vi.hoisted(() => ({ tables: {} as Record<string, unknown[]>, filters:
 vi.mock('../../supabase', () => {
   const builderFor = (table: string) => {
     const builder: Record<string, unknown> = {}
-    for (const method of ['select', 'eq', 'is', 'in', 'order', 'range']) {
+    for (const method of ['select', 'eq', 'is', 'in', 'or', 'order', 'range']) {
       builder[method] = (...args: unknown[]) => {
         db.filters.push([table, method, ...args])
         return builder
@@ -45,5 +45,15 @@ describe('aba Contêineres da ficha do Cliente lê a dispensa da cobrança', () 
     expect(rows.map((row) => [row.id, row.waived])).toEqual([[1, true], [2, false], [3, false]])
     expect(db.filters).toContainEqual(['demurrage_box_waivers', 'eq', 'customer_id', 7])
     expect(db.filters).toContainEqual(['demurrage_box_waivers', 'is', 'revoked_at', null])
+  })
+
+  it('marca o container de B/L de veículo LCL do Cliente (migration 593)', async () => {
+    db.tables.bl_containers = [container(1, 'MSCU1234565', 3), container(2, 'TGHU7654321', 3)]
+    db.tables.bls = [{ id: 'BL-2' }]
+    const rows = await listCustomerContainers(7)
+    expect(rows.map((row) => [row.id, row.lcl_vehicle])).toEqual([[1, false], [2, true]])
+    expect(db.filters).toContainEqual(['bls', 'select', 'id, vehicles!inner(bl_id)'])
+    expect(db.filters).toContainEqual(['bls', 'eq', 'cargo_mode', 'container'])
+    expect(db.filters).toContainEqual(['bls', 'or', 'movement_to.ilike.*LCL*,movement_to.ilike.*CFS*'])
   })
 })
