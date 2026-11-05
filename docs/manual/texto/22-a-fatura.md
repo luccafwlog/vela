@@ -184,7 +184,7 @@ O valor menor numa fatura paga não abre este alerta: é abatido sozinho ([22.7]
 
 **Quem faz:** {{Administrativo}} e {{Financeiro}}. As outras equipes pedem a eles.
 
-Cancelar tira a fatura de cobrança de vez: ela fica no Vela, com o motivo, mas o saldo e o Pix deixam de valer. Para corrigir o valor ou o Cliente, corrija o B/L ([22.7](#227-quando-o-bl-muda-depois-da-fatura)). Cancele quando a cobrança não deve existir, por exemplo antes de cancelar o B/L, remover o CE ou cancelar a Viagem ([7.8](07-ficha-do-bl.md#78-cancelar-reativar-ou-excluir-um-bl), [6.6](06-importacao.md#66-corrigir-o-ce-ou-o-manifesto-de-um-bl) e [4.8](04-viagens-escalas.md#48-encerrar-cancelar-ou-excluir)).
+Cancelar tira a fatura de cobrança de vez: ela fica no Vela, com o motivo, mas o saldo e o Pix deixam de valer. Para corrigir o valor ou o Cliente, corrija o B/L ([22.7](#227-quando-o-bl-muda-depois-da-fatura)). Quando o que mudou foi a regra do cálculo, e não o B/L (como o THD mínimo de Vitória, [21.2](21-taxas-locais.md#212-como-cada-taxa-é-contada)), a fatura sem pagamento se refaz assim: cancele-a, use **Recalcular** na linha do B/L na **Validação** e, se ele continuar em **Pronto para emitir**, **Emitir**. Emitir sem recalcular repete o valor antigo. Cancele quando a cobrança não deve existir, por exemplo antes de cancelar o B/L, remover o CE ou cancelar a Viagem ([7.8](07-ficha-do-bl.md#78-cancelar-reativar-ou-excluir-um-bl), [6.6](06-importacao.md#66-corrigir-o-ce-ou-o-manifesto-de-um-bl) e [4.8](04-viagens-escalas.md#48-encerrar-cancelar-ou-excluir)).
 
 1. Abra a fatura em **Taxas Locais**. Aberta pela **Conciliação PIX**, ela não mostra o cancelamento.
 2. No bloco **Cancelar fatura**, escreva o **Motivo**.

@@ -551,6 +551,21 @@ Sem item THD standard na tabela, o container IMO e OOG não fica sem cobrança
 em silêncio: o cálculo vai para revisão
 (`review:thd_imo_oog_without_standard`, migration `376`).
 
+### THD mínimo da carga solta de Vitória
+
+O item THD por tonelada (`weight_ton`), em R$, da tabela de carga solta de
+Vitória (porto BRVIX pela régua de `normalize_port_code`) cobra por B/L o
+maior entre toneladas × valor unitário e R$ 380,00, também com Condição do
+Cliente e na parte de carga solta do B/L misto. Exemplo: 2 t × R$ 62,50 =
+R$ 125,00 → R$ 380,00. Quantidade e unitário da linha ficam os da tabela; só
+o total sobe, e a chave continua `auto:item:<id>` (a taxa alterada à mão vale
+sobre ela). Outros itens por tonelada, THD em US$ e outros portos não têm
+mínimo. Valor e escopo em `_thd_weight_ton_minimum_brl`; mudar exige migration
+(migration `594`, [ADR 0125](../adr/0125-thd-minimo-carga-solta-vitoria.md),
+decisão do dono de 2026-11-05). Fatura emitida antes não muda: sem pagamento,
+cancele a fatura, recalcule o B/L e emita; emitir sem recalcular repete o
+cálculo gravado.
+
 ### Taxa alterada à mão (ADR 0111)
 
 Na ficha do B/L, qualquer setor altera o valor de uma Taxa Local, por unidade

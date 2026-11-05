@@ -6,13 +6,15 @@ import { syntheticCeBeforeCancelSql, syntheticCnpj } from './localTestData'
  * Fixtures das suítes da frente financeira (plano
  * docs/archive/plans/2026-10-21-correcoes-frente-financeira.md). Cada suíte recebe um
  * namespace numérico próprio: IDs, CNPJs, B/Ls (`FF<ns>-...`) e o POD saem
- * dele, e `cleanup()` apaga só o que o namespace criou.
+ * dele, e `cleanup()` apaga só o que o namespace criou. Com `pod` real (ex.:
+ * 'BRVIX', para regra que depende do porto), a limpeza das tabelas fica nos IDs
+ * do namespace, sem tocar as tabelas que outras suítes ou a cadeia criaram.
  */
 export const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
 
 export type Role = 'administrativo' | 'financeiro' | 'operacoes'
 
-export function financeWorld(ns: number) {
+export function financeWorld(ns: number, opts: { pod?: string } = {}) {
   const base = 99_000_000 + ns * 100
   const uuid = (n: number) => `00000000-0000-0000-${String(ns).padStart(4, '0')}-${String(n).padStart(12, '0')}`
   const actors: Record<Role, string> = { administrativo: uuid(1), financeiro: uuid(2), operacoes: uuid(3) }
@@ -21,7 +23,7 @@ export function financeWorld(ns: number) {
   const carrierId = base + 3
   const vesselId = base + 4
   const voyageId = base + 5
-  const pod = `FF${ns}POD`
+  const pod = opts.pod ?? `FF${ns}POD`
   const prefix = `FF${ns}-`
   const customers = [customerId, otherCustomerId]
   let nextTable = base + 10
@@ -205,7 +207,9 @@ export function financeWorld(ns: number) {
     const cust = customers.join(',')
     const invoices = `(SELECT id FROM public.invoices WHERE customer_id IN (${cust}))`
     const invoiceKeys = `(SELECT id::text FROM public.invoices WHERE customer_id IN (${cust}))`
-    const tables = `(SELECT id FROM public.charge_tables WHERE pod = '${pod}')`
+    const tables = opts.pod
+      ? `(SELECT id FROM public.charge_tables WHERE pod = '${pod}' AND id BETWEEN ${base} AND ${base + 99})`
+      : `(SELECT id FROM public.charge_tables WHERE pod = '${pod}')`
     const actorList = Object.values(actors).map((id) => `'${id}'`).join(',')
     psql(`
       SET session_replication_role = replica;
