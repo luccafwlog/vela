@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { invoiceItemOrigin, invoiceItemUnit } from '../invoiceItemUnit'
+import { invoiceItemMinimumApplied, invoiceItemOrigin, invoiceItemUnit } from '../invoiceItemUnit'
 
 describe('invoiceItemUnit (ADR 0094, B13)', () => {
   it('linha em dólar sem unitário em R$ mostra o unitário em US$', () => {
@@ -20,5 +20,14 @@ describe('invoiceItemOrigin (ADR 0111, D9)', () => {
     expect(invoiceItemOrigin({ source: 'auto', snapshot_payload: { foo: 1 } })).toBe('Calculado')
     expect(invoiceItemOrigin({ source: 'ledger', snapshot_payload: null })).toBe('Calculado')
     expect(invoiceItemOrigin({ source: 'manual', snapshot_payload: { charge_adjustment: { kind: 'total' } } })).toBe('Manual')
+  })
+})
+
+describe('invoiceItemMinimumApplied (ADR 0125)', () => {
+  it('só o item com a marca do servidor leva Valor mínimo aplicado', () => {
+    expect(invoiceItemMinimumApplied({ snapshot_payload: { minimum_value: { value_brl: 380 } } })).toBe(true)
+    expect(invoiceItemMinimumApplied({ snapshot_payload: { charge_adjustment: { kind: 'total', value: 380 } } })).toBe(false)
+    expect(invoiceItemMinimumApplied({ snapshot_payload: null })).toBe(false)
+    expect(invoiceItemMinimumApplied({ snapshot_payload: ['minimum_value'] })).toBe(false)
   })
 })

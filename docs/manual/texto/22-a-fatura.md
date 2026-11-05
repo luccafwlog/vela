@@ -52,7 +52,7 @@ A emissão à mão cobre o que o automático não fez: a falha técnica e o B/L 
 2. Confirme em **Emitir fatura**. Se o B/L tem taxa alterada à mão, a confirmação avisa que a fatura sai com o valor alterado. A fatura sai na hora e o B/L passa a faturado.
 :::
 
-O número é INV-ano-sequência, como INV-2026-0042, numa sequência só para individuais, consolidadas e avulsas. A fatura traz um item por taxa com valor, e a taxa de container dividido mostra a fração.
+O número é INV-ano-sequência, como INV-2026-0042, numa sequência só para individuais, consolidadas e avulsas. A fatura traz um item por taxa com valor, e a taxa de container dividido mostra a fração. O THD da carga solta de Vitória cobrado pelo valor mínimo diz **Valor mínimo aplicado**, no Vela, no Portal e na fatura impressa ([21.2](21-taxas-locais.md#212-como-cada-taxa-é-contada)).
 
 O que a emissão muda para o Cliente (aviso no Portal, Pix, Comunicado de CE e Taxas) está em [18.9](18-o-que-muda-sozinho.md#189-emitir-ou-cancelar-uma-fatura). O pagamento está no capítulo 24.
 

@@ -38,7 +38,7 @@ import { buildInvoiceFileBaseName, describeUsdConversionNote } from '../shared/i
 import { formatValidationError, paymentFormSchema } from '../../services/financialValidation'
 import { logOperationalEvent } from '../../services/operationalEvents'
 import { formatBRL, formatCnpjCpf, formatDate, stripBlPrefix } from '../../lib/utils'
-import { invoiceItemOrigin, invoiceItemUnit } from '../../lib/invoiceItemUnit'
+import { INVOICE_ITEM_MINIMUM_LABEL, invoiceItemMinimumApplied, invoiceItemOrigin, invoiceItemUnit } from '../../lib/invoiceItemUnit'
 import { classifyDbError, userFacingErrorMessage } from '../../lib/errors'
 import { canRegisterInvoicePayment, isLedgerInvoicePayable } from '../../pages/faturamentoLedgerPayment'
 import { printDocumentElement } from '../../lib/printDocument'
@@ -483,7 +483,10 @@ export function InvoiceDetailModal({ invoiceId, onClose, enablePaymentReversal, 
                         // o valor devido é o BRL congelado; USD e ROE ficam na coluna "Em US$".
                         <tr key={item.id}>
                           {showItemBl ? <td className="app-invoice-detail__code">{item.bl_id ?? <NoValue label="Sem B/L" />}</td> : null}
-                          <td className="app-table__text app-table__text--wrap">{stripBlPrefix(item.description, item.bl_id)}</td>
+                          <td className="app-table__text app-table__text--wrap">
+                            {stripBlPrefix(item.description, item.bl_id)}
+                            {invoiceItemMinimumApplied(item) ? <> <StatusText tone="muted">{INVOICE_ITEM_MINIMUM_LABEL}</StatusText></> : null}
+                          </td>
                           <td>{invoiceItemOrigin(item)}</td>
                           <td className="tabular-nums">{String(item.quantity ?? 1).replace('.', ',')}</td>
                           <td className="whitespace-nowrap tabular-nums">{invoiceItemUnit(item) ?? <NoValue label="Sem valor unitário" />}</td>

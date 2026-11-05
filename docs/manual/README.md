@@ -202,7 +202,9 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   [ADR 0125](../adr/0125-thd-minimo-carga-solta-vitoria.md), migration `594`): o
   THD por tonelada da tabela de carga solta de Vitória cobra no mínimo R$ 380,00
   por B/L; a fatura emitida antes se refaz cancelando, recalculando e emitindo
-  (TAX-107; capítulo 21, seção 21.2, e capítulo 22, seção 22.9).
+  (TAX-107; capítulo 21, seção 21.2, e capítulo 22, seção 22.9). O item cobrado
+  pelo mínimo diz **Valor mínimo aplicado** no Vela, no Portal e na fatura
+  impressa (migration `602`; FAT-179; 22.2).
 - **CE Mercante travado até Equipamentos responder sobre veículos** (decisão do
   dono de 2026-11-06, [ADR 0128](../adr/0128-ce-mercante-travado-ate-resposta-de-veiculos.md),
   migration `597`): **Esta viagem terá veículos** ao lado de **Esta viagem não

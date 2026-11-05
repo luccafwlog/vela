@@ -2,7 +2,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import type { InvoiceDetail } from '../../services/billing'
 import type { InvoiceItem } from '../../types/database'
 import { formatDate, stripBlPrefix } from '../../lib/utils'
-import { invoiceItemUnit } from '../../lib/invoiceItemUnit'
+import { INVOICE_ITEM_MINIMUM_LABEL, invoiceItemMinimumApplied, invoiceItemUnit } from '../../lib/invoiceItemUnit'
 import {
   cell,
   classifyInvoiceItem,
@@ -160,7 +160,9 @@ function renderItemRows(rowItems: InvoiceItem[], itemFlatIndex: Map<number | str
       <tr key={item.id} style={zebraRow(itemFlatIndex.get(item.id) ?? 0)}>
         <td style={{ padding: '8px 8px 8px 16px' }}>
           {stripBlPrefix(item.description, item.bl_id)}
-          {usdNote && <div style={{ fontSize: '12px', color: DOC_MUTED }}>{usdNote}</div>}
+          {[usdNote, invoiceItemMinimumApplied(item) ? INVOICE_ITEM_MINIMUM_LABEL : null].filter(Boolean).map((note) => (
+            <div key={note} style={{ fontSize: '12px', color: DOC_MUTED }}>{note}</div>
+          ))}
         </td>
         <td style={{ padding: '8px 7px', textAlign: 'center' }}>{invoiceQuantity(item)}</td>
         <td style={{ padding: '8px 7px', textAlign: 'right', whiteSpace: 'nowrap' }}>{invoiceItemUnit(item) ?? '—'}</td>
