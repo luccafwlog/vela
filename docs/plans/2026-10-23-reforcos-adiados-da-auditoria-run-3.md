@@ -7,8 +7,37 @@ e as demais decisões da auditoria (migrations `419` a `439`).
 
 ## Estado
 
-Nada executado. Nenhum dos dois pontos tem caminho de exploração demonstrado;
-são defesa em profundidade.
+Do ponto 1, o passo 2 foi feito em 2026-11-03 (ver "Andamento"); o resto
+continua pendente. A [revisão de 2026-11-05](#revisão-de-2026-11-05) confirmou
+que os passos que faltam continuam pertinentes, com dois ajustes de escopo: o
+passo 2 do ponto 2 deixou de ser necessário, e o passo 3 do ponto 2 tem uma
+dependência concreta, a janela de impressão. Nenhum dos dois pontos tem caminho
+de exploração demonstrado; são defesa em profundidade.
+
+## Revisão de 2026-11-05
+
+Varredura do código, do CI (`ci.yml`), do Dependabot e das decisões
+posteriores a 2026-10-23 (ADRs 0100 a 0122,
+[serviços externos](../operations/servicos-externos.md) e
+[segurança](../operations/seguranca.md#headers-http--csp)). Nenhuma decisão
+posterior tornou um ponto obsoleto por inteiro: o PostHog continua em uso, e a
+[ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md)
+acrescentou eventos das páginas públicas, que o fwlog.com.br põe em iframe e
+que usam a mesma CSP.
+
+| Passo | Situação | Evidência |
+|---|---|---|
+| 1.1 Import map | Pertinente, por outro motivo | O risco de cadeia de fornecimento que motivou o ponto foi resolvido em 2026-11-03: nenhum import vem do esm.sh, os quatro pacotes (`@supabase/supabase-js`, `svix`, `@e965/xlsx`, `@sentry/deno`) estão no `deno.lock` com versão exata, e a publicação confere o lock. O que sobra é a atualização: o Dependabot do Deno lê só o `deno.json` e o `deno.jsonc` (documentação do GitHub, "Supported ecosystems and repositories"), e o `deno.json` das funções só declara o `@sentry/deno`. As versões escritas direto no código, em cerca de 30 arquivos, não recebem atualização: as funções estão no `supabase-js` 2.117.2, e o frontend já está no 2.118.0. |
+| 1.2 Publicação respeita o lock | Feito em 2026-11-03 | [Serviços externos § Edge Functions](../operations/servicos-externos.md#edge-functions) diz como a publicação trata o lock. |
+| 1.3 `deno check` de todas as funções | Pertinente | O CI confere 17 das 26 funções. Das 9 que ficam fora, 6 passam sem erro hoje (`alerts-detector`, `ce-unlock-document-download`, `ce-unlock-export`, `import-effects-runner`, `portal-account-suspend` e `portal-dispute-attachment`; `deno check` local com o lock das funções, `--frozen`). As outras 3 têm 25 erros de tipo: `portal-login` (6, `PortalDb`), `portal-invite-activate` (10 de "'invite' possibly null" e 2 de `EdgeRuntime`) e `recalc-demurrage-ptax` (7, tipo do cliente do Supabase). Pela leitura do código, nenhum é defeito de execução: o convite nulo já é barrado por `valid`, antes do uso. Como cada merge na `main` republica todas as funções, e mudança em `_shared/` chega a todas, uma função fora do CI pode quebrar sem aviso. |
+| 2.1 PostHog ainda baixa script | Respondido: baixa | O `posthog-js` 1.443.0 instalado insere, a cada carga, `<script src="https://eu-assets.i.posthog.com/array/<chave>/config.js">` (a configuração remota). Isso vale no Vela e no Portal, porque os dois recebem a chave. Com `disable_external_dependency_loading: true` em `createPostHogConfig` (`src/lib/featureFlags.ts`), a biblioteca não insere script nenhum e busca a mesma configuração em JSON (`/array/<chave>/config`), que o `connect-src` já permite. Leitura do código da biblioteca, não conferida no navegador. |
+| 2.2 Carregador pelo próprio domínio | Obsoleto | Com a opção acima não há script a servir: proxy reverso e cópia em `public/` deixam de ser necessários. |
+| 2.3 `'unsafe-inline'` em `style-src` | Pertinente, de ganho baixo | O estilo do React (`style={…}`) é aplicado pelo CSSOM e não depende de `'unsafe-inline'`. A dependência encontrada é a janela de impressão: `printDocumentElement` (`src/lib/printDocument.ts`) abre `window.open('')`, que herda a CSP do site, e põe um `<style>` com a folha A4, as margens e a numeração das páginas. Sem `'unsafe-inline'`, esse `<style>` é recusado. Por ser um texto fixo, o hash dele no `style-src` cobriria esse caso. Não foi medido no navegador se há outra fonte de estilo inline (atributos `style` copiados para a janela, bibliotecas). Sem execução de script, o ganho é pequeno. |
+
+O teste da CSP citado em "Pronto quando" do ponto 2 não confere hoje o
+`script-src`: `scripts/cloudflare-pages-stage.test.mjs` e
+`src/lib/publicEmbedHeaders.test.ts` conferem `frame-ancestors` e
+`connect-src`.
 
 ## 1. Dependências das Edge Functions fixadas por lock
 
