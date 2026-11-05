@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guia rápido do Financeiro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+/*
+  Guia rápido do Financeiro (2026-11-05).
+  Identidade visual própria, de propósito diferente do Vela, do manual e do
+  material do Portal: tinta verde-escura, papel creme, terracota só no que
+  pede atenção. PDF gerado por guia-rapido-financeiro.mjs (Chromium, A4).
+*/
+:root {
+  --paper: #fbf8f1;
+  --sheet: #fffdf8;
+  --ink: #1d2a24;
+  --soft: #55615b;
+  --green: #1f5a45;
+  --green-2: #2f7a5f;
+  --mint: #e3efe8;
+  --sand: #f1eadb;
+  --line: #d9d0bd;
+  --terra: #b14d26;
+  --terra-bg: #f8e6dc;
+}
+@page { size: A4; margin: 0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Source Sans 3", "Helvetica Neue", Arial, sans-serif;
+  font-size: 8.6pt;
+  line-height: 1.34;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.page {
+  width: 210mm;
+  height: 297mm;
+  padding: 11mm 13mm 11mm;
+  position: relative;
+  overflow: hidden;
+  page-break-after: always;
+  break-after: page;
+  background: var(--paper);
+}
+.page:last-child { page-break-after: auto; break-after: auto; }
+h1, h2, h3 { font-family: "Fraunces", Georgia, serif; margin: 0; color: var(--green); }
+h2 { font-size: 14pt; font-weight: 600; letter-spacing: -0.01em; margin-bottom: 2mm; }
+h3 { font-size: 11pt; font-weight: 600; margin-bottom: 1.4mm; }
+p { margin: 0 0 1.6mm; }
+b, strong { font-weight: 700; }
+.ui { font-weight: 700; color: var(--green); }
+.mono { font-variant-numeric: tabular-nums; }
+
+/* Rodapé de página */
+.foot {
+  position: absolute; left: 13mm; right: 13mm; bottom: 6.5mm;
+  display: flex; justify-content: space-between;
+  font-size: 7.4pt; color: var(--soft);
+  border-top: 0.6pt solid var(--line); padding-top: 1.6mm;
+}
+
+/* Capa da página 1 */
+.masthead {
+  display: grid; grid-template-columns: 1fr auto; align-items: end;
+  border-bottom: 2.2pt solid var(--green); padding-bottom: 2.4mm; margin-bottom: 3.4mm;
+}
+.kicker { font-size: 8pt; letter-spacing: 0.14em; text-transform: uppercase; color: var(--terra); font-weight: 700; margin-bottom: 1mm; }
+.masthead h1 { font-size: 26pt; line-height: 1; font-weight: 700; letter-spacing: -0.02em; }
+.masthead .sub { font-size: 10.5pt; color: var(--soft); margin-top: 1.6mm; }
+.stamp {
+  font-size: 7.6pt; color: var(--soft); text-align: right; line-height: 1.4;
+}
+.stamp b { color: var(--ink); }
+
+.lead { display: grid; grid-template-columns: 1.15fr 1fr; gap: 5mm; margin-bottom: 3.4mm; align-items: center; }
+.lead p { font-size: 9pt; }
+.question {
+  background: var(--green); color: #fdfbf5; border-radius: 3mm; padding: 3.4mm 4.4mm;
+  font-family: "Fraunces", Georgia, serif; font-size: 11.4pt; line-height: 1.28; font-weight: 500;
+}
+.question small { display: block; font-family: "Source Sans 3", sans-serif; font-size: 7.6pt; letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.8; margin-bottom: 1.6mm; font-weight: 700; }
+
+/* Mapa das três telas */
+.map { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin-bottom: 3.6mm; }
+.map div { background: var(--sheet); border: 0.7pt solid var(--line); border-top: 2.4pt solid var(--green-2); border-radius: 1.6mm; padding: 2mm 2.8mm; }
+.map h3 { font-size: 10.4pt; margin-bottom: 0.8mm; }
+.map p { margin: 0; font-size: 8.3pt; color: var(--soft); }
+.map .tag { display: inline-block; font-size: 7pt; text-transform: uppercase; letter-spacing: 0.1em; color: var(--terra); font-weight: 700; margin-bottom: 0.6mm; }
+
+/* Rotina */
+.steps { counter-reset: s; display: grid; gap: 1.8mm; }
+.step { display: grid; grid-template-columns: 9mm 1fr; gap: 3mm; background: var(--sheet); border: 0.7pt solid var(--line); border-radius: 1.6mm; padding: 2.2mm 3mm; }
+.step::before {
+  counter-increment: s; content: counter(s);
+  width: 8mm; height: 8mm; border-radius: 50%; background: var(--mint); color: var(--green);
+  font-family: "Fraunces", Georgia, serif; font-weight: 700; font-size: 13pt;
+  display: flex; align-items: center; justify-content: center;
+}
+.step h3 { font-size: 10.6pt; margin-bottom: 0.6mm; }
+.step .where { font-size: 7.8pt; color: var(--soft); margin-bottom: 0.8mm; }
+.step p:last-child, .step ul:last-child { margin-bottom: 0; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; margin-top: 1mm; }
+.ok, .bad { border-radius: 1.2mm; padding: 1.6mm 2.4mm; font-size: 8.3pt; }
+.ok { background: var(--mint); }
+.bad { background: var(--terra-bg); }
+.ok b { color: var(--green); }
+.bad b { color: var(--terra); }
+ul { margin: 0.6mm 0 1.4mm; padding-left: 4.2mm; }
+li { margin-bottom: 0.7mm; }
+li::marker { color: var(--green-2); }
+
+.watch {
+  margin-top: 2.4mm; border-left: 2.4pt solid var(--terra); background: var(--sheet);
+  padding: 2.4mm 3.4mm; border-radius: 0 1.6mm 1.6mm 0;
+}
+.watch h3 { color: var(--terra); font-size: 10pt; margin-bottom: 0.8mm; }
+.watch ul { columns: 2; column-gap: 6mm; margin: 0; }
+.watch li { break-inside: avoid; font-size: 8.2pt; }
+
+/* Página 2: telas */
+.screen { margin-bottom: 3.6mm; }
+.screen-head { display: flex; align-items: baseline; gap: 3mm; border-bottom: 1pt solid var(--green); padding-bottom: 1mm; margin-bottom: 2mm; }
+.screen-head h2 { margin: 0; font-size: 14pt; }
+.screen-head span { font-size: 8pt; color: var(--soft); }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; }
+.tabs { display: grid; gap: 1.8mm; }
+.tab { display: grid; grid-template-columns: 26mm 1fr; gap: 2.6mm; align-items: start; }
+.tab .name {
+  background: var(--sand); border-radius: 1.2mm; padding: 1.2mm 2mm; font-weight: 700; color: var(--green);
+  font-size: 8.4pt; line-height: 1.2;
+}
+.tab .name small { display: block; font-weight: 400; color: var(--soft); font-size: 7.2pt; margin-top: 0.4mm; }
+.tab .body p { margin-bottom: 0.9mm; font-size: 8.4pt; }
+.tab .body ul { margin-top: 0; font-size: 8.3pt; }
+.note { font-size: 8pt; color: var(--soft); }
+.chips { display: flex; flex-wrap: wrap; gap: 1.2mm; margin: 0.6mm 0 1mm; }
+.chip { border: 0.7pt solid var(--line); background: var(--sheet); border-radius: 5mm; padding: 0.3mm 2mm; font-size: 7.7pt; white-space: nowrap; }
+.chip.warn { border-color: #e2b9a6; background: var(--terra-bg); }
+.chip.good { border-color: #b9d6c6; background: var(--mint); }
+
+/* Página 3: situações */
+table { width: 100%; border-collapse: collapse; font-size: 8.25pt; }
+thead th {
+  text-align: left; font-size: 7.4pt; text-transform: uppercase; letter-spacing: 0.08em; color: var(--soft);
+  border-bottom: 1pt solid var(--green); padding: 1mm 2mm 1.2mm;
+}
+tbody td { border-bottom: 0.6pt solid var(--line); padding: 1.3mm 2mm; vertical-align: top; }
+tbody td:first-child { width: 30%; }
+tbody td:nth-child(2) { width: 30%; color: var(--soft); }
+.sig { font-weight: 700; color: var(--ink); }
+.sig .lvl { display: inline-block; font-size: 6.8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.1mm 1.4mm; border-radius: 1mm; margin-left: 1mm; vertical-align: 0.4mm; }
+.lvl.crit { background: var(--terra); color: #fff; }
+.lvl.calm { background: var(--sand); color: var(--soft); }
+.group td { background: var(--sand); font-family: "Fraunces", Georgia, serif; font-weight: 600; color: var(--green); font-size: 9.4pt; padding: 1.2mm 2mm; border-bottom: none; }
+
+.bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin-top: 3mm; }
+.box { background: var(--sheet); border: 0.7pt solid var(--line); border-radius: 1.6mm; padding: 2.6mm 3.2mm; }
+.box h3 { font-size: 10.2pt; }
+.box ul { font-size: 8.2pt; margin-bottom: 0; }
+.box.never { border-left: 2.4pt solid var(--terra); }
+.box.never h3 { color: var(--terra); }
+</style>
+</head>
+<body>
+
+<!-- ============================ PÁGINA 1 ============================ -->
+<section class="page">
+  <header class="masthead">
+    <div>
+      <div class="kicker">Vela · Guia rápido</div>
+      <h1>Financeiro</h1>
+      <div class="sub">O que conferir todo dia e o que você encontra em cada tela do menu Financeiro</div>
+    </div>
+    <div class="stamp">Versão de <b>05/11/2026</b><br>Detalhes e casos raros: Manual do Operador,<br>capítulos 20 a 24</div>
+  </header>
+
+  <div class="lead">
+    <div>
+      <p>O Vela <b>emite as faturas</b> de Taxas Locais e as <b>Invoices de Demurrage</b>, <b>gera o Pix</b> de cada cobrança e <b>dá a baixa</b> do Pix pago pelo QR em cerca de um minuto, sozinho.</p>
+      <p>O Financeiro <b>acompanha esse automático</b> e age só no que ele não resolve. Faturas abertas de um navio, o que já foi pago, a Demurrage correndo: tudo isso é acompanhamento. A conferência diária é uma só.</p>
+    </div>
+    <div class="question">
+      <small>A pergunta de todo dia</small>
+      Tudo o que o Vela considera baixado entrou de fato no extrato da conta do Itaú? E tudo o que entrou no extrato tem a sua baixa no Vela?
+    </div>
+  </div>
+
+  <div class="map">
+    <div>
+      <span class="tag">Rotina diária</span>
+      <h3>Conciliação PIX</h3>
+      <p>Todo Pix que entrou na conta e toda baixa que o Vela registrou. É aqui que se bate o Vela com o extrato.</p>
+    </div>
+    <div>
+      <span class="tag">Acompanhamento</span>
+      <h3>Taxas Locais</h3>
+      <p>As faturas por B/L (THD, emissão do B/L e outras taxas do porto): emitidas, em aberto, pagas e o que ainda vai ser faturado.</p>
+    </div>
+    <div>
+      <span class="tag">Acompanhamento</span>
+      <h3>Demurrage</h3>
+      <p>As Invoices cobradas em dólar e pagas em reais pela PTAX do dia, a Régua de Cobrança e a Demurrage ainda sem Invoice.</p>
+    </div>
+  </div>
+
+  <h2>A rotina do dia, em quatro passos</h2>
+  <div class="steps">
+    <div class="step">
+      <div>
+        <h3>A baixa automática está rodando?</h3>
+        <div class="where">Conciliação PIX › Pix recebidos › bloco Cobrança Pix Itaú, no alto da aba</div>
+        <div class="pair">
+          <div class="ok"><b>Normal:</b> “Baixa automática ligada” e “Recebimentos consultados há N min”. Ao lado, <span class="ui">Cobranças ativas</span> (QRs do Itaú à espera de pagamento) e <span class="ui">Aguardando o Itaú</span> (QR que o banco ainda emite, altera ou cancela).</div>
+          <div class="bad"><b>Problema:</b> “Consulta parada há N min”, em âmbar. Os Pix pagos depois daquela hora não deram baixa. Avise o suporte técnico e baixe pelo <span class="ui">Conciliar extrato</span> (página 3).</div>
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div>
+        <h3>Alguma coisa pede decisão?</h3>
+        <div class="where">Mesma aba: os blocos aparecem no alto só quando têm o que tratar</div>
+        <p><span class="ui">Pix em análise</span>, <span class="ui">Exceções do extrato</span> e <span class="ui">Cobranças aguardando o Itaú</span>; o número na aba conta o que pede decisão. No dia normal, nenhum aparece. Confira também o sino (página 3).</p>
+      </div>
+    </div>
+    <div class="step">
+      <div>
+        <h3>Do extrato para o Vela: cada entrada tem a sua baixa?</h3>
+        <div class="where">Pix recebidos › filtros Recebido de / Recebido até no dia do extrato</div>
+        <p>Com o extrato do Itaú do dia, procure cada Pix na lista. Os cartões <span class="ui">Com baixa</span>, <span class="ui">Sem baixa</span>, <span class="ui">Em análise</span> e <span class="ui">Tratado</span> somam valor e quantidade do recorte.</p>
+        <ul>
+          <li><b>Com baixa</b>: certo; a coluna Fatura mostra onde entrou. <b>Em análise</b>: pago pelo QR do Vela, sem baixa segura; decida (página 3).</li>
+          <li><b>Sem baixa</b>: veja a <b>Origem</b>. <i>Sem identificador</i> é o Cliente que digitou a chave: abra a linha e use <span class="ui">Baixar nesta fatura</span>. <i>ZPT</i> e <i>Teste do Vela</i> usam a mesma conta, mas não são cobrança do Vela: ficam sem baixa mesmo.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="step">
+      <div>
+        <h3>Do Vela para o extrato: cada baixa tem o seu dinheiro?</h3>
+        <div class="where">Histórico de baixas › filtros Pago de / Pago até no mesmo dia</div>
+        <p>O cartão <span class="ui">Recebido</span> soma o que o Vela considera recebido; ao lado, <span class="ui">Taxas Locais</span>, <span class="ui">Demurrage</span> e <span class="ui">Baixa automática (Itaú)</span>. Em Mais filtros › <b>Forma da baixa</b>: <i>Automática (Itaú)</i> e <i>Pelo extrato</i> vieram do banco; <i>Manual</i> foi lançada por uma pessoa (TED, boleto): confira cada uma no extrato. Baixa sem dinheiro no extrato é engano: cancele a baixa no detalhe da fatura.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="watch">
+    <h3>Ao comparar os números com o extrato</h3>
+    <ul>
+      <li>O Histórico tem uma linha por B/L. A consolidada paga por um Pix vira várias linhas; o valor do Pix inteiro aparece ao passar o mouse em <b>Valor pago</b>.</li>
+      <li><b>Pago em</b> traz dia e hora de Brasília no Pix do Itaú; a baixa manual, a do extrato e a de Demurrage mostram só o dia.</li>
+      <li>A forma <i>Isenção</i> (Invoice de Demurrage com desconto integral) não é dinheiro: deixe-a fora da conta.</li>
+      <li>Pagamento a mais e Pix em duplicidade entram no extrato, mas o excedente vira <b>Restituição A devolver</b> e sai de novo da conta.</li>
+      <li><b>Saldo</b> e <b>Situação</b> no Histórico são os de agora, não os do dia da baixa.</li>
+          </ul>
+  </div>
+
+  <div class="foot"><span>Guia rápido do Financeiro · Vela</span><span>1 / 3</span></div>
+</section>
+
+<!-- ============================ PÁGINA 2 ============================ -->
+<section class="page">
+  <div class="screen">
+    <div class="screen-head"><h2>Conciliação PIX</h2><span>Financeiro › Conciliação PIX · todas as equipes leem; só o Financeiro trata, baixa e cancela baixa</span></div>
+    <div class="cols">
+      <div class="tab">
+        <div class="name">Pix recebidos<small>o que entrou na conta</small></div>
+        <div class="body">
+          <p>No alto, o bloco <span class="ui">Cobrança Pix Itaú</span>: baixa automática ligada ou parada, até quando os recebimentos foram consultados, cobranças ativas e o que aguarda o Itaú. Abaixo, só quando existem, os blocos que pedem decisão.</p>
+          <p>Embaixo, <b>todo Pix que entrou na conta</b>, com a situação de cada um e os cartões por situação.</p>
+          <div class="chips"><span class="chip good">Com baixa</span><span class="chip">Sem baixa</span><span class="chip warn">Em análise</span><span class="chip">Tratado</span></div>
+          <p class="note">Filtros: Recebido de/até, Valor, Situação, Origem. A linha aberta mostra o identificador do Pix, o pagador, a mensagem dele e as faturas abertas com o mesmo valor.</p>
+        </div>
+      </div>
+      <div class="tab">
+        <div class="name">Histórico de baixas<small>o que o Vela deu como recebido</small></div>
+        <div class="body">
+          <p>Cada baixa, uma linha por B/L, de Taxas Locais e de Demurrage. Cartões do recorte inteiro dos filtros: <span class="ui">Recebido</span>, <span class="ui">Taxas Locais</span>, <span class="ui">Demurrage</span> e <span class="ui">Baixa automática (Itaú)</span>, cada um com quantas baixas.</p>
+          <div class="chips"><span class="chip">Automática (Itaú)</span><span class="chip">Pelo extrato</span><span class="chip">Manual</span><span class="chip">Isenção</span></div>
+          <p class="note">Filtros: Pago de/até, Origem (Taxas Locais ou Demurrage), Cliente, B/L; em Mais filtros, Forma da baixa, Tipo de fatura, Navio, Viagem e POD. O número da fatura abre o detalhe já com aquela baixa. Exportar baixa a planilha do recorte.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head"><h2>Taxas Locais</h2><span>Financeiro › Taxas Locais · as faturas de cada B/L, em reais</span></div>
+    <p class="note" style="margin-bottom:2mm">No alto, acima das abas: os <b>alertas financeiros</b> em aberto e, só quando há, os quadros <span class="ui">Reemissão pendente</span> (fatura cancelada por correção cuja nova emissão travou) e <span class="ui">Ajustes de COD</span>. Botões: Tabelas e condições, Gerar fatura avulsa, Gerar fatura consolidada.</p>
+    <div class="cols">
+      <div class="tab">
+        <div class="name">Faturas<small>tudo o que foi faturado</small></div>
+        <div class="body">
+          <p>Individuais, consolidadas (ícone de pilha) e avulsas, da mais nova para a mais antiga. Cartões do recorte: <span class="ui">Faturas</span>, <span class="ui">Em aberto</span> (quanto falta receber), <span class="ui">Recebido</span> e <span class="ui">Faturado</span>.</p>
+          <div class="chips"><span class="chip">Emitida</span><span class="chip warn">Parcialmente paga</span><span class="chip good">Paga</span><span class="chip">Coberta</span><span class="chip">Cancelada</span></div>
+          <p><b>Faturas abertas de um navio:</b> Navio / Viagem e Situação “Em aberto”. Em Mais filtros: B/L, Fatura, POD, Tipo, Emissão de/até e Pagamento de/até.</p>
+          <p class="note">O número abre o detalhe: Saldo, Itens da fatura, Pagamentos (Registrar pagamento, Cancelar baixa), Restituições ao Cliente e Ajustes pela correção do B/L. A fatura de Taxas Locais não vence: fica aberta enquanto tem saldo. Coberta é a individual paga por uma consolidada; não some as duas.</p>
+        </div>
+      </div>
+      <div class="tab">
+        <div class="name">Validação<small>o que ainda vai ser faturado</small></div>
+        <div class="body">
+          <p>Os B/Ls que ainda não viraram fatura, cada um com o primeiro <b>Motivo</b> que a segura. Cartões: <span class="ui">Aguardando emissão</span>, <span class="ui">Prontos para emitir</span>, <span class="ui">Com bloqueio</span> e, com Incluir faturados e isentos, <span class="ui">Faturados ou isentos</span>.</p>
+          <div class="chips"><span class="chip">Sem cliente vinculado</span><span class="chip">Taxa em revisão</span><span class="chip">Aguardando CE Mercante</span><span class="chip">Conta do Portal não ativa</span><span class="chip good">Pronto para emitir</span></div>
+          <p class="note">Para o Financeiro é previsão: mostra quanto vai ser faturado e o que segura. Quem resolve os motivos é a Documentação. A seta do B/L abre a Conferência do cálculo, com cada taxa e como se chegou ao valor.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head"><h2>Demurrage</h2><span>Financeiro › Demurrage · cobrada em dólar, paga em reais</span></div>
+    <p class="note" style="margin-bottom:2mm">Abaixo do título, a <b>PTAX venda</b> mais recente do BCB e o <b>ROE</b> (PTAX × 1,065). Todo dia útil, às 14h, os reais e o Pix das Invoices em aberto seguem a PTAX nova; o dólar não muda. O Pix com o valor de uma das duas últimas cotações quita. Cartões: <span class="ui">Correndo</span>, <span class="ui">A emitir</span> e <span class="ui">Travado</span> (US$ ainda sem Invoice) e <span class="ui">Aguardando pagamento (BRL hoje)</span>. Botões do Financeiro: <span class="ui">Informar PTAX</span> e <span class="ui">Régua de cobrança</span> (intervalo dos e-mails, padrão de 7 dias).</p>
+    <div class="cols">
+      <div class="tabs">
+        <div class="tab">
+          <div class="name">Faturas<small>emitidas, não pagas</small></div>
+          <div class="body"><p>Em aberto há, Desconto, BRL hoje e a coluna <b>Régua de cobrança</b>: “2ª cobrança, próxima em …” ou “Pausada: …” com o motivo. Filtros Em disputa, Fora da Régua, Com desconto, Cliente, Navio / Viagem.</p></div>
+        </div>
+        <div class="tab">
+          <div class="name">Pagas</div>
+          <div class="body"><p>Pagamento, Dias até pagar, BRL pago, ROE do pagamento e Meio de pagamento: Pix Itaú, Extrato, Registro manual ou Isenção.</p></div>
+        </div>
+        <div class="tab">
+          <div class="name">Canceladas</div>
+          <div class="body"><p>Motivo, Cancelada por (“Sistema” na reemissão automática) e o Destino dos containers.</p></div>
+        </div>
+      </div>
+      <div class="tabs">
+        <div class="tab">
+          <div class="name">Por Cliente</div>
+          <div class="body"><p>Por Cliente: US$ Correndo, A emitir, Esperando e Travado, Invoices em aberto e Faturado em aberto. <b>Imprimir relatório</b> gera o Extrato de Demurrage do Cliente.</p></div>
+        </div>
+        <div class="tab">
+          <div class="name">Containers<small>e Disputas</small></div>
+          <div class="body"><p>Containers: a Demurrage ainda sem Invoice, nas divisões Correndo, A emitir, Esperando e Travado. Disputas: a conversa com o Cliente. As duas são de Equipamentos; para o Financeiro, só leitura.</p></div>
+        </div>
+        <div class="tab">
+          <div class="name">Pagamento</div>
+          <div class="body"><p>O Pix do QR dá baixa sozinho. <b>Registrar pagamento</b>, no detalhe, só para o que chegou por outro caminho: não tem campo de valor e grava os reais da cotação da data informada.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot"><span>Guia rápido do Financeiro · Vela</span><span>2 / 3</span></div>
+</section>
+
+<!-- ============================ PÁGINA 3 ============================ -->
+<section class="page">
+  <h2>Quando algo foge do automático</h2>
+  <p class="note" style="margin-bottom:2.4mm">Os alertas de Pix, pagamento e restituição, a Fatura desatualizada e a Taxa alterada à mão mudou chegam ao sino do Financeiro; os outros desta tabela ficam na fila <b>Alertas</b> ou na própria tela. <b>Resolver</b>, no alerta, abre a tela onde se trata.</p>
+  <table>
+    <thead><tr><th>O que aparece</th><th>Quer dizer</th><th>O que fazer</th></tr></thead>
+    <tbody>
+      <tr class="group"><td colspan="3">Pix e baixa</td></tr>
+      <tr>
+        <td class="sig">Consulta de Pix do Itaú parada <span class="lvl crit">crítico</span></td>
+        <td>A consulta dos recebimentos não anda há mais de 15 min. Nenhum Pix dá baixa sozinho.</td>
+        <td>Avise o suporte técnico e baixe pelo extrato: no Itaú, baixe o relatório “QR Codes recebidos” (.xlsx); em Pix recebidos, <span class="ui">Conciliar extrato</span>, confira a Prévia e <span class="ui">Confirmar N baixas</span>. O mesmo Pix nunca baixa duas vezes.</td>
+      </tr>
+      <tr>
+        <td class="sig">PIX sem conciliação segura <span class="lvl crit">crítico</span><br><span style="font-weight:400;color:var(--soft)">bloco Pix em análise</span></td>
+        <td>Pix pago pelo QR do Vela que não deu baixa sozinho: valor diferente, fatura já paga ou cancelada, baixa cancelada ou Pix de Demurrage.</td>
+        <td><b>Valor diferente:</b> registre o pagamento na fatura com o Identificador do Pix na Referência bancária. <b>Duplicidade:</b> a restituição já existe; devolva e confirme. <b>Demurrage:</b> registre o pagamento com a data do Pix. Depois de resolver fora de uma baixa, <span class="ui">Marcar como tratado</span>.</td>
+      </tr>
+      <tr>
+        <td class="sig">Exceções do extrato</td>
+        <td>Linha do extrato lido sem uma fatura segura.</td>
+        <td>Só pela própria linha: <span class="ui">Tentar de novo</span> ou <span class="ui">Baixar nesta fatura</span>. Não baixe essa fatura por outro caminho.</td>
+      </tr>
+      <tr>
+        <td class="sig">Pix Sem baixa <span class="lvl calm">sem alerta</span></td>
+        <td>Não veio de uma cobrança do Vela (chave digitada) ou veio do QR estático e não baixou com segurança.</td>
+        <td>Abra a linha: o <b>Motivo</b> diz por quê. Em <span class="ui">Baixar numa fatura</span>, escolha uma das sugeridas (mesmo valor) ou procure pelo número.</td>
+      </tr>
+      <tr>
+        <td class="sig">Cobranças aguardando o Itaú</td>
+        <td>QR com erro ou sem resposta do banco.</td>
+        <td>Nada a repetir: o Vela tenta de novo sozinho. Se a linha não sai da lista, avise o suporte técnico.</td>
+      </tr>
+      <tr>
+        <td class="sig">“O Cliente diz que pagou”</td>
+        <td>Fatura continua em aberto.</td>
+        <td>Procure o Pix em Pix recebidos pelo Valor e pelas datas. Nenhum Pix e consulta rodando: peça o comprovante.</td>
+      </tr>
+      <tr class="group"><td colspan="3">Restituição e correção de fatura</td></tr>
+      <tr>
+        <td class="sig">Restituição pendente</td>
+        <td>Há dinheiro a devolver ao Cliente: pagou a mais, pagou duas vezes, o B/L mudou ou trocou de Cliente.</td>
+        <td>Transfira fora do Vela e guarde o comprovante; depois, no detalhe da fatura, <span class="ui">Confirmar devolução</span> (na Demurrage, <span class="ui">Registrar devolução</span>).</td>
+      </tr>
+      <tr>
+        <td class="sig">Fatura desatualizada <span class="lvl crit">crítico</span></td>
+        <td>Uma correção do B/L mudou a cobrança e o Vela não pôde acertar sozinho.</td>
+        <td><b>Valor subiu numa fatura com pagamento:</b> emita a avulsa da diferença e use <span class="ui">Resolver com justificativa</span>. <b>Reemissão travada:</b> resolva o motivo e use <span class="ui">Tentar aplicar correção</span>.</td>
+      </tr>
+      <tr>
+        <td class="sig">Taxa alterada à mão mudou</td>
+        <td>Uma importação ou correção descartou uma taxa ajustada à mão.</td>
+        <td>Na ficha do B/L, aba Faturamento, confira a taxa e resolva com justificativa.</td>
+      </tr>
+      <tr>
+        <td class="sig">Ajustes de COD</td>
+        <td>O destino de um B/L faturado mudou e a Taxa Local também.</td>
+        <td>Siga a coluna Ação no quadro, no alto de Taxas Locais: abater, restituir ou vincular a fatura complementar.</td>
+      </tr>
+      <tr class="group"><td colspan="3">Demurrage</td></tr>
+      <tr>
+        <td class="sig">PTAX de hoje não obtida do BCB</td>
+        <td>Depois das 14h a cotação não chegou; valem os reais da véspera.</td>
+        <td>Consulte a PTAX de venda no BCB e use <span class="ui">Informar PTAX</span> (a PTAX, não o ROE). Em feriado, nada a informar.</td>
+      </tr>
+      <tr>
+        <td class="sig">Régua “Pausada: Pix em análise”</td>
+        <td>A Invoice tem um Pix esperando decisão.</td>
+        <td>Decida o Pix na Conciliação PIX; a Régua volta de onde parou.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="bottom">
+    <div class="box">
+      <h3>O que só o Financeiro faz</h3>
+      <ul>
+        <li>Registrar pagamento, cancelar a baixa e conciliar o Pix (inclusive o Conciliar extrato).</li>
+        <li>Confirmar a devolução de uma restituição.</li>
+        <li>Preparar o cancelamento financeiro do B/L de uma fatura paga.</li>
+        <li>Com o Administrativo: cancelar fatura sem pagamento e liquidar Ajuste de COD.</li>
+        <li>Com Administrativo e Equipamentos: cancelar Invoice de Demurrage, informar a PTAX e mudar o intervalo da Régua.</li>
+      </ul>
+    </div>
+    <div class="box never">
+      <h3>Cuidados</h3>
+      <ul>
+        <li>Confirmar devolução só registra: transfira antes.</li>
+        <li>Cancelar baixa desfaz um lançamento por engano; não devolve dinheiro.</li>
+        <li>Registro de pagamento falhou? Use <b>Tentar novamente</b>; não comece outro.</li>
+        <li>Não registre Demurrage parcial pela tela: ela fica paga pelo valor cheio.</li>
+        <li>Conciliar extrato é o plano B, não a rotina.</li>
+        <li>Fatura emitida não se edita: o valor se corrige no B/L.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="foot"><span>Guia rápido do Financeiro · Vela</span><span>3 / 3</span></div>
+</section>
+</body>
+</html>
