@@ -20,7 +20,7 @@
 //
 // Env vars: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, RECALC_CRON_SECRET
 
-import { createClient } from 'npm:@supabase/supabase-js@2.117.2'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 
 // Comparação em tempo constante para evitar timing attacks no bearer secret.
@@ -108,7 +108,7 @@ function errorDetail(error: unknown): string {
 }
 
 async function recordPtaxFailure(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   errorCode: string,
   error: unknown,
 ): Promise<void> {
@@ -133,7 +133,7 @@ async function recordPtaxFailure(
 }
 
 async function resolvePtaxFailure(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   quoteDate: string,
 ): Promise<void> {
   const { error } = await supabase.rpc('resolve_alert_item', {

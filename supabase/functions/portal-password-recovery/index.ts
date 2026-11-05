@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.117.2'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { PortalDb } from '../_shared/portalDb.ts'
 import { generateToken, hashToken } from '../_shared/portalToken.ts'
 import { recoveryTemplate } from '../_shared/portalEmailTemplates.ts'

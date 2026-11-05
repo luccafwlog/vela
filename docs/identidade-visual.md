@@ -2,7 +2,8 @@
 
 Fonte canônica da aparência dos dois produtos, decidida pelo responsável em
 2026-10-13 ([ADR 0081](adr/0081-identidade-visual-unica.md)). Vale para as telas
-atuais, que migram tela a tela, e para toda tela nova, que já nasce assim.
+existentes, migradas tela a tela até 2026-10-20, e para toda tela nova, que já
+nasce assim.
 Substitui o "Contrato visual" da etapa 00 da campanha de revisão visual
 ([plano arquivado](archive/plans/2026-10-07-revisao-visual-ux-prompts.md)).
 
@@ -203,8 +204,9 @@ dono contra o exceljs real (`src/services/__tests__/exportWorkbook.test.ts`).
 
 1. **Tela existente:** a mudança é proposta com a captura de hoje, a proposta e
    a lista do que muda na organização; o responsável aprova antes da
-   implementação. O andamento fica no
-   [plano de migração tela a tela](plans/2026-10-13-identidade-visual-tela-a-tela.md).
+   implementação. A migração das 22 telas de 2026-10-13 terminou com o
+   [plano tela a tela](archive/plans/2026-10-13-identidade-visual-tela-a-tela.md),
+   encerrado em 2026-11-05; uma mudança nova numa tela segue este mesmo passo.
 2. **Tela nova:** compõe as peças comuns. Só a organização (blocos, ordem, dado
    principal) passa pela aprovação, no mesmo formato.
 3. **Regra nova ou alterada:** muda este documento e, se for decisão de
@@ -226,7 +228,11 @@ de base `scripts/design-baseline.json` e falha quando:
 
 A linha de base guarda o que já existia em 2026-10-13 e só desce: ao migrar uma
 tela, rode `npm run design:check -- --update` e confira no diff que os números
-caíram. O `--update` recusa gravar um número que subiu; regra nova da
+caíram. O que ela ainda guarda depois do encerramento do plano tela a tela
+(famílias de CSS de página e TSX dos documentos impressos, entre outros) fica
+como teto aceito pelo responsável em 2026-11-05: não há rodada prevista para
+zerá-la, e ela desce quando uma mudança tirar o que sobrou.
+O `--update` recusa gravar um número que subiu; regra nova da
 verificação ou peça comum registrada neste documento entram com
 `--update --allow-increase`, que lista o que subiu para ir na descrição da PR. `npm run a11y:contrast` verifica os pares de cor nos temas claro
 e escuro do Vela e no tema do Portal.

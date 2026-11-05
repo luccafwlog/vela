@@ -90,6 +90,8 @@ describe('feature flags', () => {
       capture_pageview: false,
       capture_pageleave: false,
       disable_session_recording: true,
+      // A CSP não libera o host de scripts do PostHog (script-src).
+      disable_external_dependency_loading: true,
       persistence: 'memory',
       person_profiles: 'never',
     })

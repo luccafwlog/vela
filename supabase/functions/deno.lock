@@ -121,7 +121,10 @@
   },
   "workspace": {
     "dependencies": [
-      "npm:@sentry/deno@11.10.0"
+      "npm:@e965/xlsx@0.20.3",
+      "npm:@sentry/deno@11.10.0",
+      "npm:@supabase/supabase-js@2.117.2",
+      "npm:svix@1.99.1"
     ]
   }
 }

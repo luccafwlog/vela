@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@supabase/supabase-js@2.117.2'
+import { createClient } from '@supabase/supabase-js'
 import { alertDetectorFailureContexts } from '../_shared/alertDetectorFailures.ts'
 import { runWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
 import { captureEdgeException, instrumentEdgeHandler, telemetryFailureHeaders } from '../_shared/telemetry.ts'

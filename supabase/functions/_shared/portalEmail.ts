@@ -1,4 +1,4 @@
-import { type SupabaseClient } from 'npm:@supabase/supabase-js@2.117.2'
+import { type SupabaseClient } from '@supabase/supabase-js'
 import { type EmailAttachment, maskEmail, sendEmail } from './email.ts'
 
 export { maskEmail } from './email.ts'

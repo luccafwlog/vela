@@ -1,5 +1,8 @@
 {
   "imports": {
-    "@sentry/deno": "npm:@sentry/deno@11.10.0"
+    "@e965/xlsx": "npm:@e965/xlsx@0.20.3",
+    "@sentry/deno": "npm:@sentry/deno@11.10.0",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.117.2",
+    "svix": "npm:svix@1.99.1"
   }
 }

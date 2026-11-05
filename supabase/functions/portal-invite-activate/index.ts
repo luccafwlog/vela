@@ -1,10 +1,15 @@
-import { createClient } from 'npm:@supabase/supabase-js@2.117.2'
+import { createClient } from '@supabase/supabase-js'
 import { hashToken } from '../_shared/portalToken.ts'
 import { corsHeaders } from '../_shared/cors.ts'
 import { PASSWORD_RULE_MESSAGE, isValidPassword } from '../_shared/passwordPolicy.ts'
 import { derivePortalAuthPassword, portalPasswordPepper } from '../_shared/portalPasswordSecret.ts'
 import { isActivationRateLimited, registerActivationFailure, requestIp } from '../_shared/portalLoginRateLimit.ts'
 import { SMALL_JSON_MAX_BYTES, readBoundedJsonBody } from '../_shared/boundedBody.ts'
+import type { PortalDb } from '../_shared/portalDb.ts'
+
+// O cliente do supabase-js não satisfaz o tipo estrutural dos helpers do Portal
+// (PortalDb, _shared/portalDb.ts) para o deno check; a forma usada é a mesma.
+const asPortalDb = <T,>(client: T) => client as T & PortalDb
 
 const PENDING_SITUATIONS = ['convite_pendente', 'convite_expirado', 'falha_no_envio']
 const GENERIC_INVALID = 'Link inválido ou expirado. Solicite um novo convite à empresa.'
@@ -19,19 +24,19 @@ if (typeof Deno !== 'undefined') Deno.serve(async (req) => {
   if (parsed.tooLarge) return cors(413, { error: 'Requisição acima do tamanho permitido.' })
   const body = parsed.value as { action?: string; token?: string; password?: string }
   if (!body.token) return cors(400, { error: GENERIC_INVALID })
-  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+  const admin = asPortalDb(createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!))
   const tokenHash = await hashToken(body.token)
   const { data: invite } = await admin.from('portal_invites').select('id, account_id, status, expires_at, sent_to_email').eq('token_hash', tokenHash).eq('purpose', 'convite').maybeSingle()
   const valid = Boolean(invite && invite.status === 'pendente' && new Date(invite.expires_at).getTime() > Date.now())
   if (body.action === 'inspect') {
-    if (!valid) return cors(410, { error: GENERIC_INVALID })
+    if (!invite || !valid) return cors(410, { error: GENERIC_INVALID })
     const { data: account } = await admin.from('customer_portal_accounts').select('login_cnpj, customers(name, deactivated_at)').eq('id', invite.account_id).single()
     const customer = account?.customers as { name?: string; deactivated_at?: string | null } | null
     // Cliente desativado: o convite pendente deixa de valer, com a mesma resposta genérica.
     if (!customer || customer.deactivated_at) return cors(410, { error: GENERIC_INVALID })
     return cors(200, { company_name: customer?.name ?? '', cnpj_masked: maskCnpj(account?.login_cnpj ?? '') })
   }
-  if (!valid) return cors(410, { error: GENERIC_INVALID })
+  if (!invite || !valid) return cors(410, { error: GENERIC_INVALID })
   if (body.action !== 'activate' || typeof body.password !== 'string') return cors(400, { error: GENERIC_INVALID })
   const { data: accountForRateLimit } = await admin.from('customer_portal_accounts').select('login_cnpj, account_situation, auth_user_id, customers(deactivated_at)').eq('id', invite.account_id).maybeSingle()
   // Só ativa conta à espera do convite e ainda sem usuário técnico (auditoria

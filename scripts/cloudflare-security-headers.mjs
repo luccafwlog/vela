@@ -34,7 +34,7 @@ export function contentSecurityPolicy(supabaseOrigin, frameAncestors = "'none'")
   const supabase = supabaseOrigin ? ` ${supabaseOrigin} ${supabaseOrigin.replace('https://', 'wss://')}` : ''
   return [
     "default-src 'self'",
-    "script-src 'self' https://challenges.cloudflare.com https://eu-assets.i.posthog.com",
+    "script-src 'self' https://challenges.cloudflare.com",
     'frame-src https://challenges.cloudflare.com',
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     `connect-src 'self'${supabase} https://olinda.bcb.gov.br https://*.ingest.us.sentry.io https://eu.i.posthog.com https://eu-assets.i.posthog.com https://challenges.cloudflare.com`,

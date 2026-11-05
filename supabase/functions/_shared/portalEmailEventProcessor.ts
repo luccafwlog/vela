@@ -1,4 +1,4 @@
-import { type SupabaseClient } from 'npm:@supabase/supabase-js@2.117.2'
+import { type SupabaseClient } from '@supabase/supabase-js'
 import { maskEmail, sendPortalEmail } from './portalEmail.ts'
 import { recipientKey } from './email.ts'
 import { bounceNotificationTemplate } from './portalEmailTemplates.ts'

@@ -1,4 +1,4 @@
-import { createClient } from 'npm:@supabase/supabase-js@2.117.2'
+import { createClient } from '@supabase/supabase-js'
 import { generateToken, hashToken } from '../_shared/portalToken.ts'
 import { inviteTemplate, resendTemplate } from '../_shared/portalEmailTemplates.ts'
 import { sendPortalEmail } from '../_shared/portalEmail.ts'
