@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
@@ -38,7 +38,7 @@ const mocks = vi.hoisted(() => ({
   refetch: vi.fn(),
   lastQuery: null as null | { queryKey: unknown[] },
   queryState: {
-    data: null as null | { rows: unknown[]; totalCount: number; summary?: { payments: number; received: number } },
+    data: null as null | { rows: unknown[]; totalCount: number; summary?: Record<string, unknown> },
     isLoading: false,
     error: null as Error | null,
   },
@@ -93,11 +93,14 @@ beforeEach(() => {
   mocks.queryState.data = {
     rows: [
       baseRow,
-      { ...baseRow, id: 'local-2', invoiceId: 12, paymentId: 22, docNumber: 'INV-12', blId: 'BL2', status: 'partially_paid', blAmount: 300, totalAmount: 500, amount: 200, paymentAmount: 200, method: 'manual', bankReference: 'TED 123', balance: 300, invoiceType: 'consolidated' },
+      { ...baseRow, id: 'local-2', invoiceId: 12, paymentId: 22, docNumber: 'INV-12', blId: 'BL2', status: 'partially_paid', paidAt: '2026-06-23T19:42:07.123+00:00', blAmount: 300, totalAmount: 500, amount: 200, paymentAmount: 200, method: 'manual', bankReference: 'TED 123', balance: 300, invoiceType: 'consolidated' },
       { ...baseRow, id: 'demurrage-31', source: 'demurrage', invoiceId: 31, paymentId: null, docNumber: 'DEM-31', invoiceType: null, method: 'extract' },
     ],
     totalCount: 3,
-    summary: { payments: 3, received: 220 },
+    summary: {
+      payments: 3, received: 220,
+      local: { payments: 2, received: 210 }, demurrage: { payments: 1, received: 10 }, itau: { payments: 1, received: 10 },
+    },
   }
   mocks.queryState.isLoading = false
   mocks.queryState.error = null
@@ -135,7 +138,7 @@ it('tabela limpa: colunas da tela, forma da baixa, valor pago, saldo em âmbar e
   expect(headers).toEqual(['Fatura', 'Origem', 'B/L', 'Cliente', 'Navio / Viagem', 'Pago em', 'Forma da baixa', 'Valor do B/L', 'Valor pago', 'Saldo', 'Situação'])
   const partial = screen.getByRole('button', { name: 'INV-12' }).closest('tr')!
   const cells = Array.from(partial.querySelectorAll('td')).map((td) => td.textContent?.replace(/\s/g, ' '))
-  expect(cells).toEqual(['INV-12', 'Taxas Locais', 'BL2', 'Cliente', 'Navio / V1', '23/06/2026', 'Manual', 'R$ 300,00', 'R$ 200,00', 'R$ 300,00', 'Parcialmente paga'])
+  expect(cells).toEqual(['INV-12', 'Taxas Locais', 'BL2', 'Cliente', 'Navio / V1', '23/06/2026 16:42', 'Manual', 'R$ 300,00', 'R$ 200,00', 'R$ 300,00', 'Parcialmente paga'])
   // A forma diz se a baixa foi automática pelo Itaú, pelo extrato ou à mão; a referência fica no título.
   expect(screen.getByRole('button', { name: 'INV-11' }).closest('tr')!.textContent).toContain('Automática (Itaú)')
   expect(screen.getByRole('button', { name: 'DEM-31' }).closest('tr')!.textContent).toContain('Pelo extrato')
@@ -148,8 +151,16 @@ it('tabela limpa: colunas da tela, forma da baixa, valor pago, saldo em âmbar e
   // Nada escrito embaixo da célula: sai o CNPJ sob o Cliente e o "de R$ X na fatura".
   expect(screen.queryByText(/na fatura/)).toBeNull()
   expect(screen.queryByText('12.345.678/0001-90')).toBeNull()
-  // Resumo do recorte na faixa do bloco.
-  expect(screen.getByText((text) => text.replace(/\s/g, ' ') === '3 baixas · R$ 220,00 pagos')).toBeTruthy()
+  // Baixa com hora (Pix) mostra dia e hora de Brasília; data pura (Demurrage) só o dia.
+  expect(screen.getByRole('button', { name: 'DEM-31' }).closest('tr')!.textContent).toContain('23/06/2026')
+  // Totais do recorte inteiro nos cartões; a faixa do bloco fica com a contagem.
+  const cards = within(screen.getByRole('group', { name: 'Totais das baixas no recorte' }))
+  expect(cards.getByText('Recebido').parentElement!.textContent?.replace(/\s/g, ' ')).toContain('R$ 220,00')
+  expect(cards.getByText('Recebido').parentElement!.textContent?.replace(/\s/g, ' ')).toContain('3 baixas')
+  expect(cards.getByText('Taxas Locais').parentElement!.textContent?.replace(/\s/g, ' ')).toContain('R$ 210,00')
+  expect(cards.getByText('Demurrage').parentElement!.textContent?.replace(/\s/g, ' ')).toContain('R$ 10,00')
+  expect(cards.getByText('Baixa automática (Itaú)').parentElement!.textContent?.replace(/\s/g, ' ')).toContain('1 baixa')
+  expect(screen.getByText('3 baixas', { selector: 'span[aria-live]' })).toBeTruthy()
   expect(screen.getByText('Exibindo 1–3 de 3')).toBeTruthy()
 })
 
@@ -201,7 +212,10 @@ it('caso do staging: as baixas manuais da coberta aparecem e a consolidada mostr
       { ...covered, id: 'local-10-B', invoiceId: 18, paymentId: 10, docNumber: 'INV-2026-0003', blId: 'CSC45630406300', amount: 2469.5, paymentAmount: 2469.5, bankReference: 'TESTE' },
     ],
     totalCount: 4,
-    summary: { payments: 3, received: 4940 },
+    summary: {
+      payments: 3, received: 4940,
+      local: { payments: 3, received: 4940 }, demurrage: { payments: 0, received: 0 }, itau: { payments: 1, received: 1.5 },
+    },
   }
   renderTable()
   const cells = (doc: string, bl: string) => Array.from(screen.getAllByRole('button', { name: doc })
@@ -213,7 +227,7 @@ it('caso do staging: as baixas manuais da coberta aparecem e a consolidada mostr
   expect(cells('INV-2026-0005', 'CSC45630405Z00').slice(6)).toEqual(['Manual', 'R$ 1,00', 'R$ 1,00', 'R$ 0,00', 'Paga'])
   expect(cells('INV-2026-0005', 'CSC45630406300').slice(6)).toEqual(['Manual', 'R$ 0,50', 'R$ 0,50', 'R$ 0,00', 'Paga'])
   expect(screen.getAllByTitle('Baixa de R$ 1,50 na fatura')).toHaveLength(2)
-  expect(screen.getByText((text) => text.replace(/\s/g, ' ') === '3 baixas · R$ 4.940,00 pagos')).toBeTruthy()
+  expect(within(screen.getByRole('group', { name: 'Totais das baixas no recorte' })).getByText('Recebido').parentElement!.textContent?.replace(/\s/g, ' ')).toContain('R$ 4.940,00')
 })
 
 it('Forma da baixa fica em Mais filtros e vai para a URL', async () => {

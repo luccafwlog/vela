@@ -11,6 +11,7 @@ import {
   listInvoiceLinksByBls,
   listInvoices,
   registerInvoicePayment,
+  summarizeInvoices,
   type InvoiceFilters,
 } from '../services/billing'
 import { queryKeys } from '../services/queryKeys'
@@ -19,6 +20,16 @@ export function useInvoices(filters: InvoiceFilters) {
   return useQuery({
     queryKey: queryKeys.invoices.list(filters),
     queryFn: () => listInvoices(filters),
+  })
+}
+
+/** Cartões da lista: a página não muda o recorte, então fica fora da chave. */
+export function useInvoiceSummary(filters: InvoiceFilters) {
+  const scope: InvoiceFilters = { ...filters, page: 1, pageSize: 1 }
+  return useQuery({
+    queryKey: queryKeys.invoices.summary(scope),
+    queryFn: () => summarizeInvoices(scope),
+    staleTime: 30_000,
   })
 }
 

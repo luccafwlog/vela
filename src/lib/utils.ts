@@ -131,6 +131,38 @@ export function formatDateTime(value?: string | null) {
   return formatDateTimeBR(value)
 }
 
+/**
+ * Dia e hora de Brasília de uma baixa (`paid_at`). A hora só aparece quando a
+ * baixa a guarda de verdade (Pix do Itaú, baixa sem data informada); a baixa
+ * informada com o dia não ganha hora inventada: o extrato grava o dia como
+ * meia-noite UTC (o dia vale em UTC, senão viraria 21:00 da véspera), e a baixa
+ * manual do Vela grava o meio-dia em ponto. Data pura (Demurrage) é só o dia.
+ */
+// ponytail: o dia sem hora é reconhecido pelo instante "redondo" (segundos e
+// milissegundos zerados às 00:00 UTC, 00:00 ou 12:00 de Brasília); um Pix real
+// nesse instante exato perde a hora. Upgrade: a baixa guardar se a hora foi informada.
+export function paymentDateParts(value?: string | null): { date: string; time: string | null } {
+  if (!value?.trim()) return { date: '', time: null }
+  const trimmed = value.trim()
+  if (isDateOnly(trimmed)) return { date: trimmed, time: null }
+  const instant = new Date(trimmed.replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'))
+  const valid = !Number.isNaN(instant.getTime())
+  const onTheMinute = !valid || (instant.getUTCSeconds() === 0 && instant.getUTCMilliseconds() === 0)
+  if (valid && onTheMinute && instant.getUTCHours() === 0 && instant.getUTCMinutes() === 0) {
+    return { date: instant.toISOString().slice(0, 10), time: null }
+  }
+  const { date, time } = splitIsoDateTime(trimmed)
+  const dayOnly = !time || time === '00:00' || (time === '12:00' && onTheMinute)
+  return { date, time: dayOnly ? null : time }
+}
+
+/** "04/11/2026 16:04" quando a baixa guarda a hora; "04/11/2026" quando não. */
+export function formatPaymentDate(value?: string | null): string {
+  const { date, time } = paymentDateParts(value)
+  if (!date) return ''
+  return time ? `${formatDate(date)} ${time}` : formatDate(date)
+}
+
 export function isDateOnly(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value)
 }

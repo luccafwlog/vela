@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   invalidateQueries: vi.fn(),
   detectOverdueInvoices: vi.fn(),
   invoices: { rows: [], count: 0 } as { rows: unknown[]; count: number },
+  summary: undefined as undefined | { count: number; openCount: number; openBalance: number; received: number },
+  summaryFilters: vi.fn(),
 }))
 
 vi.mock('@tanstack/react-query', () => ({
@@ -22,6 +24,10 @@ vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.f
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn().mockResolvedValue(false) }))
 vi.mock('../../hooks/useBilling', () => ({
   useInvoices: () => ({ data: mocks.invoices, isLoading: false, error: null }),
+  useInvoiceSummary: (filters: unknown) => {
+    mocks.summaryFilters(filters)
+    return { data: mocks.summary, isLoading: !mocks.summary, error: null }
+  },
   useBillingCustomers: () => ({ data: [] }),
   usePendingReissues: () => ({ data: [] }),
   useRetryPendingConsolidatedReissue: () => ({ mutateAsync: vi.fn(), isPending: false, variables: undefined }),
@@ -58,6 +64,7 @@ function LocationProbe() {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.invoices = { rows: [], count: 0 }
+  mocks.summary = undefined
 })
 afterEach(cleanup)
 
@@ -129,4 +136,23 @@ it('link antigo com tab=pendencias&bl abre a Validação filtrada pelo B/L', asy
 
   await waitFor(() => expect(screen.getByTestId('location').textContent).toBe('/taxas-locais?tab=pendencias&validacaoBl=COSU123'))
   expect(mocks.validacaoBlSearch).toHaveBeenLastCalledWith('COSU123')
+})
+
+it('cartões somam o recorte inteiro dos filtros, não só a página carregada', () => {
+  mocks.invoices = { rows: [], count: 120 }
+  mocks.summary = { count: 120, openCount: 7, openBalance: 1234.5, received: 9000 }
+  render(
+    <MemoryRouter initialEntries={['/taxas-locais?situacao=issued&page=3']}>
+      <TaxasLocais />
+    </MemoryRouter>,
+  )
+  const card = (label: string) => screen.getByText(label, { selector: '.app-metric-tile__label' }).parentElement!.textContent?.replace(/\s/g, ' ')
+  expect(card('Faturas')).toContain('120')
+  expect(card('Em aberto')).toContain('R$ 1.234,50')
+  expect(card('Em aberto')).toContain('7 faturas a receber')
+  expect(card('Recebido')).toContain('R$ 9.000,00')
+  expect(card('Faturado')).toContain('R$ 10.234,50')
+  // O resumo recebe os filtros da tela; a soma não é mais "nesta página".
+  expect(mocks.summaryFilters).toHaveBeenCalledWith(expect.objectContaining({ status: 'issued', page: 3 }))
+  expect(screen.queryByText(/nesta página/)).toBeNull()
 })

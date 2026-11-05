@@ -26,6 +26,8 @@ import {
   listInvoiceLinksByBls,
   listInvoices,
   registerInvoicePayment,
+  summarizeInvoiceRows,
+  summarizeInvoices,
 } from '../billing'
 import { buildInvoiceFileBaseName } from '../../components/shared/invoiceFormat'
 import type { InvoiceDetail, InvoiceFilters } from '../billing'
@@ -789,5 +791,46 @@ describe('listInvoiceDetails — autor da baixa', () => {
     expect(detail.payments).toHaveLength(2)
     expect(detail.payments.every((payment) => payment.registered_by_name === null)).toBe(true)
     warn.mockRestore()
+  })
+})
+
+describe('summarizeInvoices (cartões da lista de faturas)', () => {
+  it('em aberto conta cada B/L uma vez e o recebido soma toda baixa, inclusive a da coberta', () => {
+    const summary = summarizeInvoiceRows([
+      // Consolidada aberta dos B/Ls A e B: conta no lugar das individuais abertas.
+      { id: 3, status: 'issued', invoice_type: 'consolidated', total_paid_brl: 0, balance_brl: 300, invoice_bls: [], invoice_receivable_links: [{ bl_id: 'A' }, { bl_id: 'B' }] },
+      { id: 1, status: 'partially_paid', invoice_type: 'individual', total_paid_brl: 50, balance_brl: 150, invoice_bls: [{ bl_id: 'A' }], invoice_receivable_links: [] },
+      { id: 2, status: 'issued', invoice_type: 'individual', total_paid_brl: 0, balance_brl: 150, invoice_bls: [{ bl_id: 'B' }], invoice_receivable_links: [] },
+      // Avulsa do mesmo B/L é outra cobrança e conta.
+      { id: 4, status: 'issued', invoice_type: 'manual', total_paid_brl: 0, balance_brl: 40.1, invoice_bls: [{ bl_id: 'A' }], invoice_receivable_links: [] },
+      // Coberta: saldo zero, mas a baixa de antes da consolidada entrou.
+      { id: 5, status: 'covered', invoice_type: 'individual', total_paid_brl: 20, balance_brl: 0, invoice_bls: [{ bl_id: 'C' }], invoice_receivable_links: [] },
+      { id: 6, status: 'paid', invoice_type: 'individual', total_paid_brl: 99.95, balance_brl: 0, invoice_bls: [{ bl_id: 'D' }], invoice_receivable_links: [] },
+      { id: 7, status: 'cancelled', invoice_type: 'individual', total_paid_brl: 0, balance_brl: 500, invoice_bls: [{ bl_id: 'E' }], invoice_receivable_links: [] },
+    ])
+    expect(summary).toEqual({ openCount: 2, openBalance: 340.1, received: 169.95 })
+  })
+
+  it('lê o recorte inteiro em páginas de 1.000 com os filtros da tabela', async () => {
+    const firstPage = Array.from({ length: 1000 }, (_, index) => ({
+      id: 2000 - index, status: 'paid', invoice_type: 'individual', total_paid_brl: 1, balance_brl: 0, invoice_bls: [{ bl_id: `P${index}` }], invoice_receivable_links: [],
+    }))
+    const secondPage = [{ id: 1, status: 'issued', invoice_type: 'individual', total_paid_brl: 0, balance_brl: 10, invoice_bls: [{ bl_id: 'X' }], invoice_receivable_links: [] }]
+    const invoices = chainQuery({ data: [], error: null, count: 1001 })
+    const page = (data: unknown[]) => ({ overrideTypes: () => Promise.resolve({ data, error: null, count: 1001 }) })
+    invoices.range.mockImplementation((from: number) => page(from === 0 ? firstPage : secondPage))
+    supabaseMocks.from.mockImplementation((table: string) => {
+      if (table === 'invoices') return invoices
+      throw new Error(`tabela inesperada: ${table}`)
+    })
+
+    const summary = await summarizeInvoices({ ...baseFilters, status: 'issued', page: 5, pageSize: 20 })
+
+    expect(summary).toEqual({ count: 1001, openCount: 1, openBalance: 10, received: 1000 })
+    expect(invoices.select).toHaveBeenCalledWith(expect.not.stringContaining('customer:'), { count: 'exact' })
+    expect(invoices.in).toHaveBeenCalledWith('status', ['issued', 'partially_paid', 'draft'])
+    expect(invoices.order).toHaveBeenCalledWith('id', { ascending: false })
+    // A página da tela não limita a soma.
+    expect(invoices.range.mock.calls).toEqual([[0, 999], [1000, 1999]])
   })
 })

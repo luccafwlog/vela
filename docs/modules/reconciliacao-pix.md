@@ -210,6 +210,11 @@ jeito, então o motivo diz que o QR pode ser do staging.
   mudou; "QR estático do Vela" desde a migration `552`), Valor e Buscar (mensagem do pagador,
   identificador do Pix, da cobrança ou número da fatura; também nome e
   documento do pagador, se o Itaú os mandar). Valor ilegível avisa no campo e não consulta.
+- **Cartões por situação** acima dos filtros (pedido do dono de 2026-11-05):
+  **Com baixa**, **Sem baixa**, **Em análise** e **Tratado**, cada um com o
+  valor e "N Pix" do recorte dos demais filtros; com a Situação filtrada, as
+  outras ficam zeradas (`summarizeItauPixReceipts`, uma leitura do total de
+  `list_itau_pix_receipts` por situação).
 - **Bloco Pix recebidos**, com "N Pix · R$ X" do recorte na faixa e a tabela
   limpa: Recebido em (Brasília), Valor, Mensagem do pagador (texto inteiro,
   quebrando linha; "—" sem mensagem), Origem, Situação e Fatura (a da baixa ou,
@@ -397,9 +402,17 @@ consolidada, não apareciam):
   tamanho; escolher a origem Demurrage tira o tipo de fatura, e um `tipo` vindo
   de link com `origem=demurrage` é ignorado; página além do fim (link antigo ou
   baixa cancelada na última página) vai para a última existente;
-- bloco **Baixas** com o resumo do recorte na faixa ("N baixas · R$ X pagos":
-  cada baixa conta uma vez e o valor é a soma do que as baixas do recorte
-  puseram nos B/Ls, `summarizeReconciliationHistory`) e Exportar planilha;
+- cartões do recorte inteiro dos filtros acima deles (pedido do dono de
+  2026-11-05): **Recebido**, **Taxas Locais**, **Demurrage** e **Baixa
+  automática (Itaú)**, cada um com o valor e "N baixas"; cada baixa conta uma
+  vez e o valor é a soma do que as baixas do recorte puseram nos B/Ls
+  (`summarizeReconciliationHistory`);
+- bloco **Baixas** com "N baixas" do recorte na faixa e Exportar planilha;
+- **Pago em** com dia e hora de Brasília quando a baixa guarda a hora (Pix do
+  Itaú); a baixa informada com o dia (extrato, gravado como meia-noite UTC;
+  manual, gravada ao meio-dia em ponto) e a de Demurrage (data pura) mostram só
+  o dia (`formatPaymentDate`, a mesma regra do "Recebido em" do Portal). O
+  filtro Pago de/até e a planilha usam esse mesmo dia;
 - tabela limpa: Fatura (com o ícone de pilha na consolidada), Origem, B/L (com
   ícone de copiar), Cliente, Navio / Viagem, Pago em, Forma da baixa (a
   referência bancária no título), Valor do B/L (ordenável), Valor pago (o que
