@@ -19,7 +19,7 @@ import {
   type PortalContactDraft,
 } from '../../services/customerContactConfiguration'
 import { extractErrorText } from '../../lib/errors'
-import { boxesWithoutRecipient, currentSuppressionReason, firstBoxWithoutContact, hasEligibleContactReplacement, normalizePrimaryContactBoxes } from '../../lib/customerContactDrafts'
+import { boxesWithoutRecipient, currentSuppressionReason, firstBoxWithoutContact, hasEligibleContactReplacement, repeatedEmailMessage, normalizePrimaryContactBoxes } from '../../lib/customerContactDrafts'
 
 function snapshotOf(drafts: PortalContactDraft[]) {
   return JSON.stringify(drafts.map((draft) => [draft.id, draft.name ?? '', draft.email ?? '', draft.phone ?? '', draft.isPrimary, draft.active, [...draft.boxCodes].sort()]))
@@ -273,6 +273,12 @@ export function CustomerContactConfiguration({
         setErrorMsg(`O contato "${d.name || 'sem nome'}" possui um e-mail inválido.`)
         return
       }
+    }
+
+    const repeated = repeatedEmailMessage(drafts)
+    if (repeated) {
+      setErrorMsg(repeated)
+      return
     }
 
     const uncovered = firstBoxWithoutContact(activeContacts)
