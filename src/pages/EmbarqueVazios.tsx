@@ -39,6 +39,7 @@ import {
   deleteManualVaziosBooking,
   deleteVaziosExportOperation,
   isVaziosExportLockedByAdr,
+  summarizeEmptyExportRoutes,
   type VaziosOperationSummary,
 } from "../services/vaziosExportOperations";
 import { queryKeys } from "../services/queryKeys";
@@ -54,20 +55,24 @@ import {
   type DepotWithPort,
 } from "../services/depots";
 import { listVoyageRoutePorts } from "../services/operationalLists";
-import { listVoyageEscalaSchedulesByVoyageIds } from "../services/voyageRouteSchedules";
-import { normalizePortCode } from "../services/portCode";
+import { listVoyageEscalaSchedulesByVoyageIds, setVoyageRouteCeMaster } from "../services/voyageRouteSchedules";
+import { knownPorts, normalizePortCode, resolvePortCode } from "../services/portCode";
 import {
   armazenagemALancar,
   quantidadeEfetiva,
+  servicoDeArmazenagem,
+  sizeOf,
   totalEmbarque,
+  unidadesDoLocal,
   veto,
 } from "../services/vaziosCusto";
+import { listVaziosMercanteManifestos } from "../services/vaziosImportacaoImport";
 import type { DepotService, VaziosBooking, VaziosExportServiceLine } from "../types/database";
 import { formatBRL, formatDate, normalizeText, voyageLabel } from "../lib/utils";
-import { condicaoLabel, diasLabel, naturezaServicoLabel } from "../lib/vaziosLabels";
+import { condicaoLabel, diasLabel, naturezaServicoLabel, tamanhoLabel } from "../lib/vaziosLabels";
 import { classifyDbError, importErrorMessage } from "../lib/errors";
 import { invalidateAgencyReportForVoyage } from "../services/agencyReportInvalidation";
-import { afterEmbarqueVaziosNaEscala } from "../services/cacheEffects";
+import { afterEmbarqueVaziosNaEscala, afterRotaAlterada } from "../services/cacheEffects";
 import { invalidateEscalaTerminalQueries } from "../services/escalaTerminalAllocation";
 
 type Tab = "unidades" | "servicos";
@@ -83,6 +88,8 @@ type UnitForm = {
   handInDate: string;
   handOutDate: string;
   movementDate: string;
+  /** Porto de descarga (POD), obrigatório desde a migration 603. */
+  pod: string;
 };
 
 const EMPTY_UNIT: UnitForm = {
@@ -94,9 +101,12 @@ const EMPTY_UNIT: UnitForm = {
   handInDate: "",
   handOutDate: "",
   movementDate: "",
+  pod: "",
 };
 
 const EMPTY_LINE = {
+  /** Linha em edição (C11 da revisão de 2026-11-06); vazio na linha nova. */
+  id: "",
   serviceId: "",
   localId: "",
   destinoId: "",
@@ -108,6 +118,8 @@ const EMPTY_LINE = {
 };
 
 const OPERATIONS_KEY = ["vazios-export-operations"] as const;
+const PORT_SUGGESTIONS = knownPorts();
+const NUMERO_MANIFESTO = /^[A-Z0-9]{13}$/;
 
 function operationLabel(item: Pick<VaziosOperationSummary, "voyage" | "voyage_id">): string {
   return voyageLabel(item.voyage?.vessel?.name, item.voyage?.voyage_number, item.voyage_id);
@@ -204,9 +216,13 @@ export function EmbarqueVazios() {
   const operations = useQuery({ queryKey: OPERATIONS_KEY, queryFn: listVaziosExportOperationsWithUnits });
   const depots = useDepots();
   const depotRows = useMemo(() => (Array.isArray(depots.data) ? depots.data : []), [depots.data]);
+  // 603: o catálogo diz se a armazenagem de um depot se divide por tamanho.
+  const storageCatalog = useQuery({ queryKey: ["armazenagem-services"], queryFn: listArmazenagemServices });
   const summaries = useMemo(
-    () => (operations.data ? summarizeVaziosOperations(operations.data.operations, operations.data.bookings, depotRows) : []),
-    [operations.data, depotRows],
+    () => (operations.data
+      ? summarizeVaziosOperations(operations.data.operations, operations.data.bookings, depotRows, Array.isArray(storageCatalog.data) ? storageCatalog.data : [])
+      : []),
+    [operations.data, depotRows, storageCatalog.data],
   );
 
   function withParams(current: URLSearchParams, changes: Record<string, string | null>) {
@@ -610,6 +626,7 @@ function EmbarqueDetalhe({
   const [line, setLine] = useState(EMPTY_LINE);
   const [observationLine, setObservationLine] = useState<{ id: string; name: string } | null>(null);
   const [observationDraft, setObservationDraft] = useState("");
+  const [manifestoRoute, setManifestoRoute] = useState<{ pod: string; numero: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
   const ref: OperationRef = selectedOperation;
@@ -647,6 +664,12 @@ function EmbarqueDetalhe({
     queryKey: ["armazenagem-services"],
     queryFn: listArmazenagemServices,
   });
+  // 603: Nº do Manifesto Mercante de cada rota de exportação (porto do
+  // embarque → POD), no mesmo cadastro da aba Rotas e Manifestos.
+  const vaziosManifestos = useQuery({
+    queryKey: [...queryKeys.manifestosMercante.all(), "vazio", [ref.voyage_id]],
+    queryFn: () => listVaziosMercanteManifestos([ref.voyage_id]),
+  });
 
   // V1: lançamento novo só em local e serviço ativos (o banco também recusa, migration 326).
   const activeDepots = depotRows.filter((item) => item.active !== false);
@@ -662,16 +685,22 @@ function EmbarqueDetalhe({
   const local = activeDepots.find((item) => item.id === line.localId);
   const selectedService = serviceRows.find((item) => item.id === line.serviceId);
   const operationLines = operation.data?.linhas ?? [];
-  const costLines = operationLines.map((item: VaziosExportServiceLine & { service: unknown }) => ({
+  const costLines = operationLines.map((item: VaziosExportServiceLine & { service: unknown; free_time_days?: number | null }) => ({
     ...item,
     natureza: (item.service as { natureza?: string } | null)?.natureza ?? "geral",
     local_id: item.local_id,
     quantidade: Number(item.quantidade),
     valor_unitario: Number(item.valor_unitario),
   }));
-  // Combinações (depot, condição) com dias calculados pela lista de unidades e
-  // sem linha lançada (ADR 0033 mantém o lançamento manual); 0 dia fica fora.
-  const missingArmazenagem = armazenagemALancar(unitRows, depotRows, costLines);
+  // Combinações (depot, condição, tamanho) com dias calculados pela lista de
+  // unidades e sem linha lançada (ADR 0033 mantém o lançamento manual); 0 dia
+  // fica fora. O catálogo diz se o depot cobra 20' e 40' à parte (603).
+  const missingArmazenagem = armazenagemALancar(unitRows, depotRows, costLines, armazenagemServiceRows);
+  const embarkPort = normalizePortCode(ref.embark_port) ?? ref.embark_port.trim().toUpperCase();
+  // 603: rotas de exportação (porto do embarque → POD), com unidades, TEU e o Nº do Manifesto Mercante.
+  const exportRoutes = summarizeEmptyExportRoutes(unitRows, embarkPort, ref.voyage_id, vaziosManifestos.data ?? []);
+  // O Embarque direto sai de um terminal do porto do embarque (603); os depots não têm porto.
+  const portTerminalIds = new Set((terminal.data?.options ?? []).map((item) => item.id));
   const shipmentTotal = operation.data
     ? totalEmbarque({ unidades: unitRows, linhas: costLines, depots: depotRows })
     : selectedOperation.servicos;
@@ -713,7 +742,11 @@ function EmbarqueDetalhe({
     if (!file || !user?.id) return;
     let parsed: ParsedVaziosManifest;
     try {
-      parsed = await parseVaziosManifestFile(file, depotRows);
+      // 603: o leitor confere o POD contra o porto do embarque e o terminal contra os terminais do porto.
+      parsed = await parseVaziosManifestFile(file, depotRows, {
+        embarkPort,
+        portTerminalIds: terminal.data ? portTerminalIds : null,
+      });
     } catch (error) {
       showToast(classifyDbError(error).message, "error");
       return;
@@ -759,6 +792,7 @@ function EmbarqueDetalhe({
           handInDate: item.hand_in_date ?? "",
           handOutDate: item.hand_out_date ?? "",
           movementDate: item.movement_date ?? "",
+          pod: item.pod ?? "",
         }
       : EMPTY_UNIT);
     setUnitOpen(true);
@@ -769,6 +803,8 @@ function EmbarqueDetalhe({
     const terminal = unitLocal?.tipo === "terminal_portuario";
     await notify(
       async () => {
+        const pod = unitPod.code;
+        if (!pod) throw new Error(unitPod.problem ?? "Informe o porto de descarga (POD).");
         const payload = {
           containerNumber: unit.containerNumber,
           containerType: unit.containerType || null,
@@ -778,6 +814,7 @@ function EmbarqueDetalhe({
           handInDate: terminal ? null : unit.handInDate || null,
           handOutDate: terminal ? null : unit.handOutDate || null,
           movementDate: unit.movementDate || null,
+          pod,
         };
         if (unit.id) await updateManualVaziosBooking(unit.id, payload);
         else
@@ -833,7 +870,30 @@ function EmbarqueDetalhe({
       await refreshOperationData();
     }, "Unidade excluída.");
   }
+  async function saveRouteManifesto() {
+    if (!manifestoRoute || !user?.id) return;
+    const numero = manifestoRoute.numero.replace(/\s/g, "").toUpperCase();
+    const ok = await notify(async () => {
+      if (numero && !NUMERO_MANIFESTO.test(numero)) {
+        throw new Error("O Nº de Manifesto Mercante tem 13 caracteres, letras ou dígitos (ex.: 1226501860578).");
+      }
+      // Os vazios embarcam já manifestados: o Vela só registra o número da rota
+      // (decisão do dono de 2026-11-06), pela mesma gravação de Rotas e Manifestos.
+      await setVoyageRouteCeMaster({
+        voyageId: ref.voyage_id,
+        pol: embarkPort,
+        pod: manifestoRoute.pod,
+        ceMaster: numero || null,
+        changedBy: user.id,
+        cargoMode: "vazios",
+      });
+      await afterRotaAlterada(queryClient, { voyageId: ref.voyage_id });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.manifestosMercante.all() });
+    }, numero ? "Nº do Manifesto Mercante registrado." : "Nº do Manifesto Mercante retirado.");
+    if (ok) setManifestoRoute(null);
+  }
   async function persistServiceLine(params: {
+    id?: string;
     serviceId: string;
     service: { natureza: string };
     localId: string;
@@ -847,10 +907,12 @@ function EmbarqueDetalhe({
     quantidadeManual: boolean;
   }) {
     const draft = {
+      id: params.id,
       natureza: params.service.natureza,
       local_id: params.localId,
       destino_id: params.destinoId,
       condition: params.condition,
+      container_type: params.containerType,
       quantidade: params.quantidade,
       percentual: null,
       valor_unitario: params.valorUnitario,
@@ -859,6 +921,7 @@ function EmbarqueDetalhe({
     const issue = veto(draft, { depots: depotRows, lines: costLines });
     if (issue) throw new Error(issue);
     const savedLine = await upsertServiceLine({
+      ...(params.id ? { id: params.id } : {}),
       operation_id: ref.id,
       service_id: params.serviceId,
       local_id: params.localId,
@@ -904,12 +967,14 @@ function EmbarqueDetalhe({
         throw new Error("Escolha a condição da linha de armazenagem.");
       }
       await persistServiceLine({
+        id: line.id || undefined,
         serviceId: selectedService.id,
         service: selectedService,
         localId: local.id,
         local,
         destinoId: selectedService.natureza === "transporte" ? selectedService.route_destino_id ?? null : null,
-        containerType: null,
+        // 603: a linha leva o tamanho do serviço (o banco confere).
+        containerType: sizeOf(selectedService.container_type),
         // B12 (ADR 0033): o serviço genérico leva a condição escolhida na linha.
         condition: selectedService.natureza === "armazenagem" ? selectedService.condition ?? (line.condition || null) : null,
         quantidade: line.quantidade,
@@ -920,7 +985,31 @@ function EmbarqueDetalhe({
       setLineOpen(false);
       setLine(EMPTY_LINE);
       setServiceNature("");
-    }, "Linha de serviço lançada.");
+    }, line.id ? "Linha de serviço atualizada." : "Linha de serviço lançada.");
+  }
+  // C11 da revisão de 2026-11-06: a linha lançada se corrige na mesma janela,
+  // sem excluir e lançar de novo; o Histórico guarda o antes e o depois.
+  function openLine(item?: (typeof operationLines)[number]) {
+    if (!item) {
+      setLine(EMPTY_LINE);
+      setServiceNature("");
+      setLineOpen(true);
+      return;
+    }
+    const natureza = (item.service as { natureza?: string } | null)?.natureza ?? "";
+    setServiceNature(natureza);
+    setLine({
+      id: item.id,
+      serviceId: item.service_id,
+      localId: item.local_id,
+      destinoId: item.destino_id ?? "",
+      condition: item.condition ?? "",
+      quantidade: Number(item.quantidade),
+      valor: Number(item.valor_unitario),
+      valorSugerido: item.valor_sugerido == null ? null : Number(item.valor_sugerido),
+      quantidadeManual: natureza === "armazenagem" ? item.quantidade_manual : true,
+    });
+    setLineOpen(true);
   }
   async function saveServiceObservation() {
     if (!observationLine) return;
@@ -946,7 +1035,7 @@ function EmbarqueDetalhe({
     }, "Linha excluída.");
   }
   async function addSuggestedArmazenagemLine(
-    need: { depot_id: string; condition: string; quantidade: number },
+    need: { depot_id: string; condition: string; size: string | null; quantidade: number },
     service: DepotService,
   ) {
     const depot = depotRows.find((item) => item.id === need.depot_id);
@@ -958,7 +1047,7 @@ function EmbarqueDetalhe({
         localId: need.depot_id,
         local: depot,
         destinoId: null,
-        containerType: null,
+        containerType: sizeOf(service.container_type),
         condition: need.condition,
         quantidade: need.quantidade,
         valorUnitario: Number(service.rate_brl),
@@ -970,7 +1059,7 @@ function EmbarqueDetalhe({
   function chooseCondition(condition: string) {
     const suggestion =
       selectedService && local && condition
-        ? valorSugerido({ local, servico: selectedService, tipo: "", rota: "", condicao: condition, catalogo: serviceRows })
+        ? valorSugerido({ local, servico: selectedService, tipo: selectedService.container_type ?? "", rota: "", condicao: condition, catalogo: serviceRows })
         : null;
     setLine((current) => ({ ...current, condition, valor: suggestion ?? current.valor, valorSugerido: suggestion }));
   }
@@ -980,7 +1069,7 @@ function EmbarqueDetalhe({
     const serviceCondition = service?.natureza === "armazenagem" ? service.condition ?? "" : "";
     const suggestion =
       service && local
-        ? valorSugerido({ local, servico: service, tipo: "", rota: serviceRoute, condicao: serviceCondition, catalogo: serviceRows })
+        ? valorSugerido({ local, servico: service, tipo: service.container_type ?? "", rota: serviceRoute, condicao: serviceCondition, catalogo: serviceRows })
         : null;
     setLine((current) => ({
       ...current,
@@ -996,13 +1085,42 @@ function EmbarqueDetalhe({
   const unitLocal = depotRows.find((item) => item.id === unit.localId);
   const unitTerminal = unitLocal?.tipo === "terminal_portuario";
   // A unidade já lançada num local depois desativado continua editável nele.
-  const unitLocalOptions = unit.id && unitLocal && unitLocal.active === false ? [...activeDepots, unitLocal] : activeDepots;
+  // 603: terminal só do porto do embarque; os depots não têm porto.
+  const portLocalOptions = activeDepots.filter((item) => item.tipo !== "terminal_portuario" || portTerminalIds.has(item.id));
+  const unitLocalOptions = unit.id && unitLocal && !portLocalOptions.some((item) => item.id === unitLocal.id)
+    ? [...portLocalOptions, unitLocal]
+    : portLocalOptions;
+  const unitPod = (() => {
+    const typed = unit.pod.trim();
+    if (!typed) return { code: null as string | null, problem: "Informe o porto de descarga (POD)." };
+    const resolved = resolvePortCode(typed);
+    const code = resolved.code ?? (/^[A-Z]{2}[A-Z0-9]{3}$/.test(typed.toUpperCase()) ? typed.toUpperCase() : null);
+    if (!code) return { code: null, problem: `Porto "${typed}" não reconhecido: use o LOCODE de 5 caracteres (ex.: CNSHA).` };
+    if (code === embarkPort) return { code: null, problem: `O porto de descarga não pode ser o porto do embarque (${embarkPort}).` };
+    return { code, problem: null };
+  })();
+  const draftCostLine = {
+    id: line.id || undefined,
+    natureza: "armazenagem",
+    local_id: local?.id ?? "",
+    condition: line.condition || null,
+    container_type: sizeOf(selectedService?.container_type),
+    quantidade: line.quantidade,
+    valor_unitario: line.valor,
+    quantidade_manual: false,
+  };
   const calculatedQuantity = selectedService?.natureza === "armazenagem"
     ? quantidadeEfetiva(
-        { natureza: "armazenagem", local_id: local?.id ?? "", condition: line.condition || null, quantidade: line.quantidade, valor_unitario: line.valor, quantidade_manual: false },
+        draftCostLine,
         unitRows,
         depotRows,
+        [...costLines.filter((item) => item.id !== line.id), draftCostLine],
       )
+    : null;
+  // Decisão do dono de 2026-11-06: o sistema sugere a quantidade de handling,
+  // transporte e afins pelas unidades do local; a pessoa aplica com um clique.
+  const suggestedUnits = selectedService && selectedService.natureza !== "armazenagem"
+    ? unidadesDoLocal(unitRows, local?.id, selectedService.container_type)
     : null;
 
   return (
@@ -1074,11 +1192,59 @@ function EmbarqueDetalhe({
           <>
             {unitRows.length > 0 ? (
               <Block title="Resumo">
-                <FactList columns={3}>
+                <FactList columns={4}>
                   <Fact label="Por tipo">{countText(unitRows, (item) => item.container_type ?? "Sem tipo")}</Fact>
                   <Fact label="Por local">{countText(unitRows, (item) => depotCode(item.local_id) ?? "Local removido")}</Fact>
                   <Fact label="Por condição">{countText(unitRows, (item) => condicaoLabel(item.condition))}</Fact>
+                  <Fact label="Por porto de descarga">{countText(unitRows, (item) => item.pod ?? "Sem POD")}</Fact>
                 </FactList>
+              </Block>
+            ) : null}
+            {unitRows.length > 0 ? (
+              <Block title="Manifesto Mercante por porto de descarga" aside="os vazios embarcam já manifestados: registre o número de cada rota" flush>
+                <div className="app-table-scroll">
+                  <table className="app-table app-table--compact">
+                    <caption className="sr-only">Nº do Manifesto Mercante de cada rota de exportação dos vazios</caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">Rota</th>
+                        <th scope="col">Unidades</th>
+                        <th scope="col">TEU</th>
+                        <th scope="col">Nº do Manifesto Mercante</th>
+                        {canEditProfile ? <th scope="col">Ações</th> : null}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {exportRoutes.map((route) => (
+                        <tr key={route.pod || "sem-pod"}>
+                          <td>{route.pod ? `${embarkPort} → ${route.pod}` : <StatusText tone="warning">Sem POD</StatusText>}</td>
+                          <td className="tabular-nums">{route.unidades.toLocaleString("pt-BR")}</td>
+                          <td className="tabular-nums">{route.teu.toLocaleString("pt-BR")}</td>
+                          <td className="tabular-nums">
+                            {!route.pod
+                              ? <NoValue label="Informe o POD das unidades" />
+                              : vaziosManifestos.error
+                                ? <StatusText tone="danger">Não foi possível carregar</StatusText>
+                                : route.manifesto ?? <StatusText tone="warning">Sem número</StatusText>}
+                          </td>
+                          {canEditProfile ? (
+                            <td>
+                              <div className="flex justify-center gap-1">
+                                {route.pod ? (
+                                  <RowActionButton
+                                    icon={Pencil}
+                                    label={`${route.manifesto ? "Editar" : "Informar"} o Nº do Manifesto Mercante de ${embarkPort} → ${route.pod}`}
+                                    onClick={() => setManifestoRoute({ pod: route.pod, numero: route.manifesto ?? "" })}
+                                  />
+                                ) : null}
+                              </div>
+                            </td>
+                          ) : null}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </Block>
             ) : null}
             <Block
@@ -1124,6 +1290,7 @@ function EmbarqueDetalhe({
                           <th scope="col">Tipo</th>
                           <th scope="col">Local</th>
                           <th scope="col">Condição</th>
+                          <th scope="col">POD</th>
                           <th scope="col">Entrada</th>
                           <th scope="col">Saída</th>
                           <th scope="col">Embarque</th>
@@ -1137,6 +1304,7 @@ function EmbarqueDetalhe({
                             <td>{item.container_type ?? <NoValue label="Sem tipo" />}</td>
                             <td>{depotCode(item.local_id) ?? <NoValue label="Local removido" />}</td>
                             <td>{condicaoLabel(item.condition)}</td>
+                            <td>{item.pod ?? <StatusText tone="warning">Sem POD</StatusText>}</td>
                             <td className="tabular-nums">{item.hand_in_date ? formatDate(item.hand_in_date) : <NoValue label="Sem entrada" />}</td>
                             <td className="tabular-nums">{item.hand_out_date ? formatDate(item.hand_out_date) : <NoValue label="Sem saída" />}</td>
                             <td className="tabular-nums">{item.movement_date ? formatDate(item.movement_date) : <NoValue label="Sem data de embarque" />}</td>
@@ -1168,6 +1336,7 @@ function EmbarqueDetalhe({
                       <tr>
                         <th scope="col">Local</th>
                         <th scope="col">Condição</th>
+                        <th scope="col">Tamanho</th>
                         <th scope="col">Dias de armazenagem</th>
                         <th scope="col" className="app-table__text-head">Serviço</th>
                         {canEdit ? <th scope="col">Ações</th> : null}
@@ -1176,22 +1345,22 @@ function EmbarqueDetalhe({
                     <tbody>
                       {missingArmazenagem.map((need) => {
                         const depot = depotRows.find((item) => item.id === need.depot_id);
-                        // B12 (ADR 0033): o serviço da mesma condição vence; sem ele, o serviço sem condição (genérico) serve.
-                        const suggestedService =
-                          armazenagemServiceRows.find((item) => item.depot_id === need.depot_id && item.condition === need.condition)
-                          ?? armazenagemServiceRows.find((item) => item.depot_id === need.depot_id && item.condition == null);
+                        // B12 (ADR 0033): o serviço da mesma condição vence; sem ele, o
+                        // serviço sem condição (genérico) serve. 603: do mesmo tamanho.
+                        const suggestedService = servicoDeArmazenagem(armazenagemServiceRows, need);
                         const inactiveDepot = depot?.active === false;
                         return (
-                          <tr key={`${need.depot_id}:${need.condition}`}>
+                          <tr key={`${need.depot_id}:${need.condition}:${need.size ?? ""}`}>
                             <td>{depot?.code ?? <NoValue label="Local removido" />}</td>
                             <td>{condicaoLabel(need.condition)}</td>
+                            <td>{tamanhoLabel(need.size)}</td>
                             <td className="tabular-nums">{diasLabel(need.quantidade)}</td>
                             <td className="app-table__text">
                               {inactiveDepot
                                 ? <StatusText tone="warning">Local inativo</StatusText>
                                 : suggestedService
                                   ? suggestedService.name
-                                  : <StatusText tone="warning">Sem serviço de armazenagem cadastrado</StatusText>}
+                                  : <StatusText tone="warning">{need.size ? `Sem serviço de armazenagem de ${tamanhoLabel(need.size)} cadastrado` : "Sem serviço de armazenagem cadastrado"}</StatusText>}
                             </td>
                             {canEdit ? (
                               <td>
@@ -1199,7 +1368,7 @@ function EmbarqueDetalhe({
                                   {suggestedService && !inactiveDepot ? (
                                     <RowActionButton
                                       icon={Plus}
-                                      label={`Lançar armazenagem de ${depot?.code ?? "local"} (${condicaoLabel(need.condition)})`}
+                                      label={`Lançar armazenagem de ${depot?.code ?? "local"} (${condicaoLabel(need.condition)}${need.size ? `, ${tamanhoLabel(need.size)}` : ""})`}
                                       disabled={saving}
                                       onClick={() => void addSuggestedArmazenagemLine(need, suggestedService)}
                                     />
@@ -1230,7 +1399,7 @@ function EmbarqueDetalhe({
                     <span className="tabular-nums">{`${plural(operationLines.length, "linha", "linhas")} · ${formatBRL(shipmentTotal)}`}</span>
                   ) : null}
                   {canEdit ? (
-                    <Button onClick={() => { setLine(EMPTY_LINE); setServiceNature(""); setLineOpen(true); }}>
+                    <Button onClick={() => openLine()}>
                       <Plus size={16} aria-hidden="true" /> Lançar linha
                     </Button>
                   ) : null}
@@ -1258,7 +1427,7 @@ function EmbarqueDetalhe({
                           <th scope="col">Local</th>
                           <th scope="col">Natureza</th>
                           <th scope="col">Rota</th>
-                          <th scope="col">Tipo</th>
+                          <th scope="col">Tamanho</th>
                           <th scope="col">Qtd.</th>
                           <th scope="col">Unitário</th>
                           <th scope="col">Total</th>
@@ -1271,19 +1440,24 @@ function EmbarqueDetalhe({
                           const natureza = (item.service as { natureza?: string } | null)?.natureza ?? "geral";
                           const name = (item.service as { name?: string } | null)?.name ?? "Serviço";
                           const costLine = { ...item, natureza, quantidade: Number(item.quantidade), valor_unitario: Number(item.valor_unitario) };
-                          const quantity = quantidadeEfetiva(costLine, unitRows, depotRows);
+                          const quantity = quantidadeEfetiva(costLine, unitRows, depotRows, costLines);
                           const manualStorage = item.quantidade_manual && natureza === "armazenagem";
                           const calculated = manualStorage
-                            ? quantidadeEfetiva({ ...costLine, quantidade_manual: false }, unitRows, depotRows)
+                            ? quantidadeEfetiva({ ...costLine, quantidade_manual: false }, unitRows, depotRows, costLines)
                             : null;
+                          const frozenFreeTime = natureza === "armazenagem" ? (item as { free_time_days?: number | null }).free_time_days ?? null : null;
+                          const quantityTitle = [
+                            calculated !== null ? `Informada à mão; calculada pela lista de unidades: ${calculated}` : null,
+                            frozenFreeTime !== null ? `Free time aplicado: ${diasLabel(frozenFreeTime)}, gravado no lançamento` : null,
+                          ].filter(Boolean).join(". ");
                           return (
                             <tr key={item.id}>
                               <td className="app-table__text" title={name}>{name}</td>
                               <td>{depotCode(item.local_id) ?? <NoValue label="Local removido" />}</td>
                               <td>{naturezaServicoLabel(natureza)}</td>
-                              <td>{depotCode(item.destino_id) ?? <NoValue label="Sem rota" />}</td>
-                              <td>{item.container_type ?? <NoValue label="Sem tipo" />}</td>
-                              <td className="tabular-nums" title={calculated !== null ? `Informada à mão; calculada pela lista de unidades: ${calculated}` : undefined}>
+                              <td>{item.destino_id ? `${depotCode(item.local_id) ?? "Local removido"} → ${depotCode(item.destino_id) ?? "Local removido"}` : <NoValue label="Sem rota" />}</td>
+                              <td>{tamanhoLabel(sizeOf(item.container_type))}</td>
+                              <td className="tabular-nums" title={quantityTitle || undefined}>
                                 {quantity.toLocaleString("pt-BR")}
                               </td>
                               <td className="tabular-nums">{formatBRL(Number(item.valor_unitario))}</td>
@@ -1293,6 +1467,7 @@ function EmbarqueDetalhe({
                               {canEdit ? (
                                 <td>
                                   <div className="flex justify-center gap-1">
+                                    <RowActionButton icon={Pencil} label={`Editar linha ${name}`} onClick={() => openLine(item)} />
                                     <RowActionButton
                                       icon={MessageSquare}
                                       label={`Observação da linha ${name}`}
@@ -1353,18 +1528,36 @@ function EmbarqueDetalhe({
             <Field label="Embarque">
               <Input type="date" value={unit.movementDate} onChange={(event) => setUnit((current) => ({ ...current, movementDate: event.target.value }))} />
             </Field>
+            <Field
+              label="Porto de descarga (POD)"
+              required
+              hint={unitPod.code ? `Rota ${embarkPort} → ${unitPod.code}.` : "LOCODE ou nome do porto, ex.: CNSHA ou Shanghai."}
+              error={unit.pod.trim() && unitPod.problem ? unitPod.problem : undefined}
+            >
+              <Input
+                value={unit.pod}
+                list="embarque-pod-portos"
+                placeholder="Ex.: CNSHA"
+                onChange={(event) => setUnit((current) => ({ ...current, pod: event.target.value }))}
+              />
+              <datalist id="embarque-pod-portos">
+                {PORT_SUGGESTIONS.filter((item) => item.code !== embarkPort).map((item) => (
+                  <option key={item.code} value={item.code}>{item.name ?? item.code}</option>
+                ))}
+              </datalist>
+            </Field>
           </div>
           {unitTerminal ? <p className="text-sm text-[var(--app-muted)]">Terminal portuário não tem entrada nem saída de depot.</p> : null}
           <div className="app-modal__actions">
             <Button variant="secondary" onClick={() => setUnitOpen(false)}>Voltar</Button>
-            <Button loading={saving} disabled={!canEdit || !unit.containerNumber || !unit.localId} onClick={() => void saveUnit()}>
+            <Button loading={saving} disabled={!canEdit || !unit.containerNumber || !unit.localId || !unitPod.code} onClick={() => void saveUnit()}>
               {unit.id ? "Salvar unidade" : "Adicionar unidade"}
             </Button>
           </div>
         </div>
       </Modal>
 
-      <Modal open={lineOpen} onClose={() => setLineOpen(false)} title="Lançar linha" size="md">
+      <Modal open={lineOpen} onClose={() => setLineOpen(false)} title={line.id ? "Editar linha" : "Lançar linha"} size="md">
         <div className="grid gap-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Local" required>
@@ -1403,7 +1596,7 @@ function EmbarqueDetalhe({
                 <option value="">Selecione</option>
                 {offeredServices.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.name} · {naturezaServicoLabel(item.natureza)}
+                    {item.name} · {naturezaServicoLabel(item.natureza)}{sizeOf(item.container_type) ? ` · ${tamanhoLabel(item.container_type)}` : ""}
                   </option>
                 ))}
               </Select>
@@ -1440,7 +1633,11 @@ function EmbarqueDetalhe({
             ) : null}
             <Field
               label="Quantidade"
-              hint={calculatedQuantity !== null ? `Calculada pela lista de unidades: ${diasLabel(calculatedQuantity)}.` : undefined}
+              hint={calculatedQuantity !== null
+                ? `Calculada pela lista de unidades: ${diasLabel(calculatedQuantity)}.`
+                : suggestedUnits && local
+                  ? `Sugestão: ${suggestedUnits.total.toLocaleString("pt-BR")} ${suggestedUnits.total === 1 ? "unidade" : "unidades"} de ${local.code}${sizeOf(selectedService?.container_type) ? ` de ${tamanhoLabel(selectedService?.container_type)}` : ""} (${suggestedUnits.vazio} vazio, ${suggestedUnits.material} com material; ${suggestedUnits.porTamanho["20"]} de 20', ${suggestedUnits.porTamanho["40"]} de 40').`
+                  : undefined}
             >
               <Input
                 type="number"
@@ -1449,6 +1646,11 @@ function EmbarqueDetalhe({
                 disabled={selectedService?.natureza === "armazenagem" && !line.quantidadeManual}
                 onChange={(event) => setLine((current) => ({ ...current, quantidade: Number(event.target.value) }))}
               />
+              {suggestedUnits && suggestedUnits.total > 0 && line.quantidade !== suggestedUnits.total ? (
+                <Button variant="ghost" onClick={() => setLine((current) => ({ ...current, quantidade: suggestedUnits.total }))}>
+                  Usar {suggestedUnits.total.toLocaleString("pt-BR")}
+                </Button>
+              ) : null}
             </Field>
             <Field label="Valor unitário" hint={line.valorSugerido != null ? `Sugerido: ${formatBRL(line.valorSugerido)}.` : undefined}>
               <Input
@@ -1473,7 +1675,7 @@ function EmbarqueDetalhe({
           <div className="app-modal__actions">
             <Button variant="secondary" onClick={() => setLineOpen(false)}>Voltar</Button>
             <Button loading={saving} disabled={!canEdit || !line.serviceId || !line.localId} onClick={() => void saveLine()}>
-              Lançar linha
+              {line.id ? "Salvar linha" : "Lançar linha"}
             </Button>
           </div>
         </div>
@@ -1491,6 +1693,26 @@ function EmbarqueDetalhe({
         </div>
       </Modal>
 
+      <Modal open={manifestoRoute !== null} onClose={() => setManifestoRoute(null)} title="Nº do Manifesto Mercante" size="sm">
+        <div className="grid gap-4">
+          <p className="text-sm">
+            Rota {embarkPort} → {manifestoRoute?.pod}. Os vazios embarcam já manifestados no Mercante: registre aqui o número do
+            manifesto desta rota. Ele aparece também em Rotas e Manifestos quando a rota descarrega num porto da Viagem.
+          </p>
+          <Field label="Nº do Manifesto Mercante" hint="13 caracteres, letras ou dígitos. Deixe vazio para retirar o número.">
+            <Input
+              value={manifestoRoute?.numero ?? ""}
+              placeholder="Ex.: 1226501860578"
+              onChange={(event) => setManifestoRoute((current) => (current ? { ...current, numero: event.target.value } : current))}
+            />
+          </Field>
+          <div className="app-modal__actions">
+            <Button variant="secondary" onClick={() => setManifestoRoute(null)}>Voltar</Button>
+            <Button loading={saving} disabled={!canEditProfile} onClick={() => void saveRouteManifesto()}>Salvar número</Button>
+          </div>
+        </div>
+      </Modal>
+
       <Modal
         open={importOpen}
         onClose={() => {
@@ -1503,9 +1725,10 @@ function EmbarqueDetalhe({
         <div className="grid gap-5">
           <div className="app-panel app-panel--padded text-sm">
             <p className="font-semibold">Colunas da planilha</p>
-            <p className="mt-2">Container, Tipo, Local, Condição, Entrada, Saída e Embarque.</p>
+            <p className="mt-2">Container, Tipo, Local, Condição, Entrada, Saída, Embarque e POD.</p>
             <p className="mt-2 text-[var(--app-muted)]">
-              O local usa o código do cadastro de Locais (só ativos). Condição: Vazio ou Com material.
+              O local usa o código do cadastro de Locais (só ativos; terminal, só os de {embarkPort}). Condição: Vazio ou Com material.
+              POD é o porto de descarga do vazio, obrigatório (LOCODE ou nome, ex.: CNSHA).
               Reimportar substitui toda a lista desta escala e pode mudar a armazenagem; as unidades incluídas à mão ficam.
             </p>
             <div className="mt-3 flex flex-wrap gap-2">

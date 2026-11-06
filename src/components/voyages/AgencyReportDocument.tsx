@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import { formatBRL, formatDate, formatDateTimeBR } from "../../lib/utils";
+import { tamanhoLabel } from "../../lib/vaziosLabels";
 import {
   InvoiceDocFooter,
   InvoiceDocHeader,
@@ -294,6 +295,8 @@ type EmptyEmbarkRowLike = {
   type: string;
   condition: string;
   localLabel: string;
+  /** 603; ausente nos retratos fechados antes dele. */
+  pod?: string;
   quantity: number;
 };
 
@@ -308,7 +311,24 @@ function asEmptyEmbarkRows(value: unknown): EmptyEmbarkRowLike[] {
       type: String(record.type ?? "—"),
       condition: String(record.condition ?? "—"),
       localLabel: String(record.localLabel ?? "—"),
+      ...(record.pod === undefined ? {} : { pod: String(record.pod ?? "—") }),
       quantity: number(record.quantity),
+    };
+  });
+}
+
+type EmptyExportRouteLike = { pod: string; unidades: number; teu: number; manifesto: string | null };
+
+// 603: rotas de exportação dos vazios gravadas em `sections.operation.rotas`.
+function asEmptyExportRoutes(value: unknown): EmptyExportRouteLike[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    const record = asRecord(item);
+    return {
+      pod: String(record.pod ?? ""),
+      unidades: number(record.unidades),
+      teu: number(record.teu),
+      manifesto: typeof record.manifesto === "string" && record.manifesto ? record.manifesto : null,
     };
   });
 }
@@ -322,6 +342,7 @@ function EmptyEmbarkTable({
 }) {
   if (!rows.length) return null;
   const total = rows.reduce((sum, row) => sum + row.quantity, 0);
+  const withPod = rows.some((row) => row.pod !== undefined);
 
   return (
     <>
@@ -331,6 +352,7 @@ function EmptyEmbarkTable({
           <th scope="col" style={dataHeadCell}>Tipo</th>
           <th scope="col" style={dataHeadCell}>Condição</th>
           <th scope="col" style={dataHeadCell}>Local</th>
+          {withPod ? <th scope="col" style={dataHeadCell}>POD</th> : null}
           <th scope="col" style={{ ...dataHeadCell, textAlign: "right" }}>Quantidade</th>
         </tr>
       </thead>
@@ -340,6 +362,7 @@ function EmptyEmbarkTable({
             <th scope="row" style={dataCell}>{row.type}</th>
             <td style={dataCell}>{emptyConditionLabel(row.condition)}</td>
             <td style={dataCell}>{row.localLabel}</td>
+            {withPod ? <td style={dataCell}>{row.pod ?? "—"}</td> : null}
             <td style={dataNumberCell}>{count(row.quantity)}</td>
           </tr>
         ))}
@@ -621,9 +644,14 @@ export function AgencyReportDocument({
   const vaziosUnidades = Array.isArray(sections.vaziosUnidades)
     ? sections.vaziosUnidades.map(asRecord)
     : [];
-  const vaziosUnidadesComPeriodo = vaziosUnidades.filter(
-    (unit) => unit.hand_in_date && unit.hand_out_date,
-  );
+  // C2 da revisão de 2026-11-06: o anexo lista só quem gerou armazenagem, com
+  // os dias. O retrato fechado antes disso não traz `storage` por unidade e
+  // continua listando as unidades com entrada e saída, como era.
+  const vaziosUnidadesComDias = vaziosUnidades.some((unit) => unit.storage !== undefined);
+  const vaziosUnidadesComPeriodo = vaziosUnidadesComDias
+    ? vaziosUnidades.filter((unit) => number(asRecord(unit.storage).chargeableDays) > 0)
+    : vaziosUnidades.filter((unit) => unit.hand_in_date && unit.hand_out_date);
+  const emptyExportRoutes = asEmptyExportRoutes(asRecord(sections.operation).rotas);
   const costs = asRecord(sections.costs);
   const serviceLines = Array.isArray(costs.serviceLines)
     ? costs.serviceLines.map(asRecord)
@@ -831,6 +859,30 @@ export function AgencyReportDocument({
       <Section title="Embarque de vazios" {...section("vazios_embarcados")} hasData={vaziosEmbarcadosRows.length > 0}>
         <EmptyEmbarkTable label="Embarque de vazios" rows={vaziosEmbarcadosRows} />
       </Section>
+      {emptyExportRoutes.length ? (
+        <Section title="Vazios por porto de descarga" {...section("vazios_embarcados")} hasData>
+          <table aria-label="Vazios por porto de descarga" style={dataTable}>
+            <thead>
+              <tr style={dataHeadRow}>
+                <th scope="col" style={dataHeadCell}>Porto de descarga</th>
+                <th scope="col" style={{ ...dataHeadCell, textAlign: "right" }}>Unidades</th>
+                <th scope="col" style={{ ...dataHeadCell, textAlign: "right" }}>TEU</th>
+                <th scope="col" style={dataHeadCell}>Nº do Manifesto Mercante</th>
+              </tr>
+            </thead>
+            <tbody>
+              {emptyExportRoutes.map((route, index) => (
+                <tr key={route.pod || `sem-pod-${index}`} style={zebraRow(index)}>
+                  <th scope="row" style={dataCell}>{route.pod || "Sem POD"}</th>
+                  <td style={dataNumberCell}>{count(route.unidades)}</td>
+                  <td style={dataNumberCell}>{route.teu.toLocaleString("pt-BR")}</td>
+                  <td style={dataCell}>{route.manifesto ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Section>
+      ) : null}
       <Section
         title="Operação de vazios"
         {...section("vazios_embarcados")}
@@ -851,7 +903,7 @@ export function AgencyReportDocument({
               <th style={dataHeadCell}>Serviço</th>
               <th style={dataHeadCell}>Local</th>
               <th style={dataHeadCell}>Rota</th>
-              <th style={dataHeadCell}>Tipo</th>
+              <th style={dataHeadCell}>Tamanho</th>
               <th style={{ ...dataHeadCell, textAlign: "right" }}>Quantidade</th>
               <th style={{ ...dataHeadCell, textAlign: "right" }}>Unitário</th>
               <th style={{ ...dataHeadCell, textAlign: "right" }}>Total</th>
@@ -874,13 +926,11 @@ export function AgencyReportDocument({
                   )}
                 </td>
                 <td style={dataCell}>
-                  {String(
-                    asRecord(service.destino).name ??
-                      service.destino_id ??
-                      "—",
-                  )}
+                  {service.destino_id
+                    ? `${String(asRecord(service.local).name ?? service.local_id ?? "—")} → ${String(asRecord(service.destino).name ?? service.destino_id)}`
+                    : "—"}
                 </td>
-                <td style={dataCell}>{String(service.container_type ?? "—")}</td>
+                <td style={dataCell}>{tamanhoLabel(typeof service.container_type === "string" ? service.container_type : null)}</td>
                 <td style={dataNumberCell}>{count(service.quantidade)}</td>
                 <td style={dataNumberCell}>{formatBRL(number(service.valor_unitario))}</td>
                 <td style={dataNumberCell}>{formatBRL(serviceLineTotal(service))}</td>
@@ -903,8 +953,8 @@ export function AgencyReportDocument({
         <MetricsTable
           label="Storage"
           metrics={[
-            ["Containers", count(storage.containers)],
-            ["Dias", count(storage.days)],
+            ["Unidades com armazenagem", count(storage.containers)],
+            ["Dias cobráveis", count(storage.days)],
           ]}
         />
       </Section>
@@ -960,6 +1010,13 @@ export function AgencyReportDocument({
                 <th style={dataHeadCell}>Condição</th>
                 <th style={dataHeadCell}>Entrada</th>
                 <th style={dataHeadCell}>Saída</th>
+                {vaziosUnidadesComDias ? (
+                  <>
+                    <th style={{ ...dataHeadCell, textAlign: "right" }}>Dias no depot</th>
+                    <th style={{ ...dataHeadCell, textAlign: "right" }}>Free time</th>
+                    <th style={{ ...dataHeadCell, textAlign: "right" }}>Dias cobráveis</th>
+                  </>
+                ) : null}
               </tr>
             </thead>
             <tbody>
@@ -971,10 +1028,20 @@ export function AgencyReportDocument({
                   <td style={dataCell}>{emptyConditionLabel(String(unit.condition ?? "—"))}</td>
                   <td style={dataCell}>{formatDate(unit.hand_in_date as string | null)}</td>
                   <td style={dataCell}>{formatDate(unit.hand_out_date as string | null)}</td>
+                  {vaziosUnidadesComDias ? (
+                    <>
+                      <td style={dataNumberCell}>{count(asRecord(unit.storage).totalDays)}</td>
+                      <td style={dataNumberCell}>{count(asRecord(unit.storage).freeTime)}</td>
+                      <td style={dataNumberCell}>{count(asRecord(unit.storage).chargeableDays)}</td>
+                    </>
+                  ) : null}
                 </tr>
               ))}
             </tbody>
           </table>
+          {vaziosUnidadesComDias ? (
+            <TotalBox value={`${count(vaziosUnidadesComPeriodo.reduce((sum, unit) => sum + number(asRecord(unit.storage).chargeableDays), 0))} dias cobráveis`} />
+          ) : null}
         </Section>
       ) : null}
             </td>

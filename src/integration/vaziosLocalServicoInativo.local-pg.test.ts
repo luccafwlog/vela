@@ -9,7 +9,6 @@
 //
 // Namespace exclusivo: ids 99326xxx, containers 'AZCU326xxxx', depots 'A326…',
 // usuário ...0000003260NN.
-import { resolve } from 'node:path'
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -25,7 +24,6 @@ const activeDepot = 'A326ATV'
 const inactiveDepot = 'A326INA'
 const terminal = 'A326TER'
 const destination = 'A326DST'
-const migration331Path = resolve(process.cwd(), 'supabase/migrations/331_vazios_destino_inativo_recusado.sql')
 
 function psql(sql: string): string {
   return execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', sql],
@@ -65,7 +63,7 @@ function cleanup() {
 
 function createBooking(container: string, depotCode: string) {
   return asUser(`SELECT public.create_manual_vazios_booking(${operationId}, ${voyageId}, '${userId}', '${container}', '40HC',
-    ${depotId(depotCode)}, 'vazio', '2026-09-01', '2026-09-20', '2026-09-21')`)
+    ${depotId(depotCode)}, 'vazio', '2026-09-01', '2026-09-20', '2026-09-21', 'CNSHA')`)
 }
 
 function insertLine(service: string, depotCode: string) {
@@ -120,7 +118,7 @@ describeLocal('Embarque de vazios: local e serviço inativos recusados (migratio
   it('editar a unidade: trocar para local inativo é recusado; editar sem trocar segue aceito depois de desativar', () => {
     const booking = psql(`SELECT id FROM public.vazios_bookings WHERE container_number = 'AZCU3260002'`)
     const update = (depotCode: string, handOut: string) => asUser(`SELECT public.update_manual_vazios_booking('${booking}', 'AZCU3260002', '40HC',
-      ${depotId(depotCode)}, 'vazio', '2026-09-01', '${handOut}', '2026-09-21')`)
+      ${depotId(depotCode)}, 'vazio', '2026-09-01', '${handOut}', '2026-09-21', 'CNSHA')`)
     expect(update(inactiveDepot, '2026-09-20').stderr).toMatch(/Local inativo/)
 
     setActive('depots', `code = '${activeDepot}'`, false)
@@ -153,15 +151,16 @@ describeLocal('Embarque de vazios: local e serviço inativos recusados (migratio
 
   it('as mensagens do banco chegam com acento', () => {
     expect(asUser(`SELECT public.create_manual_vazios_booking(${operationId}, ${voyageId}, '${userId}', 'AZCU3260003', '40HC',
-      ${depotId(terminal)}, 'vazio', '2026-09-01', NULL, '2026-09-21')`).stderr).toMatch(/Terminal portuário não aceita entrada ou saída\./)
+      ${depotId(terminal)}, 'vazio', '2026-09-01', NULL, '2026-09-21', 'CNSHA')`).stderr).toMatch(/Terminal portuário não aceita entrada ou saída\./)
     expect(asUser(`SELECT public.create_manual_vazios_booking(${operationId}, ${voyageId}, '${userId}', 'AZCU3260004', '40HC',
-      ${depotId(activeDepot)}, 'vazio', NULL, NULL, '2026-09-21')`).stderr).toMatch(/Depot exige entrada e saída válidas\./)
+      ${depotId(activeDepot)}, 'vazio', NULL, NULL, '2026-09-21', 'CNSHA')`).stderr).toMatch(/Depot exige entrada e saída válidas\./)
     expect(asUser(`SELECT public.create_manual_vazios_booking(${operationId}, ${voyageId}, '${userId}', 'XX1', '40HC',
-      ${depotId(activeDepot)}, 'vazio', NULL, NULL, NULL)`).stderr).toMatch(/Container inválido\./)
+      ${depotId(activeDepot)}, 'vazio', NULL, NULL, NULL, 'CNSHA')`).stderr).toMatch(/Container inválido\./)
   })
 
   it('transporte para destino inativo é recusado; a linha já lançada segue editável (migration 331)', () => {
-    execPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-q', '-1', '-d', databaseUrl, '-f', migration331Path], { encoding: 'utf8' })
+    // A regra da 331 vale na definição vigente (603); reaplicar a 331 aqui
+    // desfaria a 603 no banco compartilhado pelas suítes seguintes.
     const insertTransport = () => asUser(`INSERT INTO public.vazios_export_service_lines (operation_id, service_id, local_id, destino_id, quantidade, valor_unitario)
       VALUES (${operationId}, ${serviceId('A326 TRANSPORTE')}, ${depotId(activeDepot)}, ${depotId(destination)}, 1, 10)`)
     expect(insertTransport().stderr).toBe('')

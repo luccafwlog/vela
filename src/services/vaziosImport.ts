@@ -4,30 +4,38 @@ import { createHeaderMapper, createRowErrorCollector, matchHeaders, readSheet, t
 import { IsoContainerSchema } from './importValidation'
 import { supabase } from './supabase'
 import { escapeFilterTerm } from '../lib/utils'
+import { normalizePortCode, resolvePortCode } from './portCode'
 
 const HEADER_MAP: Record<string, string> = {
   container: 'container_number', conteiner: 'container_number', 'container number': 'container_number',
   tipo: 'container_type', type: 'container_type',
   local: 'local_code', origem: 'local_code', depot: 'local_code', 'local de origem': 'local_code', 'origin location': 'local_code',
-  condicao: 'condition', condition: 'condition', status: 'condition',
+  condicao: 'condition', condition: 'condition', status: 'condition', 'current status': 'condition',
   'hand-in': 'hand_in_date', 'hand in': 'hand_in_date', entrada: 'hand_in_date', 'gate in': 'hand_in_date',
+  // Cabeçalhos do relatório de inventário do depot (ADR 0031; revisão de 2026-11-06, C9).
+  'import empty return date': 'hand_in_date', 'empty return date': 'hand_in_date',
   'hand-out': 'hand_out_date', 'hand out': 'hand_out_date', saida: 'hand_out_date', 'gate out': 'hand_out_date',
+  'empty gate out': 'hand_out_date',
   embarque: 'movement_date', 'data embarque': 'movement_date', 'load date': 'movement_date', data: 'movement_date',
+  // Migration 603: porto de descarga do vazio, obrigatório.
+  pod: 'pod', 'porto de descarga': 'pod', 'port of discharge': 'pod', 'discharge port': 'pod',
 }
 
-type VaziosHeaderField = 'container_number' | 'local_code' | 'condition'
+type VaziosHeaderField = 'container_number' | 'local_code' | 'condition' | 'pod'
 const VAZIOS_HEADER_SPEC: HeaderSpec<VaziosHeaderField> = {
   aliases: {
     container_number: ['container', 'conteiner', 'container number'],
     local_code: ['local', 'origem', 'depot', 'local de origem', 'origin location'],
-    condition: ['condicao', 'condition', 'status'],
+    condition: ['condicao', 'condition', 'status', 'current status'],
+    pod: ['pod', 'porto de descarga', 'port of discharge', 'discharge port'],
   },
-  required: ['container_number', 'local_code', 'condition'],
+  required: ['container_number', 'local_code', 'condition', 'pod'],
 }
 const VAZIOS_HEADER_LABELS: Record<VaziosHeaderField, string> = {
   container_number: 'Container',
   local_code: 'Local',
-  condition: 'Condition',
+  condition: 'Condição',
+  pod: 'POD',
 }
 
 export type ParsedVaziosBooking = {
@@ -48,6 +56,8 @@ export type ParsedVaziosBooking = {
   hand_in_date: string | null
   hand_out_date: string | null
   movement_date: string | null
+  /** Porto de descarga (LOCODE), obrigatório desde a migration 603. */
+  pod: string | null
 }
 
 export type ParsedVaziosManifest = {
@@ -68,14 +78,40 @@ export type ParsedVaziosManifest = {
 // divergência é apontada"). Duplica a regra da RPC deliberadamente — o mesmo
 // padrão do veto() client-side para Linhas de Serviço — para dar mensagem por
 // linha em vez do "corrija todas as linhas" genérico do banco.
-export type DepotLookup = { code: string; tipo: string; active: boolean }
+export type DepotLookup = { id?: string; code: string; tipo: string; active: boolean }
 
-export async function parseVaziosManifestFile(file: File, depots?: readonly DepotLookup[]): Promise<ParsedVaziosManifest> {
+/**
+ * Contexto do embarque para conferir a linha como o banco confere (603): o
+ * porto do embarque (o POD não pode ser ele) e os terminais desse porto (o
+ * Embarque direto só sai deles).
+ */
+export type VaziosEmbarqueContext = { embarkPort?: string | null; portTerminalIds?: ReadonlySet<string> | null }
+
+export async function parseVaziosManifestFile(file: File, depots?: readonly DepotLookup[], context: VaziosEmbarqueContext = {}): Promise<ParsedVaziosManifest> {
   assertUploadFile(file, ['xlsx', 'xls', 'csv'])
-  return parseVaziosManifestBuffer(await file.arrayBuffer(), depots)
+  return parseVaziosManifestBuffer(await file.arrayBuffer(), depots, context)
 }
 
-export async function parseVaziosManifestBuffer(buffer: ArrayBuffer, depots?: readonly DepotLookup[]): Promise<ParsedVaziosManifest> {
+/**
+ * POD da planilha: nome ou código que o catálogo reconhece, ou um LOCODE de 5
+ * caracteres bem formado (o vazio pode ir para um porto fora do catálogo da
+ * importação). O banco aplica a mesma régua (`normalize_port_code`).
+ */
+export function readPod(value: unknown, embarkPort?: string | null): { pod: string | null; problem: string | null } {
+  const typed = String(value ?? '').trim()
+  if (!typed) return { pod: null, problem: 'porto de descarga (POD) obrigatório' }
+  const resolved = resolvePortCode(typed)
+  const upper = typed.toUpperCase()
+  const pod = resolved.code ?? (/^[A-Z]{2}[A-Z0-9]{3}$/.test(upper) ? upper : null)
+  if (!pod) return { pod: null, problem: `POD "${typed}" não reconhecido; use o LOCODE de 5 caracteres (ex.: CNSHA)` }
+  const embark = normalizePortCode(embarkPort) ?? (embarkPort ? embarkPort.trim().toUpperCase() : null)
+  if (embark && pod === embark) {
+    return { pod: null, problem: `POD ${pod} é o porto do embarque; a coluna POD é o porto onde o vazio vai descarregar` }
+  }
+  return { pod, problem: null }
+}
+
+export async function parseVaziosManifestBuffer(buffer: ArrayBuffer, depots?: readonly DepotLookup[], context: VaziosEmbarqueContext = {}): Promise<ParsedVaziosManifest> {
   const { headers, rows, warnings, hidden } = await readSheet(buffer, {
     expectedHeaders: Object.keys(HEADER_MAP),
   })
@@ -113,11 +149,13 @@ export async function parseVaziosManifestBuffer(buffer: ArrayBuffer, depots?: re
       rowErrors.add(rowNumber, `Container ${containerNumber}: data de embarque anterior à saída do depot.`, row)
     }
     if (!localCode) rowErrors.add(rowNumber, `Container ${containerNumber}: local de origem obrigatório.`, row)
-    else if (depots) validateLocalAgainstDepots(rowNumber, containerNumber, localCode, handInDate, handOutDate, depots, rowErrors, row)
+    else if (depots) validateLocalAgainstDepots(rowNumber, containerNumber, localCode, handInDate, handOutDate, depots, rowErrors, row, context)
+    const pod = readPod(mapped.pod, context.embarkPort)
+    if (pod.problem) rowErrors.add(rowNumber, `Container ${containerNumber}: ${pod.problem}.`, row)
     bookings.push({
       rowNumber, container_number: containerNumber, container_type: text(mapped.container_type)?.toUpperCase() ?? null, local_code: localCode,
       condition, hand_in_date: handInDate,
-      hand_out_date: handOutDate, movement_date: movementDate,
+      hand_out_date: handOutDate, movement_date: movementDate, pod: pod.pod,
     })
   })
   const firstRowByContainer = new Map<string, number>()
@@ -133,8 +171,10 @@ export async function parseVaziosManifestBuffer(buffer: ArrayBuffer, depots?: re
 }
 
 export function parseCondition(value: unknown): ParsedVaziosBooking['condition'] {
-  const normalized = String(value ?? '').trim().toLowerCase()
-  if (normalized === 'material' || normalized === 'com material' || normalized === 'loaded') return 'material'
+  const normalized = String(value ?? '').trim().toLowerCase().replace(/\s+/g, ' ')
+  // "EMPTY W/ MATERIAL" é o rótulo que o próprio ADR imprime; "FULL" é como o
+  // depot chama o vazio com material do armador (C9 da revisão de 2026-11-06).
+  if (['material', 'com material', 'loaded', 'empty w/ material', 'empty with material', 'full'].includes(normalized)) return 'material'
   if (normalized === 'vazio' || normalized === 'empty') return 'vazio'
   return null
 }
@@ -151,6 +191,7 @@ function validateLocalAgainstDepots(
   depots: readonly DepotLookup[],
   rowErrors: ReturnType<typeof createRowErrorCollector>,
   row: unknown,
+  context: VaziosEmbarqueContext = {},
 ): void {
   const depot = depots.find((item) => item.code.trim().toLowerCase() === localCode.trim().toLowerCase())
   if (!depot) {
@@ -169,6 +210,9 @@ function validateLocalAgainstDepots(
     }
   } else if (depot.tipo === 'terminal_portuario' && (handInDate || handOutDate)) {
     rowErrors.add(rowNumber, `Container ${containerNumber}: terminal portuário "${localCode}" não aceita entrada ou saída de depot.`, row)
+  } else if (depot.tipo === 'terminal_portuario' && depot.id && context.portTerminalIds && !context.portTerminalIds.has(depot.id)) {
+    // Migration 603: o Embarque direto sai de um terminal do porto do embarque.
+    rowErrors.add(rowNumber, `Container ${containerNumber}: terminal portuário "${localCode}" não é de ${context.embarkPort ?? 'porto do embarque'}; use um terminal desse porto ou um depot.`, row)
   }
 }
 

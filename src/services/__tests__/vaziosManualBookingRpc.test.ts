@@ -18,6 +18,7 @@ describe("createManualVaziosBooking", () => {
       condition: "vazio",
       handInDate: "2026-07-02",
       handOutDate: "2026-07-03",
+      pod: "cnsha",
     });
 
     expect(rpcMock).toHaveBeenCalledWith(
@@ -27,6 +28,8 @@ describe("createManualVaziosBooking", () => {
         p_voyage_id: 39,
         p_uploaded_by: "user-1",
         p_container_number: "MSCU1234567",
+        // Migration 603: o porto de descarga vai junto, em maiúsculas.
+        p_pod: "CNSHA",
       }),
     );
   });
@@ -51,12 +54,14 @@ describe("createManualVaziosBooking", () => {
       condition: "vazio",
       handInDate: "2026-07-02",
       handOutDate: "2026-07-03",
+      pod: "CNNGB",
     });
 
     expect(rpcMock).toHaveBeenCalledWith("update_manual_vazios_booking", expect.objectContaining({
       p_booking_id: "booking-1",
       p_container_number: "MSCU1234567",
       p_local_id: "depot-1",
+      p_pod: "CNNGB",
     }));
   });
 });

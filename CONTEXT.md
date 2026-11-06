@@ -384,16 +384,19 @@ custo); o grão não é o container.
 
 **Unidade Embarcada**
 Container vazio efetivamente embarcado na escala; item da Lista de Unidades
-Embarcadas, com local de origem (Depot ou Terminal Portuário), condição, datas
-de entrada e saída do depot e data de embarque.
+Embarcadas, com local de origem (Depot ou Terminal Portuário do porto do
+embarque), condição, datas de entrada e saída do depot, data de embarque e
+porto de descarga (POD), obrigatório.
 - **Distinto de:** Linha de Serviço do Embarque — a unidade é fato importado e
   não carrega preço.
 → Regra: [Manifestos & EDI § `/embarquevazios`](docs/modules/manifesto-edi.md#embarquevazios)
 
 **Linha de Serviço do Embarque**
 Declaração, lançada à mão, de um serviço efetivamente performado na operação de
-vazios: serviço, local, quantidade e valor unitário, e a rota quando é
-transporte. Não aponta para containers específicos.
+vazios: serviço, local, tamanho (o do serviço: 20', 40' ou qualquer),
+quantidade e valor unitário, e a rota quando é transporte. Não aponta para
+containers específicos; a quantidade de handling e transporte é sugerida pelas
+unidades do local, e a pessoa decide.
 - **Distinto de:** Unidade Embarcada, que é fato operacional importado e não
   carrega preço.
 → Regra: [Manifestos & EDI § `/embarquevazios`](docs/modules/manifesto-edi.md#embarquevazios)
@@ -415,7 +418,8 @@ cálculo.
 **Free Time de Storage**
 Dias de armazenagem gratuita que o Depot concede ao container vazio antes de
 começar a cobrar; varia por depot e pela condição da unidade (totalmente vazio
-ou com material do armador).
+ou com material do armador). A linha de armazenagem guarda o free time do
+lançamento; mudar o cadastro depois não a muda.
 - **Distinto de:** Free Time de Demurrage, que se aplica à carga de importação
   do cliente, não ao vazio no depot.
 → Regra: [Manifestos & EDI § `/embarquevazios`](docs/modules/manifesto-edi.md#embarquevazios)
@@ -439,7 +443,8 @@ Condição do Container Vazio, não um campo independente.
 **Condição do Container Vazio**
 Estado do vazio no embarque: **totalmente vazio** ou **com material do
 armador**. Atributo de cada Unidade Embarcada; define qual free time do depot
-se aplica e separa as linhas de armazenagem, uma por (depot, condição).
+se aplica e separa as linhas de armazenagem, uma por (depot, condição,
+tamanho).
 → Regra: [Manifestos & EDI § `/embarquevazios`](docs/modules/manifesto-edi.md#embarquevazios)
 
 **Natureza do Serviço**

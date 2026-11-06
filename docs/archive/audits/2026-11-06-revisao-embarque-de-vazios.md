@@ -26,6 +26,35 @@ Rótulos de evidência como em [CONVENCOES.md](../../CONVENCOES.md#labels-de-evi
 revisão), **Runtime** (consulta somente leitura à produção em 2026-11-06,
 agregada, sem dado de Cliente) e **Suspeita**.
 
+**Decisões do dono (mesmo dia).** O dono decidiu as seis perguntas da seção 5
+assim:
+
+1. POD obrigatório.
+2. Os vazios embarcam já manifestados, e o Vela só registra o Nº do manifesto,
+   sem gerar EDI.
+3. Preço por tamanho aceito.
+4. Quantidade sugerida aceita.
+5. Free time congelado na linha.
+6. A agência recebe o Baplie de saída e o relatório de carregamento do
+   terminal.
+
+As decisões 1 a 5 estão na
+[ADR 0130](../../adr/0130-embarque-de-vazios-pod-tamanho-e-free-time-congelado.md),
+implementadas na migration `603`. Elas resolvem C1 a C9, C11, L1, L3, L4 e L8.
+O L2 se resolve como registro do número, sem EDI.
+
+Seguem abertos:
+
+- **C10:** data de embarque comparada com a Atracação.
+- **L5:** apelidos de local.
+- **L6:** conferências cruzadas.
+- **L7:** usar o Baplie de saída e o relatório do terminal (decisão 6); depende
+  de arquivos de exemplo.
+- **L9:** um terminal por escala.
+- **Lote E:** dados do catálogo, a cargo de Equipamentos.
+
+O texto abaixo descreve o sistema antes da `603`.
+
 ## Resposta curta
 
 1. **O que entra hoje.** A planilha de **Unidades embarcadas** tem sete

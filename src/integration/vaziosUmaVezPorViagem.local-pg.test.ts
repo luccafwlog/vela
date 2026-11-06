@@ -227,10 +227,10 @@ describeLocal('398 — vazio de importação uma vez por Viagem; ADR de Saída f
       SELECT id, 'V398 handling', 'geral', NULL, 5 FROM public.depots WHERE code = '${depotCode}';`)
     const operation = psql(`SELECT id FROM public.vazios_export_operations WHERE voyage_id = ${voyageId};`)
     const depot = psql(`SELECT id FROM public.depots WHERE code = '${depotCode}';`)
-    const include = (container: string) => asUser(`SELECT public.create_manual_vazios_booking('${operation}', ${voyageId}, '${userId}', '${container}', '40HC', '${depot}', 'vazio', '2026-09-01', '2026-09-02', '2026-09-02');`)
+    const include = (container: string) => asUser(`SELECT public.create_manual_vazios_booking('${operation}', ${voyageId}, '${userId}', '${container}', '40HC', '${depot}', 'vazio', '2026-09-01', '2026-09-02', '2026-09-02', 'CNSHA');`)
     expect(include('VZCU3980061').stderr).toBe('')
     const booking = psql(`SELECT id FROM public.vazios_bookings WHERE container_number = 'VZCU3980061';`)
-    const edit = () => asUser(`SELECT public.update_manual_vazios_booking('${booking}', 'VZCU3980061', '20DV', '${depot}', 'vazio', '2026-09-01', '2026-09-03', '2026-09-03');`)
+    const edit = () => asUser(`SELECT public.update_manual_vazios_booking('${booking}', 'VZCU3980061', '20DV', '${depot}', 'vazio', '2026-09-01', '2026-09-03', '2026-09-03', 'CNSHA');`)
     const insertLine = () => asUser(`INSERT INTO public.vazios_export_service_lines (operation_id, service_id, local_id, quantidade, valor_unitario)
       SELECT '${operation}', s.id, s.depot_id, 1, 5 FROM public.depot_services s WHERE s.name = 'V398 handling'`)
     expect(insertLine().stderr).toBe('')
@@ -287,7 +287,7 @@ describeLocal('398 — vazio de importação uma vez por Viagem; ADR de Saída f
 
     expect(asUser(`SELECT public.vazios_export_adr_locked(${voyageId}, 'BRVIT')`).stdout).toBe('t')
     const message = /fechado: o Embarque de vazios não muda/
-    expect(asUser(`SELECT public.create_manual_vazios_booking('${operation}', ${voyageId}, '${userId}', 'VZCU3980071', '40HC', '${depot}', 'vazio', '2026-09-01', '2026-09-02', '2026-09-02');`).stderr).toMatch(message)
+    expect(asUser(`SELECT public.create_manual_vazios_booking('${operation}', ${voyageId}, '${userId}', 'VZCU3980071', '40HC', '${depot}', 'vazio', '2026-09-01', '2026-09-02', '2026-09-02', 'CNSHA');`).stderr).toMatch(message)
     expect(asUser(`INSERT INTO public.vazios_export_service_lines (operation_id, service_id, local_id, quantidade, valor_unitario)
       SELECT '${operation}', s.id, s.depot_id, 1, 5 FROM public.depot_services s WHERE s.name = 'V398 handling'`).stderr).toMatch(message)
     // Inclusão direta com o apelido também é recusada.

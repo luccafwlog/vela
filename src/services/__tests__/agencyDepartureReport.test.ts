@@ -45,8 +45,10 @@ it('consolida containers distintos por tipo e veiculos distintos por modelo', ()
     vehiclesByModel: [{ label: 'SUV', count: 2 }, { label: 'SEDAN', count: 1 }],
   })
 })
-vi.mock('../vaziosExportOperations', () => ({
+vi.mock('../vaziosExportOperations', async (importOriginal) => ({
   computeStorageTotals: vi.fn(() => ({ containers: 0, days: 0 })),
+  // 603: as rotas de exportação usam a regra real.
+  summarizeEmptyExportRoutes: (await importOriginal<typeof import('../vaziosExportOperations')>()).summarizeEmptyExportRoutes,
 }))
 
 function queryBuilder(data: unknown[] = []) {

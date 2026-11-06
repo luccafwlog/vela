@@ -5,9 +5,12 @@ import { importVaziosManifest, parseVaziosManifestBuffer } from '../vaziosImport
 
 const rpcMock = vi.fn()
 vi.mock('../supabase', () => ({ supabase: { rpc: (...args: unknown[]) => rpcMock(...args) } }))
-const makeBuffer = async (rows: Record<string, unknown>[]) => {
+// Migration 603: o POD é obrigatório; as linhas sem ele recebem um, salvo quando
+// o teste é justamente sobre a falta dele (`semPod`).
+const makeBuffer = async (rows: Record<string, unknown>[], { semPod = false } = {}) => {
   const XLSX = await import('@e965/xlsx')
-  const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Sheet1')
+  const withPod = semPod ? rows : rows.map((row) => ('POD' in row ? row : { ...row, POD: 'CNSHA' }))
+  const ws = XLSX.utils.json_to_sheet(withPod); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Sheet1')
   return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
 }
 
@@ -74,13 +77,14 @@ describe('parser de vazios — novo contrato', () => {
   it('aceita data com hora, em texto ou em célula de data/hora do Excel', async () => {
     const XLSX = await import('@e965/xlsx')
     const sheet = XLSX.utils.aoa_to_sheet([
-      ['Container', 'Depot', 'Condition', 'Hand-in', 'Hand-out'],
-      ['ABCD1234575', 'VBR', 'vazio', '2026-07-01 08:30', '05/07/2026 17:45'],
+      ['Container', 'Depot', 'Condition', 'Hand-in', 'Hand-out', 'POD'],
+      ['ABCD1234575', 'VBR', 'vazio', '2026-07-01 08:30', '05/07/2026 17:45', 'CNSHA'],
     ])
     // 02/07/2026 08:30 como o Excel grava: serial com formato de data e hora.
     sheet.D3 = { t: 'n', v: 46205 + 8.5 / 24, z: 'dd/mm/yyyy hh:mm' }
     sheet.A3 = { t: 's', v: 'ABCD1234576' }; sheet.B3 = { t: 's', v: 'VBR' }; sheet.C3 = { t: 's', v: 'vazio' }
-    sheet['!ref'] = 'A1:E3'
+    sheet.F3 = { t: 's', v: 'CNSHA' }
+    sheet['!ref'] = 'A1:F3'
     const book = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(book, sheet, 'Sheet1')
     const parsed = await parseVaziosManifestBuffer(XLSX.write(book, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer)
     expect(parsed.rowErrors).toEqual([])
@@ -92,10 +96,10 @@ describe('parser de vazios — novo contrato', () => {
   it('devolve os avisos do leitor e o que ficou oculto, para a tela confirmar antes de gravar', async () => {
     const XLSX = await import('@e965/xlsx')
     const sheet = XLSX.utils.aoa_to_sheet([
-      ['Container', 'Depot', 'Condition'],
-      ['ABCD1234577', 'VBR', 'vazio'],
-      ['ABCD1234578', 'VIX', 'vazio'],
-      ['ABCD1234579', 'VIX', 'vazio'],
+      ['Container', 'Depot', 'Condition', 'POD'],
+      ['ABCD1234577', 'VBR', 'vazio', 'CNSHA'],
+      ['ABCD1234578', 'VIX', 'vazio', 'CNSHA'],
+      ['ABCD1234579', 'VIX', 'vazio', 'CNSHA'],
     ])
     // Planilha filtrada pelo depot VBR: as linhas do VIX estão ocultas.
     sheet['!rows'] = [{}, {}, { hidden: true }, { hidden: true }]
@@ -110,10 +114,10 @@ describe('parser de vazios — novo contrato', () => {
     expect(parsed.bookings[0].hand_in_date).toBeNull()
     expect(parsed.rowErrors.map((error) => error.message).join(' ')).toContain('data de entrada')
   })
-  it('persiste somente as sete colunas na RPC', async () => {
+  it('persiste as oito colunas na RPC, com o POD (603)', async () => {
     rpcMock.mockResolvedValue({ data: { manifest_id: 'm1' }, error: null })
-    await importVaziosManifest({ filename: 'x.xlsx', voyageId: 7, port: 'BRSSA', uploadedBy: 'user-1', manifest: { bookings: [{ rowNumber: 2, container_number: 'ABCD1234569', container_type: '20DV', local_code: 'VBR', condition: 'vazio', hand_in_date: '2026-07-01', hand_out_date: '2026-07-02', movement_date: '2026-07-03' }], rowErrors: [] } })
-    expect(rpcMock).toHaveBeenCalledWith('import_vazios_bookings_transactional', expect.objectContaining({ p_bookings: [expect.objectContaining({ local_code: 'VBR', condition: 'vazio' })] }))
+    await importVaziosManifest({ filename: 'x.xlsx', voyageId: 7, port: 'BRSSA', uploadedBy: 'user-1', manifest: { bookings: [{ rowNumber: 2, container_number: 'ABCD1234569', container_type: '20DV', local_code: 'VBR', condition: 'vazio', hand_in_date: '2026-07-01', hand_out_date: '2026-07-02', movement_date: '2026-07-03', pod: 'CNSHA' }], rowErrors: [] } })
+    expect(rpcMock).toHaveBeenCalledWith('import_vazios_bookings_transactional', expect.objectContaining({ p_bookings: [expect.objectContaining({ local_code: 'VBR', condition: 'vazio', pod: 'CNSHA' })] }))
   })
   it('dedupe container repetido na planilha, mantendo a ultima ocorrencia', async () => {
     const parsed = await parseVaziosManifestBuffer(await makeBuffer([
@@ -133,7 +137,7 @@ describe('parser de vazios — novo contrato', () => {
   })
 
   it('S03: rejeita arquivo sem os marcadores estruturais Local e Condition', async () => {
-    await expect(parseVaziosManifestBuffer(await makeBuffer([{ Container: 'ABCD1234567' }]))).rejects.toThrow(/Local.*Condition|Condition.*Local/)
+    await expect(parseVaziosManifestBuffer(await makeBuffer([{ Container: 'ABCD1234567' }]))).rejects.toThrow(/Local.*Condição|Condição.*Local/)
   })
 
 	it('S03: localiza cabeçalho de Vazios após o preâmbulo e preserva a linha de origem', async () => {
@@ -143,8 +147,8 @@ describe('parser de vazios — novo contrato', () => {
       const sheet = XLSX.utils.aoa_to_sheet([
         ['UNIDADES EMBARCADAS'],
         ['Modelo operacional'],
-        ['Container', 'Tipo', 'Local', 'Condition'],
-        ['ABCD1234582', '40HC', 'VBR', 'vazio'],
+        ['Container', 'Tipo', 'Local', 'Condition', 'POD'],
+        ['ABCD1234582', '40HC', 'VBR', 'vazio', 'CNSHA'],
       ])
       XLSX.utils.book_append_sheet(workbook, sheet, 'Sheet1')
       return XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
@@ -161,10 +165,10 @@ describe('parser de vazios — novo contrato', () => {
 			const sheet = XLSX.utils.aoa_to_sheet([
 				['UNIDADES EMBARCADAS'],
 				[''],
-				['Container', 'Tipo', 'Local', 'Condition'],
-				['ABCD1234583', '40HC', 'VBR', 'vazio'],
+				['Container', 'Tipo', 'Local', 'Condition', 'POD'],
+				['ABCD1234583', '40HC', 'VBR', 'vazio', 'CNSHA'],
 				[''],
-				['ABCD1234584', '40HC', 'VBR', 'vazio'],
+				['ABCD1234584', '40HC', 'VBR', 'vazio', 'CNSHA'],
 			])
 			XLSX.utils.book_append_sheet(workbook, sheet, 'Sheet1')
 			return XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
@@ -243,5 +247,59 @@ describe('parser de vazios — divergência apontada por linha contra o Cadastro
     await expect(importVaziosManifest({
       filename: 'x.xlsx', voyageId: 7, port: 'BRSSA', uploadedBy: 'user-1', manifest: parsed,
     })).rejects.toThrow(/e mais 5 linhas com divergências\./)
+  })
+})
+
+// Migration 603 e revisão de 2026-11-06 (C8, C9): porto de descarga obrigatório,
+// terminal do porto do embarque e a condição como o depot e o ADR a escrevem.
+describe('parser de vazios — POD, terminal do porto e condição do depot (603)', () => {
+  it('recusa a planilha sem a coluna POD', async () => {
+    await expect(parseVaziosManifestBuffer(await makeBuffer([{ Container: 'ABCD1234567', Local: 'VBR', Condition: 'vazio' }], { semPod: true })))
+      .rejects.toThrow('Colunas obrigatórias: POD')
+  })
+
+  it('lê o POD pelo nome ou pelo LOCODE e aponta a linha sem POD', async () => {
+    const parsed = await parseVaziosManifestBuffer(await makeBuffer([
+      { Container: 'ABCD1234567', Local: 'VBR', Condition: 'vazio', POD: 'Shanghai' },
+      { Container: 'ABCD1234568', Local: 'VBR', Condition: 'vazio', POD: 'sgsin' },
+      { Container: 'ABCD1234569', Local: 'VBR', Condition: 'vazio', POD: '' },
+    ]), undefined, { embarkPort: 'BRVIX' })
+    expect(parsed.bookings.map((booking) => booking.pod)).toEqual(['CNSHA', 'SGSIN', null])
+    expect(parsed.rowErrors.map((error) => error.message)).toEqual(['Container ABCD1234569: porto de descarga (POD) obrigatório.'])
+  })
+
+  it('recusa o POD igual ao porto do embarque, explicando a coluna', async () => {
+    const parsed = await parseVaziosManifestBuffer(await makeBuffer([{ Container: 'ABCD1234567', Local: 'VBR', Condition: 'vazio', POD: 'BRVIT' }]), undefined, { embarkPort: 'BRVIX' })
+    expect(parsed.rowErrors.map((error) => error.message)).toEqual([
+      'Container ABCD1234567: POD BRVIX é o porto do embarque; a coluna POD é o porto onde o vazio vai descarregar.',
+    ])
+  })
+
+  it('aponta o terminal portuário de outro porto como Embarque direto', async () => {
+    const depots = [
+      { id: 't-vix', code: 'TVV', tipo: 'terminal_portuario', active: true },
+      { id: 't-ssa', code: 'TECON SSA', tipo: 'terminal_portuario', active: true },
+    ]
+    const parsed = await parseVaziosManifestBuffer(await makeBuffer([
+      { Container: 'ABCD1234567', Local: 'TVV', Condition: 'vazio' },
+      { Container: 'ABCD1234568', Local: 'TECON SSA', Condition: 'vazio' },
+    ]), depots, { embarkPort: 'BRVIX', portTerminalIds: new Set(['t-vix']) })
+    expect(parsed.rowErrors.map((error) => error.message)).toEqual([
+      'Container ABCD1234568: terminal portuário "TECON SSA" não é de BRVIX; use um terminal desse porto ou um depot.',
+    ])
+  })
+
+  it('lê "EMPTY W/ MATERIAL" e "FULL" como Com material, e os cabeçalhos do relatório do depot', async () => {
+    const parsed = await parseVaziosManifestBuffer(await makeBuffer([
+      { Container: 'ABCD1234567', Depot: 'VBR', 'Current Status': 'EMPTY W/ MATERIAL', 'Import Empty Return Date': '01/07/2026', 'Empty Gate Out': '05/07/2026' },
+      { Container: 'ABCD1234568', Depot: 'VBR', 'Current Status': 'FULL', 'Import Empty Return Date': '01/07/2026', 'Empty Gate Out': '05/07/2026' },
+      { Container: 'ABCD1234569', Depot: 'VBR', 'Current Status': 'EMPTY', 'Import Empty Return Date': '01/07/2026', 'Empty Gate Out': '05/07/2026' },
+    ]))
+    expect(parsed.rowErrors).toEqual([])
+    expect(parsed.bookings.map((booking) => [booking.condition, booking.hand_in_date, booking.hand_out_date])).toEqual([
+      ['material', '2026-07-01', '2026-07-05'],
+      ['material', '2026-07-01', '2026-07-05'],
+      ['vazio', '2026-07-01', '2026-07-05'],
+    ])
   })
 })

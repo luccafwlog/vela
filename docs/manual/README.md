@@ -675,3 +675,11 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   REC-037, REC-039, REC-042, REC-043, REC-045, REC-047, REC-052, REC-053 e o
   destino de `alerta:pix_unreconciled` na matriz 12; as capturas
   `pix-recebidos` e `pix-itau-ligado` abrem o endereço novo).
+- **Embarque de vazios** (decisões do dono de 2026-11-06, migration `603`,
+  [ADR 0130](../adr/0130-embarque-de-vazios-pod-tamanho-e-free-time-congelado.md)):
+  POD obrigatório na unidade e terminal só do porto do embarque, Nº do
+  Manifesto Mercante por rota de exportação, serviço com tamanho e armazenagem
+  por depot, condição e tamanho, edição e quantidade sugerida da linha, free
+  time congelado na linha de armazenagem, rótulos e anexo do ADR (10.5, 10.6,
+  10.7, 11; EQU-081, EQU-083, EQU-087 a EQU-093, EQU-095, EQU-106, EQU-135 a
+  EQU-140, VIA-081).

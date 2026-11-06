@@ -6,6 +6,23 @@
 
 ## 2026-11
 
+- **Embarque de vazios: porto de descarga, Nº do manifesto da rota, preço por tamanho e free time congelado
+  (decisões do dono de 2026-11-06, migration `603`, ADR 0130):** a revisão do Embarque de vazios
+  ([relatório](archive/audits/2026-11-06-revisao-embarque-de-vazios.md)) levou a estas mudanças:
+  - **POD obrigatório.** Toda unidade tem porto de descarga (POD), na planilha (oitava coluna) e na janela.
+  - **Embarque direto.** Só sai de um terminal do porto do embarque.
+  - **Nº do Manifesto Mercante.** O bloco **Manifesto Mercante por porto de descarga** registra o número de cada
+    rota no cadastro único de Manifestos.
+  - **Preço por tamanho.** O serviço de Locais ganha **Tamanho** (20'/40'), e a armazenagem se divide por tamanho;
+    no ZIRAN, o **Lançar armazenagem** usava um preço só para 20' e 40'.
+  - **Free time congelado.** A linha de armazenagem guarda o free time do lançamento.
+  - **Linha de serviço.** Agora se edita, e a quantidade de handling e transporte é sugerida pelas unidades do
+    local (**Usar N**).
+  - **ADR de Saída.** Mostra POD, TEU e manifesto por rota e rótulos que dizem o que contam. O anexo impresso
+    lista só as unidades que geraram armazenagem, com os dias.
+
+  Prova: `embarqueVaziosPodTamanho.local-pg.test.ts`, `vaziosCusto.test.ts`, `vaziosImportAdrColumns.test.ts`,
+  `EmbarqueVazios.flow.test.tsx` e `AgencyReportDocument.test.tsx`.
 - **Valor mínimo aplicado na fatura (pedido do dono de 2026-11-05, migration `602`, ADR 0125):** o item da fatura
   cobrado pelo mínimo do THD da carga solta de Vitória diz **Valor mínimo aplicado** no detalhe da fatura do Vela, no
   do Portal e no documento impresso. A emissão marca `minimum_value` no `snapshot_payload` do item; a migration marcou

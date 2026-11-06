@@ -75,7 +75,7 @@ function vazios(): string {
 }
 
 function bookings(rows: Array<{ container: string; date: string }>) {
-  const payload = rows.map((row) => ({ container_number: row.container, container_type: '40HC', local_code: depotCode, condition: 'vazio', hand_in_date: row.date, hand_out_date: row.date, movement_date: row.date }))
+  const payload = rows.map((row) => ({ container_number: row.container, container_type: '40HC', local_code: depotCode, condition: 'vazio', hand_in_date: row.date, hand_out_date: row.date, movement_date: row.date, pod: 'CNSHA' }))
   return asUser(`SELECT public.import_vazios_bookings_transactional(${voyageId}, 'BRVIX', '${userId}', '${JSON.stringify(payload)}'::jsonb);`)
 }
 
@@ -167,7 +167,7 @@ describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migr
     const firstId = psql(`SELECT id FROM public.vazios_bookings WHERE container_number = 'AZCU2340011';`)
     const depot = psql(`SELECT id FROM public.depots WHERE code = '${depotCode}';`)
     expect(asUser(`SELECT public.create_manual_vazios_booking('${operation}', ${voyageId}, '${userId}', 'AZCU2340099', '40HC',
-      '${depot}', 'vazio', '2026-10-02', '2026-10-02', '2026-10-02');`).stderr).toBe('')
+      '${depot}', 'vazio', '2026-10-02', '2026-10-02', '2026-10-02', 'CNSHA');`).stderr).toBe('')
 
     const result = bookings([{ container: 'AZCU2340011', date: '2026-10-05' }])
     expect(result.stderr).toBe('')
@@ -244,7 +244,7 @@ describeLocal('Vazios: reimportação preserva natureza e unidades manuais (migr
       WHERE NOT EXISTS (SELECT 1 FROM public.vazios_export_operations WHERE voyage_id = ${voyageId});`)
     const operation = psql(`SELECT id FROM public.vazios_export_operations WHERE voyage_id = ${voyageId};`)
     const depot = psql(`SELECT id FROM public.depots WHERE code = '${depotCode}';`)
-    const created = asUser(`SELECT public.create_manual_vazios_booking('${operation}', ${voyageId}, '${userId}', 'AZCU2349991', '40HC', '${depot}', 'vazio', '2026-09-01', '2026-09-02', '2026-09-02');`)
+    const created = asUser(`SELECT public.create_manual_vazios_booking('${operation}', ${voyageId}, '${userId}', 'AZCU2349991', '40HC', '${depot}', 'vazio', '2026-09-01', '2026-09-02', '2026-09-02', 'CNSHA');`)
     expect(created.stderr).toBe('')
     const booking = psql(`SELECT id FROM public.vazios_bookings WHERE voyage_id = ${voyageId} AND container_number = 'AZCU2349991';`)
     psql(`INSERT INTO public.depot_services (depot_id, name, natureza, condition, rate_brl)

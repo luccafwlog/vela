@@ -26,6 +26,9 @@ const mocks = vi.hoisted(() => ({
   // Estado de leitura forçado por chave (carregando ou falha), sem dado.
   queryOverrides: {} as Record<string, { isLoading?: boolean; error?: unknown }>,
   createOperation: vi.fn(() => Promise.resolve({ id: "operation-new", created: true, terminalId: "terminal-1" })),
+  // 603: Nº do Manifesto Mercante das rotas de exportação.
+  manifestosData: [] as unknown[],
+  setRouteCeMaster: vi.fn(() => Promise.resolve()),
   adrLocked: false,
   // ADR 0113: terminal da frente Vazios EXP da escala e os terminais do porto.
   terminalChoice: {
@@ -86,6 +89,8 @@ vi.mock("@tanstack/react-query", () => ({
                 ? mocks.armazenagemServicesData
                 : key === "embarque-vazios-voyage-ports"
                   ? mocks.voyagePortsData
+                  : key === "manifestos-mercante"
+                    ? mocks.manifestosData
                   : key === "agency-report" && queryKey[3] === "vazios-lock"
                     ? mocks.adrLocked
                     : key === "agency-report" && queryKey[3] === "vazios-terminal"
@@ -118,7 +123,7 @@ vi.mock("../../components/shared/VoyageCombobox", () => ({
   ),
 }));
 vi.mock("../../services/supabase", () => ({ supabase: {} }));
-vi.mock("../../services/voyageRouteSchedules", () => ({ listVoyageEscalaSchedulesByVoyageIds: escalaMocks.listEscalas }));
+vi.mock("../../services/voyageRouteSchedules", () => ({ listVoyageEscalaSchedulesByVoyageIds: escalaMocks.listEscalas, setVoyageRouteCeMaster: mocks.setRouteCeMaster }));
 vi.mock("../../services/operationalLists", () => ({ listVoyageRoutePorts: escalaMocks.listBlPorts }));
 vi.mock("../../services/depots", () => ({
   listDepots: vi.fn(),
@@ -133,6 +138,7 @@ vi.mock("../../services/vaziosExportOperations", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../services/vaziosExportOperations")>();
   return {
     summarizeVaziosOperations: actual.summarizeVaziosOperations,
+    summarizeEmptyExportRoutes: actual.summarizeEmptyExportRoutes,
     listVaziosExportOperationsWithUnits: vi.fn(),
     createManualVaziosBooking: mocks.createManualVaziosBooking,
     deleteManualVaziosBooking: mocks.deleteManualVaziosBooking,
@@ -162,6 +168,8 @@ beforeEach(() => {
   mocks.upsertServiceLine.mockClear();
   mocks.operationData = { linhas: [] };
   mocks.unitsData = { rows: [], count: 0 };
+  mocks.manifestosData = [];
+  mocks.setRouteCeMaster.mockClear();
   mocks.armazenagemServicesData = [];
   mocks.extraDepotServices = [];
   mocks.voyagePortsData = [];
@@ -257,6 +265,7 @@ describe("EmbarqueVazios", () => {
     fireEvent.change(within(dialog).getByLabelText(/Local/), { target: { value: "depot-1" } });
     fireEvent.change(within(dialog).getByLabelText(/Entrada/), { target: { value: "2026-07-02" } });
     fireEvent.change(within(dialog).getByLabelText(/Saída/), { target: { value: "2026-07-03" } });
+    fireEvent.change(within(dialog).getByLabelText(/Porto de descarga/), { target: { value: "Shanghai" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Adicionar unidade" }));
 
     await waitFor(() => expect(mocks.createManualVaziosBooking).toHaveBeenCalledWith(expect.objectContaining({
@@ -265,9 +274,51 @@ describe("EmbarqueVazios", () => {
       localId: "depot-1",
       containerNumber: "MSCU1234567",
       condition: "vazio",
+      // Migration 603: o POD digitado pelo nome vai em LOCODE.
+      pod: "CNSHA",
     })));
     await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["agency-report", 179] }));
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["vazios-export-operations"] });
+  });
+
+  it("603: registra o Nº do Manifesto Mercante da rota de exportação pela gravação de Rotas e Manifestos", async () => {
+    mocks.unitsData = { rows: [
+      { id: "u1", container_number: "MSCU1234567", container_type: "40HC", local_id: "depot-1", condition: "vazio", hand_in_date: "2026-10-01", hand_out_date: "2026-10-02", movement_date: null, pod: "CNSHA" },
+      { id: "u2", container_number: "MSCU1234568", container_type: "20DV", local_id: "depot-1", condition: "vazio", hand_in_date: "2026-10-01", hand_out_date: "2026-10-02", movement_date: null, pod: "CNNGB" },
+    ], count: 2 };
+    mocks.manifestosData = [{ id: "m1", voyage_id: 179, pol: "BRVIX", pod: "CNSHA", numero: "1226501860578" }];
+    renderPage();
+    const table = screen.getByRole("table", { name: /Nº do Manifesto Mercante de cada rota/ });
+    expect(within(table).getByText("1226501860578")).toBeTruthy();
+    expect(within(table).getByText("Sem número")).toBeTruthy();
+
+    fireEvent.click(within(table).getByRole("button", { name: "Informar o Nº do Manifesto Mercante de BRVIX → CNNGB" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText(/Nº do Manifesto Mercante/), { target: { value: "1226501860999" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Salvar número" }));
+
+    await waitFor(() => expect(mocks.setRouteCeMaster).toHaveBeenCalledWith(expect.objectContaining({
+      voyageId: 179,
+      pol: "BRVIX",
+      pod: "CNNGB",
+      ceMaster: "1226501860999",
+      cargoMode: "vazios",
+    })));
+  });
+
+  it("603: sem porto de descarga, ou com o porto do embarque, a unidade não é gravada", () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /Adicionar unidade/i }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText(/Container/), { target: { value: "MSCU1234567" } });
+    fireEvent.change(within(dialog).getByLabelText(/Local/), { target: { value: "depot-1" } });
+    const save = within(dialog).getByRole("button", { name: "Adicionar unidade" }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    fireEvent.change(within(dialog).getByLabelText(/Porto de descarga/), { target: { value: "BRVIT" } });
+    expect(within(dialog).getByText(/não pode ser o porto do embarque/)).toBeTruthy();
+    expect(save.disabled).toBe(true);
+    fireEvent.change(within(dialog).getByLabelText(/Porto de descarga/), { target: { value: "CNNGB" } });
+    expect(save.disabled).toBe(false);
   });
 
   it("V1: a janela da unidade oferece só locais ativos, e a condição é Vazio ou Com material", () => {
@@ -293,6 +344,7 @@ describe("EmbarqueVazios", () => {
     fireEvent.change(within(dialog).getByLabelText(/Local/), { target: { value: "depot-1" } });
     fireEvent.change(within(dialog).getByLabelText(/Entrada/), { target: { value: "2026-07-02" } });
     fireEvent.change(within(dialog).getByLabelText(/Saída/), { target: { value: "2026-07-03" } });
+    fireEvent.change(within(dialog).getByLabelText(/Porto de descarga/), { target: { value: "Shanghai" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Adicionar unidade" }));
 
     await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith(
@@ -366,6 +418,42 @@ describe("EmbarqueVazios", () => {
       percentual: null,
     })));
     expect(mocks.operationRefetch).toHaveBeenCalledTimes(0);
+  });
+
+  // C11 da revisão de 2026-11-06: corrigir a linha sem excluir e lançar de novo.
+  it("edita a linha lançada na mesma janela e grava pelo id dela", async () => {
+    mocks.operationData = {
+      linhas: [{ id: "line-9", service_id: "general-1", local_id: "depot-1", destino_id: null, condition: null, container_type: null,
+        quantidade: "2", valor_unitario: "10", valor_sugerido: "10", quantidade_manual: true, observation: null,
+        service: { id: "general-1", name: "Handling", natureza: "geral" } }],
+    };
+    renderPage("/embarquevazios?embarque=operation-1&aba=servicos");
+    fireEvent.click(screen.getByRole("button", { name: "Editar linha Handling" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "Editar linha" })).toBeTruthy();
+    fireEvent.change(within(dialog).getByLabelText(/Quantidade/), { target: { value: "5" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Salvar linha" }));
+
+    await waitFor(() => expect(mocks.upsertServiceLine).toHaveBeenCalledWith(expect.objectContaining({
+      id: "line-9",
+      service_id: "general-1",
+      quantidade: 5,
+    })));
+  });
+
+  it("sugere a quantidade de handling pelas unidades do local, aplicada com um clique", async () => {
+    mocks.unitsData = { rows: [
+      { id: "u1", container_number: "MSCU1234567", container_type: "40HC", local_id: "depot-1", condition: "vazio", hand_in_date: "2026-10-01", hand_out_date: "2026-10-02", movement_date: null, pod: "CNSHA" },
+      { id: "u2", container_number: "MSCU1234568", container_type: "20DV", local_id: "depot-1", condition: "material", hand_in_date: "2026-10-01", hand_out_date: "2026-10-02", movement_date: null, pod: "CNSHA" },
+    ], count: 2 };
+    renderPage();
+    const dialog = openLineModal();
+    fireEvent.change(within(dialog).getByLabelText(/Local/), { target: { value: "depot-1" } });
+    fireEvent.change(within(dialog).getByLabelText(/Natureza/), { target: { value: "geral" } });
+    fireEvent.change(within(dialog).getByLabelText(/Serviço/), { target: { value: "general-1" } });
+    expect(within(dialog).getByText(/Sugestão: 2 unidades de VBR \(1 vazio, 1 com material; 1 de 20', 1 de 40'\)/)).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Usar 2" }));
+    expect((within(dialog).getByLabelText(/Quantidade/) as HTMLInputElement).value).toBe("2");
   });
 
   it("mescla a linha lançada no cache existente e evita duplicidade pelo ID", async () => {
@@ -826,7 +914,7 @@ describe("EmbarqueVazios", () => {
 
   describe("Importar planilha de Unidades Embarcadas com linhas ocultas", () => {
     const parsedWith = (hidden: { rows: number; sheets: string[] }) => ({
-      bookings: [{ rowNumber: 2, container_number: "MSCU1234567", container_type: "40HC", local_code: "VBR", condition: "vazio" as const, hand_in_date: null, hand_out_date: null, movement_date: null }],
+      bookings: [{ rowNumber: 2, container_number: "MSCU1234567", container_type: "40HC", local_code: "VBR", condition: "vazio" as const, hand_in_date: null, hand_out_date: null, movement_date: null, pod: "CNSHA" }],
       rowErrors: [],
       warnings: [],
       hidden,
