@@ -15,6 +15,17 @@
   [revisão de cobertura dos alertas no fluxo de trabalho](archive/audits/2026-11-06-cobertura-dos-alertas-no-fluxo-de-trabalho.md).
   Prova: `gravidadeDoAlertaPelaTela.local-pg.test.ts`, `permissoesPorPerfil.local-pg.test.ts` (P14) e
   `AlertasRegrasCatalog.test.tsx`.
+- **Revisão final da release de 2026-11-06 (PR #1241, decisão do dono):** na reimportação do arquivo de B/L, o
+  B/L com o CNPJ/CPF corrigido na ficha deixa de pedir **Troca de Consignatário** (e "CNPJ faturado") quando o
+  arquivo traz de novo o CNPJ errado, sem Cliente cadastrado: o Cliente e a correção ficam. Antes, a confirmação única
+  da troca no arquivo podia tirar o Cliente do B/L e apagar a correção. A troca para outro Cliente cadastrado continua
+  pedindo o aceite, e a prévia avisa que ela solta a correção. Prova: `blFreightImport.test.ts`.
+- **Revisão de segurança dos widgets públicos do fwlog.com.br (2026-11-06):** a abertura do disjuntor global da
+  Consulta de container (300 "não encontrado" na hora) manda um aviso ao Sentry, um por hora, sem número de container
+  nem IP; antes, a busca podia ficar fora do ar sem ninguém saber. O manual de serviços externos passa a dizer que o
+  Turnstile e os secrets dos widgets estão em produção. Registro e conferências em produção:
+  [revisão de 2026-11-06](archive/audits/2026-11-06-revisao-seguranca-widgets-publicos-fwlog.md). Prova: Deno
+  `publicFwlog.test.ts`.
 - **Valor mínimo aplicado na fatura (pedido do dono de 2026-11-05, migration `602`, ADR 0125):** o item da fatura
   cobrado pelo mínimo do THD da carga solta de Vitória diz **Valor mínimo aplicado** no detalhe da fatura do Vela, no
   do Portal e no documento impresso. A emissão marca `minimum_value` no `snapshot_payload` do item; a migration marcou

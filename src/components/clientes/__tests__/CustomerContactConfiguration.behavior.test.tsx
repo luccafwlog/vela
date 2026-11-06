@@ -102,6 +102,27 @@ describe('CustomerContactConfiguration (behavior)', () => {
     expect(alert.textContent).toMatch(/ID 1/)
   })
 
+  it('e-mail repetido em contato desativado é recusado na tela, nomeando os dois', async () => {
+    const user = userEvent.setup()
+    fetchConfig.mockResolvedValueOnce({
+      boxes: BOXES,
+      contacts: [primaryContact(), primaryContact({ id: 2, name: 'Antigo', email: 'antigo@cliente.com', is_primary: false, active: false, box_codes: ['financeiro'] })],
+    })
+    render(<CustomerContactConfiguration customerId={10} canEdit />)
+    await screen.findByDisplayValue('principal@cliente.com')
+
+    await user.click(screen.getByRole('button', { name: 'Adicionar contato' }))
+    const emailInputs = screen.getAllByPlaceholderText('email@empresa.com')
+    await user.type(emailInputs[emailInputs.length - 1], 'Antigo@cliente.com')
+    const boxes = screen.getAllByRole('checkbox')
+    await user.click(boxes[boxes.length - 3])
+    await user.click(screen.getByRole('button', { name: 'Salvar contatos' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain('O e-mail antigo@cliente.com está em dois contatos: "Antigo" (desativado) e "novo contato"')
+    expect(saveConfig).not.toHaveBeenCalled()
+  })
+
   it('without permission shows fallback copy and no save', async () => {
     fetchConfig.mockResolvedValueOnce({
       boxes: BOXES,

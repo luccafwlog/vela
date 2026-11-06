@@ -473,4 +473,61 @@ describe('PortalContactConfiguration', () => {
     expect(checkboxes.slice(0, 3).map((box) => box.checked)).toEqual([true, false, true])
   })
 
+  // Relato da Vegalog (2026-11-05): depois de um salvamento aceito, a tela
+  // seguia com os contatos novos sem ID e "Contatos alterados, ainda não
+  // salvos"; o salvamento seguinte os reenviava como novos e o banco recusava
+  // com "E-mail ... já cadastrado para o contato ...".
+  it('depois de salvar, a lista passa a ser a do banco e o próximo salvamento não recria o contato novo', async () => {
+    const user = userEvent.setup()
+    const created = { ...additional, id: 112, name: 'Giovanni', email: 'giovanni@cliente.com', box_codes: ['documentacao_operacao'] }
+    getContactConfig
+      .mockResolvedValueOnce({ boxes: [], contacts: [principal] })
+      .mockResolvedValue({ boxes: [], contacts: [principal, created] })
+    saveContactConfig.mockResolvedValue({ boxes: [], contacts: [principal, created] })
+    // Em produção o resumo do Portal volta pela rede depois da lista nova: é
+    // nessa janela que a lista do banco chegava e era descartada.
+    auth.refreshOverview.mockImplementation(() => new Promise((resolve) => setTimeout(resolve, 50)))
+    renderComponent()
+    await screen.findByDisplayValue(principal.email)
+
+    await user.click(screen.getByRole('button', { name: 'Adicionar contato' }))
+    const emails = screen.getAllByLabelText('E-mail')
+    await user.type(emails[emails.length - 1], 'giovanni@cliente.com')
+    await user.type(screen.getAllByLabelText('Nome').at(-1)!, 'Giovanni')
+    await user.click(within(screen.getByRole('group', { name: 'Caixas de recebimento de Giovanni' })).getByRole('checkbox', { name: /Documentação/ }))
+    await user.click(screen.getByRole('button', { name: 'Salvar contatos' }))
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Salvar contatos' }))
+
+    await waitFor(() => expect(screen.getByText('Nada alterado.')).toBeTruthy())
+
+    await user.type(screen.getAllByLabelText('Telefone / WhatsApp').at(-1)!, '11988556004')
+    await user.click(screen.getByRole('button', { name: 'Salvar contatos' }))
+    await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Salvar contatos' }))
+
+    await waitFor(() => expect(saveContactConfig).toHaveBeenCalledTimes(2))
+    const secondPayload = saveContactConfig.mock.calls[1][0] as Array<{ id: number | null; email: string }>
+    expect(secondPayload.find((contact) => contact.email === 'giovanni@cliente.com')?.id).toBe(112)
+    expect(secondPayload.some((contact) => contact.id == null)).toBe(false)
+  })
+
+  // Relato da Master Shipping (2026-11-06): o e-mail digitado num contato novo
+  // já estava no principal; o banco recusava com "E-mail duplicado no envio",
+  // sem dizer em qual contato.
+  it('e-mail repetido em dois contatos é recusado na tela, dizendo quais', async () => {
+    const user = userEvent.setup()
+    getContactConfig.mockResolvedValueOnce({ boxes: [], contacts: [principal] })
+    renderComponent()
+    await screen.findByDisplayValue(principal.email)
+
+    await user.click(screen.getByRole('button', { name: 'Adicionar contato' }))
+    await user.type(screen.getAllByLabelText('E-mail').at(-1)!, ' PRINCIPAL@cliente.com')
+    await user.click(screen.getAllByRole('checkbox', { name: /Documentação/ }).at(-1)!)
+    await user.click(screen.getByRole('button', { name: 'Salvar contatos' }))
+
+    const alert = await screen.findByRole('alert')
+    expect(alert.textContent).toContain('O e-mail principal@cliente.com está em dois contatos')
+    expect(alert.textContent).toContain('"Principal"')
+    expect(saveContactConfig).not.toHaveBeenCalled()
+  })
+
 })

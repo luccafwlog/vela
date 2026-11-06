@@ -17,6 +17,27 @@ export function currentSuppressionReason(contact: PortalContactDraft): string | 
   return contact.suppressionReason && suppressionStillApplies(contact) ? contact.suppressionReason : null
 }
 
+/**
+ * Recusa do e-mail repetido em dois contatos do rascunho, desativados
+ * inclusive, nomeando os dois. O banco aceita cada e-mail em um só contato do
+ * Cliente e recusa com "E-mail duplicado no envio" sem dizer onde
+ * (`_apply_customer_contact_configuration`; Master Shipping, 2026-11-06).
+ */
+export function repeatedEmailMessage(contacts: readonly PortalContactDraft[]): string | null {
+  const seen = new Map<string, PortalContactDraft>()
+  for (const contact of contacts) {
+    const email = normalizedEmail(contact.email)
+    if (!email) continue
+    const first = seen.get(email)
+    if (first) {
+      const [a, b] = [first, contact].map((d) => `"${d.name?.trim() || 'novo contato'}"${d.active ? '' : ' (desativado)'}`)
+      return `O e-mail ${email} está em dois contatos: ${a} e ${b}. Cada e-mail fica em um contato só; para voltar a usar o de um contato desativado, reative-o.`
+    }
+    seen.set(email, contact)
+  }
+  return null
+}
+
 export function isEligibleContact(contact: PortalContactDraft): boolean {
   if (!contact.active || !contact.email?.trim().includes('@')) return false
   if (!suppressionStillApplies(contact)) return true

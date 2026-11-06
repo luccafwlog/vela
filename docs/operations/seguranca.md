@@ -410,7 +410,9 @@ Financeiro antes de travar os B/Ls. Prova:
   antes do disjuntor (aberto, ele não vira caminho sem limite), e o disjuntor
   responde 429 com `{"error":"indisponivel"}` e `Retry-After` até a hora virar:
   recusa esperada, fora do 5xx que o `instrumentEdgeHandler` manda ao Sentry
-  (o navegador mostra "indisponível"). Constantes em
+  (o navegador mostra "indisponível"); só o pedido que abre o disjuntor manda
+  um aviso ao Sentry, um por hora ([Observabilidade](observabilidade.md#erros-das-edge-functions)).
+  Constantes em
   `supabase/functions/_shared/publicFwlog.ts`.
 - **Ações self-service do Portal:** consolidar, desfazer consolidada e abrir
   disputa usam `check_portal_rate_limit` sobre `portal_rate_limits` (3 tentativas
