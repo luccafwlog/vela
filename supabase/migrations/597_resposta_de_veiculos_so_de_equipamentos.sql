@@ -1,7 +1,7 @@
--- 596: só Equipamentos e o Administrativo respondem se a viagem terá veículos
--- (decisão do dono de 2026-11-06, na revisão da PR da 595; ADR 0126, item 9).
+-- 597: só Equipamentos e o Administrativo respondem se a viagem terá veículos
+-- (decisão do dono de 2026-11-06, na revisão da PR da 596; ADR 0127, item 9).
 --
--- A 595 aceitava a resposta de qualquer usuário interno ativo: a Documentação
+-- A 596 aceitava a resposta de qualquer usuário interno ativo: a Documentação
 -- podia declarar "não terá veículos" e soltar sozinha a trava do CE Mercante.
 -- `_declare_voyage_vehicle_presence` (por trás de `declare_voyage_with_vehicles`
 -- e `declare_voyage_without_vehicles`) e `undo_voyage_vehicle_declaration`
@@ -12,12 +12,12 @@
 -- trava como antes.
 --
 -- Plano de preservação: não reescreve nem apaga linha. Os UPDATE e DELETE
--- abaixo são os corpos da 595, dentro das RPCs, por ação do usuário e com o
+-- abaixo são os corpos da 596, dentro das RPCs, por ação do usuário e com o
 -- valor anterior em `audit_logs` (`sem_veiculos`, `com_veiculos`). Conferir:
 -- `SELECT count(*) FROM voyage_vehicle_declarations` igual antes e depois.
 -- Desfazer: o rollback abaixo.
 --
--- Rollback: reaplicar as duas funções pela 595.
+-- Rollback: reaplicar as duas funções pela 596.
 
 CREATE OR REPLACE FUNCTION public._declare_voyage_vehicle_presence(p_voyage_id bigint, p_has_vehicles boolean, p_reason text)
  RETURNS jsonb
@@ -34,7 +34,7 @@ BEGIN
   IF auth.uid() IS NULL OR NOT public.is_active_user() THEN
     RAISE EXCEPTION 'Somente usuário interno ativo responde se a viagem terá veículos.' USING ERRCODE = '42501';
   END IF;
-  -- 596: quem responde é Equipamentos (e o Administrativo, como na Disputa);
+  -- 597: quem responde é Equipamentos (e o Administrativo, como na Disputa);
   -- a Documentação só sente a trava do CE.
   IF COALESCE(public._portal_actor_role(), '') NOT IN ('equipamentos', 'administrativo') THEN
     RAISE EXCEPTION 'Apenas Equipamentos ou Administrativo responde se a viagem terá veículos.' USING ERRCODE = '42501';

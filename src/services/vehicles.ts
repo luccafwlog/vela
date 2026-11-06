@@ -64,7 +64,7 @@ export async function listBlContainersForMove(blId: string): Promise<Array<{ id:
 }
 
 /**
- * Resposta de Equipamentos sobre veículos na viagem (migrations 468 e 595):
+ * Resposta de Equipamentos sobre veículos na viagem (migrations 468 e 596):
  * `hasVehicles` falso é "Esta viagem não terá veículos"; verdadeiro é "Esta
  * viagem terá veículos", que trava o CE Mercante dos B/Ls de container até o
  * primeiro veículo importado.
@@ -83,7 +83,7 @@ export function parseVoyageVehicleDeclaration(value: unknown): VoyageVehicleDecl
   const declaredAt = typeof row?.declared_at === 'string' ? row.declared_at : ''
   if (!row || !Number.isInteger(voyageId) || !declaredAt) throw new Error('Resposta inesperada da declaração de veículos da viagem.')
   const name = typeof row.declared_by_name === 'string' ? row.declared_by_name.trim() : ''
-  // Sem o campo (banco anterior à 595), a declaração só podia ser "não terá".
+  // Sem o campo (banco anterior à 596), a declaração só podia ser "não terá".
   return { voyageId, hasVehicles: row.has_vehicles === true, declaredAt, declaredByName: name || null }
 }
 

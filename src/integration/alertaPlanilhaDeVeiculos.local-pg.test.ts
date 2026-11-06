@@ -6,7 +6,7 @@ import { describeWithProbe } from './localTestData'
 // pendente" para Equipamentos em D-5 do primeiro ETA brasileiro, na viagem com
 // B/L de container sem veículo; fecha com a planilha (veículo importado) ou com
 // a declaração "Esta viagem não terá veículos", que pode ser desfeita com
-// motivo e é desfeita sozinha quando um veículo entra na viagem. A 595 mudou o
+// motivo e é desfeita sozinha quando um veículo entra na viagem. A 596 mudou o
 // texto do alerta e da recusa e deu `p_reason` à declaração; o resto dela está
 // em travaCeMercanteVeiculos.local-pg.test.ts.
 

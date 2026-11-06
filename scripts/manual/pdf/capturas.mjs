@@ -475,7 +475,7 @@ export const CAPTURAS = [
     // Guia rápido (etapa 7): Veículos com a Viagem escolhida, antes da
     // planilha. Fica antes do CE (ce-previa): depois da foto, responde "não
     // terá veículos", porque o cenário não tem veículo e, sem a resposta, o CE
-    // dos B/Ls de container é recusado (migration 595).
+    // dos B/Ls de container é recusado (migration 596).
     id: 'veiculos-viagem',
     capitulo: 10,
     async fazer({ page, base, cenario }) {

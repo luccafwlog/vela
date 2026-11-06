@@ -11,7 +11,7 @@ describe('Contrato do catálogo de alertas e tipos de entidade', () => {
     // 58 com a Demurrage travada (516); 59 com o prazo da Disputa (520).
     // 60 com o Retorno do provedor de e-mail não aplicado (migration 535);
     // 61 com a Escala sem terminal (migration 584); 62 com a Declaração de
-    // veículos pendente (migration 595).
+    // veículos pendente (migration 596).
     expect(catalog).toHaveLength(62)
     expect(catalog.filter((entry) => entry.active)).toHaveLength(57)
 

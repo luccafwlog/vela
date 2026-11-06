@@ -50,7 +50,7 @@ export type Permission =
   | 'cancel_invoices'
   /** Cancelar Invoice de Demurrage sem pagamento e mudar a Régua: Administrativo, Financeiro e Equipamentos (migration 583). */
   | 'cancel_demurrage_invoices'
-  /** Responder se a viagem terá veículos, trocar e desfazer: Equipamentos e Administrativo (migration 596). */
+  /** Responder se a viagem terá veículos, trocar e desfazer: Equipamentos e Administrativo (migration 597). */
   | 'declare_voyage_vehicles'
   | 'customer_communications'
   | 'edit_customer_contacts'

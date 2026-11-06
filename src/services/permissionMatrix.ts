@@ -121,7 +121,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   // Importações e cadastros
   { id: 'importar', group: 'importacoes', action: 'Importar arquivos (B/L, CE, Baplie, veículos, Vazios, Granito, datas, Clientes)', can: ALL, proof: ['caso: P13: %s importa Baplie vazio'] },
   { id: 'reprocessar-importacao', group: 'importacoes', action: 'Reprocessar efeito de importação, com justificativa', can: ALL, proof: ['caso: P7:'] },
-  // ADR 0126, item 9 (migration 596): Equipamentos responde; a Documentação só sente a trava do CE.
+  // ADR 0127, item 9 (migration 597): Equipamentos responde; a Documentação só sente a trava do CE.
   { id: 'responder-veiculos', group: 'importacoes', action: 'Responder se a viagem terá veículos, trocar e desfazer a resposta', can: only('administrativo', 'equipamentos'), proof: ['exceção: Responder se a viagem terá veículos', 'exceção: Desfazer a resposta de veículos'] },
   { id: 'veiculos-vazios', group: 'importacoes', action: 'Excluir ou mover veículo; excluir unidade e linha de Vazios antes do ADR fechado', can: ALL, proof: ['todos: Excluir veículo', 'todos: Mover veículo', 'todos: Excluir unidade de Vazios'] },
   { id: 'remover-ce', group: 'importacoes', action: 'Remover o CE Mercante do B/L sem fatura, com motivo', can: ALL, proof: ['todos: Remover o CE Mercante do B/L'] },

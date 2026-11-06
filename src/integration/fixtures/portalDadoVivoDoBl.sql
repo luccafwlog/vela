@@ -45,7 +45,7 @@ SET session_replication_role = origin;
 INSERT INTO public.carriers (id, name) VALUES (99060601, 'Carrier V06');
 INSERT INTO public.vessels (id, name, carrier_id) VALUES (99060601, 'Vessel V06', 99060601);
 INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (99060601, 99060601, 'V06-001', 'active');
--- 595: a viagem respondeu "não terá veículos", para o CE de container entrar.
+-- 596: a viagem respondeu "não terá veículos", para o CE de container entrar.
 INSERT INTO public.voyage_vehicle_declarations (voyage_id, declared_by) VALUES (99060601, '00000000-0000-4000-8000-000000000595') ON CONFLICT (voyage_id) DO NOTHING;
 INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
   VALUES (99060601, 'Tabela V06', 'V06POD', CURRENT_DATE - 30, true, 'container');

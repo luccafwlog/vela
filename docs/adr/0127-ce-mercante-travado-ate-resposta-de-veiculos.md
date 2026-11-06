@@ -1,7 +1,7 @@
-# 0126 — CE Mercante de container travado até Equipamentos responder sobre veículos
+# 0127 — CE Mercante de container travado até Equipamentos responder sobre veículos
 
 Status: aceito — 2026-11-06 (decisão do dono, com os times de Documentação e
-Equipamentos). Implementada nas migrations `595` e `596`.
+Equipamentos). Implementada nas migrations `596` e `597`.
 
 ## Contexto
 
@@ -53,7 +53,7 @@ garantida pelo sistema.
    viagem declarada "não terá" desfaz a declaração sozinho, como na `468`; a
    resposta "terá" continua.
 9. **Quem pode responder** (decisão do dono de 2026-11-06, na revisão da PR,
-   migration `596`): só Equipamentos e o Administrativo respondem, trocam e
+   migration `597`): só Equipamentos e o Administrativo respondem, trocam e
    desfazem a resposta, no banco e na tela, como em Responder Disputa. A
    Documentação não solta a própria trava. Importar, mover e excluir veículos
    continuam de qualquer setor: o veículo importado é fato e libera o CE.

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// Migrations 468 e 595: na viagem sem veículo importado, a tela Veículos pede a
+// Migrations 468 e 596: na viagem sem veículo importado, a tela Veículos pede a
 // resposta de Equipamentos, "Esta viagem terá veículos" ou "não terá"; depois
 // de respondido, mostra quem declarou, a trava do CE Mercante quando a viagem
 // terá veículos, "Trocar para..." e "Desfazer declaração", com motivo.

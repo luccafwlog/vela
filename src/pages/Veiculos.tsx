@@ -122,7 +122,7 @@ export function Veiculos() {
   const debouncedSeal = useDebouncedValue(filters.seal)
   const queryFilters = useMemo(() => ({ ...filters, search: debouncedSearch, seal: debouncedSeal }), [filters, debouncedSearch, debouncedSeal])
   const { data, isLoading, isPlaceholderData, error } = useVehicles(voyageId, queryFilters)
-  // Resposta de Equipamentos sobre veículos (migrations 468 e 595): sem ela, ou
+  // Resposta de Equipamentos sobre veículos (migrations 468 e 596): sem ela, ou
   // com "terá veículos" e nenhum veículo, o CE Mercante de container fica travado.
   const declarationQuery = useVoyageVehicleDeclaration(voyageId)
   const declaration = declarationQuery.data ?? null
@@ -274,7 +274,7 @@ export function Veiculos() {
   const selectedVoyage = voyageRows.find((voyage) => voyage.id === voyageId)
   const selectedVoyageLabel = voyageLabel(selectedVoyage?.vessel?.name, selectedVoyage?.voyage_number, voyageId)
   // Viagem cancelada não recebe a declaração (o banco recusa): o botão não aparece.
-  // Só Equipamentos e o Administrativo respondem (migration 596): a Documentação só sente a trava do CE.
+  // Só Equipamentos e o Administrativo respondem (migration 597): a Documentação só sente a trava do CE.
   const canAnswerVehicles = can('declare_voyage_vehicles')
   const canDeclare = canAnswerVehicles && declarationQuery.isSuccess && selectedVoyage?.status !== 'cancelled'
 
