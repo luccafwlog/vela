@@ -1249,7 +1249,10 @@ ao Mercante continua fora do Vela. **Código:**
   CNTAG, CNTAO → CNQIN), UF, tipo de contêiner e moeda ficam em tabelas fixas
   no código; os portos e terminais são conferidos nas tabelas oficiais do
   Mercante (`src/services/mercanteTableCodes.ts`). Código novo exige mudar a
-  tabela.
+  tabela. Terminais, pelo código do cadastro de terminais: TVV = `BRVIX004`,
+  PORTMAC = `BRVIX006` e TECON SSA = `BRSSA002` (confirmado pelo dono em
+  2026-11-06, issue #1238); PENEDO não tem código porque não é usado em
+  operação.
 - **Impedimentos** (o arquivo não é baixado): armador sem código Mercante;
   rota sem ATD no POL ou sem ETA no POD; navio sem IMO; POD sem terminal com
   código Mercante; porto fora da tabela do Mercante, POL brasileiro ou POD

@@ -15,6 +15,7 @@ export const MERCANTE_CARRIER_CODE: Readonly<Record<string, string>> = {
 export const MERCANTE_TERMINAL_CODE: Readonly<Record<string, string>> = {
   TVV: 'BRVIX004', // T.V.V. Terminal de Vila Velha
   PORTMAC: 'BRVIX006', // Cais de Capuaba - CODESA
+  'TECON SSA': 'BRSSA002', // Terminal de Contêineres - TECOM - Salvador (dono, 2026-11-06)
 }
 
 /**
