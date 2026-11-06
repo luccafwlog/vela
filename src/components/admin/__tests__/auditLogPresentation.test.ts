@@ -38,6 +38,19 @@ describe('Histórico de ações legível', () => {
     expect(describeAuditLog(log('vazios_export_operation', 'deleted', 'false', 'true'))).toBe('Embarque de vazios excluído')
   })
 
+  it('chama de Tamanho o container_type do serviço de Locais e da linha do Embarque (migration 606)', () => {
+    expect(describeAuditLog(log('depot_services', 'container_type', null, '40'))).toBe("Tamanho: 40'")
+    expect(displayAuditValue('container_type', null, 'vazios_export_service_lines')).toBe('Qualquer tamanho')
+    expect(auditValueFacts('vazios_export_service_lines', '{"container_type": "20", "free_time_days": 7}')).toEqual([
+      { label: 'Tamanho', value: "20'" },
+      { label: 'Free time do lançamento', value: '7 dias' },
+    ])
+    expect(describeAuditLog(log('vazios_export_service_lines', 'free_time_days', '5', '7'))).toBe('Free time do lançamento: 7 dias')
+    // Linha anterior à 606 com outro valor e as demais tabelas continuam com o tipo do container.
+    expect(displayAuditValue('container_type', '22G1', 'vazios_export_service_lines')).toBe('22G1')
+    expect(describeAuditLog(log('bl_containers', 'container_type', '22G1', '45G1'))).toBe('Tipo de container: 45G1')
+  })
+
   it('escreve a criação, a exclusão e a troca de situação com o nome do registro', () => {
     expect(describeAuditLog(log('granite_rates', 'criado', null, '{"id": 7, "description": "THC Granito"}'))).toBe('Tarifa criada: THC Granito')
     expect(describeAuditLog(log('charge_table_items', 'excluido', '{"id": 3, "name": "THD"}', null))).toBe('Item excluído: THD')

@@ -16,6 +16,8 @@
   - **Preço por tamanho.** O serviço de Locais ganha **Tamanho** (20'/40'), e a armazenagem se divide por tamanho;
     no ZIRAN, o **Lançar armazenagem** usava um preço só para 20' e 40'.
   - **Free time congelado.** A linha de armazenagem guarda o free time do lançamento.
+  - **Histórico de ações.** O tamanho do serviço aparece como **Tamanho** (20', 40' ou "Qualquer tamanho"), não
+    como "Tipo de container", e o free time gravado como **Free time do lançamento**.
   - **Linha de serviço.** Agora se edita, e a quantidade de handling e transporte é sugerida pelas unidades do
     local (**Usar N**).
   - **ADR de Saída.** Mostra POD, TEU e manifesto por rota e rótulos que dizem o que contam. O anexo impresso
