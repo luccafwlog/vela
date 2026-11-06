@@ -14,6 +14,12 @@ Portal e na Pages Function `functions/portal/publico/[[path]].ts`.
 > consulta também o B/L sem Cliente vinculado, pela regra da decisão 7: o B/L
 > sem Cliente não está no Portal de ninguém, e o free time dele seria o da
 > tabela, não o do acordo do Cliente.
+>
+> **Situação atual (2026-11-06):** o item 8 de "Caminho e controles" ganhou um
+> aviso: a abertura do disjuntor global da busca manda um aviso ao Sentry, um
+> por hora (revisão de segurança dos widgets,
+> [docs/archive/audits/2026-11-06-revisao-seguranca-widgets-publicos-fwlog.md](../archive/audits/2026-11-06-revisao-seguranca-widgets-publicos-fwlog.md);
+> regra em [Observabilidade](../operations/observabilidade.md#erros-das-edge-functions)).
 
 Supersede parcialmente a [ADR 0090](./0090-programacao-de-navios-so-com-sessao.md)
 só no ponto "nenhuma leitura pré-login": a programação e a consulta por

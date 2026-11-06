@@ -1,5 +1,7 @@
 # 0129 — EDI Mercante registrado com número próprio, dados do manifesto corrigidos na ficha e consignatário estrangeiro impedido
 
+> **Situação atual (2026-11-06).** Decisão do dono na revisão da release: com o CNPJ/CPF corrigido na ficha, o CNPJ do arquivo que não é de nenhum Cliente cadastrado não vira Troca de Consignatário na reimportação; o Cliente e a correção ficam. A exceção do item 2 passa a valer para a troca para outro Cliente cadastrado e, sem CNPJ corrigido, para o consignatário ainda não cadastrado. Regra vigente em [Manifestos & EDI § EDI Mercante](../modules/manifesto-edi.md#edi-mercante). O restante desta ADR vale.
+
 Status: aceito — 2026-11-06 (decisões do dono na
 [issue #1238](https://github.com/luccafwlog/vela/issues/1238), itens 1, 2, 4
 e 5). Implementada nas migrations `600` e `601`. Estende a

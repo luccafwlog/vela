@@ -180,7 +180,20 @@ tratada ou resposta 5xx. O wrapper é aplicado a `portal-invite-send`,
 os widgets públicos `public-ship-schedule` e `public-container-lookup`. Nos
 widgets, recusa esperada não é 5xx: limite por IP e disjuntor global da busca
 respondem 429 e não viram evento; o 503 fica para Upstash, banco ou
-configuração em falta. Em `portal-password-recovery`, o envio roda depois da resposta
+configuração em falta. A exceção é a **abertura** do disjuntor (desde
+2026-11-06): o pedido que leva o contador da hora a 300 "não encontrado" manda
+um aviso `warning` por `captureEdgeWarning` ("Consulta pública de container:
+disjuntor global aberto até a hora virar"), com `function_name=public-container-lookup`,
+`status=breaker_open` e `categoria_falha=disjuntor_global`, em segundo plano
+(`EdgeRuntime.waitUntil`), sem número de container nem IP. É um aviso por hora
+em que o disjuntor abre, porque o `INCR` atômico deixa um só pedido ver o teto;
+os pedidos recusados depois não mandam nada. No log da função, o mesmo pedido
+sai com `outcome` `breaker_tripped`. A regra "Novo erro em produção — Vela e
+Portal" do Sentry manda e-mail no primeiro evento de um issue e na regressão:
+o primeiro disjuntor aberto avisa por e-mail; os seguintes só avisam se o issue
+`breaker_open` tiver sido marcado como resolvido. Por isso, depois de conferir
+a origem (volume de `not_found` e `limited` por `ip` no log da função), resolva
+o issue no Sentry. Em `portal-password-recovery`, o envio roda depois da resposta
 (`EdgeRuntime.waitUntil`); a falha desse trabalho em segundo plano é enviada
 direto por `captureEdgeException`. Cada evento leva o fingerprint
 `['edge', função, status]` (`_shared/telemetryScope.ts`), para o Sentry não

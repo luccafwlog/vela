@@ -675,6 +675,15 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   REC-037, REC-039, REC-042, REC-043, REC-045, REC-047, REC-052, REC-053 e o
   destino de `alerta:pix_unreconciled` na matriz 12; as capturas
   `pix-recebidos` e `pix-itau-ligado` abrem o endereço novo).
+- **Contatos salvos duas vezes e e-mail repetido** (relatos da Vegalog, de
+  2026-11-05, e da Master Shipping, de 2026-11-06; tela, sem migration): no
+  **Meu perfil** do Portal, a lista gravada passa a substituir a da tela ao
+  salvar. Antes os contatos recém-criados seguiam como novos e o salvamento
+  seguinte era recusado com "E-mail … já cadastrado para o contato …". As duas
+  telas de contatos recusam o e-mail repetido antes de gravar, nomeando os dois
+  contatos, e "E-mail duplicado no envio" passa a **Fora** (CLI-040, POR-090 e
+  as duas mensagens no Ap. B da matriz 06). O texto do manual não cita essas
+  mensagens.
 - **Embarque de vazios** (decisões do dono de 2026-11-06, migration `603`,
   [ADR 0130](../adr/0130-embarque-de-vazios-pod-tamanho-e-free-time-congelado.md)):
   POD obrigatório na unidade e terminal só do porto do embarque, Nº do

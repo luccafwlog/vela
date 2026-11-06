@@ -483,7 +483,7 @@ rodada ([Itaú](#itaú--api-pix-recebimentos), "Rodadas com 500 desde a v29").
 | Itaú | `ITAU_CLIENT_ID`, `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`, `ITAU_KEY_B64`, `ITAU_PIX_KEY` (e opcionais `ITAU_PIX_BASE_URL`, `ITAU_TOKEN_URL`, `ITAU_AUTH_HEADER`) | Itaú (seção [Itaú](#itaú--api-pix-recebimentos)) |
 | Monitoramento | `BETTERSTACK_HEARTBEAT_*_URL` (6, todos gravados; os dois últimos, `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` e `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`, em 2026-10-19), `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Better Stack, Sentry |
 | CORS de previews | `CLOUDFLARE_PAGES_PREVIEW_ORIGINS` (opcional) | Cloudflare Pages |
-| Widgets públicos do fwlog.com.br ([ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md)) | `TURNSTILE_PUBLIC_SECRET_KEY`, `TURNSTILE_PUBLIC_ALLOWED_HOSTNAMES` (widget próprio, separado do login), `PUBLIC_FWLOG_ALLOWED_ORIGINS` (origens HTTPS exatas do iframe; em produção `https://portalfwlog.com.br`); reaproveitam `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` e `PORTAL_RATE_LIMIT_HMAC_SECRET`. Sem qualquer um, recusa. Ainda não cadastrados | Cloudflare Turnstile, Upstash |
+| Widgets públicos do fwlog.com.br ([ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md)) | `TURNSTILE_PUBLIC_SECRET_KEY`, `TURNSTILE_PUBLIC_ALLOWED_HOSTNAMES` (widget próprio, separado do login), `PUBLIC_FWLOG_ALLOWED_ORIGINS` (origens HTTPS exatas do iframe; em produção `https://portalfwlog.com.br`); reaproveitam `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` e `PORTAL_RATE_LIMIT_HMAC_SECRET`. Sem qualquer um, recusa. Cadastrados em produção (conferido em 2026-11-06: a consulta responde e só `https://portalfwlog.com.br` passa no CORS) | Cloudflare Turnstile, Upstash |
 
 `PORTAL_PASSWORD_PEPPER` (≥ 32 caracteres aleatórios) é a chave do
 `HMAC(pepper, senha)` que o GoTrue guarda para as contas do Portal (auditoria
@@ -892,12 +892,15 @@ a verificação de segurança vazia e o servidor responde 403.
 
 ### Turnstile dos widgets públicos (fwlog.com.br)
 
-Widget **novo**, ainda não criado ([ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md)):
+Widget próprio dos widgets públicos, em uso em produção (conferido em
+2026-11-06: o quadro e a consulta respondem no iframe do fwlog.com.br;
+[ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md)):
 modo Managed, hostnames `portalfwlog.com.br` (onde o iframe roda) e, para o
 teste, `staging.vela-portal.pages.dev` num widget de staging à parte, como o
 do login. O iframe roda na origem do Portal, então `fwlog.com.br` não precisa
 constar; pôr não abre nada a mais. Ações `schedule` (quadro) e `lookup`
-(consulta).
+(consulta). O modo e os hostnames no painel da Cloudflare não foram vistos na
+revisão de 2026-11-06 (sem acesso ao painel): confira-os ali.
 
 - **Site Key** (pública): variável `VITE_TURNSTILE_PUBLIC_SITE_KEY` nos
   environments GitHub `cloudflare-production` e `staging` (os workflows de

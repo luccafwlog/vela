@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
+import { useCallback, useState, useEffect, useMemo, useRef, type FormEvent } from 'react'
 import { Plus } from 'lucide-react'
 import { Block } from '../ui/Block'
 import { Button } from '../ui/Button'
@@ -14,7 +14,7 @@ import {
 } from '../../services/customerCommunicationBoxes'
 import type { PortalContactDraft, PortalContactItem } from '../../services/portalContactConfiguration'
 import { isPortalReadOnly } from '../../services/portalScope'
-import { boxesWithoutRecipient, currentSuppressionReason, firstBoxWithoutContact, hasEligibleContactReplacement, isEligibleContact, normalizePrimaryContactBoxes } from '../../lib/customerContactDrafts'
+import { boxesWithoutRecipient, currentSuppressionReason, firstBoxWithoutContact, repeatedEmailMessage, hasEligibleContactReplacement, isEligibleContact, normalizePrimaryContactBoxes } from '../../lib/customerContactDrafts'
 import { ProfileSaveBar } from './ProfileSaveBar'
 import { StatusText } from '../ui/StatusText'
 
@@ -39,6 +39,22 @@ const boxLabels = (codes: readonly string[]) => codes
   .map((code) => CUSTOMER_COMMUNICATION_BOXES.find((box) => box.code === code)?.label ?? code)
   .sort()
   .join(', ') || 'nenhuma'
+
+function draftFromContact(c: PortalContactItem): PortalContactDraft {
+  return {
+    id: c.id,
+    name: c.name,
+    email: c.email,
+    phone: c.phone,
+    isPrimary: c.is_primary,
+    active: c.active,
+    origin: c.origin,
+    boxCodes: [...c.box_codes],
+    suppressionReason: c.suppression_reason,
+    sendable: c.sendable,
+    suppressedEmail: c.suppression_reason || c.sendable === false ? c.email : null,
+  }
+}
 
 /**
  * O que mudou em cada contato em relação ao que foi carregado, uma linha por
@@ -86,24 +102,14 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
   const focusNewContactRef = useRef(false)
   const changedContacts = useMemo(() => contactChanges(drafts, data?.contacts ?? []), [drafts, data])
 
+  const loadDrafts = useCallback((contacts: readonly PortalContactItem[]) => {
+    const loadedDrafts = contacts.map(draftFromContact)
+    setDrafts(isInspect ? loadedDrafts : normalizePrimaryContactBoxes(loadedDrafts))
+  }, [isInspect])
+
   useEffect(() => {
-    if (data?.contacts && !dirtyRef.current) {
-      const loadedDrafts: PortalContactDraft[] = data.contacts.map((c) => ({
-        id: c.id,
-        name: c.name,
-        email: c.email,
-        phone: c.phone,
-        isPrimary: c.is_primary,
-        active: c.active,
-        origin: c.origin,
-        boxCodes: [...c.box_codes],
-        suppressionReason: c.suppression_reason,
-        sendable: c.sendable,
-        suppressedEmail: c.suppression_reason || c.sendable === false ? c.email : null,
-      }))
-      setDrafts(isInspect ? loadedDrafts : normalizePrimaryContactBoxes(loadedDrafts))
-    }
-  }, [data, isInspect])
+    if (data?.contacts && !dirtyRef.current) loadDrafts(data.contacts)
+  }, [data, loadDrafts])
 
   function markDirty() {
     dirtyRef.current = true
@@ -255,6 +261,12 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
       }
     }
 
+    const repeated = repeatedEmailMessage(drafts)
+    if (repeated) {
+      setLocalError(repeated)
+      return
+    }
+
     // Toda caixa precisa de um contato ativo com e-mail. Caixa só com e-mail
     // devolvido ou bloqueado salva com aviso (D14 de 2026-10-27): corrigir o
     // e-mail é o que traz o Cliente de volta.
@@ -286,8 +298,14 @@ export function PortalContactConfiguration({ readOnly = false }: { readOnly?: bo
 
     setSubmitting(true)
     try {
-      await saveConfiguration.mutateAsync(drafts)
+      const saved = await saveConfiguration.mutateAsync(drafts)
       dirtyRef.current = false
+      // A lista gravada vem na resposta, com o ID de cada contato criado. A
+      // releitura disparada pelo salvamento chega antes desta linha, com o
+      // rascunho ainda marcado como alterado, e era descartada: os contatos
+      // novos seguiam sem ID e o salvamento seguinte tentava criá-los de novo
+      // ("E-mail ... já cadastrado para o contato ...", Vegalog, 2026-11-05).
+      if (saved.contacts.length > 0) loadDrafts(saved.contacts)
       if (withoutRecipient.length) {
         showToast(`Contatos salvos. ${withoutRecipient.length === 1 ? 'A caixa' : 'As caixas'} ${withoutRecipient.map((box) => `"${box.label}"`).join(', ')} ${withoutRecipient.length === 1 ? 'segue' : 'seguem'} sem e-mail apto a receber: cadastre outro e-mail para voltar a receber os Comunicados.`, 'info')
       } else {
