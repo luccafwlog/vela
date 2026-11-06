@@ -6,6 +6,11 @@
 
 ## 2026-11
 
+- **CNPJ já cadastrado avisado no Novo cliente (2026-11-05; pedido do dono):** o CNPJ de um Cliente existente,
+  ativo ou desativado, vira erro sob o campo assim que fica válido, com o nome dele e **Abrir a ficha de …**; a
+  Receita não é consultada e o cadastro é recusado antes da confirmação. A trava continua no banco
+  (`customers_cnpj_cpf_key`); a recusa dele, quando outra pessoa grava o mesmo CNPJ no intervalo, também volta ao
+  campo do CNPJ em vez de "Já existe um registro com o valor …" ([Clientes](modules/clientes.md)).
 - **Dados da Receita pelo CNPJ no Novo cliente (2026-11-05, ADR 0126; pedido do dono):** com o CNPJ completo, a
   Edge Function nova `cnpj-lookup` consulta a BrasilAPI e a tela preenche só os campos vazios (razão social, nome
   fantasia, CEP, endereço, cidade e UF), com aviso de situação diferente de ATIVA. Só equipe interna; resposta por

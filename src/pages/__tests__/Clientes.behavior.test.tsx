@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   fetchCustomerRows: vi.fn(),
   sendPortalInvite: vi.fn(),
   useCnpjLookup: vi.fn(),
+  useExistingCustomerByCnpj: vi.fn(),
 }))
 
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -47,6 +48,7 @@ vi.mock('../../hooks/useCustomers', () => ({
   useCustomers: mocks.useCustomers,
   useCustomerSummary: mocks.useCustomerSummary,
   fetchCustomerRows: mocks.fetchCustomerRows,
+  useExistingCustomerByCnpj: (cnpj: string | null) => mocks.useExistingCustomerByCnpj(cnpj),
   filterCustomerRowsByClientSideFilters: (rows: unknown[]) => rows,
 }))
 vi.mock('../../hooks/useCnpjLookup', () => ({
@@ -63,7 +65,9 @@ vi.mock('../../components/ui/ConfirmDialog', () => ({
   useConfirm: () => mocks.confirm,
   useConfirmWithReason: () => mocks.confirmWithReason,
 }))
-vi.mock('../../services/customers', () => ({
+vi.mock('../../services/customers', async (importOriginal) => ({
+  // A classificação da recusa é a real: o teste da corrida passa pelo mesmo código.
+  isDuplicateCustomerCnpjError: (await importOriginal<typeof import('../../services/customers')>()).isDuplicateCustomerCnpjError,
   createCustomer: mocks.createCustomer,
   checkCustomerDependencies: mocks.checkCustomerDependencies,
   deleteCustomers: mocks.deleteCustomers,
@@ -136,6 +140,9 @@ describe('Clientes page behaviours', () => {
     vi.clearAllMocks()
     mocks.can.mockImplementation(() => true)
     mocks.useCnpjLookup.mockReturnValue({ data: undefined, isFetching: false })
+    mocks.useExistingCustomerByCnpj.mockImplementation((cnpj: string | null) => (cnpj
+      ? { data: null, isSuccess: true, isError: false, isPending: false, fetchStatus: 'idle' }
+      : { data: undefined, isSuccess: false, isError: false, isPending: true, fetchStatus: 'idle' }))
     mocks.useCustomers.mockImplementation(() => ({
       data: { rows: [customer], totalCount: 101 },
       isLoading: false,
@@ -674,5 +681,53 @@ describe('Clientes page behaviours', () => {
     await user.clear(cnpjInput)
     await user.type(cnpjInput, '12345678000195')
     expect((within(dialog).getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('EMPRESA A LTDA')
+  })
+
+  // Um Cliente por CNPJ (customers_cnpj_cpf_key): o Novo cliente avisa antes de gravar.
+  it('CNPJ já cadastrado vira erro sob o campo, com a ficha, sem consultar a Receita nem gravar', async () => {
+    const user = userEvent.setup()
+    mocks.useExistingCustomerByCnpj.mockImplementation((cnpj: string | null) => (cnpj === '12345678000195'
+      ? { data: { id: 42, cnpj_cpf: '12345678000195', name: 'Cliente Teste', deactivated_at: null }, isSuccess: true, isError: false, isPending: false, fetchStatus: 'idle' }
+      : { data: undefined, isSuccess: false, isError: false, isPending: true, fetchStatus: 'idle' }))
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    const dialog = screen.getByRole('dialog', { name: 'Novo cliente' })
+    await user.type(within(dialog).getByLabelText(/^CNPJ/), '12345678000195')
+
+    expect(within(dialog).getByRole('alert').textContent).toBe('Já existe um Cliente com este CNPJ: Cliente Teste.')
+    expect(within(dialog).getByRole('link', { name: 'Abrir a ficha de Cliente Teste' }).getAttribute('href')).toBe('/clientes/12345678000195')
+    expect(mocks.useCnpjLookup).toHaveBeenLastCalledWith(null)
+
+    await user.type(within(dialog).getByLabelText(/^Razão social/), 'Cliente Novo')
+    await user.type(within(dialog).getByLabelText(/^E-mail/), 'novo@example.com')
+    await user.click(within(dialog).getByRole('button', { name: 'Cadastrar cliente' }))
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    expect(mocks.createCustomer).not.toHaveBeenCalled()
+  })
+
+  it('CNPJ de Cliente desativado avisa que a saída é reativar', async () => {
+    const user = userEvent.setup()
+    mocks.useExistingCustomerByCnpj.mockImplementation((cnpj: string | null) => (cnpj
+      ? { data: { id: 42, cnpj_cpf: cnpj, name: 'Cliente Antigo', deactivated_at: '2026-10-01T00:00:00Z' }, isSuccess: true, isError: false, isPending: false, fetchStatus: 'idle' }
+      : { data: undefined, isSuccess: false, isError: false, isPending: true, fetchStatus: 'idle' }))
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
+    expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toBe('Já existe um Cliente desativado com este CNPJ: Cliente Antigo. O Administrativo o reativa na ficha.')
+  })
+
+  it('cadastro do mesmo CNPJ por outra pessoa no intervalo: a recusa do banco vira erro no CNPJ', async () => {
+    const user = userEvent.setup()
+    mocks.createCustomer.mockRejectedValue({ code: '23505', message: 'duplicate key value violates unique constraint "customers_cnpj_cpf_key"', details: 'Key (cnpj_cpf)=(12345678000195) already exists.' })
+    renderPage()
+
+    await fillNewCustomer(user)
+    await user.click(screen.getByRole('button', { name: 'Cadastrar cliente' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Novo cliente' })
+    await waitFor(() => expect(within(dialog).getByText('Já existe um Cliente com o CNPJ 12.345.678/0001-95. Abra a ficha dele em vez de cadastrar de novo.')).toBeTruthy())
+    expect(mocks.navigate).not.toHaveBeenCalled()
   })
 })

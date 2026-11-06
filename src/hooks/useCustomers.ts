@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { canonicalizeDocument } from '../lib/cnpj'
 import { supabase } from '../services/supabase'
 import { queryKeys } from '../services/queryKeys'
-import { fetchCustomerPendingBalance, fetchIssuedInvoiceBalanceByCustomer } from '../services/customers'
+import { fetchCustomerPendingBalance, fetchIssuedInvoiceBalanceByCustomer, findExistingCustomerByCnpj } from '../services/customers'
 import { escapeFilterTerm } from '../lib/utils'
 import { classifyDbError } from '../lib/errors'
 import { sortCustomerRows, type CustomerSortKey, type SortDirection } from '../lib/customerTableViewModel'
@@ -339,5 +339,15 @@ export function useCustomerPendingBalance(customerId: number | null | undefined)
     queryKey: queryKeys.customerFicha.pendingBalance(customerId ?? 0),
     enabled: Boolean(customerId),
     queryFn: () => fetchCustomerPendingBalance(customerId as number),
+  })
+}
+
+/** Cliente já cadastrado com o CNPJ válido (`null` desliga); aviso do Novo cliente. */
+export function useExistingCustomerByCnpj(cnpj: string | null) {
+  return useQuery({
+    queryKey: queryKeys.customers.byCnpj(cnpj ?? ''),
+    queryFn: () => findExistingCustomerByCnpj(cnpj!),
+    enabled: Boolean(cnpj),
+    retry: false,
   })
 }

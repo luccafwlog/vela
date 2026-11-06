@@ -1,4 +1,5 @@
 import { useId } from 'react'
+import { Link } from 'react-router-dom'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { InlineError } from '../ui/Card'
@@ -22,6 +23,7 @@ export function CreateCustomerModal({
   saving,
   canInvitePortal,
   cnpjLookup,
+  existingCustomer,
   onClose,
   onSubmit,
   onFieldChange,
@@ -38,6 +40,8 @@ export function CreateCustomerModal({
   canInvitePortal: boolean
   /** Consulta do CNPJ na Receita (ADR 0126); null antes de o CNPJ ficar válido. */
   cnpjLookup: CnpjLookupState | null
+  /** Cliente já cadastrado com o CNPJ digitado: um Cliente por CNPJ. */
+  existingCustomer: { name: string; cnpj: string; message: string } | null
   onClose: () => void
   onSubmit: () => void
   onFieldChange: <K extends keyof Omit<CreateCustomerForm, 'contacts'>>(field: K, value: CreateCustomerForm[K]) => void
@@ -61,12 +65,19 @@ export function CreateCustomerModal({
         <section className="app-customer-form__section" aria-labelledby={`${primaryGroup}-identity`}>
           <h3 id={`${primaryGroup}-identity`} className="app-customer-form__title">Dados cadastrais</h3>
           <div className="app-customer-form__grid">
-            <Field label="CNPJ" required error={errors.cnpjCpf} hint={cnpjLookupHint(cnpjLookup)}>
+            <Field label="CNPJ" required error={errors.cnpjCpf ?? existingCustomer?.message} hint={cnpjLookupHint(cnpjLookup)}>
               <Input maxLength={CNPJ_INPUT_MAX_LENGTH} inputMode="text" autoComplete="off" value={form.cnpjCpf} onChange={(event) => onFieldChange('cnpjCpf', normalizeCnpj(event.target.value))} />
             </Field>
             <Field label="Razão social" required error={errors.name}>
               <Input value={form.name} onChange={(event) => onFieldChange('name', event.target.value)} />
             </Field>
+            {existingCustomer ? (
+              <p className="app-customer-form__wide m-0">
+                <Link className="app-link" to={`/clientes/${encodeURIComponent(existingCustomer.cnpj)}`}>
+                  Abrir a ficha de {existingCustomer.name}
+                </Link>
+              </p>
+            ) : null}
             <Field label="Nome fantasia">
               <Input value={form.tradeName} onChange={(event) => onFieldChange('tradeName', event.target.value)} />
             </Field>

@@ -150,6 +150,8 @@ export const queryKeys = {
     detail: (cnpj?: string) =>
       (cnpj === undefined ? (['customer-detail'] as const) : (['customer-detail', cnpj] as const)),
     summary: () => ['customers-summary'] as const,
+    /** Cliente já cadastrado com o CNPJ (aviso do Novo cliente); cai junto com `customers.all()`. */
+    byCnpj: (cnpj: string) => ['customers', 'by-cnpj', cnpj] as const,
   },
   /** Dados públicos da Receita pela BrasilAPI (ADR 0126); não dependem de nada gravado no Vela. */
   cnpjLookup: (cnpj: string) => ['cnpj-lookup', cnpj] as const,

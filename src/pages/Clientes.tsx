@@ -30,7 +30,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useCnpjLookup } from '../hooks/useCnpjLookup'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useFilteredSelection } from '../hooks/useFilteredSelection'
-import { fetchCustomerRows, useCustomers, useCustomerSummary, type CustomerFilters } from '../hooks/useCustomers'
+import { fetchCustomerRows, useCustomers, useCustomerSummary, useExistingCustomerByCnpj, type CustomerFilters } from '../hooks/useCustomers'
 import { usePortalProvisioning, useSendPortalInvite } from '../hooks/usePortalProvisioning'
 import { formatBRL, formatCnpjCpf, formatCountLabel } from '../lib/utils'
 import { userFacingErrorMessage } from '../lib/errors'
@@ -40,7 +40,7 @@ import { CUSTOMER_COMMUNICATION_BOXES } from '../services/customerCommunicationB
 import { compareCustomerBaseWithExisting, customerNameChanges, importCustomerBaseRows, parseCustomerBaseFile, type ParsedCustomerBase } from '../services/customerBase'
 import { afterBlRevisado, afterCargaAlterada } from '../services/cacheEffects'
 import { queryKeys } from '../services/queryKeys'
-import { checkCustomerDependencies, createCustomer, deleteCustomers } from '../services/customers'
+import { checkCustomerDependencies, createCustomer, deleteCustomers, isDuplicateCustomerCnpjError } from '../services/customers'
 import { buildDeleteAffected, formatDeleteOutcome } from '../services/deleteDependencies'
 import { exportCustomerBaseWorkbook } from '../services/exports'
 import {
@@ -148,7 +148,13 @@ export function Clientes() {
   // sem esperar a nova resposta: cadastrar nesse intervalo gravaria o CNPJ
   // novo com o endereço do anterior (revisão da PR #1235).
   const lookupCnpjValue = createOpen ? canonicalizeValidCnpj(createForm.cnpjCpf) : null
-  const cnpjLookup = useCnpjLookup(lookupCnpjValue)
+  // Um Cliente por CNPJ (`customers_cnpj_cpf_key`): o CNPJ já cadastrado vira
+  // erro sob o campo, com a ficha dele, e a Receita nem é consultada. Falha na
+  // conferência não trava: a constraint continua recusando no gravar.
+  const existingQuery = useExistingCustomerByCnpj(lookupCnpjValue)
+  const existingCustomer = lookupCnpjValue && existingQuery.data ? existingQuery.data : null
+  const receitaCnpj = lookupCnpjValue && (existingQuery.isError || (existingQuery.isSuccess && !existingQuery.data)) ? lookupCnpjValue : null
+  const cnpjLookup = useCnpjLookup(receitaCnpj)
   const [cnpjAutofill, setCnpjAutofill] = useState<{ cnpj: string | null; filled: CnpjAutofill }>({ cnpj: null, filled: {} })
   if (cnpjAutofill.cnpj !== null && lookupCnpjValue !== cnpjAutofill.cnpj) {
     setCreateForm(applyCnpjLookup(createForm, null, cnpjAutofill.filled).form)
@@ -159,8 +165,10 @@ export function Clientes() {
     setCreateForm(next.form)
     setCnpjAutofill({ cnpj: lookupCnpjValue, filled: next.filled })
   }
-  const cnpjLookupState = !lookupCnpjValue
+  const cnpjLookupState = !lookupCnpjValue || existingCustomer
     ? null
+    : existingQuery.isPending && existingQuery.fetchStatus === 'fetching'
+      ? { state: 'buscando' as const }
     : cnpjLookup.data
       ? cnpjLookup.data.status === 'encontrado'
         ? { state: 'encontrado' as const, situacao: cnpjLookup.data.data.situacao }
@@ -212,6 +220,7 @@ export function Clientes() {
         if (!fieldErrors[field]) fieldErrors[field] = issue.message
       }
     }
+    if (existingCustomer) fieldErrors.cnpjCpf = duplicateCnpjMessage(existingCustomer)
 
     const activeContacts = createForm.contacts.filter(
       (contact) => contact.name.trim() || contact.email.trim() || contact.phone.trim(),
@@ -291,6 +300,13 @@ export function Clientes() {
       setCnpjAutofill({ cnpj: null, filled: {} })
       navigate(`/clientes/${encodeURIComponent(customer.cnpj_cpf)}`)
     } catch (cause) {
+      if (isDuplicateCustomerCnpjError(cause)) {
+        // Outra pessoa cadastrou o CNPJ entre a conferência e o gravar: o erro
+        // vai para o campo, e a conferência relida traz o link da ficha.
+        setCreateErrors({ cnpjCpf: `Já existe um Cliente com o CNPJ ${formatCnpjCpf(createForm.cnpjCpf)}. Abra a ficha dele em vez de cadastrar de novo.` })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.customers.all() })
+        return
+      }
       // O formulário continua aberto com o motivo junto dos botões.
       setCreateErrors({ submit: userFacingErrorMessage(cause, 'Não foi possível cadastrar o cliente. Confira os dados e tente de novo.') })
     } finally {
@@ -657,6 +673,7 @@ export function Clientes() {
         saving={saving}
         canInvitePortal={canInvitePortal}
         cnpjLookup={cnpjLookupState}
+        existingCustomer={existingCustomer ? { name: existingCustomer.name, cnpj: existingCustomer.cnpj_cpf, message: duplicateCnpjMessage(existingCustomer) } : null}
         // Fechar durante a gravação deixaria o resultado cair num modal
         // fechado (erro antigo na próxima abertura, segundo cadastro).
         onClose={() => { if (!saving) resetCreateModal() }}
@@ -684,4 +701,11 @@ export function Clientes() {
       />
     </>
   )
+}
+
+/** Texto do CNPJ já cadastrado no Novo cliente (um Cliente por CNPJ). */
+function duplicateCnpjMessage(customer: { name: string; deactivated_at: string | null }) {
+  return customer.deactivated_at
+    ? `Já existe um Cliente desativado com este CNPJ: ${customer.name}. O Administrativo o reativa na ficha.`
+    : `Já existe um Cliente com este CNPJ: ${customer.name}.`
 }
