@@ -563,6 +563,7 @@ const cleanupSql = `
   DELETE FROM public.vehicles WHERE id IN (SELECT id FROM a202_vehicles);
   DELETE FROM public.bl_containers WHERE id IN (SELECT id FROM a202_containers);
   DELETE FROM public.bl_freight_lines WHERE bl_id IN (SELECT id FROM a202_bls);
+  DELETE FROM public.bl_manifest_corrections WHERE bl_id IN (SELECT id FROM a202_bls);
   DELETE FROM public.bls WHERE id IN (SELECT id FROM a202_bls);
   DELETE FROM public.import_errors WHERE batch_id IN (SELECT id FROM a202_batches);
   DELETE FROM public.import_batches WHERE id IN (SELECT id FROM a202_batches);
@@ -1134,5 +1135,66 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     // Com o CNPJ do próprio Cliente o e-mail do arquivo entra.
     expect(rpcImport([rawBl(blId, { containers: ['AZCU2020161'], customer: gama, email: gama.email })]).error).toBeNull()
     expect(contactEmails(gama.id)).toContain(gama.email)
+  })
+
+  // --- Migration 601 (issue #1238, item 1): dados do manifesto corrigidos na ficha ---
+  function saveFicha(blId: string, payload: Record<string, unknown>, reason = 'Correção do manifesto A202') {
+    const updatedAt = localPsql(`SELECT updated_at FROM public.bls WHERE id = '${blId}'`)
+    return tryAsOperator(`SELECT public.save_bl_review('${blId}', '${updatedAt}'::timestamptz, ${jsonLiteral(payload)},
+      ${jsonLiteral([{ justification: reason }])}, '${actorId}'::uuid)`)
+  }
+  function manifestOf(blId: string) {
+    return JSON.parse(localPsql(`SELECT json_build_object('consignee_block', consignee_block, 'shipper_block', shipper_block,
+      'cnpj', manifest_customer_cnpj_cpf, 'total_packages', total_packages, 'packages_unit', packages_unit, 'customer_id', customer_id)
+      FROM public.bls WHERE id = '${blId}'`)) as Record<string, string | number | null>
+  }
+  const correctedFields = (blId: string) =>
+    localPsql(`SELECT coalesce(string_agg(field_name, ',' ORDER BY field_name), '') FROM public.bl_manifest_corrections WHERE bl_id = '${blId}'`)
+
+  it('601: a correção da ficha sobrevive à reimportação, a prévia avisa e o Histórico do B/L registra', async () => {
+    const blId = 'A202-MAN1'
+    expect((await importBls([blDocument(blId, { containers: ['AZCU2020201'] })], 'a202-man1.xlsx')).error).toBeNull()
+    expect(saveFicha(blId, { shipper_block: 'A202 SHIPPER CORRIGIDO\nRUA 1, SHANGHAI', total_packages: '775', packages_unit: 'wooden boxes' }).error).toBeNull()
+    expect(manifestOf(blId)).toMatchObject({ shipper_block: 'A202 SHIPPER CORRIGIDO\nRUA 1, SHANGHAI', total_packages: 775, packages_unit: 'WOODEN BOXES' })
+    expect(correctedFields(blId)).toBe('packages_unit,shipper_block,total_packages')
+    // A correção vai ao Histórico do B/L pelo gatilho de `bls`, com a justificativa.
+    expect(localPsql(`SELECT count(*) FROM public.audit_logs WHERE entity_type = 'bls' AND entity_id = '${blId}'
+      AND field_name = 'total_packages' AND new_value = '775' AND justification = 'Correção do manifesto A202'`)).toBe('1')
+
+    const reimport = await importBls([blDocument(blId, { containers: ['AZCU2020201'] })], 'a202-man1-reimportado.xlsx', { overrideBilling: true })
+    expect(reimport.error).toBeNull()
+    expect(previewRow(reimport, blId).warnings).toEqual(expect.arrayContaining([
+      expect.stringContaining('Bloco do embarcador corrigido na ficha'),
+      expect.stringContaining('Total de volumes corrigido na ficha'),
+      expect.stringContaining('Unidade dos volumes corrigido na ficha'),
+    ]))
+    expect(manifestOf(blId)).toMatchObject({ shipper_block: 'A202 SHIPPER CORRIGIDO\nRUA 1, SHANGHAI', total_packages: 775, packages_unit: 'WOODEN BOXES' })
+    expect(Number(localPsql(`SELECT count(*) FROM public.audit_logs WHERE entity_type = 'bl' AND entity_id = '${blId}'
+      AND justification LIKE 'Correção da ficha mantida:%'`))).toBe(3)
+    // O bloco do consignatário, não corrigido, segue o arquivo normalmente.
+    expect(manifestOf(blId).consignee_block).toBe(`${alfa.name}\nCNPJ: ${alfa.cnpj}`)
+  })
+
+  it('601: o CNPJ/CPF do manifesto precisa ser válido e, com Cliente no B/L, o do Cliente', async () => {
+    const blId = 'A202-MAN2'
+    expect((await importBls([blDocument(blId, { containers: ['AZCU2020202'] })], 'a202-man2.xlsx')).error).toBeNull()
+    expect(saveFicha(blId, { manifest_customer_cnpj_cpf: '123' }).error?.message).toContain('CNPJ/CPF do consignatário inválido')
+    expect(saveFicha(blId, { manifest_customer_cnpj_cpf: beta.cnpj }).error?.message).toContain('não é o do Cliente do B/L')
+    expect(saveFicha(blId, { manifest_customer_cnpj_cpf: alfa.cnpj }).error).toBeNull()
+    expect(saveFicha(blId, { consignee_block: 'X' }, '').error?.message).toContain('justificativa')
+    expect(correctedFields(blId)).toBe('manifest_customer_cnpj_cpf')
+  })
+
+  it('601: a Troca de Consignatário aceita para outro CNPJ derruba as correções do consignatário', async () => {
+    const blId = 'A202-MAN3'
+    expect((await importBls([blDocument(blId, { containers: ['AZCU2020203'] })], 'a202-man3.xlsx')).error).toBeNull()
+    expect(saveFicha(blId, { consignee_block: 'A202 ALFA CORRIGIDO\nAV. CENTRAL 1, NATAL - RN', shipper_block: 'A202 SHIPPER FICHA' }).error).toBeNull()
+
+    const swap = await importBls([blDocument(blId, { containers: ['AZCU2020203'], consignee: beta })], 'a202-man3-troca.xlsx', { confirmCustomerChange: true })
+    expect(swap.error).toBeNull()
+    expect(manifestOf(blId)).toMatchObject({ customer_id: beta.id, consignee_block: `${beta.name}\nCNPJ: ${beta.cnpj}`, shipper_block: 'A202 SHIPPER FICHA' })
+    expect(correctedFields(blId)).toBe('shipper_block')
+    expect(localPsql(`SELECT count(*) FROM public.audit_logs WHERE entity_type = 'bl' AND entity_id = '${blId}'
+      AND field_name = 'consignee_block' AND justification LIKE 'Correção da ficha substituída:%'`)).toBe('1')
   })
 })

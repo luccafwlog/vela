@@ -408,3 +408,37 @@ export async function loadMercanteVaziosInput(voyageId: number, pol: string, pod
     .sort((left, right) => left.number.localeCompare(right.number))
   return { vesselName, voyageNumber, hasBaplie, header, vazios }
 }
+
+export type MercanteEdiFileMode = 'container' | 'carga_solta' | 'vazio'
+
+export type MercanteEdiFileRecord = { number: number; fileName: string; generatedAt: string | null }
+
+/**
+ * Registra o arquivo antes do download (migration 600, ADR 0129): o banco
+ * confere a conta Dev e a Viagem não cancelada, grava quem gerou, a rota, a
+ * natureza e as quantidades no Histórico da Viagem e devolve o número
+ * sequencial do Vela com o nome `FWL_MERCANTE_<000001>_<sigla>.TXT`.
+ */
+export async function registerMercanteEdiFile(input: {
+  voyageId: number
+  pol: string
+  pod: string
+  mode: MercanteEdiFileMode
+  tag: string
+  blCount: number
+  itemCount: number
+}): Promise<MercanteEdiFileRecord> {
+  const { data, error } = await supabase.rpc('register_mercante_edi_file' as never, {
+    p_voyage_id: input.voyageId,
+    p_pol: input.pol,
+    p_pod: input.pod,
+    p_cargo_mode: input.mode,
+    p_tag: input.tag,
+    p_bl_count: input.blCount,
+    p_item_count: input.itemCount,
+  } as never)
+  if (error) throw error
+  const row = (data ?? {}) as { number?: number | string; file_name?: string; generated_at?: string | null }
+  if (!row.file_name || row.number === undefined) throw new Error('O registro do EDI Mercante não devolveu o nome do arquivo.')
+  return { number: Number(row.number), fileName: row.file_name, generatedAt: row.generated_at ?? null }
+}

@@ -98,6 +98,8 @@ A ideia é esta: o arquivo novo é a fonte dos dados do documento, mas o que já
 
 As datas dos containers (descarga e devolução) e o perfil e o COC/SOC corrigidos à mão no Vela ficam: o arquivo não os muda. Já o lacre, o peso e o CBM de cada container voltam ao que o arquivo traz.
 
+Os **Dados do manifesto** corrigidos na ficha (blocos das partes, CNPJ/CPF do consignatário e volumes, [7.2](07-ficha-do-bl.md#72-corrigir-os-dados-do-bl)) também ficam. Quando o arquivo traz outro valor, a prévia avisa "… corrigido na ficha: o arquivo traz outro valor e fica a correção da ficha.". Se a **Troca de consignatário** levar o B/L a um Cliente de outro CNPJ, o bloco e o CNPJ do consignatário passam a ser os do arquivo.
+
 ::: atencao
 Container que o arquivo novo não traz sai do B/L. A prévia mostra quais saem: confira antes de importar.
 :::

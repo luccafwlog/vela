@@ -464,3 +464,19 @@ describe('linha do tempo da viagem — revisão de 2026-10-22', () => {
     expect(events.find((event) => event.kind === 'import')?.detail).not.toContain('B/Ls e CEs')
   })
 })
+
+describe('EDI Mercante no Histórico da Viagem (migration 600)', () => {
+  it('cada arquivo baixado vira um evento com o nome, a natureza, o conteúdo e quem gerou', () => {
+    const events = buildVoyageTimeline({
+      mercanteEdiFiles: [
+        { number: 7, file_name: 'FWL_MERCANTE_000007_GG6.TXT', pol: 'CNTAC', pod: 'BRVIX', cargo_mode: 'container', bl_count: 43, item_count: 746, generated_by: 'u-1', generated_at: '2026-11-06T12:00:00Z' },
+        { number: 8, file_name: 'FWL_MERCANTE_000008_GG6.TXT', pol: 'CNTAC', pod: 'BRVIX', cargo_mode: 'vazio', bl_count: 0, item_count: 1, generated_by: 'u-1', generated_at: '2026-11-06T12:05:00Z' },
+      ],
+      actorNames: { 'u-1': 'Lucca' },
+    })
+    const edi = events.filter((event) => event.kind === 'mercante-edi')
+    expect(edi.map((event) => event.title)).toEqual(['EDI Mercante gerado · CNTAC → BRVIX', 'EDI Mercante gerado · CNTAC → BRVIX'])
+    expect(edi[0].detail).toBe('FWL_MERCANTE_000008_GG6.TXT · vazios · 1 contêiner vazio · por Lucca')
+    expect(edi[1].detail).toBe('FWL_MERCANTE_000007_GG6.TXT · contêiner · 43 B/Ls · 746 itens · por Lucca')
+  })
+})

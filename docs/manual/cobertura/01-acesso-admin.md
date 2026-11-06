@@ -111,6 +111,7 @@ repositório.
 | ACE-091 | **Reprocessar efeito de importação, com justificativa**: qualquer setor. | Op 2; Op 5; Op 16 | Todos | `permissao:reprocessar-importacao` |
 | ACE-092 | **Excluir ou mover veículo; excluir unidade e linha de Vazios antes do ADR fechado**: qualquer setor, com motivo. | Op 2; Op 8 | Todos | `permissao:veiculos-vazios` |
 | ACE-134 | **Responder se a viagem terá veículos, trocar e desfazer a resposta**: Equipamentos e Administrativo (migration `598`, ADR 0128). Importar, mover e excluir veículos seguem de qualquer setor. | Op 2; Op 9 | Equ + Adm | `permissao:responder-veiculos` |
+| ACE-135 | **Gerar e baixar o EDI Mercante da rota**: só a conta do Administrativo com a marca **Dev** (decisão do dono de 2026-11-03). Desde a migration `600` (ADR 0129) o banco grava cada arquivo baixado no Histórico da Viagem e recusa quem não é a conta Dev. | Op 2; Op 5 | Adm (Dev) | `permissao:gerar-edi-mercante`, `funcao:register_mercante_edi_file`, `tabela:mercante_edi_files` |
 | ACE-093 | **Remover o CE Mercante do B/L sem fatura, com motivo**: qualquer setor. | Op 2; Op 6 | Todos | `permissao:remover-ce` |
 | ACE-094 | **Criar e editar navio, armador, porto, Local e serviço**: qualquer setor. | Op 2; Op 4; Op 8 | Todos | `permissao:editar-cadastros` |
 | ACE-095 | **Desativar, reativar e excluir cadastro (Local, serviço) sem uso**: só o Administrativo. | Op 2; Op 8; Adm | Adm | `permissao:desativar-cadastros` |
@@ -294,7 +295,7 @@ repositório.
 Lido no código e nas definições vigentes do banco local. O banco decide; a
 tela só esconde botões e telas.
 
-### 1. As 47 linhas da matriz "O que cada setor pode" contra o banco
+### 1. As 48 linhas da matriz "O que cada setor pode" contra o banco
 
 Colunas da tela: Adm, Fin, Ope, Doc, Equ (✓ pode, ○ não pode).
 
@@ -313,6 +314,7 @@ Colunas da tela: Adm, Fin, Ope, Doc, Equ (✓ pode, ○ não pode).
 | `permissao:assinar-adr` | cobre quem faltar / ○ / própria seção / própria seção / própria seção | `set_agency_report_department_signoff`, `set_agency_report_section_observation`, `set_agency_report_signoff` aceitam o Administrativo ou o dono da seção (`agency_report_section_owner`); o Financeiro é recusado | Bate |
 | `permissao:importar` | ✓ / ✓ / ✓ / ✓ / ✓ | Funções de importação sem guarda de setor (usuário ativo); conferido em Baplie, arquivo de B/L, CE Mercante, carga solta, veículos, Vazios, Granito, programação e base de Clientes | Bate; a base de Clientes também acrescenta e reativa contatos de Cliente já cadastrado, o que a linha de contatos reserva a três setores (seção 2) |
 | `permissao:reprocessar-importacao` | ✓ / ✓ / ✓ / ✓ / ✓ | `retry_import_effect` (os cinco setores, justificativa obrigatória) | Bate |
+| `permissao:gerar-edi-mercante` | só a conta Dev / ○ / ○ / ○ / ○ | `register_mercante_edi_file` exige `is_dev_user()` (migration `600`) | Bate |
 | `permissao:responder-veiculos` | ✓ / ○ / ○ / ○ / ✓ | `declare_voyage_with_vehicles`, `declare_voyage_without_vehicles`, `undo_voyage_vehicle_declaration` (`_portal_actor_role()` em Equipamentos ou Administrativo, migration `598`) | Bate |
 | `permissao:veiculos-vazios` | ✓ / ✓ / ✓ / ✓ / ✓ | `delete_vehicles_with_reason`, `move_vehicles_to_bl`, `delete_manual_vazios_booking` (ativo); `delete_catalog_row` aceita a linha de serviço de vazios de qualquer setor e recusa com o ADR fechado | Bate |
 | `permissao:remover-ce` | ✓ / ✓ / ✓ / ✓ / ✓ | `remove_bl_ce_mercante` (ativo) | Bate |

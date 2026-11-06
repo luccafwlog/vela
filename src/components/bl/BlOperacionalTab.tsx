@@ -14,6 +14,12 @@ import { normalizeText } from '../../lib/utils'
 import { parseNcmInput } from '../../hooks/useBlEditForm'
 import type { BL, BLDetail } from '../../types/database'
 
+const MANIFEST_BLOCK_LABELS = {
+  consignee_block: 'Consignatário (bloco)',
+  shipper_block: 'Embarcador (bloco)',
+  notify_block: 'Notify (bloco)',
+} as const
+
 // Formulário de edição manual do B/L. O pai (BlDetalhe) mantém o estado do
 // form. Modalidade, navio/viagem e situação de taxas não se repetem aqui: já
 // estão no cabeçalho, na Visão Geral e na aba Faturamento.
@@ -135,6 +141,23 @@ export function BlOperacionalTab({
             <Fact label="Notify 2 · do arquivo">{bl.notify2_block || <NoValue label="Sem Notify 2" />}</Fact>
             <Fact label="Telefone do consignatário · do arquivo">{bl.consignee_phone || <NoValue label="Sem telefone" />}</Fact>
           </FactList>
+        </Block>
+
+        {/* O que vai ao EDI Mercante (migration 601): o campo corrigido aqui a
+            reimportação não sobrescreve; o Histórico do B/L registra a correção. */}
+        <Block title="Dados do manifesto" aside="Vão ao EDI Mercante. Corrigido aqui, a reimportação do B/L não sobrescreve">
+          <div className="grid gap-4 md:grid-cols-3">
+            {(['consignee_block', 'shipper_block', 'notify_block'] as const).map((field) => (
+              <Field key={field} label={MANIFEST_BLOCK_LABELS[field]}>
+                <Textarea rows={5} value={form[field] ?? ''} onChange={(event) => onFieldChange(field, event.target.value)} />
+              </Field>
+            ))}
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {text('manifest_customer_cnpj_cpf', 'CNPJ/CPF do consignatário', 'Com Cliente no B/L, precisa ser o CNPJ do Cliente.')}
+            {number('total_packages', 'Total de volumes')}
+            {text('packages_unit', 'Unidade dos volumes', 'Ex.: PACKAGES, ROLLS, WOODEN BOXES.')}
+          </div>
         </Block>
 
         <Block title="Rota">

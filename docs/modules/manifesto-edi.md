@@ -248,7 +248,7 @@ falha no próprio lugar. **Código:** `src/components/ui/CopyValue.tsx`;
   - **Cliente:** um único fluxo, no bloco Cliente. Sem cliente, diz "Sem cliente vinculado" e mostra o cliente declarado no manifesto (CNPJ com o ícone de copiar) com **Vincular este cliente** (usa o cadastro existente pelo CNPJ e só cadastra quando não existe, exigindo e-mail no manifesto) e a busca no cadastro, com **Vincular** por resultado. Com cliente, mostra nome (link para a ficha), CNPJ com o ícone de copiar, saldo em aberto e conciliação, com **Trocar Cliente** e **Desvincular**; no B/L faturado (situação faturado, parcialmente pago ou pago), só **Trocar Cliente**, com o aviso "B/L faturado: para mudar o Cliente, use Trocar Cliente." ([ADR 0093](../adr/0093-tabela-vinculada-ao-bl-e-coerencia-financeira.md), decisão 13); avisa quando o manifesto declara outro CNPJ. Todo vínculo pede confirmação e grava por `save_bl_review`; **Trocar Cliente** e **Desvincular** pedem o motivo, que vai ao Histórico (o primeiro vínculo grava "Vinculação manual de cliente na ficha do B/L."; migration `502`).
 - A leitura interna do bloco Portal usa `get_bl_portal_status` (definição atual na migration `501`, que acrescenta `billing_access_ready` ao corpo da `047`), RPC `SECURITY DEFINER` que valida `is_active_user()` e faz a leitura mínima necessária por B/L, pois `portal_notifications` e `customer_portal_accounts` permanecem protegidas por RLS.
 - **Carga:** `BlCargaTab` em aba própria (`?tab=carga`), em blocos que só aparecem quando o B/L tem aquele tipo de carga (identidade, lote 1): **Containers** (com container vinculado; as colunas da carga aberta na lista de BLs: Contêiner, Tipo, COC/SOC, Perfil, Lacre, Tara, Peso bruto, CBM, Descarga, Devolução e Demurrage, com o resumo na faixa e, quando o Baplie discorda do SOC/COC, uma linha em âmbar com **Abrir conciliação**), **Carga solta** (B/L de carga solta ou misto: máquinas, packages, peso e CBM, a tabela de itens quando houver, ou uma frase só sem dado) e **Veículos** (com veículo vinculado; busca por chassi acima de 8). Sem nenhum, uma frase só. **Corrigir**, na linha do contêiner, abre `BlContainerCorrectModal` com Perfil, COC/SOC, Lacre, Peso bruto, CBM, Descarga e Devolução e uma justificativa; cada grupo vai pela sua RPC (ver a tabela de ações) e B/L faturado trava só Perfil e COC/SOC.
-- **Detalhes do B/L:** `BlDetalhesTab` compõe `BlOperacionalTab` e a seção de frete, em blocos de largura total (identidade, lote 1): **Documento Mercante** (CE e Manifesto, fora do formulário; o campo do CE novo só abre em **Corrigir CE**, e o do Manifesto em **Mover para um manifesto**), **Partes** (Notify 2 e telefone do consignatário como dado do arquivo), **Rota** (seis campos numa linha), **Emissão e pagamento**, **Carga declarada** (pesos e NCM à esquerda, Descrição da carga alta à direita), **Notas** (duas linhas), a faixa de justificativa e **Salvar alterações** (presa no rodapé da tela enquanto há alteração) e **Frete e despesas**.
+- **Detalhes do B/L:** `BlDetalhesTab` compõe `BlOperacionalTab` e a seção de frete, em blocos de largura total (identidade, lote 1): **Documento Mercante** (CE e Manifesto, fora do formulário; o campo do CE novo só abre em **Corrigir CE**, e o do Manifesto em **Mover para um manifesto**), **Partes** (Notify 2 e telefone do consignatário como dado do arquivo), **Dados do manifesto** (blocos de consignatário, embarcador e notify, CNPJ/CPF do consignatário, total de volumes e unidade, que vão ao EDI Mercante e a reimportação não sobrescreve depois de corrigidos; migration `601`, [EDI Mercante](#edi-mercante)), **Rota** (seis campos numa linha), **Emissão e pagamento**, **Carga declarada** (pesos e NCM à esquerda, Descrição da carga alta à direita), **Notas** (duas linhas), a faixa de justificativa e **Salvar alterações** (presa no rodapé da tela enquanto há alteração) e **Frete e despesas**.
   - Formulário auditado: Shipper, Consignatário, Notify Party, Place of Receipt, POL, POD, Place of Delivery, Movement From/To, Data e Local de emissão, pagamento, NCM, descrição da carga, notas e justificativa (`editableFields` de `useBlEditForm`). O CE Mercante e o Manifesto Mercante ficam fora do Salvar: **Corrigir CE**/**Remover CE** (migration `177`) e **Mover para um manifesto**/**Desvincular** Manifesto (`BlManifestoField`, migration `181`), com motivo. A justificativa vai ao Histórico de cada campo gravado: `save_bl_review` usa só a justificativa das linhas de auditoria da tela e o gatilho `audit_bls` grava o antes e o depois reais (migration `502`). Mudar o POL, o POD ou a Viagem desvincula o Manifesto, com registro no Histórico (`unlink_manifesto_on_route_change`; o POL entrou na migration `207`). Mudar o POD para outro porto tira a exceção de terminal do B/L (`trg_pod_change_clears_terminal_override`, migration `502`), com "Exceção de terminal removida: o POD do B/L mudou de X para Y." no Histórico; o mesmo porto escrito de outro jeito mantém a exceção. Mover e Desvincular, na ficha e em Ver B/Ls, mandam o Manifesto que a tela mostrava por B/L (`p_expected`); B/L que outra sessão moveu depois recusa a operação inteira (migration `209`), e a tela recarrega a ficha e a lista para a nova tentativa partir do estado atual (também em Corrigir/Remover CE). O vínculo só muda por essas ações e pela planilha de CE: `UPDATE` direto do Manifesto pela API é recusado (migration `212`); editar o POL/POD pela ficha continua desvinculando. Peso e cubagem aparecem por modalidade e são independentes: `Peso contêiner (kg)`/`CBM contêiner (m³)` só com contêiner, `Peso (t)`/`CBM carga solta (m³)` só com carga solta — num B/L misto os dois conjuntos aparecem e nenhum sobrescreve o outro.
   - NCM é editável em `bls.ncm_codes`; a extração de `cargo_description` é sugestão auxiliar, deduplicada e sem ocorrências `UN NCM`.
 - `notify_party` importado do B/L continua editável; B/Ls históricos preservam o valor já gravado.
@@ -732,7 +732,7 @@ Duas notas de estado:
 | Corrigir CE / Remover CE | Usuário ativo; motivo obrigatório; remover recusado com fatura viva, inclusive consolidada ligada pelo recebível (migration `195`) | Bloco **Documento Mercante** da aba **Detalhes do B/L** da ficha (`BlCeMercanteField`; botões **Corrigir CE** e **Remover CE**, janelas Corrigir CE Mercante e Remover CE Mercante) | `blCeMercante.ts` → RPCs `correct_bl_ce_mercante`/`remove_bl_ce_mercante` → `_set_bl_ce_mercante` (migrations `177`, `195`, `207` e `209`; corrigir e remover travam o B/L e conferem o CE que a ficha exibia, `p_expected_ce`: se outra sessão o trocou com o diálogo aberto, recusam pedindo para recarregar a ficha) | `bls.ce_mercante`; `audit_logs` `ce_mercante` com o motivo; alerta `comunicado_ce_reenvio_pendente` se o Comunicado já foi enviado e `ce_trocado_com_desbloqueio` se havia Desbloqueio conferido (um por troca, qualquer que seja a porta). CE legado com a mesma chave (`ce_mercante_key`) é normalização: grava a forma canônica, sem reenvio nem alerta. `UPDATE` ou `INSERT` de CE fora das portas é recusado (`guard_bl_ce_mercante_port`) e `save_bl_review` não grava o CE | `afterBlEstadoAlterado` + Histórico do B/L | Recusa mostra CE em outro B/L, formato ou fatura viva | `src/components/bl/BlCeMercanteField.tsx`; `src/services/blCeMercante.ts`; `src/integration/auditoriaCeUnicidadeValidacao.local-pg.test.ts`; `src/integration/ceImportacaoContrato.local-pg.test.ts` |
 | Cancelar B/L / Reativar B/L | Administrativo; a tela só oferece Cancelar para B/L com CE Mercante, e o servidor recusa o B/L sem CE que pode ser excluído (`22023`, "B/L … sem CE Mercante não se cancela: exclua-o na lista de B/Ls.", também na prévia; migration `574`); motivo obrigatório; cancelar é recusado com fatura de Taxas Locais em aberto (rascunho, emitida ou parcialmente paga), recebível com baixa ou ligado a fatura viva, ou Invoice de Demurrage em aberto, inclusive a do grupo que cobra caixa deste B/L | Botões em **Mais ações** da ficha do B/L (`BlDetalhe`) | `cancelBl` (prévia e execução) e `reactivateBl` → RPCs `cancel_bl`/`reactivate_bl` (migrations `089`, `179` e `191`) | `bls.cancelled_at`, `cancelled_by`, `cancel_reason`; `audit_logs` `cancelled`; recebível sem fatura e cálculo sem item de fatura anulados com registro no Histórico. B/L cancelado fica somente leitura e não entra em fatura (triggers em `bls`, `invoices`, `invoice_bls`) | `afterBlEstadoAlterado` | Recusa mostra o bloqueio (o aviso diz que o Administrativo ou o Financeiro cancela a fatura, ou o Financeiro registra a baixa ou a Restituição; migration `583`); editar B/L cancelado é recusado, e a aba **Detalhes do B/L** trava o formulário com "B/L cancelado: somente leitura. Reative para corrigir." | `src/pages/BlDetalhe.tsx`; `src/services/blState.ts`; `src/integration/blCancel.local-pg.test.ts` |
 | B/L — sincronizar aba com URL | B/L válido | `BL_TABS` / `setSearchParams` | `visao-geral` remove `tab`; demais definem query | Nenhuma | Preserva componentes montados por prop `active` | Query desconhecida cai em `visao-geral` | `src/pages/BlDetalhe.tsx`; `src/pages/__tests__/blTabs.test.tsx` |
-| B/L — editar revisão operacional e carga | Mudança detectada; justificativa; usuário; `updated_at` esperado | `BlOperacionalTab` / `useBlEditForm` | Normaliza campos e chama `save_bl_review` com a justificativa; o gatilho `audit_bls` grava cada campo com ela (migration `502`); mantém pesos e cubagens separados por modalidade | `bls`, `audit_logs`, fila de reconciliação; status recalculado pelo gate; POD de outro porto limpa a exceção de terminal (migration `502`) | Invalida `['bl-detail', blId]`, `['audit-logs','bl',blId]`, `['bls']`, `['voyages']` | Sem mudança/justificativa; número inválido; `PT409`/`40001` recarrega após conflito | `src/hooks/useBlEditForm.ts`; `supabase/migrations_archive/129_review_gate_hardening.sql` |
+| B/L — editar revisão operacional e carga | Mudança detectada; justificativa; usuário; `updated_at` esperado | `BlOperacionalTab` / `useBlEditForm` | Normaliza campos e chama `save_bl_review` com a justificativa; o gatilho `audit_bls` grava cada campo com ela (migration `502`); mantém pesos e cubagens separados por modalidade | `bls`, `audit_logs`, fila de reconciliação; status recalculado pelo gate; POD de outro porto limpa a exceção de terminal (migration `502`) | Invalida `['bl-detail', blId]`, `['audit-logs','bl',blId]`, `['bls']`, `['voyages']` | Sem mudança/justificativa; número inválido; `PT409`/`40001` recarrega após conflito; nos dados do manifesto (migration `601`), CNPJ/CPF inválido ou diferente do CNPJ do Cliente do B/L é recusado (`22023`), e cada campo corrigido entra em `bl_manifest_corrections`, que a reimportação respeita ([EDI Mercante](#edi-mercante)) | `src/hooks/useBlEditForm.ts`; `supabase/migrations_archive/129_review_gate_hardening.sql`; `supabase/migrations/601_dados_do_manifesto_corrigidos_na_ficha_do_bl.sql` |
 | B/L — importar B/L na ficha | B/L aberto; arquivo COSCO do mesmo B/L; viagem declarada | `BlDetalhe` → `BlImportModal` | Modal chama o mesmo parser/preview/importador com `onlyBlId` e viagem selecionada | `bls.bl_emission_date`, `bl_freight_lines`, vínculo/reconciliação de cliente e auditoria; dados físicos só se não houver bloqueio financeiro | Invalida `['bl-detail']`, `['bls']`, `['voyages']`; review gate/fila são reaplicados para o B/L | Arquivo de outro B/L ou de outra viagem é bloqueado no preview; bloqueios financeiros e match por nome aparecem linha a linha | `src/pages/BlDetalhe.tsx`; `src/components/shared/BlImportModal.tsx`; `src/services/blFreightImport.ts` |
 | B/L — exibir NCM e Notify Party | Descrição/notify importados ou editados | `BlOperacionalTab` | `useBlEditForm` persiste NCM editado; `listBlNcms` sugere códigos da descrição; import persiste notify | `bls.ncm_codes` e `bls.notify_party` | Sem query própria | NCM ausente mostra vazio; dados históricos não recebem backfill | `src/lib/ncm.ts`; `src/services/blFreightImport.ts`; `src/hooks/useBlEditForm.ts` |
 | B/L — vincular, criar ou desvincular cliente | Usuário; B/L carregado; dados de manifesto para criação | `BlClienteSection` | Pendente: `complete_review_customer_group` e convite opcional por `portal-invite-send`, como na Revisão Manual; já revisado: `save_bl_review` e cadastro com recuperação de CNPJ concorrente | `customers`, contatos e `bls.customer_id`/reconciliação | Estado do B/L, Revisão, clientes, taxas, faturas, provisionamento, status do Portal e Histórico do B/L | Confirmação antes de vincular/desvincular; cliente do manifesto sem cadastro e sem e-mail é recusado com orientação; erro do servidor exibido; vínculo exige estado atual do B/L | `src/components/bl/BlClienteSection.tsx`; `src/services/customers.ts` |
@@ -869,6 +869,8 @@ flowchart LR
     container: B/L existente recebe só o que o arquivo traz, CE nunca é gravado
     por esta porta, troca de Cliente e rota de B/L faturado pedem aceite e B/L
     de outra Viagem recusa o lote (ADR 0078, itens 1 e 14).
+    Nas duas reimportações, o dado do manifesto corrigido na ficha do B/L fica
+    (migration `601`; ver [EDI Mercante](#edi-mercante)).
 12. **Baplie substitui os portos marcados.** A RPC (`import_baplie_file_atomic`, migration `388`) apaga e reinsere no staging só os PODs marcados no modal, e aplica marcas e vazios, em uma transação; os outros portos da Viagem ficam (ADR 0095, decisão 11). Containers `empty` não entram na conciliação de B/L; alimentam Vazios de Importação. O parser mantém o POD reconhecido de `LOC+11/12`; se estiver ausente ou inválido, usa o porto reconhecido de `LOC+83` da mesma unidade, preserva o destino final e mostra aviso para conferir a descarga real. POD informado mas desconhecido, sem `LOC+83` utilizável, tira o container do staging com aviso (o arquivo só é recusado se não sobrar container); POD ausente sem nenhum porto utilizável continua erro bloqueante.
 13. **Baplie é a fonte dos atributos físicos, com exceções.** Ver [Baplie: marcas, SOC/COC e divergências](#baplie-marcas-soccoc-e-divergências).
 14. **Veículos têm fronteira dividida.** A inserção do lote é transacional e, sem fatura viva, recalcula as Taxas Locais na mesma transação (migration `184`); o efeito `vehicle_followup` refaz depois, por B/L; com fatura viva ele só age quando o B/L ficou isento e cancela apenas a fatura sem pagamento (a com pagamento segue a ADR 0077, migration `190`). Falha nessa fase não desfaz veículos já inseridos. O veículo que entra, sai ou troca de B/L também refaz na hora o status de Demurrage dos containers do B/L, porque o B/L de veículo LCL tem free time de 30 dias e a cobrança suspensa (`trg_vehicles_refresh_demurrage`, migration `593`; [Demurrage § Veículo LCL](demurrage.md#veículo-lcl)).
@@ -1188,12 +1190,16 @@ de contêiner (Carga **CNTR**) e na linha **VAZIOS**; desde a migration `592`
 linha é de uma natureza só e gera só o arquivo dela, mesmo quando contêiner e
 carga solta dividem a rota; na Viagem
 cancelada fica desabilitado. A janela mostra a prévia, os **Impedimentos** e os
-**Avisos**, e **Baixar arquivo** só baixa o `.TXT`: nada é gravado e o envio
+**Avisos**. **Baixar arquivo** primeiro registra o arquivo no Histórico da
+Viagem e só então baixa o `.TXT` (migration `600`,
+[ADR 0129](../adr/0129-edi-mercante-registrado-correcao-na-ficha-e-estrangeiro.md)); o envio
 ao Mercante continua fora do Vela. **Código:**
 `src/components/voyages/MercanteEdiModal.tsx`,
-`src/services/mercanteEdiData.ts` (leitura), `src/services/mercanteEdi.ts`
+`src/services/mercanteEdiData.ts` (leitura e registro), `src/services/mercanteEdi.ts`
 (montagem), `src/services/mercanteEdiTables.ts` (códigos);
-**Teste:** `mercanteEdi.test.ts`, `MercanteEdiModal.test.tsx`.
+**Teste:** `mercanteEdi.test.ts`, `mercanteEdiData.test.ts`, `MercanteEdiModal.test.tsx`;
+**Teste local-pg:** `ediMercanteRegistrado.local-pg.test.ts`,
+`auditoriaImportacaoBlContainer.local-pg.test.ts` (casos 601).
 
 - **Layout.** Manual do EDI Mercante 3.6: arquivo em UTF-8 **sem BOM**, linhas
   terminadas em CRLF (inclusive a última), texto em maiúsculas sem acento,
@@ -1227,6 +1233,34 @@ ao Mercante continua fora do Vela. **Código:**
   a paginação não repita nem pule linha. Sem cubagem gravada no B/L, o C5 usa
   a soma da cubagem dos contêineres; sem nenhuma, é impedimento.
   CNPJ da agência = Transhipping (`src/config/company.ts`).
+- **Dados do manifesto corrigidos na ficha** (migration `601`, ADR 0129).
+  Os blocos de consignatário, embarcador e notify, o CNPJ/CPF do consignatário
+  e o total de volumes com a unidade se corrigem na ficha do B/L, no bloco
+  **Dados do manifesto** da aba **Detalhes do B/L** (`save_bl_review`, com
+  justificativa).
+  - O CNPJ/CPF precisa ter 14 dígitos válidos ou 11. Com Cliente no B/L, ele
+    precisa ser o do Cliente; senão a gravação é recusada com "O CNPJ/CPF … não
+    é o do Cliente do B/L (…). Para outro consignatário, troque o Cliente do
+    B/L antes.".
+  - Cada campo corrigido fica em `bl_manifest_corrections`. A reimportação do
+    arquivo de B/L, o Manifesto BB e toda gravação fora da ficha mantêm o
+    valor corrigido (gatilho `zz_keep_bl_manifest_corrections`). O Histórico
+    do B/L registra "Correção da ficha mantida: … trazia "…"", e a prévia do
+    arquivo de B/L avisa "<campo> corrigido na ficha: o arquivo traz outro
+    valor e fica a correção da ficha.".
+  - O B/L que passa a outro Cliente cujo CNPJ não é o corrigido (Troca de
+    Consignatário aceita, vínculo pela Revisão) perde as correções do bloco e
+    do CNPJ do consignatário ("Correção da ficha substituída", no Histórico).
+  - Para voltar ao valor do arquivo, corrija o campo de novo na ficha.
+- **Consignatário estrangeiro** (ADR 0129, item 3). Sem CNPJ/CPF e sem sinal
+  de Brasil no bloco (BRASIL ou BRAZIL, CNPJ, CPF, CEP, LTDA, EIRELI, S/A ou CEP
+  `00000-000`), o consignatário é tratado como estrangeiro. O Vela não preenche
+  o passaporte nem o nome do estrangeiro (posições 283–367 do C5).
+  - O arquivo de contêiner é impedido com "Consignatário estrangeiro (sem
+    CNPJ/CPF e sem endereço no Brasil): …".
+  - No arquivo parcial de carga solta, o caso fica em "A completar".
+  - O bloco brasileiro sem esses sinais cai no mesmo caso. A saída é informar
+    o CNPJ/CPF na ficha.
 - **Conhecimento (C5).** Consignatário, CNPJ/CPF, embarcador, notify (o
   próprio consignatário quando o B/L diz "SAME AS CONSIGNEE"), data de
   emissão, descrição e o que não cabe nela nas observações, com
@@ -1267,7 +1301,9 @@ ao Mercante continua fora do Vela. **Código:**
   do navio sem 7 dígitos; número do B/L com mais de 18 caracteres; contêiner
   fora do padrão ISO ou repetido no B/L (ou vazio repetido na rota); valor
   negativo ou maior que o campo. Nada é cortado em silêncio. Cada um diz o
-  B/L ou contêiner e onde corrigir.
+  B/L ou contêiner e onde corrigir. Bloco ou CNPJ/CPF ausente manda corrigir
+  na ficha do B/L (bloco **Dados do manifesto**); o consignatário estrangeiro
+  tem impedimento próprio (acima).
 - **Avisos** (o arquivo é baixado): texto cortado no tamanho do campo,
   descrição que não coube, B/L sem total de volumes, contêiner sem lacre ou com
   mais de quatro, mais NCM que o campo comporta, despesa que não é THD (fica
@@ -1299,9 +1335,20 @@ ao Mercante continua fora do Vela. **Código:**
   por B/L e campo; nada disso impede o download. Só a rota sem B/L de carga
   solta impede. A rota com as duas naturezas tem duas linhas, cada uma com o
   seu arquivo.
-- **Nome do arquivo.** `FWL_MERCANTE_<AAAAMMDDHHMM>_<sigla>.TXT`, com a sigla
-  das iniciais do navio e o número da viagem (GREEN GUANGZHOU V.6 → `GG6`).
-- **Fora desta fase.** Registro da geração no Histórico e retificação.
+- **Registro e nome do arquivo** (migration `600`, ADR 0129). **Baixar
+  arquivo** chama `register_mercante_edi_file`, que só aceita a conta Dev
+  (`is_dev_user`) e recusa a Viagem cancelada.
+  - A função grava em `mercante_edi_files` a Viagem, a rota, a natureza
+    (`container`, `carga_solta` ou `vazio`), quantos B/Ls e itens o arquivo
+    leva, quem gerou e quando.
+  - Ela devolve o número sequencial do Vela, a partir de 1 e sem continuar a
+    série do sistema externo, e o nome `FWL_MERCANTE_<número com 6
+    dígitos>_<sigla>.TXT`. A sigla são as iniciais do navio e o número da
+    viagem (GREEN GUANGZHOU V.6 → `GG6`).
+  - Sem o registro, nada é baixado e a janela mostra a recusa.
+  - O Histórico da Viagem mostra cada arquivo como "EDI Mercante gerado · POL
+    → POD", com o nome, a natureza, o conteúdo e quem gerou.
+- **Fora desta fase.** Retificação de manifesto ou CE já registrado.
 
 ### Baplie: marcas, SOC/COC e divergências
 
