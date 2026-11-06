@@ -28,8 +28,9 @@ pública da Receita e o CNPJ alfanumérico aceito no endereço da consulta.
    Sentry como erro do Vela; o log registra o motivo, sem o CNPJ.
 5. **Só campos vazios.** A tela preenche o campo vazio ou que ainda guarda o
    valor de uma consulta anterior; o que o operador digitou não muda. Ao
-   trocar de CNPJ, o que a consulta anterior pôs e ninguém mexeu é trocado ou
-   limpo. Situação diferente de ATIVA aparece no texto sob o CNPJ; não recusa.
+   trocar de CNPJ, o que a consulta anterior pôs e ninguém mexeu é limpo na
+   hora, antes da nova resposta: cadastrar nesse intervalo não grava o CNPJ
+   novo com o endereço do anterior. Situação diferente de ATIVA aparece no texto sob o CNPJ; não recusa.
 6. **Uma consulta por CNPJ na sessão** (cache do React Query, sem nova
    tentativa automática).
 

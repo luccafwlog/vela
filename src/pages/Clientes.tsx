@@ -144,12 +144,18 @@ export function Clientes() {
   const [createErrors, setCreateErrors] = useState<CustomerCreateErrors>({})
   // Consulta de CNPJ (ADR 0126): com o CNPJ válido, os dados da Receita entram
   // nos campos vazios, uma vez por CNPJ (padrão "ajustar estado no render").
+  // Mudou o CNPJ, o que a consulta anterior pôs e ninguém editou sai na hora,
+  // sem esperar a nova resposta: cadastrar nesse intervalo gravaria o CNPJ
+  // novo com o endereço do anterior (revisão da PR #1235).
   const lookupCnpjValue = createOpen ? canonicalizeValidCnpj(createForm.cnpjCpf) : null
   const cnpjLookup = useCnpjLookup(lookupCnpjValue)
   const [cnpjAutofill, setCnpjAutofill] = useState<{ cnpj: string | null; filled: CnpjAutofill }>({ cnpj: null, filled: {} })
-  if (lookupCnpjValue && cnpjLookup.data && lookupCnpjValue !== cnpjAutofill.cnpj) {
+  if (cnpjAutofill.cnpj !== null && lookupCnpjValue !== cnpjAutofill.cnpj) {
+    setCreateForm(applyCnpjLookup(createForm, null, cnpjAutofill.filled).form)
+    setCnpjAutofill({ cnpj: null, filled: {} })
+  } else if (lookupCnpjValue && cnpjLookup.data && cnpjAutofill.cnpj === null) {
     const result = cnpjLookup.data
-    const next = applyCnpjLookup(createForm, result.status === 'encontrado' ? result.data : null, cnpjAutofill.filled)
+    const next = applyCnpjLookup(createForm, result.status === 'encontrado' ? result.data : null, {})
     setCreateForm(next.form)
     setCnpjAutofill({ cnpj: lookupCnpjValue, filled: next.filled })
   }

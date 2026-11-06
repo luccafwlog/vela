@@ -645,4 +645,34 @@ describe('Clientes page behaviours', () => {
     expect(screen.getAllByText('Consulta à Receita indisponível agora. Preencha os dados à mão.').length).toBeGreaterThan(0)
     expect((screen.getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('')
   })
+
+  // Revisão da PR #1235: trocar de CNPJ não deixa o endereço do anterior enquanto a nova consulta corre.
+  it('trocar o CNPJ limpa na hora o que a consulta anterior preencheu, e mantém o que foi digitado', async () => {
+    const user = userEvent.setup()
+    mocks.useCnpjLookup.mockImplementation((cnpj: string | null) => cnpj === '12345678000195'
+      ? { isFetching: false, data: { status: 'encontrado', data: { cnpj, razao_social: 'EMPRESA A LTDA', nome_fantasia: '', cep: '29010000', endereco: 'RUA A, 10', cidade: 'VITORIA', uf: 'ES', situacao: 'ATIVA' } } }
+      : { isFetching: Boolean(cnpj), data: undefined })
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    const dialog = screen.getByRole('dialog', { name: 'Novo cliente' })
+    const cnpjInput = within(dialog).getByLabelText(/^CNPJ/)
+    await user.type(cnpjInput, '12345678000195')
+    expect((within(dialog).getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('EMPRESA A LTDA')
+    await user.clear(within(dialog).getByLabelText(/^Cidade/))
+    await user.type(within(dialog).getByLabelText(/^Cidade/), 'Serra')
+
+    await user.clear(cnpjInput)
+    await user.type(cnpjInput, '11222333000181')
+
+    expect(mocks.useCnpjLookup).toHaveBeenLastCalledWith('11222333000181')
+    expect((within(dialog).getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('')
+    expect((within(dialog).getByLabelText(/^Endereço/) as HTMLInputElement).value).toBe('')
+    expect((within(dialog).getByLabelText(/^Cidade/) as HTMLInputElement).value).toBe('Serra')
+    expect(within(dialog).getByText('Buscando os dados na Receita…')).toBeTruthy()
+
+    await user.clear(cnpjInput)
+    await user.type(cnpjInput, '12345678000195')
+    expect((within(dialog).getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('EMPRESA A LTDA')
+  })
 })
