@@ -6,6 +6,15 @@
 
 ## 2026-11
 
+- **Administração revisada, etapa 1 (decisões do dono de 2026-11-06, [plano](plans/2026-11-06-administracao-revisada.md)):**
+  as abas **Sistema** e **Falhas de entrega de alertas** passam a ser só da conta Dev; os demais do Administrativo
+  veem Usuários, Histórico de ações e Prazo do ADR, e o link de uma aba da conta Dev mostra "Acesso restrito". No
+  **Histórico de ações**, **Quando** traz os segundos; acima de 10.000 linhas o rodapé diz "de mais de 10.000" e
+  **Próxima** passa da página 200; o Motivo técnico gravado pelo banco ("Gate canonico…", "(portal_activation)")
+  aparece como **Origem** em português e o texto padrão salvo sem motivo some (`src/lib/auditReasons.ts`, também no
+  Histórico do B/L); campos que viravam "B/L alterado" ganham nome e a situação vem em português. Só tela, sem
+  migration. Diagnóstico com os números de produção em
+  [archive/audits/administracao-2026-11-06.md](archive/audits/administracao-2026-11-06.md).
 - **Valor mínimo aplicado na fatura (pedido do dono de 2026-11-05, migration `602`, ADR 0125):** o item da fatura
   cobrado pelo mínimo do THD da carga solta de Vitória diz **Valor mínimo aplicado** no detalhe da fatura do Vela, no
   do Portal e no documento impresso. A emissão marca `minimum_value` no `snapshot_payload` do item; a migration marcou

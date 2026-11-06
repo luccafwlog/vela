@@ -9,6 +9,7 @@ import {
   UNRESOLVED_REFERENCE,
   formatAuditValue,
   formatBrasiliaDateTime,
+  formatBrasiliaDateTimeWithSeconds,
 } from '../auditLogPresentation'
 import { appEnvironmentLabel } from '../../../lib/appVersion'
 
@@ -191,5 +192,42 @@ describe('Histórico de ações — taxa alterada à mão (ADR 0111)', () => {
     }
     // Nenhum código cru na frase.
     expect(describeAuditLog(log('customer_communication', 'comunicado|tipo_novo', null, 'status_novo'))).not.toMatch(/tipo_novo|status_novo/)
+  })
+})
+
+describe('Histórico de ações: campos e situações que viravam "B/L alterado" (2026-11-06)', () => {
+  it('dá nome aos campos que o gravador automático registra', () => {
+    expect(describeAuditLog(log('bls', 'updated_at', null, '2026-11-04T17:55:11+00:00'))).toBe('Data de atualização: 04/11/2026 14:55')
+    expect(describeAuditLog(log('bls', 'billing_hold_reason', null, 'Acesso ao portal nao provisionado'))).toBe('Retenção do faturamento: Acesso ao portal nao provisionado')
+    expect(describeAuditLog(log('bls', 'customer_reconciliation_status', 'matched_name', 'reconciled'))).toBe('Conciliação do Cliente: Conciliado')
+    expect(describeAuditLog(log('bl_containers', 'ownership_source', null, 'bl'))).toBe('Origem do SOC/COC: Documento do B/L')
+    expect(describeAuditLog(log('ledger_settlements', 'source', null, 'itau_pix'))).toBe('Origem: Pix Itaú')
+    expect(describeAuditLog(log('invoices', 'pix_payload', null, '00020101021226'.repeat(10)))).toBe('Código Pix alterado')
+  })
+
+  it('situação em português por assunto, e código desconhecido não chega à frase', () => {
+    expect(describeAuditLog(log('charge_calculations', 'status', 'calculated', 'ready_for_billing'))).toBe('Situação: Pronta para faturar')
+    expect(describeAuditLog(log('bl_receivables', 'status', 'open', 'void'))).toBe('Situação: Anulado')
+    expect(describeAuditLog(log('invoice_receivable_links', 'status', 'active', 'settled_elsewhere'))).toBe('Situação: Baixado por outra fatura')
+    expect(describeAuditLog(log('import_batches', 'status', 'processing', 'completed'))).toBe('Situação: Concluída')
+    expect(describeAuditLog(log('pix_reconciliation_exceptions', 'status', null, 'awaiting_match'))).toBe('Situação alterada')
+    expect(describeAuditLog(log('voyage_pod_schedule', 'ces', 'waiting', 'received'))).toBe('CE da escala: Recebido')
+  })
+
+  it('acontecimentos gravados como campo viram frase, e o recebível não vira "Fatura alterado"', () => {
+    expect(describeAuditLog(log('invoice', 'create_invoice', null, '{"invoice_id": 7}'))).toBe('Fatura emitida')
+    expect(describeAuditLog(log('invoice', 'cancel_invoice', null, null))).toBe('Fatura cancelada')
+    expect(describeAuditLog(log('customer', 'held_billing_reprocessed', null, '3'))).toBe('Faturamento retido reprocessado')
+    expect(describeAuditLog(log('voyage', 'baplie_physical_flags', null, '{}'))).toBe('Marcas físicas do Baplie aplicadas')
+    expect(describeAuditLog(log('voyages', 'bl_deleted', 'GSPT2610017', null))).toBe('B/L GSPT2610017 excluído da Viagem')
+    expect(describeAuditLog(log('bl_receivables', 'unknown_field', 'a', 'b'))).toBe('Recebível alterado')
+    expect(describeAuditLog(log('voyage_pol_schedule', 'unknown_field', 'a', 'b'))).toBe('Escala alterada')
+  })
+
+  it('hora de Brasília com segundos para separar as ações do mesmo minuto', () => {
+    expect(formatBrasiliaDateTimeWithSeconds('2026-11-04T17:55:11.626336+00:00')).toBe('04/11/2026 14:55:11')
+    expect(formatBrasiliaDateTimeWithSeconds('2026-11-04 17:55:09+00')).toBe('04/11/2026 14:55:09')
+    // Sem fuso é hora de parede: fica como a tela já mostrava.
+    expect(formatBrasiliaDateTimeWithSeconds('2026-11-04T17:55')).toBe(formatBrasiliaDateTime('2026-11-04T17:55'))
   })
 })
