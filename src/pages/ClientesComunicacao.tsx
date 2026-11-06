@@ -8,7 +8,6 @@ import { Button } from '../components/ui/Button'
 import { RowActionButton } from '../components/ui/RowActionButton'
 import { InlineError, PageHeader } from '../components/ui/Card'
 import { Block, Fact, FactList, LeadValue } from '../components/ui/Block'
-import { Switch } from '../components/ui/Switch'
 import { VoyageCombobox } from '../components/shared/VoyageCombobox'
 import { ClientesTabs } from '../components/customers/ClientesTabs'
 import { SegmentedControl } from '../components/ui/SegmentedControl'
@@ -19,9 +18,8 @@ import { emailPreviewHtml } from '../services/emailLayout'
 import { NoValue } from '../components/ui/NoValue'
 import { StatusText } from '../components/ui/StatusText'
 import { useConfirm } from '../components/ui/ConfirmDialog'
-import { useAppSettings, useSetCommunicationsEnabled } from '../hooks/useAppSettings'
+import { useAppSettings } from '../hooks/useAppSettings'
 import { useAuth } from '../hooks/useAuth'
-import { userFacingErrorMessage } from '../lib/errors'
 import { useVoyageOptions } from '../hooks/useBls'
 import { useCommunicationVoyagePorts, useCustomerCommunicationConference, useCustomerCommunicationHistory, useCustomerCommunicationSavedTemplates, useDispatchCustomerCommunicationBatch, useResendCeMercanteTaxasCommunication, useSaveCustomerCommunicationSavedTemplate, useVoyageCommunicationCoverage } from '../hooks/useCustomerCommunications'
 import {
@@ -317,16 +315,12 @@ export function ClientesComunicacao() {
   // recebem o público imposto por `getCustomerCommunicationAudienceRule`.
   const historyFiltered = Object.values(historyFilters).some(Boolean)
   const [freeAudience, setFreeAudience] = useState<CustomerCommunicationAudience>({ mode: 'todos' })
-  const { data: settings, isLoading: settingsLoading, error: settingsError, refetch: refetchSettings } = useAppSettings()
-  const { isDev, can } = useAuth()
+  const { data: settings, refetch: refetchSettings } = useAppSettings()
+  const { can } = useAuth()
   // Consultar cobertura e histórico é de todos; enviar é de Administrativo,
   // Documentação e Equipamentos (ADR 0085, D19).
   const canSend = can('customer_communications')
   const confirm = useConfirm()
-  // Marca Dev (ADR 0104): o banco recusa os demais, inclusive o Administrativo.
-  const canToggleCommunications = isDev
-  const setCommunicationsMutation = useSetCommunicationsEnabled()
-  const [communicationsToggleError, setCommunicationsToggleError] = useState<string | null>(null)
 
   const dispatchMode = getCustomerCommunicationDispatchMode(kind)
   const nature = getCustomerCommunicationNature(kind)
@@ -840,65 +834,9 @@ export function ClientesComunicacao() {
       />
       <ClientesTabs active="comunicacao" />
 
-      {/* Canal de envio (lote 5a): o estado como dado principal e a chave de
-          ligar e desligar na faixa. Só a conta Dev vê o bloco (decisão do dono
-          de 2026-11-03: os demais não enxergam a funcionalidade). A confirmação
-          continua nos dois sentidos. */}
-      {canToggleCommunications ? (
-      <Block
-        title="Canal de envio"
-        className="mb-4"
-        aside={!settingsLoading && !settingsError ? (
-          <Switch
-            checked={settings?.communications_enabled === true}
-            disabled={setCommunicationsMutation.isPending}
-            onChange={(next) => {
-              void (async () => {
-                const confirmed = await confirm(next
-                  ? {
-                    title: 'Ativar envio real',
-                    message: 'Confirma a ativação da chave global de envio? Os próximos e-mails de Comunicados, cobranças, Desbloqueio de CE e Portal sairão para os Clientes.',
-                    confirmLabel: 'Ativar envio real',
-                    tone: 'danger',
-                  }
-                  : {
-                    title: 'Desativar envio real',
-                    message: `Deseja desativar a chave global de envio? Todo e-mail de Cliente passará a ir para ${SUPPORT_REDIRECT_ADDRESS}.`,
-                    confirmLabel: 'Desativar envio real',
-                    tone: 'danger',
-                  })
-                if (!confirmed) return
-                setCommunicationsToggleError(null)
-                try {
-                  await setCommunicationsMutation.mutateAsync(next)
-                } catch (error) {
-                  setCommunicationsToggleError(userFacingErrorMessage(error, 'Não foi possível trocar a chave de envio. Tente novamente.'))
-                }
-              })()
-            }}
-          >
-            {settings?.communications_enabled === true ? 'Envio real ligado' : 'Envio real desligado'}
-          </Switch>
-        ) : null}
-      >
-        {settingsLoading ? (
-          <p role="status" className="text-[var(--app-muted)]">Carregando a chave de envio...</p>
-        ) : settingsError ? (
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <InlineError message="Não foi possível carregar a chave de envio." />
-            <Button type="button" variant="secondary" onClick={() => void refetchSettings()}>Tentar novamente</Button>
-          </div>
-        ) : settings?.communications_enabled === true ? (
-          <LeadValue detail="Os e-mails saem para os contatos elegíveis.">Envio real</LeadValue>
-        ) : (
-          <LeadValue tone="warning" detail={`Todo e-mail de Cliente vai para ${SUPPORT_REDIRECT_ADDRESS}, com o e-mail do Cliente no assunto.`}>Redirecionado ao suporte</LeadValue>
-        )}
-        {/* A troca recusada ou interrompida diz o motivo; o estado acima é o
-            relido depois da tentativa (useSetCommunicationsEnabled). */}
-        {communicationsToggleError ? <InlineError message={communicationsToggleError} /> : null}
-      </Block>
-      ) : null}
-
+      {/* O Canal de envio (a chave do envio real) saiu daqui em 2026-11-06 e mora
+          em Administração › Sistema, só da conta Dev. A confirmação de cada
+          envio continua dizendo se o e-mail sai de verdade. */}
       {/* Segundo nível: as abas da página são as de Clientes (ClientesTabs); aqui a vista. */}
       <SegmentedControl<CommunicationTab>
         className="mb-4"

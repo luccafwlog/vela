@@ -4,6 +4,8 @@
 
 > **Situação atual (2026-11-04).** Decisão do dono: a conta Dev pode tudo o que qualquer setor pode (migration `583`). O item 5 previa que outras permissões especiais entrassem na marca depois; a primeira são as ações do Financeiro que saíram do Administrativo (baixa, cancelamento de baixa, Conciliação Pix e Restituição), por `is_financeiro_or_dev_user()`. A marca segue dada só por migration e com as mesmas condições (conta ativa, Administrativo e de pessoa). Regra vigente em [Segurança](../operations/seguranca.md#modelo-de-permissões-por-perfil).
 
+> **Situação atual (2026-11-06).** Decisão do dono: a aba **Sistema** da Administração é só da conta Dev, para ver e para mexer; os demais do Administrativo veem Usuários e Histórico de ações. As leituras da aba (`admin_system_health`, `admin_system_routines`, migration `605`) exigem `is_dev_user()`. A chave do envio real saiu de Clientes › Comunicação (o bloco Canal de envio não existe mais) e mora em Sistema › Configurações, ainda só da conta Dev, com **Enviar teste para mim** (Edge Function `admin-test-email`). Regra vigente em [Operação e suporte § `/admin`](../modules/operacao-suporte.md#admin); histórico da mudança no [plano arquivado](../archive/plans/2026-11-06-administracao-revisada.md).
+
 Status: aceito — 2026-10-27 (decisões do dono; lote 1 do
 [plano de correções](../archive/plans/2026-10-27-correcoes-decididas-pelo-dono.md)).
 Implementada na migration `469` e nas Edge Functions de e-mail

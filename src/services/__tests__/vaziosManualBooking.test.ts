@@ -15,6 +15,7 @@ describe("manualBookingPayload", () => {
         handInDate: "2026-07-02",
         handOutDate: "2026-07-03",
         movementDate: "2026-07-04",
+        pod: " cnsha ",
       }),
     ).toEqual({
       operation_id: "operation-1",
@@ -27,6 +28,7 @@ describe("manualBookingPayload", () => {
       hand_in_date: "2026-07-02",
       hand_out_date: "2026-07-03",
       movement_date: "2026-07-04",
+      pod: "CNSHA",
     });
   });
 
@@ -39,6 +41,7 @@ describe("manualBookingPayload", () => {
         containerNumber: "invalido",
         localId: "d",
         condition: "vazio",
+        pod: "CNSHA",
       }),
     ).toThrow("Container inválido");
   });

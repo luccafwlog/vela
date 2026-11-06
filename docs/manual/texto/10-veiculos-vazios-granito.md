@@ -101,11 +101,12 @@ O **Embarque de vazios** registra os containers vazios que o navio embarca num p
 2. Escolha a **Viagem**, o **Porto de embarque**, entre as escalas da Viagem, e o **Terminal**. Se a escala já tem terminal para os vazios, ele vem escolhido e não muda aqui: para trocar, edite a escala ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)).
 3. Clique em **Criar embarque**. Se a escala já tem embarque, o Vela abre o existente.
 4. Na aba **Unidades embarcadas**, clique em **Importar planilha** ou, para uma unidade só, em **Adicionar unidade**.
-5. Em cada unidade vão o **Container**, o **Local** de onde saiu, a **Condição** (**Vazio** ou **Com material**) e as datas. Saindo de um depot, **Entrada** e **Saída** são obrigatórias; saindo do terminal (embarque direto), elas não existem.
+5. Em cada unidade vão o **Container**, o **Local** de onde saiu, a **Condição** (**Vazio** ou **Com material**), as datas e o **Porto de descarga (POD)**, onde o vazio vai descarregar. Saindo de um depot, **Entrada** e **Saída** são obrigatórias; saindo do terminal (embarque direto), elas não existem, e o terminal precisa ser do porto do embarque.
+6. Em **Manifesto Mercante por porto de descarga**, informe o número do manifesto de cada rota pelo ícone **Informar**. Os vazios já embarcam manifestados: o Vela só registra o número.
 
 O terminal escolhido vai para a escala, como se você o escolhesse na janela dela: a escala passa a declarar o Embarque de vazios, a frente de vazios ganha o terminal e, se ele ainda não estava na escala, nascem a Atracação e o ADR de Saída dele. A faixa do embarque mostra o **Terminal**.
 
-A planilha não tem prévia: grava tudo ou nada, e importar de novo substitui a lista, mas mantém as unidades incluídas à mão. O mesmo container só embarca uma vez na Viagem.
+A planilha tem oito colunas: **Container**, **Tipo**, **Local** (o código do cadastro de Locais), **Condição**, **Entrada**, **Saída**, **Embarque** e **POD**. São obrigatórias **Container**, **Local**, **Condição** e **POD**. O POD aceita o código do porto (CNSHA) ou o nome (Shanghai), e não pode ser o porto do embarque. A planilha não tem prévia: grava tudo ou nada, e importar de novo substitui a lista, mas mantém as unidades incluídas à mão. O mesmo container só embarca uma vez na Viagem.
 
 ::: atencao
 - Confira a escala e o terminal antes de criar o embarque. Enquanto ele existe, a frente de vazios não volta para TBC, a declaração de vazios não sai e a escala não se exclui. Trocar o terminal da frente na escala continua valendo: o embarque e o ADR vão junto.
@@ -128,14 +129,15 @@ A frente de vazios, a Atracação e o ADR do terminal ficam na escala. Sem o emb
 
 Os serviços são o custo do embarque: armazenagem no depot, transporte entre locais e serviços gerais. Cada linha é quantidade × valor unitário, e o total vai para o ADR de Saída (capítulo 11).
 
-A armazenagem o Vela calcula pela lista de unidades: para cada unidade de depot, os dias da entrada à saída, contando os dois, menos o free time do depot para a condição dela. Entrada em 1º e saída em 10 de outubro são 10 dias; com free time de 7 dias para vazio, ficam 3 dias de armazenagem.
+A armazenagem o Vela calcula pela lista de unidades: para cada unidade de depot, os dias da entrada à saída, contando os dois, menos o free time do depot para a condição dela. Entrada em 1º e saída em 10 de outubro são 10 dias; com free time de 7 dias para vazio, ficam 3 dias de armazenagem. O depot que cobra 20' e 40' com preços diferentes tem uma linha de armazenagem para cada tamanho.
 
-1. Abra a aba **Serviços**. Quando há armazenagem calculada sem linha, o bloco **Armazenagem a lançar** aparece no alto, com cada depot e condição.
-2. Clique no ícone **Lançar armazenagem** da linha: ela entra com o serviço, a quantidade calculada e o valor do cadastro.
-3. Para transporte e serviços gerais, clique em **Lançar linha** e escolha **Local**, **Natureza** e **Serviço**. O **Valor unitário** vem sugerido do cadastro do local; troque se o valor efetivo foi outro.
+1. Abra a aba **Serviços**. Quando há armazenagem calculada sem linha, o bloco **Armazenagem a lançar** aparece no alto, com cada depot, condição e, quando o depot cobra por tamanho, o **Tamanho**.
+2. Clique no ícone **Lançar armazenagem** da linha: ela entra com o serviço do tamanho certo, a quantidade calculada e o valor do cadastro.
+3. Para transporte e serviços gerais, clique em **Lançar linha** e escolha **Local**, **Natureza** e **Serviço**. O **Valor unitário** vem sugerido do cadastro do local; troque se o valor efetivo foi outro. Abaixo da **Quantidade** aparece a sugestão (as unidades daquele local, do tamanho do serviço) e o botão **Usar N** a aplica. Confira antes: o overtime ou o transporte de dois de 20' por viagem pedem outro número.
 4. Para comentar uma linha, use o ícone **Observação**: o texto aparece no ADR.
+5. Para corrigir uma linha, use o ícone **Editar**: a mesma janela abre com a linha, e **Salvar linha** grava a correção.
 
-A quantidade da armazenagem acompanha a lista de unidades. Para fixar outro número, marque **Informar a quantidade à mão, no lugar do cálculo**. A linha lançada não se edita, fora a observação: para mudar, exclua a linha (com motivo) e lance de novo.
+A quantidade da armazenagem acompanha a lista de unidades. Para fixar outro número, marque **Informar a quantidade à mão, no lugar do cálculo**. A linha de armazenagem guarda o free time do dia em que foi lançada: mudar o free time do depot depois não a muda.
 
 ## 10.7 Cadastrar depots, terminais e serviços
 
@@ -148,9 +150,9 @@ Os **Locais** são de dois tipos:
 
 1. No menu, abra **Exportação** › **Locais (depots e terminais)**. O botão de mesmo nome, em **Vazios EXP**, abre a mesma tela.
 2. Clique em **Novo local** e preencha **Código** (único), **Nome**, **Tipo** e o porto ou os free times. Clique em **Cadastrar local**.
-3. Com o local aberto, em **Serviços do catálogo**, clique em **Adicionar serviço**: o nome, a **Natureza** (Armazenagem, Transporte ou Geral), a **Condição** (na armazenagem) ou o **Destino da rota** (no transporte) e o **Valor sugerido (R$)**.
+3. Com o local aberto, em **Serviços do catálogo**, clique em **Adicionar serviço**: o nome, a **Natureza** (Armazenagem, Transporte ou Geral), o **Tamanho** (20', 40' ou **Qualquer tamanho**), a **Condição** (na armazenagem) ou o **Destino da rota** (no transporte) e o **Valor sugerido (R$)**. O depot que cobra 20' e 40' com preços diferentes tem um serviço para cada tamanho.
 
-O valor do catálogo é só uma sugestão para as linhas do embarque: não tem vigência, e mudá-lo não muda as linhas já lançadas. Já o free time e o tipo do depot refazem a armazenagem de todo embarque com ADR de Saída aberto, inclusive das linhas já lançadas sem quantidade à mão.
+O valor do catálogo é só uma sugestão para as linhas do embarque: não tem vigência, e mudá-lo não muda as linhas já lançadas. O free time também não muda a linha de armazenagem já lançada, que guarda o do lançamento; ele vale para a armazenagem ainda a lançar.
 
 ::: atencao
 - Local ou serviço desativado sai das escolhas novas, mas continua onde já foi usado. Só se exclui o que nunca foi usado.

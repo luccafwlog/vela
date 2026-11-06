@@ -52,7 +52,7 @@ O que cada seção traz e onde se corrige:
 
 - **Carga descarregada** conta os containers cheios dos B/Ls do terminal, por tipo e natureza (**Carga geral**, **IMO**, **OOG**), com o destino final separado do transbordo, e a carga solta num quadro próprio. A fonte é o B/L: container cheio que está no Baplie sem B/L não entra e aparece como **Divergência** ([6.8](06-importacao.md#68-resolver-as-divergências-entre-baplie-e-bl)). O B/L com exceção de terminal leva a carga e os veículos dele ao terminal da exceção ([7.7](07-ficha-do-bl.md#77-mudar-o-terminal-de-descarga-de-um-bl)). O B/L em transbordo de uma escala omitida segue a frente do Porto de Transbordo, mesmo com exceção: a exceção dele é do porto omitido.
 - **Vazios descarregados** compara os vazios do Baplie com os de **Vazios IMP**, onde se marca cama e cover plate (capítulo 10).
-- **Veículos**, **Carga carregada** e **Embarque de vazios** mostram o que foi lançado em **Veículos**, **Granito** e no Embarque de vazios (capítulo 10). Os veículos ficam no ADR do terminal da carga cheia. Granito ou embarque lançado num porto que não é escala da Viagem aparece como **Dado órfão**.
+- **Veículos**, **Carga carregada** e **Embarque de vazios** mostram o que foi lançado em **Veículos**, **Granito** e no Embarque de vazios (capítulo 10). Os veículos ficam no ADR do terminal da carga cheia. Granito ou embarque lançado num porto que não é escala da Viagem aparece como **Dado órfão**. No Embarque de vazios, **Containers embarcados** traz o quadro **Por porto de descarga**, com o número do Manifesto Mercante de cada rota, e **Operação de pátio** separa **Unidades com armazenagem** (só as que passaram do free time) do **Embarque direto**. Os dias cobráveis de storage são os que as linhas de armazenagem cobram: se uma linha teve a quantidade informada à mão, a seção mostra também os dias pela lista de unidades, para a diferença ficar à vista. No ADR impresso, o anexo lista só as unidades que geraram armazenagem, com os dias no depot, o free time e os dias cobráveis.
 
 Quando uma frente da escala está sem terminal, a seção dela mostra **Sem terminal (TBC)** com as frentes que faltam, e o bloco **ADR** repete o aviso. O que essas frentes trazem não entra em nenhum ADR até ganharem terminal; a carga cheia sem terminal deixa de fora também os veículos. Escolha o terminal em **Editar escala** ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)).
 
@@ -93,7 +93,7 @@ A **Linha do tempo do ADR**, no pé da aba, conta a história: a saída do navio
 
 Depois do ATD, a equipe com seção pendente recebe um alerta, e outro quando o prazo vence sem assinatura (capítulo 20).
 
-O {{Administrativo}} acompanha o cumprimento em **Admin** › **Prazo do ADR**: os ADRs fechados no período escolhido em **Fechado de** e **Fechado até** e, por equipe, quantos foram assinados no prazo e quantas horas cada assinatura atrasou. A medida é da equipe, nunca da pessoa.
+O {{Administrativo}} acompanha o cumprimento em **Relatórios** › **Prazo do ADR**: os ADRs fechados no período escolhido em **Fechado de** e **Fechado até** e, por equipe, quantos foram assinados no prazo e quantas horas cada assinatura atrasou. A medida é da equipe, nunca da pessoa.
 
 ::: atencao
 - O ATD que vale é o da Atracação do terminal. A saída confirmada em **Chegadas e Saídas** é a do porto de origem e não começa o prazo ([18.3](18-o-que-muda-sozinho.md#183-registrar-a-chegada-a-atracação-e-a-saída)).

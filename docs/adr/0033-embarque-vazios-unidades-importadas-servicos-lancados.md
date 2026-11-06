@@ -4,6 +4,7 @@
 > Não valem mais: a reimportação como substituição total e a "perda aceita" das unidades manuais (atualiza por container e preserva as incluídas à mão, [ADR 0078](./0078-importacoes-e-ce-mercante-regras-de-entrada-e-correcao.md), item 25, migration `187`), o terminal do ADR em texto livre
 > (o ADR por terminal aponta o Cadastro de Terminais, [spec arquivada de múltiplos terminais](../archive/specs/2026-08-18-escala-multiplos-terminais-design.md)) e a edição restrita a Administrativo e Equipamentos ([ADR 0046](./0046-escrita-interna-global-com-rastro-obrigatorio.md)).
 > Corrigido pelo [plano de correções](../archive/plans/2026-10-14-correcoes-decididas-na-revisao-geral.md) ([ADR 0083](./0083-decisoes-da-revisao-geral-da-documentacao.md), item 26): o atalho de armazenagem reconhece o serviço de armazenagem sem condição, genérico (B12, migration `260`), e o Total da Linha de Serviço é quantidade × valor unitário, sem o percentual legado (B11).
+> Estendida pela [ADR 0130](./0130-embarque-de-vazios-pod-tamanho-e-free-time-congelado.md) (2026-11-06, migration `606`): a unidade tem porto de descarga; o serviço e a linha têm tamanho (20' ou 40'), e a armazenagem é uma por (depot, condição, tamanho), não mais por (depot, condição); a linha de armazenagem congela o free time no lançamento; a janela sugere a quantidade de handling e transporte pelas unidades do local, sem lançar a linha sozinha.
 > Regra vigente: [Manifestos & EDI](../modules/manifesto-edi.md), seção de `/embarquevazios`.
 
 Status: supersedida parcialmente — 2026-07-28

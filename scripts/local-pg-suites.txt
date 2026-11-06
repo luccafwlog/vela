@@ -226,6 +226,7 @@ src/integration/embarqueVaziosTerminal.local-pg.test.ts
 src/integration/publicFwlog.local-pg.test.ts
 src/integration/embarqueVaziosExclusao.local-pg.test.ts
 src/integration/historicoDeAcoesComNomes.local-pg.test.ts
+src/integration/historicoPorAcao.local-pg.test.ts
 src/integration/historicoCobreEscritasSemRastro.local-pg.test.ts
 src/integration/historicoCriaBlELacunasMenores.local-pg.test.ts
 src/integration/historicoLeAsTrilhas.local-pg.test.ts
@@ -242,3 +243,4 @@ src/integration/sinoAvisosDeAcontecimento.local-pg.test.ts
 src/integration/enderecoReceitaRevisao.local-pg.test.ts
 src/integration/travaCeMercanteVeiculos.local-pg.test.ts
 src/integration/ediMercanteRegistrado.local-pg.test.ts
+src/integration/embarqueVaziosPodTamanho.local-pg.test.ts

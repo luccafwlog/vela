@@ -3,7 +3,7 @@ import { render, screen, cleanup } from '@testing-library/react'
 import { MemoryRouter, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { NaoEncontrado } from '../NaoEncontrado'
-import { ADMIN_TABS, DEFAULT_ADMIN_TAB, LEGACY_ADMIN_TABS, isAdminTab, legacyAdminTab } from '../adminTabs'
+import { ADMIN_TABS, DEFAULT_ADMIN_TAB, isAdminTab, legacyAdminPath } from '../adminTabs'
 import { routeTitle } from '../../lib/pageTitle'
 import AppInterno from '../../AppInterno'
 
@@ -63,14 +63,15 @@ describe('abas de Administração em sub-rota', () => {
     expect(isAdminTab(DEFAULT_ADMIN_TAB)).toBe(true)
   })
 
-  it('os endereços antigos (lote 5b) levam à aba nova certa', () => {
-    expect(legacyAdminTab('falhas')).toBe('falhas-de-alertas')
-    expect(legacyAdminTab('logs')).toBe('historico')
-    expect(legacyAdminTab('metricas')).toBe('sistema')
-    expect(legacyAdminTab('prazo-adr')).toBe('prazo-do-adr')
-    expect(legacyAdminTab('usuarios')).toBeNull()
-    expect(legacyAdminTab('toString')).toBeNull()
-    for (const target of Object.values(LEGACY_ADMIN_TABS)) expect(isAdminTab(target)).toBe(true)
+  it('os endereços antigos levam ao lugar novo certo (lote 5b e a mudança de 2026-11-06)', () => {
+    expect(legacyAdminPath('falhas')).toBe('/admin/sistema')
+    expect(legacyAdminPath('falhas-de-alertas')).toBe('/admin/sistema')
+    expect(legacyAdminPath('logs')).toBe('/admin/historico')
+    expect(legacyAdminPath('metricas')).toBe('/admin/sistema')
+    expect(legacyAdminPath('prazo-adr')).toBe('/relatorios?visao=prazo-do-adr')
+    expect(legacyAdminPath('prazo-do-adr')).toBe('/relatorios?visao=prazo-do-adr')
+    expect(legacyAdminPath('usuarios')).toBeNull()
+    expect(legacyAdminPath('toString')).toBeNull()
   })
 
   it('usa slugs seguros para URL', () => {

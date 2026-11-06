@@ -43,7 +43,7 @@ Enquanto o Vela não opera com Clientes reais, uma chave de teste, o **Envio rea
 
 A chave vale para todo e-mail de Cliente: os Comunicados automáticos e os mandados à mão, a Cobrança de Demurrage, os avisos do Desbloqueio de CE e os e-mails da conta do Portal. O **Resumo do Portal**, que vai à equipe, não depende dela ([19.8](19-rotinas-por-horario.md#198-o-portal-liberação-entrega-de-e-mail-e-resumo-diário)).
 
-Só a conta com a marca Dev vê a chave, no bloco **Canal de envio**, no alto da **Comunicação** ([25.10](25-administracao.md#2510-cuidar-das-configurações-do-vela)). As outras contas não veem o bloco: para elas, o sinal está na confirmação do Disparo (**Enviar de verdade** ou **Enviar ao suporte**) e na situação de cada envio. O que foi ao suporte conta como enviado, e a Cobertura e o Histórico o mostram como **Redirecionado ao suporte** ou **Ao suporte**. Ligar a chave depois não o reenvia ao Cliente.
+Só a conta com a marca Dev vê a chave, em **Admin** › **Sistema** › **Configurações**, com **Enviar teste para mim** ([25.10](25-administracao.md#2510-cuidar-das-configurações-do-vela)); até 06/11/2026 ela ficava no alto da **Comunicação**. Para as outras contas, o sinal está na confirmação do Disparo (**Enviar de verdade** ou **Enviar ao suporte**) e na situação de cada envio. O que foi ao suporte conta como enviado, e a Cobertura e o Histórico o mostram como **Redirecionado ao suporte** ou **Ao suporte**. Ligar a chave depois não o reenvia ao Cliente.
 
 ## 16.3 Acompanhar a Cobertura de viagens
 

@@ -23,7 +23,7 @@ import { useDepots } from '../hooks/useDepots'
 import { deleteDepot, deleteDepotService, listBrazilianPorts, listDepotServices, preflightDepotsTerminalPortMapping, upsertDepot, upsertDepotService, type DepotService, type DepotWithPort, type ServiceNature } from '../services/depots'
 import { classifyDbError } from '../lib/errors'
 import { formatBRL } from '../lib/utils'
-import { condicaoLabel, diasLabel, naturezaServicoLabel, tipoLocalLabel } from '../lib/vaziosLabels'
+import { condicaoLabel, diasLabel, naturezaServicoLabel, tamanhoLabel, tipoLocalLabel } from '../lib/vaziosLabels'
 
 type DepotForm = {
   code: string
@@ -244,6 +244,7 @@ export function DepotCadastro() {
       { field: 'Natureza', before: naturezaServicoLabel(original.natureza), after: naturezaServicoLabel(serviceForm.natureza) },
       { field: 'Condição', before: condicaoLabel(original.condition), after: serviceForm.natureza === 'armazenagem' ? condicaoLabel(serviceForm.condition || null) : '' },
       { field: 'Destino da rota', before: depotName(original.route_destino_id), after: serviceForm.natureza === 'transporte' ? depotName(serviceForm.route_destino_id || null) : '' },
+      { field: 'Tamanho', before: tamanhoLabel(original.container_type), after: tamanhoLabel(serviceForm.container_type || null) },
       { field: 'Valor sugerido (R$)', before: String(Number(original.rate_brl)), after: String(Number(serviceForm.rate_brl)) },
     ].filter((change) => change.before !== change.after) : null
     if (!(await confirmSave('serviço', serviceForm.name, changes))) return
@@ -253,7 +254,8 @@ export function DepotCadastro() {
         // B31: `active` vem do registro atual, não do momento em que se clicou Editar.
         active: original?.active ?? serviceForm.active,
         depot_id: selected.id,
-        container_type: null,
+        // Migration 606: o serviço pode cobrar só um tamanho (20' ou 40'); vazio = qualquer.
+        container_type: serviceForm.container_type === '20' || serviceForm.container_type === '40' ? serviceForm.container_type : null,
         route_destino_id: serviceForm.natureza === 'transporte' ? serviceForm.route_destino_id || null : null,
         condition: serviceForm.natureza === 'armazenagem' ? serviceForm.condition || null : null,
       })
@@ -460,6 +462,7 @@ export function DepotCadastro() {
                             <th scope="col" className="app-table__text-head">Serviço</th>
                             <th scope="col">Natureza</th>
                             <th scope="col">Condição</th>
+                            <th scope="col">Tamanho</th>
                             <th scope="col" className="app-table__text-head">Destino</th>
                             <th scope="col">Valor</th>
                             {canEdit ? <th scope="col">Ações</th> : null}
@@ -471,6 +474,7 @@ export function DepotCadastro() {
                               <td className="app-table__text" title={service.name}>{service.name}{service.active ? '' : ' (inativo)'}</td>
                               <td>{naturezaServicoLabel(service.natureza)}</td>
                               <td>{service.condition ? condicaoLabel(service.condition) : <NoValue label="Sem condição" />}</td>
+                              <td>{tamanhoLabel(service.container_type)}</td>
                               <td className="app-table__text">{service.route_destino_id ? depotName(service.route_destino_id) || <NoValue label="Destino removido" /> : <NoValue label="Sem destino" />}</td>
                               <td className="tabular-nums">{formatBRL(Number(service.rate_brl))}</td>
                               {canEdit ? (
@@ -578,12 +582,19 @@ export function DepotCadastro() {
               <Select
                 value={serviceForm.natureza}
                 onChange={(e) =>
-                  setServiceForm((f) => ({ ...f, natureza: e.target.value as ServiceNature, container_type: '', route_destino_id: '', condition: '' }))
+                  setServiceForm((f) => ({ ...f, natureza: e.target.value as ServiceNature, route_destino_id: '', condition: '' }))
                 }
               >
                 <option value="armazenagem">Armazenagem</option>
                 <option value="transporte">Transporte</option>
                 <option value="geral">Geral</option>
+              </Select>
+            </Field>
+            <Field label="Tamanho" hint="Para o depot que cobra 20' e 40' com preços diferentes: um serviço para cada tamanho.">
+              <Select value={serviceForm.container_type} onChange={(e) => setServiceForm((f) => ({ ...f, container_type: e.target.value }))}>
+                <option value="">Qualquer tamanho</option>
+                <option value="20">20'</option>
+                <option value="40">40'</option>
               </Select>
             </Field>
             {serviceForm.natureza === 'armazenagem' ? (

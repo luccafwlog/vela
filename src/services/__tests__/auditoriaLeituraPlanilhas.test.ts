@@ -173,9 +173,9 @@ describe('M05 — leitor comum de planilhas: datas, números e identificadores',
   describe('Embarque de Vazios (parseVaziosManifestBuffer)', () => {
     it('cenário: XLSX com data curta do Excel em 05/03 e 06/03/2026 (nenhum dia acima de 12)', async () => {
       const buffer = await xlsxBuffer([
-        ['Container', 'Local', 'Condição', 'Embarque'],
-        ['AZCU2050021', 'SSZ', 'vazio', { n: excelSerial('2026-03-05'), z: SHORT_DATE }],
-        ['AZCU2050022', 'SSZ', 'vazio', { n: excelSerial('2026-03-06'), z: SHORT_DATE }],
+        ['Container', 'Local', 'Condição', 'Embarque', 'POD'],
+        ['AZCU2050021', 'SSZ', 'vazio', { n: excelSerial('2026-03-05'), z: SHORT_DATE }, 'CNSHA'],
+        ['AZCU2050022', 'SSZ', 'vazio', { n: excelSerial('2026-03-06'), z: SHORT_DATE }, 'CNSHA'],
       ])
       expect((await storedCell(buffer, 'D2')).z).toBe(SHORT_DATE)
 
@@ -197,9 +197,9 @@ describe('M05 — leitor comum de planilhas: datas, números e identificadores',
 
     it('controle: com um dia acima de 12 no arquivo, a mesma célula curta é lida certo', async () => {
       const buffer = await xlsxBuffer([
-        ['Container', 'Local', 'Condição', 'Embarque'],
-        ['AZCU2050021', 'SSZ', 'vazio', { n: excelSerial('2026-03-05'), z: SHORT_DATE }],
-        ['AZCU2050022', 'SSZ', 'vazio', { n: excelSerial('2026-03-15'), z: SHORT_DATE }],
+        ['Container', 'Local', 'Condição', 'Embarque', 'POD'],
+        ['AZCU2050021', 'SSZ', 'vazio', { n: excelSerial('2026-03-05'), z: SHORT_DATE }, 'CNSHA'],
+        ['AZCU2050022', 'SSZ', 'vazio', { n: excelSerial('2026-03-15'), z: SHORT_DATE }, 'CNSHA'],
       ])
       const parsed = await parseVaziosManifestBuffer(buffer)
       expect(parsed.bookings.map((booking) => booking.movement_date)).toEqual(['2026-03-05', '2026-03-15'])

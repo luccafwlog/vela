@@ -9,6 +9,9 @@ import {
   UNRESOLVED_REFERENCE,
   formatAuditValue,
   formatBrasiliaDateTime,
+  formatBrasiliaDateTimeWithSeconds,
+  describeAuditAction,
+  pluralNoun,
 } from '../auditLogPresentation'
 import { appEnvironmentLabel } from '../../../lib/appVersion'
 
@@ -33,6 +36,19 @@ describe('Histórico de ações legível', () => {
     expect(auditSubjectLabel('vazios_export_operation')).toBe('Vazios')
     expect(AUDIT_SUBJECTS.find((subject) => subject.id === 'vazios')?.entityTypes).toContain('vazios_export_operation')
     expect(describeAuditLog(log('vazios_export_operation', 'deleted', 'false', 'true'))).toBe('Embarque de vazios excluído')
+  })
+
+  it('chama de Tamanho o container_type do serviço de Locais e da linha do Embarque (migration 606)', () => {
+    expect(describeAuditLog(log('depot_services', 'container_type', null, '40'))).toBe("Tamanho: 40'")
+    expect(displayAuditValue('container_type', null, 'vazios_export_service_lines')).toBe('Qualquer tamanho')
+    expect(auditValueFacts('vazios_export_service_lines', '{"container_type": "20", "free_time_days": 7}')).toEqual([
+      { label: 'Tamanho', value: "20'" },
+      { label: 'Free time do lançamento', value: '7 dias' },
+    ])
+    expect(describeAuditLog(log('vazios_export_service_lines', 'free_time_days', '5', '7'))).toBe('Free time do lançamento: 7 dias')
+    // Linha anterior à 606 com outro valor e as demais tabelas continuam com o tipo do container.
+    expect(displayAuditValue('container_type', '22G1', 'vazios_export_service_lines')).toBe('22G1')
+    expect(describeAuditLog(log('bl_containers', 'container_type', '22G1', '45G1'))).toBe('Tipo de container: 45G1')
   })
 
   it('escreve a criação, a exclusão e a troca de situação com o nome do registro', () => {
@@ -191,5 +207,72 @@ describe('Histórico de ações — taxa alterada à mão (ADR 0111)', () => {
     }
     // Nenhum código cru na frase.
     expect(describeAuditLog(log('customer_communication', 'comunicado|tipo_novo', null, 'status_novo'))).not.toMatch(/tipo_novo|status_novo/)
+  })
+})
+
+describe('Histórico de ações: campos e situações que viravam "B/L alterado" (2026-11-06)', () => {
+  it('dá nome aos campos que o gravador automático registra', () => {
+    expect(describeAuditLog(log('bls', 'updated_at', null, '2026-11-04T17:55:11+00:00'))).toBe('Data de atualização: 04/11/2026 14:55')
+    expect(describeAuditLog(log('bls', 'billing_hold_reason', null, 'Acesso ao portal nao provisionado'))).toBe('Retenção do faturamento: Acesso ao portal nao provisionado')
+    expect(describeAuditLog(log('bls', 'customer_reconciliation_status', 'matched_name', 'reconciled'))).toBe('Conciliação do Cliente: Conciliado')
+    expect(describeAuditLog(log('bl_containers', 'ownership_source', null, 'bl'))).toBe('Origem do SOC/COC: Documento do B/L')
+    expect(describeAuditLog(log('ledger_settlements', 'source', null, 'itau_pix'))).toBe('Origem: Pix Itaú')
+    expect(describeAuditLog(log('invoices', 'pix_payload', null, '00020101021226'.repeat(10)))).toBe('Código Pix alterado')
+  })
+
+  it('situação em português por assunto, e código desconhecido não chega à frase', () => {
+    expect(describeAuditLog(log('charge_calculations', 'status', 'calculated', 'ready_for_billing'))).toBe('Situação: Pronta para faturar')
+    expect(describeAuditLog(log('bl_receivables', 'status', 'open', 'void'))).toBe('Situação: Anulado')
+    expect(describeAuditLog(log('invoice_receivable_links', 'status', 'active', 'settled_elsewhere'))).toBe('Situação: Baixado por outra fatura')
+    expect(describeAuditLog(log('import_batches', 'status', 'processing', 'completed'))).toBe('Situação: Concluída')
+    expect(describeAuditLog(log('pix_reconciliation_exceptions', 'status', null, 'awaiting_match'))).toBe('Situação alterada')
+    expect(describeAuditLog(log('voyage_pod_schedule', 'ces', 'waiting', 'received'))).toBe('CE da escala: Recebido')
+  })
+
+  it('acontecimentos gravados como campo viram frase, e o recebível não vira "Fatura alterado"', () => {
+    expect(describeAuditLog(log('invoice', 'create_invoice', null, '{"invoice_id": 7}'))).toBe('Fatura emitida')
+    expect(describeAuditLog(log('invoice', 'cancel_invoice', null, null))).toBe('Fatura cancelada')
+    expect(describeAuditLog(log('customer', 'held_billing_reprocessed', null, '3'))).toBe('Faturamento retido reprocessado')
+    expect(describeAuditLog(log('voyage', 'baplie_physical_flags', null, '{}'))).toBe('Marcas físicas do Baplie aplicadas')
+    expect(describeAuditLog(log('voyages', 'bl_deleted', 'GSPT2610017', null))).toBe('B/L GSPT2610017 excluído da Viagem')
+    expect(describeAuditLog(log('bl_receivables', 'unknown_field', 'a', 'b'))).toBe('Recebível alterado')
+    expect(describeAuditLog(log('voyage_pol_schedule', 'unknown_field', 'a', 'b'))).toBe('Escala alterada')
+  })
+
+  it('hora de Brasília com segundos para separar as ações do mesmo minuto', () => {
+    expect(formatBrasiliaDateTimeWithSeconds('2026-11-04T17:55:11.626336+00:00')).toBe('04/11/2026 14:55:11')
+    expect(formatBrasiliaDateTimeWithSeconds('2026-11-04 17:55:09+00')).toBe('04/11/2026 14:55:09')
+    // Sem fuso é hora de parede: fica como a tela já mostrava.
+    expect(formatBrasiliaDateTimeWithSeconds('2026-11-04T17:55')).toBe(formatBrasiliaDateTime('2026-11-04T17:55'))
+  })
+})
+
+describe('Histórico de ações: uma linha por ação (603)', () => {
+  const action = (patch: Record<string, unknown>) => ({ source: 'audit', entity_type: 'bls', field_name: 'criado', old_value: null, new_value: null, line_count: 2, groups: [], ...patch }) as Parameters<typeof describeAuditAction>[0]
+
+  it('plural dos nomes', () => {
+    expect(['B/L', 'Container', 'Recebível', 'Item da fatura', 'Taxa', 'Vínculo com a fatura', 'Configuração'].map(pluralNoun))
+      .toEqual(['B/Ls', 'Containers', 'Recebíveis', 'Itens da fatura', 'Taxas', 'Vínculos com a fatura', 'Configurações'])
+  })
+
+  it('várias famílias: a contagem por tipo, com "e mais" depois de três', () => {
+    expect(describeAuditAction(action({ groups: [
+      { entity_type: 'bl_containers', kind: 'criou', entities: 781, fields: [] },
+      { entity_type: 'bls', kind: 'criou', entities: 17, fields: [] },
+      { entity_type: 'charge_calculations', kind: 'excluiu', entities: 15, fields: [] },
+      { entity_type: 'bl_receivables', kind: 'criou', entities: 1, fields: [] },
+    ] }))).toBe('781 Containers criados, 17 B/Ls criados, 15 Taxas excluídas e mais 1')
+  })
+
+  it('um registro com vários campos: os campos pelo nome', () => {
+    expect(describeAuditAction(action({ entity_type: 'bls', field_name: 'notes', groups: [
+      { entity_type: 'bls', kind: 'alterou', entities: 1, fields: ['ncm_codes', 'notes', 'updated_at'] },
+    ] }))).toBe('B/L alterado: NCM, Notas, Data de atualização')
+  })
+
+  it('uma linha só e linha de trilha: a frase da linha', () => {
+    expect(describeAuditAction(action({ line_count: 1, entity_type: 'bls', field_name: 'ncm_codes', new_value: '8703.23' }))).toMatch(/^NCM/)
+    expect(describeAuditAction(action({ source: 'comunicado', entity_type: 'customer_communication', field_name: 'comunicado|aviso_chegada_noa', new_value: 'enviado' })))
+      .toBe('NOA · Chegada Próxima: Enviado')
   })
 })

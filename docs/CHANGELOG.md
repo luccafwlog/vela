@@ -6,6 +6,43 @@
 
 ## 2026-11
 
+- **Embarque de vazios: porto de descarga, Nº do manifesto da rota, preço por tamanho e free time congelado
+  (decisões do dono de 2026-11-06, migration `606`, ADR 0130):** a revisão do Embarque de vazios
+  ([relatório](archive/audits/2026-11-06-revisao-embarque-de-vazios.md)) levou a estas mudanças:
+  - **POD obrigatório.** Toda unidade tem porto de descarga (POD), na planilha (oitava coluna) e na janela.
+  - **Embarque direto.** Só sai de um terminal do porto do embarque.
+  - **Nº do Manifesto Mercante.** O bloco **Manifesto Mercante por porto de descarga** registra o número de cada
+    rota no cadastro único de Manifestos.
+  - **Preço por tamanho.** O serviço de Locais ganha **Tamanho** (20'/40'), e a armazenagem se divide por tamanho;
+    no ZIRAN, o **Lançar armazenagem** usava um preço só para 20' e 40'.
+  - **Free time congelado.** A linha de armazenagem guarda o free time do lançamento.
+  - **Histórico de ações.** O tamanho do serviço aparece como **Tamanho** (20', 40' ou "Qualquer tamanho"), não
+    como "Tipo de container", e o free time gravado como **Free time do lançamento**.
+  - **Linha de serviço.** Agora se edita, e a quantidade de handling e transporte é sugerida pelas unidades do
+    local (**Usar N**).
+  - **ADR de Saída.** Mostra POD, TEU e manifesto por rota e rótulos que dizem o que contam. O anexo impresso
+    lista só as unidades que geraram armazenagem, com os dias. Os dias cobráveis de storage são os das linhas
+    de armazenagem, com a quantidade informada à mão valendo; quando ela difere, o calculado pela lista aparece
+    ao lado (C4).
+
+  Prova: `embarqueVaziosPodTamanho.local-pg.test.ts`, `vaziosCusto.test.ts`, `vaziosImportAdrColumns.test.ts`,
+  `EmbarqueVazios.flow.test.tsx` e `AgencyReportDocument.test.tsx`.
+- **Administração revisada (decisões do dono de 2026-11-06, [plano arquivado](archive/plans/2026-11-06-administracao-revisada.md), migrations `603` a `605`):**
+  a Administração fica com **Usuários**, **Histórico de ações** e **Sistema**, esta só da conta Dev. O **Histórico de
+  ações** passa a mostrar uma linha por ação (uma importação de 2.539 linhas vira "781 Containers criados, 17 B/Ls
+  criados"), com os segundos, **Busca**, **Período** (abre em 30 dias), **Assunto** por área, **Ver campo a campo** e
+  **Exportar planilha**; o motivo técnico gravado pelo banco aparece em português como **Origem** e o texto padrão
+  salvo sem motivo some (também no Histórico do B/L); a linha repetida pelo gatilho sai da leitura, e o Vela deixa de
+  gravar as colunas técnicas (menos em Viagens, cujas linhas reconciliam os alertas). **Sistema** mostra os pontos de
+  atenção (equipe sem ninguém ativo, alerta sem destinatário, rotina com falha, Pix parado, e-mail bloqueado,
+  feriados faltando), as rotinas automáticas, as configurações — com a chave do **Envio real**, que sai de Clientes ›
+  Comunicação, e **Enviar teste para mim** (Edge Function nova `admin-test-email`, publicada no merge em `main`) — e as
+  falhas de entrega de alertas; as leituras exigem `is_dev_user()` no banco. O **Prazo do ADR** vira visão de
+  **Relatórios**, só do Administrativo, com **Exportar planilha**. Desativar a última pessoa ativa de uma equipe
+  avisa na confirmação. Os endereços antigos redirecionam. Diagnóstico com os números de produção em
+  [archive/audits/administracao-2026-11-06.md](archive/audits/administracao-2026-11-06.md). Prova:
+  `historicoPorAcao.local-pg.test.ts`, `permissoesPorPerfil.local-pg.test.ts`, `Admin.behavior.test.tsx`,
+  `Relatorios.behavior.test.tsx` e Deno `adminTestEmail.test.ts`.
 - **Revisão final da release de 2026-11-06 (PR #1241, decisão do dono):** na reimportação do arquivo de B/L, o
   B/L com o CNPJ/CPF corrigido na ficha deixa de pedir **Troca de Consignatário** (e "CNPJ faturado") quando o
   arquivo traz de novo o CNPJ errado, sem Cliente cadastrado: o Cliente e a correção ficam. Antes, a confirmação única
