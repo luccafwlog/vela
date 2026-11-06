@@ -50,7 +50,7 @@ import {
   type BlFreightImportPreview,
   type BlFreightImportResult,
 } from '../services/blFreightImport'
-import { syntheticCeBeforeCancelSql, syntheticCnpj } from './localTestData'
+import { syntheticCeBeforeCancelSql, syntheticCnpj, vehicleAnswerSql } from './localTestData'
 
 // Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
 // teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
@@ -634,7 +634,7 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'A202 Carrier');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, '${vesselName}', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status, ata)
-      VALUES (${voyageId}, ${vesselId}, '${voyageNumber}', 'active', TIMESTAMPTZ '${voyageAta} 12:00:00-03');
+      VALUES (${voyageId}, ${vesselId}, '${voyageNumber}', 'active', TIMESTAMPTZ '${voyageAta} 12:00:00-03'); ${vehicleAnswerSql(voyageId)}
       INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
       VALUES (${chargeTableId}, 'Tabela A202 container', '${pod}', CURRENT_DATE - 30, true, 'container');
       INSERT INTO public.charge_table_items (

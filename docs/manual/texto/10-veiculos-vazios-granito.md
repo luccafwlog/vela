@@ -23,9 +23,14 @@ O veículo pesa na cobrança: o B/L de container com veículos e **Movement To**
 
 Uma linha recusada recusa a planilha inteira, e a janela lista as recusadas.
 
-### Viagem sem veículos
+### A Viagem terá veículos?
 
-Se a Viagem não traz veículos, clique em **Esta viagem não terá veículos** na lista vazia: o alerta da planilha de veículos fecha (capítulo 20). Se a planilha chegar depois, importe: a declaração se desfaz sozinha.
+A partir de 7 dias antes do primeiro ETA no Brasil, o Vela pede a {{Equipamentos}} que responda, na lista vazia de **Veículos**, se a Viagem terá veículos (capítulo 20). Só {{Equipamentos}} e o {{Administrativo}} veem os botões da resposta:
+
+- **Esta viagem não terá veículos**: os alertas de veículos fecham e a {{Documentação}} pode importar o CE. Se a planilha chegar depois, importe: a declaração se desfaz sozinha.
+- **Esta viagem terá veículos**: a lista passa a dizer **Viagem com veículos a importar**, e o CE dos B/Ls de container fica travado até a planilha entrar. Um veículo importado já libera o CE da Viagem inteira.
+
+Enquanto não há resposta nem veículo, a planilha de CE dos B/Ls de container é recusada ([6.5](06-importacao.md#65-importar-o-ce-mercante-e-emitir-as-faturas)). Para mudar a resposta, use **Trocar para com veículos** ou **Trocar para sem veículos**; para apagá-la, **Desfazer declaração**. As duas pedem motivo, que fica na Linha do Tempo da Viagem.
 
 ::: atencao
 - A planilha só acrescenta veículos: o chassi que já está na Viagem é recusado, e com ele a planilha inteira. Numa segunda leva, importe só os veículos novos; para corrigir um veículo, veja [10.3](#103-mover-ou-excluir-um-veículo).

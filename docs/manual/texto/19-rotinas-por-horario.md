@@ -35,7 +35,7 @@ Por isso um efeito pode levar um ou dois minutos para aparecer. Se depois de alg
 A maior parte dos alertas abre e fecha na hora da ação. Alguns dependem só da passagem do tempo: ninguém mexe em nada, e o prazo chega. Esses são abertos pela conferência de 15 minutos, que também fecha o que perdeu a causa e corrige o que a ação deixou passar. São eles:
 
 - o ETA, o ETB ou o ETD que chegou sem a data realizada, no próprio dia;
-- os prazos da documentação: 7 dias antes do primeiro ETA no Brasil, os de B/L esperado e de Baplie; 5 dias antes, o de CE Mercante pendente e o de Planilha de Veículos; 5 dias antes do ETA de cada porto, o de B/L sem Cliente;
+- os prazos da documentação: 7 dias antes do primeiro ETA no Brasil, os de B/L esperado, de Baplie e da Declaração de veículos; 5 dias antes, o de CE Mercante pendente e o de Planilha de Veículos ausente; 5 dias antes do ETA de cada porto, o de B/L sem Cliente;
 - o prazo de 72 horas do ADR de Saída, contado do ATD;
 - o prazo de 1 dia útil para responder à Disputa de Demurrage e a Demurrage que trava com a virada do dia ([19.5](#195-a-demurrage-pelo-relógio));
 - os avisos ao Cliente que deviam ter saído e não saíram;

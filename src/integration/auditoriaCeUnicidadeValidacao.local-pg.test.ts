@@ -56,6 +56,7 @@
 // ainda remove, pelo namespace, contatos, conta de Portal e eventos do Portal,
 // além de lotes, efeitos, alertas, auditoria e o estado da conciliação ZPT.
 import { execPsql } from './localPsql'
+import { vehicleAnswerSql } from './localTestData'
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { parseCeMercanteBuffer } from '../services/ceMercanteImport'
 import { jsonToBuffer } from '../services/__tests__/testWorkbook'
@@ -360,7 +361,7 @@ describeLocal('M06 — unicidade CE × B/L entre B/Ls não cancelados (todas as 
       VALUES ('${actorId}', 'A206 Administrativo', 'administrativo', true);
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'A206 Carrier');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'A206 NAVIO', ${carrierId});
-      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'A206', 'active');
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'A206', 'active'); ${vehicleAnswerSql(voyageId)}
       INSERT INTO public.bls (
         id, voyage_id, pol, pod, cargo_mode, financial_status, charge_status,
         customer_reconciliation_status, review_status, consignee

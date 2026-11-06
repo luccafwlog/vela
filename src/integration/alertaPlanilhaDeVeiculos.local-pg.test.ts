@@ -6,7 +6,9 @@ import { describeWithProbe } from './localTestData'
 // pendente" para Equipamentos em D-5 do primeiro ETA brasileiro, na viagem com
 // B/L de container sem veículo; fecha com a planilha (veículo importado) ou com
 // a declaração "Esta viagem não terá veículos", que pode ser desfeita com
-// motivo e é desfeita sozinha quando um veículo entra na viagem.
+// motivo e é desfeita sozinha quando um veículo entra na viagem. A 597 mudou o
+// texto do alerta e da recusa e deu `p_reason` à declaração; o resto dela está
+// em travaCeMercanteVeiculos.local-pg.test.ts.
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -148,7 +150,7 @@ describeLocal('468 — Planilha de Veículos pendente e viagem sem veículos', (
       JOIN public.alerts a ON a.id = i.alert_id WHERE i.item_type = '${TYPE}' AND a.entity_id = '${V_CNTR}';`))
       .toBe('critical|equipamentos')
     expect(psql(`SELECT i.message FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
-      WHERE i.item_type = '${TYPE}' AND a.entity_id = '${V_CNTR}';`)).toMatch(/^Importe a planilha de Veículos ou declare que a viagem não terá veículos; ETA em \d{2}\/\d{2}\/\d{4}, prazo D-5 atingido\.$/)
+      WHERE i.item_type = '${TYPE}' AND a.entity_id = '${V_CNTR}';`)).toMatch(/^Declare se a viagem terá veículos ou importe a planilha de Veículos; ETA em \d{2}\/\d{2}\/\d{4}, prazo D-5 atingido\. O CE Mercante dos B\/Ls de container está travado até a resposta\.$/)
     expect(psql(`SELECT count(*) FROM public.internal_notifications n JOIN public.alert_items i ON i.id = n.alert_item_id
       WHERE n.recipient_id = '${EQP_ID}' AND i.item_type = '${TYPE}';`)).toBe('1')
   })
@@ -207,10 +209,10 @@ describeLocal('468 — Planilha de Veículos pendente e viagem sem veículos', (
 
   it('só usuário autenticado ativo usa as funções da declaração; o reconciliador não é exposto', () => {
     expect(psql(`SELECT has_function_privilege('authenticated', 'public.reconcile_voyage_vehicle_sheet_alerts(bigint,text)', 'EXECUTE');`)).toBe('f')
-    expect(psql(`SELECT has_function_privilege('anon', 'public.declare_voyage_without_vehicles(bigint)', 'EXECUTE');`)).toBe('f')
+    expect(psql(`SELECT has_function_privilege('anon', 'public.declare_voyage_without_vehicles(bigint,text)', 'EXECUTE');`)).toBe('f')
     expect(psql(`SELECT has_table_privilege('authenticated', 'public.voyage_vehicle_declarations', 'SELECT');`)).toBe('f')
     const anonymous = spawnPsql(['-X', '-v', 'ON_ERROR_STOP=1', '-At', '-q', '-d', databaseUrl, '-c', `
       BEGIN; SET LOCAL ROLE authenticated; SELECT public.declare_voyage_without_vehicles(${V_FAR}); COMMIT;`], { encoding: 'utf8' })
-    expect(anonymous.stderr).toContain('Somente usuário interno ativo declara a viagem sem veículos.')
+    expect(anonymous.stderr).toContain('Somente usuário interno ativo responde se a viagem terá veículos.')
   })
 })

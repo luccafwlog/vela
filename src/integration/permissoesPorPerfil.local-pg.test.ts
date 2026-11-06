@@ -1,6 +1,6 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { describeWithProbe, syntheticCnpj } from './localTestData'
+import { describeWithProbe, syntheticCnpj, vehicleAnswerSql } from './localTestData'
 import { ALERT_TYPE_COUNTS, PERMISSION_MATRIX, allowedWithoutDevMark, isSharedByAll } from '../services/permissionMatrix'
 
 // Bateria por perfil do modelo de permissões (ADR 0085; matriz em
@@ -149,7 +149,7 @@ function seed() {
     SET session_replication_role = replica;
     INSERT INTO public.carriers (id, name) VALUES (${CARRIER_ID}, 'Armador P85');
     INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL_ID}, 'Navio P85', ${CARRIER_ID});
-    INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${VOYAGE_ID}, ${VESSEL_ID}, 'P85V', 'active');
+    INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${VOYAGE_ID}, ${VESSEL_ID}, 'P85V', 'active'); ${vehicleAnswerSql(VOYAGE_ID)}
     INSERT INTO public.baplie_containers (voyage_id, container_number) VALUES (${VOYAGE_ID}, 'PCCU8500001');
     INSERT INTO public.voyage_export_schedules (voyage_id, pol) VALUES (${VOYAGE_ID}, '${POD}'), (${VOYAGE_ID}, 'P85XX');
     INSERT INTO public.customers (id, name, cnpj_cpf) VALUES (${CUSTOMER_ID}, 'CLIENTE P85 LTDA', '${syntheticCnpj(85021)}');
@@ -873,6 +873,9 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     { row: 'Informar PTAX', allowed: ['administrativo', 'financeiro', 'equipamentos'], call: `public.recalculate_demurrage_invoices_manual(0)` },
     { row: 'Responder Disputa', allowed: ['administrativo', 'equipamentos'], call: `public.add_demurrage_dispute_message(-1, 'mensagem', 'invalido')` },
     { row: 'Reabrir Disputa', allowed: ['administrativo', 'equipamentos'], call: `public.reopen_demurrage_dispute(-1, 'motivo')` },
+    // Migration 598 (ADR 0128, item 9): a resposta de veículos é de Equipamentos e do Administrativo.
+    { row: 'Responder se a viagem terá veículos', allowed: ['administrativo', 'equipamentos'], call: `public.declare_voyage_with_vehicles(-1)` },
+    { row: 'Desfazer a resposta de veículos', allowed: ['administrativo', 'equipamentos'], call: `public.undo_voyage_vehicle_declaration(-1, 'motivo')` },
     { row: 'Editar contatos do Cliente', allowed: ADM_DOC_EQU, call: `public.internal_save_customer_contact_configuration(-1, '[]'::jsonb, 'motivo')` },
     // Migration 486 (P10): o Novo cliente grava contatos.
     { row: 'Criar Cliente pelo Novo cliente', allowed: ADM_DOC_EQU, call: `public.create_customer_with_contacts('{}'::jsonb, '[]'::jsonb)` },

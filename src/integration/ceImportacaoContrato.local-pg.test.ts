@@ -9,7 +9,7 @@
 import { spawn } from 'node:child_process'
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { syntheticCeBeforeCancelSql, syntheticCnpj } from './localTestData'
+import { syntheticCeBeforeCancelSql, syntheticCnpj, vehicleAnswerSql } from './localTestData'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
@@ -174,7 +174,7 @@ describeLocal('Etapa 8 — contrato da importação de CE (migrations 180 e 181)
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'A228 NAVIO', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES
         (${voyageId}, ${vesselId}, 'A228A', 'active'), (${otherVoyageId}, ${vesselId}, 'A228B', 'active'),
-        (${alertVoyageId}, ${vesselId}, 'A228C', 'active'), (${gapVoyageId}, ${vesselId}, 'A228D', 'active');
+        (${alertVoyageId}, ${vesselId}, 'A228C', 'active'), (${gapVoyageId}, ${vesselId}, 'A228D', 'active'); ${vehicleAnswerSql(voyageId, otherVoyageId, alertVoyageId, gapVoyageId)}
       INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
       VALUES (${chargeTableId}, 'Tabela A228', '${pod}', CURRENT_DATE - 30, true, 'container');
       INSERT INTO public.charge_table_items (id, charge_table_id, name, applies_to, value_brl, unit_value_brl, application_basis, category, cargo_profile, currency)

@@ -29,7 +29,8 @@ A fila de Alertas.
 | **B/L esperado pendente** · crítico | {{Documentação}} | 7 dias antes, falta B/L para algum porto da Viagem | Os B/Ls entram |
 | **Baplie ausente** · crítico | {{Documentação}} | 7 dias antes, sem Baplie | O Baplie entra |
 | **CE Mercante pendente** · crítico | {{Documentação}} | 5 dias antes, B/L sem CE ou rota de vazios sem Nº do manifesto | O CE entra e o número é informado |
-| **Planilha de Veículos pendente** · crítico | {{Equipamentos}} | 5 dias antes, sem veículos nem a declaração | Os veículos entram ou a Viagem é declarada sem veículos |
+| **Declaração de veículos pendente** | {{Equipamentos}} | 7 dias antes, sem veículos nem resposta | A Viagem é declarada com ou sem veículos, ou os veículos entram |
+| **Planilha de Veículos ausente** · crítico | {{Equipamentos}} | 5 dias antes, sem veículos, declarada com veículos ou sem resposta | Os veículos entram ou a Viagem é declarada sem veículos |
 | **B/L sem Cliente perto do ETA** · crítico | {{Documentação}} | 5 dias antes do ETA do porto, B/L dele sem Cliente | O Cliente é vinculado |
 
 **Na chegada**

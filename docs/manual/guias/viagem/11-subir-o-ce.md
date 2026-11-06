@@ -1,4 +1,4 @@
-Só com a conferência da etapa 10 completa. O CE libera o B/L: a fatura sai na hora e o Cliente passa a ver o B/L no Portal. Uma planilha por Manifesto Mercante.
+Só com a conferência da etapa 10 completa. O CE libera o B/L: a fatura sai na hora e o Cliente passa a ver o B/L no Portal. Uma planilha por Manifesto Mercante. O CE dos B/Ls de container só entra depois da etapa 7: Viagem declarada sem veículos ou com veículo importado; senão, a prévia recusa com **CE Mercante travado na viagem…**.
 
 ::: lado
 1. Na **Importação rápida**, clique em **CE Mercante**.

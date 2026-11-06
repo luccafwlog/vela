@@ -1,6 +1,6 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
-import { syntheticCnpj } from './localTestData'
+import { syntheticCnpj, vehicleAnswerSql } from './localTestData'
 
 // Régua de Cobrança de Demurrage: plano dos e-mails (docs/archive/plans/2026-10-17-correcao-dos-emails.md),
 // itens 1E, 2.5, 4.1, 4.2, 4.3 e 4.4 (migrations 305, 306, 313 e 317).
@@ -72,6 +72,7 @@ function cleanup(): void {
     DELETE FROM public.bls WHERE id LIKE 'REG303-BL-%';
     DELETE FROM public.customer_contact_change_events WHERE customer_id = ${customerId};
     DELETE FROM public.customer_contacts WHERE customer_id = ${customerId};
+    DELETE FROM public.voyage_vehicle_declarations WHERE voyage_id = ${voyageId};
     DELETE FROM public.voyages WHERE id = ${voyageId};
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};
@@ -103,7 +104,7 @@ describeLocal('Régua de Cobrança de Demurrage — plano dos e-mails (1E, 2.5, 
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerId}, '${customerCnpj}', 'Cliente Régua 303');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier 303');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel 303', ${carrierId});
-      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'R303', 'active');
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'R303', 'active'); ${vehicleAnswerSql(voyageId)}
       INSERT INTO public.bls (id, voyage_id, customer_id, cargo_mode, ce_mercante) VALUES ${bls};
       INSERT INTO public.demurrage_invoices
         (id, doc_number, bl_id, customer_id, doc_date, first_billed_at, total_usd, current_roe, current_total_brl, roe_source, status)

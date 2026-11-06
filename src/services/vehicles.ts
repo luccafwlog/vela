@@ -63,9 +63,15 @@ export async function listBlContainersForMove(blId: string): Promise<Array<{ id:
   return (data ?? []) as Array<{ id: number; container_number: string }>
 }
 
-/** Declaração "Esta viagem não terá veículos" (migration 468), com quem declarou. */
+/**
+ * Resposta de Equipamentos sobre veículos na viagem (migrations 468 e 597):
+ * `hasVehicles` falso é "Esta viagem não terá veículos"; verdadeiro é "Esta
+ * viagem terá veículos", que trava o CE Mercante dos B/Ls de container até o
+ * primeiro veículo importado.
+ */
 export type VoyageVehicleDeclaration = {
   voyageId: number
+  hasVehicles: boolean
   declaredAt: string
   declaredByName: string | null
 }
@@ -77,10 +83,11 @@ export function parseVoyageVehicleDeclaration(value: unknown): VoyageVehicleDecl
   const declaredAt = typeof row?.declared_at === 'string' ? row.declared_at : ''
   if (!row || !Number.isInteger(voyageId) || !declaredAt) throw new Error('Resposta inesperada da declaração de veículos da viagem.')
   const name = typeof row.declared_by_name === 'string' ? row.declared_by_name.trim() : ''
-  return { voyageId, declaredAt, declaredByName: name || null }
+  // Sem o campo (banco anterior à 597), a declaração só podia ser "não terá".
+  return { voyageId, hasVehicles: row.has_vehicles === true, declaredAt, declaredByName: name || null }
 }
 
-/** `null` quando a viagem não está declarada sem veículos. */
+/** `null` quando Equipamentos ainda não respondeu se a viagem terá veículos. */
 export async function fetchVoyageVehicleDeclaration(voyageId: number): Promise<VoyageVehicleDeclaration | null> {
   const { data, error } = await supabase.rpc('voyage_vehicle_declaration' as never, { p_voyage_id: voyageId } as never)
   if (error) throw error
@@ -88,16 +95,19 @@ export async function fetchVoyageVehicleDeclaration(voyageId: number): Promise<V
 }
 
 /**
- * Declara que a viagem não terá veículos: fecha o alerta Planilha de Veículos
- * pendente. O banco recusa viagem cancelada ou que já tem veículo.
+ * Responde se a viagem terá veículos. Trocar uma resposta já dada pela outra
+ * exige `reason`; o banco recusa viagem cancelada e "não terá" com veículo
+ * importado.
  */
-export async function declareVoyageWithoutVehicles(voyageId: number): Promise<VoyageVehicleDeclaration | null> {
-  const { data, error } = await supabase.rpc('declare_voyage_without_vehicles' as never, { p_voyage_id: voyageId } as never)
+export async function declareVoyageVehicles(voyageId: number, hasVehicles: boolean, reason?: string): Promise<VoyageVehicleDeclaration | null> {
+  const fn = hasVehicles ? 'declare_voyage_with_vehicles' : 'declare_voyage_without_vehicles'
+  const args = reason?.trim() ? { p_voyage_id: voyageId, p_reason: reason.trim() } : { p_voyage_id: voyageId }
+  const { data, error } = await supabase.rpc(fn as never, args as never)
   if (error) throw error
   return parseVoyageVehicleDeclaration(data)
 }
 
-/** Desfaz a declaração, com motivo; dentro do prazo, o alerta reabre. */
+/** Desfaz a resposta, com motivo; dentro do prazo, o alerta reabre. */
 export async function undoVoyageVehicleDeclaration(voyageId: number, reason: string): Promise<void> {
   const { error } = await supabase.rpc('undo_voyage_vehicle_declaration' as never, { p_voyage_id: voyageId, p_reason: reason } as never)
   if (error) throw error

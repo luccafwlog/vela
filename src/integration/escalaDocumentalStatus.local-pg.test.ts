@@ -1,5 +1,6 @@
 import { execPsql } from './localPsql'
 import { describe, it } from 'vitest'
+import { vehicleAnswerSql } from './localTestData'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const databaseUrl = process.env.LOCAL_DATABASE_URL ?? 'postgresql://postgres:postgres@127.0.0.1:5432/vela_test'
@@ -22,6 +23,7 @@ describeLocal('BLs e CEs automáticos por escala — PostgreSQL descartável', (
         INSERT INTO public.carriers(id, name) VALUES (13400001, 'DOCUMENTAL TEST');
         INSERT INTO public.vessels(id, carrier_id, name) VALUES (13400001, 13400001, 'DOCUMENTAL TEST');
         INSERT INTO public.voyages(id, vessel_id, voyage_number) VALUES (13400001, 13400001, '134TEST');
+        ${vehicleAnswerSql(13400001)}
         SET LOCAL session_replication_role = origin;
         CREATE FUNCTION pg_temp.check_status(p_port text, p_expected text) RETURNS void LANGUAGE plpgsql AS $$
         DECLARE actual text; snapshot text;

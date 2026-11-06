@@ -6,7 +6,7 @@ import { expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({ save: vi.fn<(containerId: number, value: string | null) => Promise<void>>(() => Promise.resolve()) }))
 vi.mock('../../services/supabase', () => ({ supabase: {} }))
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, profile: { id: 'user-1' }, isAdmin: false }) }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, profile: { id: 'user-1' }, isAdmin: false, can: () => true }) }))
 vi.mock('../../components/shared/VoyageCombobox', () => ({ VoyageCombobox: () => <div /> }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => vi.fn(), useConfirmWithReason: () => vi.fn() }))

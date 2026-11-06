@@ -53,7 +53,7 @@
 import { spawn } from 'node:child_process'
 import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { syntheticCnpj } from './localTestData'
+import { syntheticCnpj, vehicleAnswerSql } from './localTestData'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
@@ -416,7 +416,7 @@ describeLocal('M04 — fila de efeitos de importação: consumidores que agem so
         (${voyage.tabela}, ${vesselId}, 'A204B', 'active'),
         (${voyage.cargaSolta}, ${vesselId}, 'A204C', 'active'),
         (${voyage.trava}, ${vesselId}, 'A204D', 'active'),
-        (${voyage.lease}, ${vesselId}, 'A204E', 'active');
+        (${voyage.lease}, ${vesselId}, 'A204E', 'active'); ${vehicleAnswerSql(...Object.values(voyage))}
       INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode) VALUES
         ${Object.values(tables).map((table) => `(${table.id}, 'Tabela A204 ${table.pod} ${table.cargoMode}', '${table.pod}', CURRENT_DATE - 30, true, '${table.cargoMode}')`).join(',\n        ')};
       INSERT INTO public.charge_table_items (

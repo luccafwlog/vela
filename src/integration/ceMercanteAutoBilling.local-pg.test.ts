@@ -1,6 +1,6 @@
 import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { syntheticCnpj } from './localTestData'
+import { syntheticCnpj, vehicleAnswerSql } from './localTestData'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
@@ -110,7 +110,7 @@ describeLocal('CE Mercante — faturamento automático server-side', () => {
       INSERT INTO public.vessels (id, name, carrier_id)
       VALUES (${vesselId}, 'Vessel CE Auto 051', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status)
-      VALUES (${voyageId}, ${vesselId}, 'CE-AUTO-051', 'active');
+      VALUES (${voyageId}, ${vesselId}, 'CE-AUTO-051', 'active'); ${vehicleAnswerSql(voyageId)}
       INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
       VALUES (${chargeTableId}, 'Tabela CE Auto 051', 'CEAUTO', CURRENT_DATE, true, 'container');
       INSERT INTO public.charge_table_items (

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { describeWithProbe } from './localTestData'
+import { describeWithProbe, vehicleAnswerSql } from './localTestData'
 import { financeWorld } from './frenteFinanceira'
 
 // Lote 2 da frente das importações (migration 392; ADR 0095, decisões 5, 8, 9,
@@ -35,7 +35,8 @@ describeLocal('392 — arquivo de B/L com as regras no servidor', () => {
     cnpjA = w.psql(`SELECT cnpj_cpf FROM public.customers WHERE id = ${w.customerId}`)
     cnpjB = w.psql(`SELECT cnpj_cpf FROM public.customers WHERE id = ${w.otherCustomerId}`)
     w.psql(`INSERT INTO public.voyages (id, vessel_id, voyage_number, status)
-      SELECT ${otherVoyageId}, vessel_id, 'FF9392B', 'active' FROM public.voyages WHERE id = ${w.voyageId}`)
+      SELECT ${otherVoyageId}, vessel_id, 'FF9392B', 'active' FROM public.voyages WHERE id = ${w.voyageId};
+      ${vehicleAnswerSql(otherVoyageId)}`)
   })
   afterAll(() => {
     if (previousRoe) {

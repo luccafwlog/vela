@@ -1,6 +1,6 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { describeWithProbe } from './localTestData'
+import { describeWithProbe, vehicleAnswerSql } from './localTestData'
 
 // Bloco 3 do plano docs/archive/plans/2026-09-23-alinhamento-apresentacao-docs-codigo.md:
 // execução real no Postgres descartável (scripts/setup-local-pg.sh), não só o
@@ -432,7 +432,7 @@ describe082('082 — CE Mercante por planilha tudo ou nada', () => {
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${USER}', 'Documentação 082', 'documentacao', true);
       INSERT INTO public.carriers (id, name) VALUES (7821, 'Carrier 082');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (7822, 'Vessel 082', 7821);
-      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (7823, 7822, 'V082', 'active');
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (7823, 7822, 'V082', 'active'); ${vehicleAnswerSql(7823)}
       INSERT INTO public.bls (id, voyage_id, pol, pod) VALUES
         ('${BL_A}', 7823, 'CNNSA', 'BRVIX'), ('${BL_B}', 7823, 'CNNSA', 'BRVIX'), ('${BL_C}', 7823, 'CNSHA', 'BRVIX');
     `)
