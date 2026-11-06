@@ -22,6 +22,11 @@
   [archive/audits/administracao-2026-11-06.md](archive/audits/administracao-2026-11-06.md). Prova:
   `historicoPorAcao.local-pg.test.ts`, `permissoesPorPerfil.local-pg.test.ts`, `Admin.behavior.test.tsx`,
   `Relatorios.behavior.test.tsx` e Deno `adminTestEmail.test.ts`.
+- **Revisão final da release de 2026-11-06 (PR #1241, decisão do dono):** na reimportação do arquivo de B/L, o
+  B/L com o CNPJ/CPF corrigido na ficha deixa de pedir **Troca de Consignatário** (e "CNPJ faturado") quando o
+  arquivo traz de novo o CNPJ errado, sem Cliente cadastrado: o Cliente e a correção ficam. Antes, a confirmação única
+  da troca no arquivo podia tirar o Cliente do B/L e apagar a correção. A troca para outro Cliente cadastrado continua
+  pedindo o aceite, e a prévia avisa que ela solta a correção. Prova: `blFreightImport.test.ts`.
 - **Revisão de segurança dos widgets públicos do fwlog.com.br (2026-11-06):** a abertura do disjuntor global da
   Consulta de container (300 "não encontrado" na hora) manda um aviso ao Sentry, um por hora, sem número de container
   nem IP; antes, a busca podia ficar fora do ar sem ninguém saber. O manual de serviços externos passa a dizer que o

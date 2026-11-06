@@ -482,19 +482,33 @@ function manifestComparable(field: string, value: unknown): string {
   return text.replace(/\s+/g, ' ').trim().toUpperCase()
 }
 
+/** Correções do consignatário que a troca de Cliente solta (gatilho da migration 601). */
+const CONSIGNEE_CORRECTION_FIELDS = new Set(['consignee_block', 'manifest_customer_cnpj_cpf'])
+
 /**
  * Campo corrigido na ficha que o arquivo traz diferente: o servidor mantém a
  * correção (gatilho `zz_keep_bl_manifest_corrections`) e a prévia diz isso.
+ * Quando o arquivo aponta outro Cliente cadastrado, a troca confirmada
+ * (`troca`) ou o vínculo do B/L sem Cliente (`vinculo`) solta as correções do
+ * consignatário cujo CNPJ não é o do Cliente novo, e o aviso diz isso.
  */
 export function describeManifestCorrectionsKept(
   payload: Record<string, unknown>,
   corrections: Map<string, string | null> | undefined,
+  customerSwitch: 'troca' | 'vinculo' | null = null,
 ): string[] {
   if (!corrections?.size) return []
   return [...corrections.entries()].flatMap(([field, value]) => {
     if (!(field in payload)) return []
     if (manifestComparable(field, payload[field]) === manifestComparable(field, value)) return []
-    return [`${MANIFEST_CORRECTION_LABELS[field] ?? field} corrigido na ficha: o arquivo traz outro valor e fica a correção da ficha. Para usar o do arquivo, corrija o campo na ficha.`]
+    const label = MANIFEST_CORRECTION_LABELS[field] ?? field
+    if (customerSwitch === 'troca' && CONSIGNEE_CORRECTION_FIELDS.has(field)) {
+      return [`${label} corrigido na ficha: o arquivo aponta outro Cliente. Se a troca de cliente for confirmada, vale o do arquivo; sem ela, fica a correção da ficha.`]
+    }
+    if (customerSwitch === 'vinculo' && CONSIGNEE_CORRECTION_FIELDS.has(field)) {
+      return [`${label} corrigido na ficha: o arquivo vincula um Cliente ao B/L. Se o CNPJ dele não for o corrigido, vale o do arquivo.`]
+    }
+    return [`${label} corrigido na ficha: o arquivo traz outro valor e fica a correção da ficha. Para usar o do arquivo, corrija o campo na ficha.`]
   })
 }
 
@@ -607,11 +621,25 @@ export function buildBlFreightPreview({
       ? describeContainerRemovalBlocks(existing, payload, containerRemovalBlockers)
       : []
     blockedReasons.push(...removal)
+    if (payload && existing) {
+      const corrections = manifestCorrections?.get(existing.id)
+      const customerSwitch = payload.customer_id == null || payload.customer_id === existing.customer_id
+        ? null
+        : existing.customer_id == null ? 'vinculo' : 'troca'
+      warnings.push(...describeManifestCorrectionsKept(payload as unknown as Record<string, unknown>, corrections, customerSwitch))
+      // CNPJ/CPF corrigido na ficha (migration 601): sem outro Cliente
+      // cadastrado no arquivo, o CNPJ do arquivo não é troca de consignatário.
+      // Comparado com o corrigido, o mesmo arquivo errado de antes pedia
+      // "Troca de Consignatário" (e, sob a confirmação única do arquivo,
+      // tirava o Cliente e a correção) e o impacto "CNPJ faturado". O servidor
+      // manteria o corrigido de qualquer forma (decisão do dono, 2026-11-06,
+      // revisão da PR #1241).
+      if (corrections?.has('manifest_customer_cnpj_cpf') && !customerSwitch) {
+        payload.manifest_customer_cnpj_cpf = existing.manifest_customer_cnpj_cpf ?? null
+      }
+    }
     // COD vivo: o POD do B/L é o destino do COD; o arquivo não o troca
     // (o servidor também mantém, migration 183). Mudar POD aqui é correção, nunca COD.
-    if (payload && existing) {
-      warnings.push(...describeManifestCorrectionsKept(payload as unknown as Record<string, unknown>, manifestCorrections?.get(existing.id)))
-    }
     if (payload && existing && codBlIds?.has(existing.id) && payload.pod && existing.pod && payload.pod !== existing.pod) {
       warnings.push(`B/L em COD: o POD continua ${existing.pod} (o arquivo traz ${payload.pod}); os demais campos atualizam.`)
       payload.pod = existing.pod
