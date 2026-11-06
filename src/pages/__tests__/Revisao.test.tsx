@@ -9,7 +9,11 @@ import type { ReviewQueueItem } from '../../hooks/useReview'
 vi.mock('../../hooks/useReview', () => ({ useReviewQueue: vi.fn() }))
 const authState = vi.hoisted(() => ({ canEditContacts: true }))
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, isAdmin: true, can: (permission: string) => permission !== 'edit_customer_contacts' || authState.canEditContacts }) }))
-vi.mock('../../hooks/useCustomers', () => ({ useCustomerLookup: vi.fn() }))
+vi.mock('../../hooks/useCustomers', () => ({
+  useCustomerLookup: vi.fn(),
+  // Nenhum Cliente com o CNPJ do grupo: o cadastro segue (o caso do CNPJ já cadastrado está no teste do formulário).
+  useExistingCustomerByCnpj: () => ({ data: null, isPending: false, isSuccess: true, isError: false, fetchStatus: 'idle' }),
+}))
 vi.mock('../../hooks/useReviewCustomerGroup', () => ({ useReviewCustomerGroup: vi.fn() }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 const mocks = vi.hoisted(() => ({ confirm: vi.fn(), sendInvite: vi.fn() }))
