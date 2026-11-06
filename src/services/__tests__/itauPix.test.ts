@@ -18,7 +18,7 @@ const cob = (txid: string, extra: Record<string, unknown> = {}) => ({
   valor: { original: '0.01' }, pixCopiaECola: '000201...', ...extra,
 })
 
-// Relógio fixo: o cliente recusa horário do Itaú no futuro, e as datas destes testes são fixas.
+// Relógio fixo: o horário do Itaú que cairia no futuro é lido como UTC, e as datas destes testes são fixas.
 beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date('2026-10-08T00:00:00Z')) })
 afterEach(() => { vi.useRealTimers() })
 
@@ -482,16 +482,19 @@ describe('consulta de recebimentos', () => {
     expect(result).toMatchObject({ outcome: 'active', bankCreatedAt: '2026-10-07T20:04:01.000Z' })
   })
 
-  it('para sem gravar quando o Itaú passa a mandar UTC verdadeiro', async () => {
+  it('Itaú passa a mandar UTC verdadeiro: o horário recente se corrige sozinho, sem parar a consulta nem a cobrança', async () => {
     vi.setSystemTime(new Date('2026-10-07T20:10:00Z'))
-    // Pago às 20:04:50 UTC e enviado corretamente como Z: lido como Brasília, cairia 3 h no futuro.
+    // Pago às 20:04:50 UTC e enviado corretamente como Z: lido como Brasília cairia 3 h
+    // no futuro, o que não existe; então o Z é UTC de verdade e vale como veio.
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
       { endToEndId: e2e('202610072004'), txid: vela, valor: '0.15', horario: '2026-10-07T20:04:50Z' },
     ]))
     const s = sink('2026-10-07T20:00:00Z')
-    await expect(pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date())).rejects.toThrow('no futuro')
-    expect(s.receive).not.toHaveBeenCalled()
-    expect(s.saved).toEqual([])
+    const summary = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date())
+    expect(summary).toMatchObject({ settled: 1, zoneShiftSuspect: null })
+    expect(s.receive).toHaveBeenCalledWith(settled({ endToEndId: e2e('202610072004'), txid: vela,
+      valor: '0.15', horario: '2026-10-07T20:04:50.000Z' }))
+    expect(s.saved).toEqual(['2026-10-07T20:10:00.000Z'])
 
     const txid = newVelaTxid()
     const created = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(Response.json(cob(txid, {
@@ -500,41 +503,49 @@ describe('consulta de recebimentos', () => {
     const result = await stepCharge(createItauPixClient(config, created), { id: 1, txid,
       amount_brl: '0.01', expiration_seconds: 3600, status: 'pending_create', uncertain: false, attempts: 1,
     }, new Date())
-    expect(result).toMatchObject({ outcome: 'error', error: expect.stringContaining('no futuro') })
+    expect(result).toMatchObject({ outcome: 'active', bankCreatedAt: '2026-10-07T20:09:00.000Z' })
   })
 
-  it('na recuperação de atraso, UTC verdadeiro antigo de dois bancos pagadores diverge do endToEndId e para', async () => {
+  it('offset explícito vale como veio, mesmo no futuro', async () => {
+    vi.setSystemTime(new Date('2026-10-07T20:10:00Z'))
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
+      { endToEndId: e2e('202610072004'), txid: vela, valor: '0.15', horario: '2026-10-07T17:20:00-03:00' },
+    ]))
+    const s = sink('2026-10-07T20:00:00Z')
+    await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date())
+    expect(s.receive).toHaveBeenCalledWith(settled({ endToEndId: e2e('202610072004'), txid: vela,
+      valor: '0.15', horario: '2026-10-07T20:20:00.000Z' }))
+  })
+
+  it('na recuperação de atraso, UTC verdadeiro antigo de dois bancos pagadores só avisa: baixa e avança', async () => {
     // Pagos às 19:00 UTC e enviados como 19:00:30Z; lidos como Brasília viram 22:00:30 UTC,
-    // ainda no passado às 00:00, então só o endToEndId revela o desvio.
+    // ainda no passado às 00:00: só o endToEndId revela o desvio, e ele não para nada.
     const other = newVelaTxid()
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
       { endToEndId: e2e('202610071900'), txid: vela, valor: '0.20', horario: '2026-10-07T19:00:30Z' },
       { endToEndId: e2e('202610071901', 2, '00000000'), txid: other, valor: '0.30', horario: '2026-10-07T19:01:10Z' },
     ]))
     const s = sink('2026-10-07T18:00:00Z')
-    const error = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date()).catch((e) => e)
-    // O detalhe leva o horário como o Itaú mandou, para quem confere se o banco mudou o fuso.
-    expect(error).toMatchObject({ message: expect.stringContaining('diverge do endToEndId'), body: {
-      txids: [vela, other],
-      pix: [
-        { txid: vela, endToEndId: e2e('202610071900'), horario: '2026-10-07T19:00:30Z' },
-        { txid: other, endToEndId: e2e('202610071901', 2, '00000000'), horario: '2026-10-07T19:01:10Z' },
-      ],
-    } })
-    expect(s.receive).not.toHaveBeenCalled()
-    expect(s.saved).toEqual([])
+    const summary = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date())
+    // O aviso leva o horário como o Itaú mandou, para quem confere se o banco mudou o fuso.
+    expect(summary).toMatchObject({ settled: 2, review: 0, zoneShiftSuspect: [
+      { txid: vela, endToEndId: e2e('202610071900'), horario: '2026-10-07T19:00:30Z' },
+      { txid: other, endToEndId: e2e('202610071901', 2, '00000000'), horario: '2026-10-07T19:01:10Z' },
+    ] })
+    expect(s.saved).toEqual(['2026-10-07T23:50:00.000Z'])
   })
 
-  it('na recuperação de atraso, UTC verdadeiro de um só banco pagador vai para análise sem baixar', async () => {
-    // Um banco não decide a parada; o Pix não é baixado com o horário 3 h adiante.
+  it('limite aceito pelo dono: UTC verdadeiro antigo de um só banco pagador é baixado 3 h adiante', async () => {
+    // Um banco não acende o aviso. Só na recuperação de atraso o fuso trocado passa
+    // assim; o Pix recente se corrige sozinho (horário que cairia no futuro).
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
       { endToEndId: e2e('202610071900'), txid: vela, valor: '0.20', horario: '2026-10-07T19:00:30Z' },
     ]))
     const s = sink('2026-10-07T18:00:00Z')
     const summary = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date())
-    expect(summary).toMatchObject({ vela: 1, settled: 0, review: 1 })
-    expect(s.failed).toHaveBeenCalledWith(expect.objectContaining({ txid: vela }), expect.stringContaining('diverge do endToEndId'), true)
-    expect(s.receive).not.toHaveBeenCalled()
+    expect(summary).toMatchObject({ vela: 1, settled: 1, review: 0 })
+    expect(s.receive).toHaveBeenCalledWith(settled({ endToEndId: e2e('202610071900'), txid: vela,
+      valor: '0.20', horario: '2026-10-07T22:00:30.000Z' }))
   })
 
   it('lote de um só pagador com endToEndId horas antes do crédito não para a consulta (06/11/2026)', async () => {
@@ -552,15 +563,32 @@ describe('consulta de recebimentos', () => {
     ]))
     const s = sink('2026-11-06T20:32:00.000Z')
     const summary = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date('2026-11-06T20:35:00Z'))
-    // Os do lote vão para análise um a um; o Pix do outro pagador é baixado e a consulta avança.
-    expect(summary).toMatchObject({ vela: 19, settled: 1, review: 18 })
+    // Os 18 do lote e o do outro pagador têm baixa automática, com o horário do crédito no Itaú.
+    expect(summary).toMatchObject({ vela: 19, settled: 19, review: 0 })
+    for (const pix of batch) expect(s.receive).toHaveBeenCalledWith(settled({ ...pix, horario: '2026-11-06T20:32:00.000Z' }))
     expect(s.receive).toHaveBeenCalledWith(settled({ endToEndId: e2e('202611062033', 1, '60701190'), txid: vela,
       valor: '100.00', horario: '2026-11-06T20:33:40.000Z' }))
-    expect(s.failed).toHaveBeenCalledTimes(18)
+    expect(s.failed).not.toHaveBeenCalled()
     expect(s.saved).toEqual(['2026-11-06T20:35:00.000Z'])
   })
 
-  it('Pix agendados de dois pagadores com desvio que não é de 3 h vão para análise sem parar', async () => {
+  it('lote represado desde sexta é baixado quando a correção chega dias depois', async () => {
+    // A consulta retoma do checkpoint parado (17:32 de 06/11) em janelas de 6 h e
+    // baixa o lote com o horário do crédito, não o da publicação.
+    vi.setSystemTime(new Date('2026-11-09T12:00:00Z'))
+    const batch = Array.from({ length: 18 }, (_, i) => ({
+      endToEndId: e2e('202611061732', i + 1, '30306294'), txid: newVelaTxid(), valor: '2743.00', horario: '2026-11-06T17:32:00Z',
+    }))
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage(batch))
+    const s = sink('2026-11-06T20:32:00.000Z')
+    const summary = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date())
+    expect(summary).toMatchObject({ vela: 18, settled: 18, review: 0 })
+    expect(s.receive).toHaveBeenCalledWith(settled({ ...batch[0], horario: '2026-11-06T20:32:00.000Z' }))
+    // Janela de 6 h a partir de 20:22 (checkpoint menos a sobreposição de 10 min).
+    expect(s.saved).toEqual(['2026-11-07T02:22:00.000Z'])
+  })
+
+  it('Pix agendados de dois pagadores com desvio que não é de 3 h são baixados sem parar', async () => {
     // Iniciados 5 h antes do crédito (desvio real de 06/11/2026): não é a troca do Z.
     vi.setSystemTime(new Date('2026-11-06T17:45:00Z'))
     const a = newVelaTxid()
@@ -571,11 +599,14 @@ describe('consulta de recebimentos', () => {
     ]))
     const s = sink('2026-11-06T17:30:00.000Z')
     const summary = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date('2026-11-06T17:45:00Z'))
-    expect(summary).toMatchObject({ vela: 2, settled: 0, review: 2 })
+    expect(summary).toMatchObject({ vela: 2, settled: 2, review: 0 })
+    expect(s.receive).toHaveBeenCalledWith(settled({ endToEndId: e2e('202611061237', 1, '60701190'), txid: a,
+      valor: '1.00', horario: '2026-11-06T17:37:23.000Z' }))
     expect(s.saved).toEqual(['2026-11-06T17:45:00.000Z'])
   })
 
-  it('um comprovante isolado que diverge do endToEndId vai para análise sem parar a baixa dos demais (P4)', async () => {
+  it('um comprovante isolado que diverge do endToEndId é baixado com o horário do Itaú, sem parar os demais', async () => {
+    // Antes (auditoria run-3, P4) ia para análise; decisão do dono de 2026-11-06.
     const odd = newVelaTxid()
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
       { endToEndId: e2e('202610061500', 1), txid: vela, valor: '0.01', horario: '2026-10-06T12:00:00Z' },
@@ -584,13 +615,13 @@ describe('consulta de recebimentos', () => {
     ]))
     const s = sink('2026-10-06T12:00:00.000Z')
     const summary = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date('2026-10-06T12:05:00Z'))
-    expect(summary).toMatchObject({ vela: 3, settled: 2, review: 1 })
-    expect(s.failed).toHaveBeenCalledWith(expect.objectContaining({ txid: odd }), expect.stringContaining('diverge do endToEndId'), true)
-    expect(s.receive).not.toHaveBeenCalledWith(expect.objectContaining({ txid: odd }))
+    expect(summary).toMatchObject({ vela: 3, settled: 3, review: 0 })
+    expect(s.receive).toHaveBeenCalledWith(settled({ endToEndId: e2e('202610060800', 2), txid: odd,
+      valor: '0.02', horario: '2026-10-06T15:01:00.000Z' }))
     expect(s.saved).toEqual(['2026-10-06T12:05:00.000Z'])
   })
 
-  it('a maioria dos bancos pagadores com desvio de 3 h é fuso: para sem baixar nenhum e leva os TXIDs', async () => {
+  it('a maioria dos bancos pagadores com desvio de 3 h acende o aviso de fuso, sem parar a baixa', async () => {
     const a = newVelaTxid()
     const b = newVelaTxid()
     const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
@@ -599,10 +630,21 @@ describe('consulta de recebimentos', () => {
       { endToEndId: e2e('202610061202', 3, '60701190'), txid: b, valor: '0.03', horario: '2026-10-06T12:02:00Z' },
     ]))
     const s = sink('2026-10-06T12:00:00.000Z')
-    const error = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date('2026-10-06T12:05:00Z')).catch((e) => e)
-    expect(error).toMatchObject({ message: expect.stringContaining('diverge do endToEndId'), body: { txids: [a, b] } })
-    expect(s.receive).not.toHaveBeenCalled()
-    expect(s.saved).toEqual([])
+    const summary = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date('2026-10-06T12:05:00Z'))
+    expect(summary).toMatchObject({ settled: 3, zoneShiftSuspect: [expect.objectContaining({ txid: a }), expect.objectContaining({ txid: b })] })
+    expect(s.saved).toEqual(['2026-10-06T12:05:00.000Z'])
+  })
+
+  it('lote de um só pagador com 3 h de desvio não acende o aviso de fuso', async () => {
+    vi.setSystemTime(new Date('2026-11-06T20:35:00Z'))
+    const fetchMtls = vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage(
+      Array.from({ length: 5 }, (_, i) => ({
+        endToEndId: e2e('202611061732', i + 1, '30306294'), txid: newVelaTxid(), valor: '2743.00', horario: '2026-11-06T17:32:00Z',
+      })),
+    ))
+    const s = sink('2026-11-06T20:32:00.000Z')
+    const summary = await pollItauPixReceipts(createItauPixClient(config, fetchMtls), s.sink, new Date())
+    expect(summary).toMatchObject({ settled: 5, zoneShiftSuspect: null })
   })
 
   it('endToEndId com data impossível é formato inesperado, não outro instante', async () => {
@@ -707,16 +749,16 @@ describe('consulta de recebimentos', () => {
     expect(s.saved).toEqual(['2026-10-06T12:05:00.000Z'])
   })
 
-  it('horário inesperado de Pix de terceiro não derruba a consulta: grava pelo minuto do endToEndId', async () => {
+  it('Pix de terceiro: horário ilegível grava pelo minuto do endToEndId; o agendado, pelo crédito no Itaú', async () => {
     const s = sink('2026-10-06T12:00:00.000Z')
     const summary = await pollItauPixReceipts(createItauPixClient(config, vi.fn().mockResolvedValueOnce(tokenResponse()).mockResolvedValueOnce(pixPage([
       { endToEndId: e2e('202610061501'), txid: '88ba8ec675e044178d434908d9b2a30a', valor: '50.00', horario: 'sem fuso' },
-      // UTC verdadeiro: lido como Brasília, se afastaria 3 h do endToEndId.
-      { endToEndId: e2e('202610061502', 2), txid: '88ba8ec675e044178d434908d9b2a30b', valor: '60.00', horario: '2026-10-06T15:02:30Z' },
+      // Agendado: iniciado às 10:00 UTC e creditado às 12:00 de Brasília (15:00 UTC).
+      { endToEndId: e2e('202610061000', 2), txid: '88ba8ec675e044178d434908d9b2a30b', valor: '60.00', horario: '2026-10-06T12:00:00Z' },
     ]))), s.sink, new Date('2026-10-06T12:05:00Z'))
     expect(summary).toMatchObject({ seen: 2, vela: 0, received: 2 })
     expect(s.receive).toHaveBeenCalledWith(expect.objectContaining({ valor: '50.00', horario: '2026-10-06T15:01:00.000Z' }))
-    expect(s.receive).toHaveBeenCalledWith(expect.objectContaining({ valor: '60.00', horario: '2026-10-06T15:02:00.000Z' }))
+    expect(s.receive).toHaveBeenCalledWith(expect.objectContaining({ valor: '60.00', horario: '2026-10-06T15:00:00.000Z' }))
     expect(s.saved).toEqual(['2026-10-06T12:05:00.000Z'])
   })
 

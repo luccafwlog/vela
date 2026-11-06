@@ -151,12 +151,19 @@ if (typeof Deno !== "undefined")
             if (error) throw new Error("Falha ao salvar o checkpoint Itaú.");
           },
         }).catch((error) => {
-          // A parada por fuso leva TXID, endToEndId e horário do Itaú dos que divergiram: ficam no log e na resposta.
+          // O corpo da recusa do Itaú fica no log e na resposta.
           const detail = error instanceof ItauPixError ? error.body : null;
           failedSteps.push("receipts");
           logFailure("receipts", error, detail);
           return { error: error instanceof Error ? error.message : "Falha na consulta de recebimentos", detail };
         });
+        // Sinal de fuso trocado só avisa a equipe técnica: a consulta já baixou e
+        // avançou, e a rodada responde 200 (decisão do dono de 2026-11-06).
+        if ("zoneShiftSuspect" in receipts && receipts.zoneShiftSuspect) {
+          await reportAbsorbedFailure("receipts_zone", new Error(
+            "Pix de dois bancos pagadores ou mais com o horário 3 h adiante do endToEndId; conferir se o Itaú mudou o fuso.",
+          ), { pix: receipts.zoneShiftSuspect });
+        }
         // Falha da fila ou da consulta responde fora de 2xx: o Alerta rotina_http_falhou
         // (migration 310) só enxerga o status (F-09). A falha conta no catch, nunca pela
         // chave `error` do resumo: o da fila sempre a tem, com as cobranças de resultado

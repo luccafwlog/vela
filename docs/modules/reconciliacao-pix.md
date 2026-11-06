@@ -661,16 +661,24 @@ Vela como recebido, sem Alerta; e a consulta avança (10-recebimento:3;
 migration `471`). Retorno sem valor ou horário legível fica só na fila de
 falhas (`itau_pix_receipt_failures`), com Alerta se for do Vela. Pix em formato inesperado vai para análise na primeira vez
 (migration `358`); `endToEndId` com data impossível (mês 13, minuto 99) conta como formato inesperado.
-Pix do Vela com horário a mais de 1 h do minuto UTC do `endToEndId` vai para
-análise, um a um, e os demais são baixados (auditoria de segurança run-3, P4).
-A consulta só para (desvio de fuso, com TXID, `endToEndId` e horário do Itaú
-no log da `itau-pix`) quando os Pix do Vela com o desvio que a troca do `Z`
-produziria (de 3 h − 5 min a 4 h depois do `endToEndId`) vêm de duas
-instituições pagadoras ou mais (ISPB do `endToEndId`) e elas são a maioria das
-instituições da janela. O lote de um mesmo pagador conta uma vez, e o Pix
-agendado ou pago em lote tem `endToEndId` da iniciação, horas antes do crédito:
-em 2026-11-06, 18 Pix de um cliente, pagos juntos, eram a maioria dos Pix da
-janela e pararam a consulta inteira por mais de uma hora, sem mudança de fuso. O mesmo Pix não é baixado duas vezes: o Pix de avulsa cujo
+O horário do Pix nunca para a consulta nem manda o Pix para análise
+(decisão do dono de 2026-11-06). Vale o horário do Itaú, que é o do crédito,
+mesmo a horas do minuto UTC do `endToEndId`: o Pix agendado ou pago em lote tem
+`endToEndId` da iniciação, horas antes do crédito. O Itaú manda Brasília com
+`Z`; o horário que, lido assim, cairia no futuro é UTC de verdade e vale como
+veio, então uma mudança de fuso no Itaú se corrige sozinha no Pix recente. O
+desvio de 3 h que a troca do `Z` produziria (de 3 h − 5 min a 4 h depois do
+`endToEndId`), em Pix do Vela de duas instituições pagadoras ou mais (ISPB do
+`endToEndId`) que sejam a maioria das da janela, só avisa a equipe técnica (log
+e Sentry da `itau-pix`, etapa `receipts_zone`, com TXID, `endToEndId` e horário
+do Itaú); o lote de um mesmo pagador conta uma vez. Limite aceito: numa
+recuperação de atraso de mais de 3 h logo depois de o Itaú mudar o fuso, o Pix
+antigo é baixado com o horário 3 h adiante, o que só muda o dia no Pix pago
+entre 21h e 0h de Brasília. Antes, o horário a mais de 1 h do `endToEndId`
+mandava o Pix para análise (auditoria de segurança run-3, P4) e parava a
+consulta inteira quando era a maioria dos Pix da janela, e o horário no futuro
+também parava: em 2026-11-06, 18 Pix de um cliente pagos juntos pararam a
+consulta por horas, sem mudança de fuso. O mesmo Pix não é baixado duas vezes: o Pix de avulsa cujo
 `endToEndId` já é referência de uma baixa, ou cujo TXID já conciliou a avulsa
 pelo extrato, vai para análise; o extrato que baixa avulsa cobrada pelo QR Itaú
 marca a cobrança como concluída (migration `357`). O Pix do QR de uma
@@ -693,8 +701,8 @@ próprio: baixa automática com o QR estático ligado, sem baixa e sem Alerta co
 a cobrança Itaú ligada ([QR estático do Vela](#pix-recebidos), migration
 `552`). Sem endToEndId ou valor válidos, o Pix
 fica de fora e é contado em `skipped` no resumo da função; o horário que não se
-lê ou se afasta mais de 1 h do minuto do endToEndId é trocado por esse minuto,
-sem parar a consulta. A baixa
+lê é trocado pelo minuto do endToEndId, sem parar a consulta (até 2026-11-06,
+também o que se afastava mais de 1 h desse minuto). A baixa
 automática Itaú de fatura local tem origem própria em `ledger_settlements`
 (`itau_pix`), que as guardas do TXID tratam como a do extrato (migration
 `376`). Com Pix em análise ligado a Invoice de Demurrage,
@@ -787,10 +795,11 @@ cancelamento de baixa de Demurrage.
 - `src/services/__tests__/itauPix.test.ts`: cliente Itaú (token, uma repetição do 403 C200, criação da
   COB, resposta perdida vira incerteza sem repetir a escrita), fila (blocos de
   5, orçamento de 20 s, teto de 60, parada no 429 e no Itaú sem resposta, vez
-  do runner) e consulta de recebimentos (janela em Brasília, travas de fuso,
-  janelas de 6 h, checkpoint que não avança com falha, todo Pix entregue a
-  `receive` com o retorno do Itaú, Pix de terceiro sem horário legível gravado
-  pelo minuto do endToEndId).
+  do runner) e consulta de recebimentos (janela em Brasília, fuso trocado
+  corrigido sem parar, aviso de fuso por banco pagador, lote de 18 Pix de um
+  pagador baixado, janelas de 6 h, checkpoint que não avança com falha, todo Pix
+  entregue a `receive` com o retorno do Itaú, Pix de terceiro sem horário
+  legível gravado pelo minuto do endToEndId).
 - `supabase/functions/itau-pix/index.test.ts` (Deno, no CI): rodada da função
   contra banco, Itaú e Sentry falsos, inclusive o Pix sem TXID e o de outro
   sistema chegando a `itau_pix_receive` com o retorno inteiro.

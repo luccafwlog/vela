@@ -188,6 +188,25 @@ Deno.test("429 no meio do bloco: a liberação das não chamadas que falha vai a
   assertSentryEvent(run.sentry, "charges_release");
 });
 
+Deno.test("sinal de fuso trocado em dois bancos pagadores não para: baixa, responde 200 e avisa log e Sentry", async () => {
+  // Recuperação de atraso logo depois de o Itaú passar a UTC verdadeiro: o horário de
+  // 3 h atrás, lido como Brasília, não cai no futuro e fica 3 h adiante do endToEndId.
+  const paid = new Date(Date.now() - 3 * 60 * 60_000 - 2 * 60_000);
+  const stamp = paid.toISOString().slice(0, 16).replace(/[-T:]/g, "");
+  const horario = paid.toISOString().slice(0, 19) + "Z";
+  const pix = [
+    { endToEndId: `E18236120${stamp}s0000000001`, txid: `VELA${"1".repeat(28)}`, valor: "10.00", horario },
+    { endToEndId: `E00000000${stamp}s0000000002`, txid: `VELA${"2".repeat(28)}`, valor: "20.00", horario },
+  ];
+  const run = await routineRun({ pix });
+  assert(run.status === 200, `Rodada com sinal de fuso respondeu ${run.status}: ${JSON.stringify(run.body)}`);
+  assert(run.received.length === 2, `Chamadas de itau_pix_receive: ${run.received.length}`);
+  assert(run.rpcs.filter((rpc) => rpc === "itau_pix_checkpoint").length === 2, "O checkpoint não avançou");
+  assert(run.body.receipts.zoneShiftSuspect?.length === 2, `Resumo: ${JSON.stringify(run.body.receipts)}`);
+  assert(loggedSteps(run.logs).join() === "receipts_zone", `Etapas no log: ${loggedSteps(run.logs)}`);
+  assertSentryEvent(run.sentry, "receipts_zone");
+});
+
 Deno.test("Pix sem TXID e de outro sistema vão para itau_pix_receive com o retorno inteiro do Itaú (ADR 0100)", async () => {
   // Minuto UTC do endToEndId = horário de Brasília do banco + 3 h.
   const minute = new Date(Date.now() - 2 * 60_000);
