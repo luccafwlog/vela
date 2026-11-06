@@ -5,6 +5,8 @@ import { InlineCustomerPicker } from '../shared/ReviewInlineEditors'
 import type { ReviewCustomer } from '../../hooks/useReview'
 import { CNPJ_INPUT_MAX_LENGTH, canonicalizeValidCnpj, formatCnpj, normalizeCnpj } from '../../lib/cnpj'
 import { ReceitaNameNote } from './ReceitaNameNote'
+import { useCnpjLookup } from '../../hooks/useCnpjLookup'
+import { reviewProfileFromLookup, type ReviewCustomerProfile } from '../../services/cnpjLookup'
 import type { ReviewGroup } from '../../pages/revisaoHelpers'
 
 export type ReviewCustomerOnboardingInput = {
@@ -13,6 +15,8 @@ export type ReviewCustomerOnboardingInput = {
   name: string
   email: string
   sendPortalInvite: boolean
+  /** Dados da Receita para o Cliente criado (migration 595); null ao vincular ou sem consulta. */
+  profile?: ReviewCustomerProfile | null
 }
 
 export function ReviewCustomerOnboarding({
@@ -82,6 +86,9 @@ export function ReviewCustomerOnboarding({
   const validEmail = !canEditContacts || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
   const expectedCnpjs = group.candidateCnpjs.length ? group.candidateCnpjs : group.cnpj ? [group.cnpj] : []
   const selectedCustomerCnpjMismatch = Boolean(validCnpj && expectedCnpjs.length > 0 && !expectedCnpjs.includes(validCnpj))
+  // Só Cliente novo consulta a Receita; o perfil vai junto no cadastro (migration 595).
+  const receitaCnpj = selectedId || selectedCustomerCnpjMismatch ? null : validCnpj
+  const receita = useCnpjLookup(receitaCnpj)
   const count = group.items.filter((item) => item.source === 'bl').length
   const hasBl = count > 0
   const canSubmit = Boolean(validCnpj && name.trim() && validEmail && !selectedCustomerCnpjMismatch && !saving && hasBl)
@@ -158,7 +165,7 @@ export function ReviewCustomerOnboarding({
         <Field label="CNPJ" required hint={cnpjHint} error={cnpjError}><Input maxLength={CNPJ_INPUT_MAX_LENGTH} placeholder="00.000.000/0000-00" inputMode="numeric" value={cnpj.length === 14 ? formatCnpj(cnpj) : cnpj} onChange={(event) => { clearSelectedCustomer(); setCnpj(normalizeCnpj(event.target.value)) }} /></Field>
       </div>
       {/* ADR 0126: só para Cliente novo; o cadastrado escolhido já tem a razão social dele. */}
-      <ReceitaNameNote cnpj={selectedId || selectedCustomerCnpjMismatch ? null : validCnpj} name={name} onUseName={setName} />
+      <ReceitaNameNote cnpj={receitaCnpj} name={name} onUseName={setName} />
       {canEditContacts ? (
       <>
       <Field label="E-mail principal do cliente" required hint={email.trim() ? 'Será salvo como contato do cliente. Nenhum e-mail é enviado por esta ação.' : 'O cliente precisa ter pelo menos um e-mail cadastrado.'}>
@@ -190,7 +197,7 @@ export function ReviewCustomerOnboarding({
             loading={saving}
             loadingLabel="Salvando…"
             aria-describedby={blockReason ? blockId : undefined}
-            onClick={() => onSubmit({ customerId: selectedId, cnpjCpf: validCnpj!, name: name.trim(), email: canEditContacts ? email.trim().toLowerCase() : '', sendPortalInvite: canEditContacts && canInvitePortal && sendPortalInvite })}
+            onClick={() => onSubmit({ customerId: selectedId, cnpjCpf: validCnpj!, name: name.trim(), email: canEditContacts ? email.trim().toLowerCase() : '', sendPortalInvite: canEditContacts && canInvitePortal && sendPortalInvite, profile: !selectedId && receitaCnpj && receita.data?.status === 'encontrado' ? reviewProfileFromLookup(receita.data.data) : null })}
           >
             {selectedId ? (canEditContacts ? `Adicionar e-mail e vincular ${targetLabel}` : `Vincular ${targetLabel}`) : `Criar cliente e vincular ${targetLabel}`}
           </Button>

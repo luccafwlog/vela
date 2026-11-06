@@ -16,6 +16,16 @@ describe('reviewCustomerGroup service', () => {
     expect(mockRpc).toHaveBeenCalledWith('complete_review_customer_group', { p_bl_ids: ['BL1', 'BL2'], p_customer_id: null, p_cnpj_cpf: '11222333000181', p_name: 'Cliente Teste', p_email: 'financeiro@example.com', p_changed_by: 'actor-1' })
   })
 
+  // Migration 595: o perfil da Receita só vai quando existe; sem ele, a chamada é a de antes.
+  it('manda o perfil da Receita em p_profile só quando ele existe', async () => {
+    mockRpc.mockResolvedValue({ data: { customer: { id: 8, cnpj_cpf: '11222333000181', name: 'Cliente Teste' }, bls: [] }, error: null })
+    const profile = { trade_name: 'TESTE', address: 'RUA A, 1', city: 'VITORIA', state: 'ES', zip: '29010000' }
+    await completeReviewCustomerGroup({ blIds: ['BL1'], customerId: null, cnpjCpf: '11222333000181', name: 'Cliente Teste', email: 'a@b.com', changedBy: 'actor-1', profile })
+    expect(mockRpc).toHaveBeenLastCalledWith('complete_review_customer_group', expect.objectContaining({ p_profile: profile }))
+    await completeReviewCustomerGroup({ blIds: ['BL1'], customerId: null, cnpjCpf: '11222333000181', name: 'Cliente Teste', email: 'a@b.com', changedBy: 'actor-1', profile: null })
+    expect(mockRpc.mock.lastCall?.[1]).not.toHaveProperty('p_profile')
+  })
+
   // D10 de 2026-10-27: quem não edita contatos cadastra sem e-mail; e-mail digitado errado continua recusado.
   it('sem e-mail manda nulo para a RPC; e-mail inválido é recusado antes', async () => {
     mockRpc.mockResolvedValue({ data: { customer: { id: 8, cnpj_cpf: '11222333000181', name: 'Cliente Teste' }, bls: [] }, error: null })

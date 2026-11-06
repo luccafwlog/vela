@@ -9,11 +9,12 @@ function sameCompanyName(a: string, b: string) {
 }
 
 /**
- * Razão social da Receita no cadastro do Cliente pela Revisão (ADR 0126). O
- * cadastro da Revisão grava só razão social, CNPJ e e-mail, e a razão social
- * já chega preenchida com o nome do manifesto: vazia, recebe a da Receita (uma
- * vez por CNPJ); preenchida e diferente, a troca fica num botão, como "Usar
- * este CNPJ". `cnpj` é o CNPJ válido e aceito pelo formulário, ou `null`.
+ * Dados da Receita no cadastro do Cliente pela Revisão (ADR 0126). A razão
+ * social já chega preenchida com o nome do manifesto: vazia, recebe a da
+ * Receita (uma vez por CNPJ); preenchida e diferente, a troca fica num botão,
+ * como "Usar este CNPJ". O endereço não tem campo na Revisão: aparece aqui e
+ * vai para o Cliente criado (`reviewProfileFromLookup`, migration 595).
+ * `cnpj` é o CNPJ válido e aceito pelo formulário, ou `null`.
  */
 export function ReceitaNameNote({ cnpj, name, onUseName }: {
   cnpj: string | null
@@ -45,18 +46,29 @@ export function ReceitaNameNote({ cnpj, name, onUseName }: {
   }
   const situation = result.data.situacao && result.data.situacao !== 'ATIVA' ? ` Situação na Receita: ${result.data.situacao}.` : ''
   const differs = Boolean(name.trim()) && !sameCompanyName(name, result.data.razao_social)
+  const address = formatReceitaAddress(result.data)
   return (
-    <p className="m-0 text-[var(--app-muted)]" role="status">
-      {differs ? <>Na Receita: <strong>{result.data.razao_social}</strong>.</> : 'Razão social conferida na Receita.'}
-      {situation}
-      {differs ? (
-        <>
-          {' '}
-          <button type="button" className="review-link-button" onClick={() => onUseName(result.data.razao_social)}>
-            Usar a razão social da Receita
-          </button>
-        </>
-      ) : null}
-    </p>
+    <div className="grid gap-1" role="status">
+      <p className="m-0 text-[var(--app-muted)]">
+        {differs ? <>Na Receita: <strong>{result.data.razao_social}</strong>.</> : 'Razão social conferida na Receita.'}
+        {situation}
+        {differs ? (
+          <>
+            {' '}
+            <button type="button" className="review-link-button" onClick={() => onUseName(result.data.razao_social)}>
+              Usar a razão social da Receita
+            </button>
+          </>
+        ) : null}
+      </p>
+      {address ? <p className="m-0 text-[var(--app-muted)]">Endereço da Receita, gravado no Cliente novo: {address}.</p> : null}
+    </div>
   )
+}
+
+/** "RUA A, 10 - CENTRO, VITORIA/ES, CEP 29010-000", com o que a Receita tiver. */
+function formatReceitaAddress(data: { endereco: string; cidade: string; uf: string; cep: string }) {
+  const place = [data.cidade, data.uf].filter(Boolean).join('/')
+  const zip = /^\d{8}$/.test(data.cep) ? `CEP ${data.cep.slice(0, 5)}-${data.cep.slice(5)}` : ''
+  return [data.endereco, place, zip].filter(Boolean).join(', ')
 }

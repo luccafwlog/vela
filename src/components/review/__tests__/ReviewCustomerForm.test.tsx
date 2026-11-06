@@ -61,9 +61,9 @@ describe('ReviewCustomerForm — convite do Portal', () => {
 
 // ADR 0126: a Revisão grava só a razão social; a da Receita vem por sugestão.
 describe('ReviewCustomerForm — razão social da Receita', () => {
-  const receita = (razao: string, situacao = 'ATIVA') => ({
+  const receita = (razao: string, situacao = 'ATIVA', endereco = { nome_fantasia: '', cep: '', endereco: '', cidade: '', uf: '' }) => ({
     isFetching: false,
-    data: { status: 'encontrado', data: { cnpj: '11222333000181', razao_social: razao, nome_fantasia: '', cep: '', endereco: '', cidade: '', uf: '', situacao } },
+    data: { status: 'encontrado', data: { cnpj: '11222333000181', razao_social: razao, ...endereco, situacao } },
   })
   beforeEach(() => {
     vi.clearAllMocks()
@@ -83,7 +83,21 @@ describe('ReviewCustomerForm — razão social da Receita', () => {
     expect((screen.getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('ALFA COMERCIO E SERVICOS LTDA')
     expect(screen.getByRole('status').textContent).toBe('Razão social conferida na Receita. Situação na Receita: INAPTA.')
     await user.click(screen.getByRole('button', { name: 'Cadastrar e vincular' }))
-    expect(onOnboard).toHaveBeenCalledWith(expect.objectContaining({ name: 'ALFA COMERCIO E SERVICOS LTDA' }))
+    expect(onOnboard).toHaveBeenCalledWith(expect.objectContaining({ name: 'ALFA COMERCIO E SERVICOS LTDA', profile: null }))
+  })
+
+  // Migration 595: o endereço da Receita vai para o Cliente criado.
+  it('mostra o endereço da Receita e o manda no cadastro', async () => {
+    const user = userEvent.setup()
+    const address = { nome_fantasia: 'ALFA', cep: '29010000', endereco: 'RUA A, 10 - CENTRO', cidade: 'VITORIA', uf: 'ES' }
+    mocks.cnpjLookup.mockImplementation((cnpj: string | null) => (cnpj ? receita('ALFA', 'ATIVA', address) : { data: undefined, isFetching: false }))
+    const { onOnboard } = renderForm('equipamentos')
+
+    expect(screen.getByText('Endereço da Receita, gravado no Cliente novo: RUA A, 10 - CENTRO, VITORIA/ES, CEP 29010-000.')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Cadastrar e vincular' }))
+    expect(onOnboard).toHaveBeenCalledWith(expect.objectContaining({
+      profile: { trade_name: 'ALFA', address: 'RUA A, 10 - CENTRO', city: 'VITORIA', state: 'ES', zip: '29010000' },
+    }))
   })
 
   it('mesmo nome com outra caixa ou acento não vira sugestão', () => {

@@ -44,10 +44,12 @@ pública da Receita e o CNPJ alfanumérico aceito no endereço da consulta.
   acento; o operador confere antes de cadastrar.
 - Na Revisão (grupo da Revisão e **Completar cadastro** na ficha do B/L em
   revisão, 2026-11-05, pedido do dono) a consulta vale para o CNPJ aceito
-  pelo formulário (um dos lidos no B/L) e só para Cliente novo. O cadastro
-  da Revisão grava só razão social, CNPJ e e-mail, e a razão social já vem
-  do manifesto: vazia, recebe a da Receita uma vez por CNPJ; diferente
-  (sem contar caixa, acento e pontuação), aparece "Na Receita: …" com
-  **Usar a razão social da Receita**, sem troca automática
-  (`src/components/review/ReceitaNameNote.tsx`). Endereço da Receita não é
-  gravado por esse caminho.
+  pelo formulário (um dos lidos no B/L) e só para Cliente novo. A razão
+  social já vem do manifesto: vazia, recebe a da Receita uma vez por CNPJ;
+  diferente (sem contar caixa, acento e pontuação), aparece "Na Receita: …"
+  com **Usar a razão social da Receita**, sem troca automática
+  (`src/components/review/ReceitaNameNote.tsx`). O formulário da Revisão
+  não tem campos de endereço: o nome fantasia, o endereço, a cidade, a UF e
+  o CEP da Receita aparecem no mesmo aviso e vão em `p_profile` de
+  `complete_review_customer_group` (migration 595, mesmo dia), que os grava
+  só no Cliente que ela cria; o já cadastrado não muda.

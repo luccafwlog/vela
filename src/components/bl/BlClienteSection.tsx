@@ -106,7 +106,7 @@ export function BlClienteSection({ bl, portalStatus, portalStatusError, onRetryP
       message: `Salvar ${input.name} (${formatCnpjCpf(input.cnpjCpf)}) e vincular ao B/L ${bl.id}?`,
       confirmLabel: input.sendPortalInvite ? 'Salvar e enviar convite' : 'Salvar cadastro',
       affected: { summary: `B/L ${bl.id} · ${input.name} · ${formatCnpjCpf(input.cnpjCpf)}` },
-      consequence: `${input.email ? `Salva o cliente e o contato ${input.email}.` : 'Salva o cliente, sem contato.'}${input.sendPortalInvite ? ` Inicia também o convite do Portal para ${input.email}.` : ''} Se esta correção liberar o B/L, a fatura poderá ser emitida automaticamente.`,
+      consequence: `${input.email ? `Salva o cliente e o contato ${input.email}.` : 'Salva o cliente, sem contato.'}${input.profile?.address ? ' Cliente novo leva o endereço da Receita.' : ''}${input.sendPortalInvite ? ` Inicia também o convite do Portal para ${input.email}.` : ''} Se esta correção liberar o B/L, a fatura poderá ser emitida automaticamente.`,
       reversibility: 'Cadastro e contato podem ser corrigidos; o convite pode ser revogado. Faturas emitidas só podem ser canceladas pelo Administrativo ou pelo Financeiro quando não houver pagamento.',
     }))) return
     setSaving(true)

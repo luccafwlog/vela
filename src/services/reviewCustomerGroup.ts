@@ -2,6 +2,7 @@ import { canonicalizeValidCnpj } from '../lib/cnpj'
 import { classifyDbError } from '../lib/errors'
 import { ConcurrentEditError } from './review'
 import { sendPortalInvite } from './portalProvisioning'
+import type { ReviewCustomerProfile } from './cnpjLookup'
 import { supabase } from './supabase'
 
 type UntypedRpc = { rpc: (name: string, params: Record<string, unknown>) => Promise<{ data: unknown; error: { code?: string; message?: string } | null }> }
@@ -14,6 +15,8 @@ export type CompleteReviewCustomerGroupInput = {
   email: string
   changedBy: string
   sendPortalInvite?: boolean
+  /** Dados da Receita para o Cliente criado aqui (migration 595); o já cadastrado não muda. */
+  profile?: ReviewCustomerProfile | null
 }
 
 export type ReviewCustomerGroupResult = {
@@ -41,6 +44,8 @@ export async function completeReviewCustomerGroup(input: CompleteReviewCustomerG
     p_name: input.name.trim(),
     p_email: email || null,
     p_changed_by: input.changedBy,
+    // Sem perfil, a chamada é a de antes da 595 (parâmetro omitido).
+    ...(input.profile ? { p_profile: input.profile } : {}),
   })
   if (error) {
     const message = error.message ?? ''

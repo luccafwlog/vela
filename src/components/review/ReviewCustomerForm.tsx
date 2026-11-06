@@ -5,6 +5,8 @@ import { Field, Input } from '../ui/Input'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { InlineCustomerPicker } from '../shared/ReviewInlineEditors'
 import { ReceitaNameNote } from './ReceitaNameNote'
+import { useCnpjLookup } from '../../hooks/useCnpjLookup'
+import { reviewProfileFromLookup, type ReviewCustomerProfile } from '../../services/cnpjLookup'
 import { useAuth } from '../../hooks/useAuth'
 import type { ReviewCustomer } from '../../hooks/useReview'
 import { CNPJ_INPUT_MAX_LENGTH, canonicalizeValidCnpj, formatCnpj, normalizeCnpj } from '../../lib/cnpj'
@@ -15,6 +17,8 @@ export type ReviewCustomerOnboardingInput = {
   name: string
   email: string
   sendPortalInvite: boolean
+  /** Dados da Receita para o Cliente criado (migration 595); null ao vincular ou sem consulta. */
+  profile?: ReviewCustomerProfile | null
 }
 
 type Mode = 'cadastrar' | 'vincular'
@@ -108,6 +112,9 @@ export function ReviewCustomerForm({
 
   const validEmail = !canEditContacts || EMAIL_PATTERN.test(email.trim())
   const cnpjMismatch = Boolean(validCnpj && expectedCnpjs.length > 0 && !expectedCnpjs.includes(validCnpj))
+  // Mesma consulta da nota (cache do React Query): o perfil vai junto no cadastro.
+  const receitaCnpj = mode === 'cadastrar' && !cnpjMismatch ? validCnpj : null
+  const receita = useCnpjLookup(receitaCnpj)
   const target = plural(blCount, 'B/L', 'B/Ls')
   const linkTargetCnpj = canonicalizeValidCnpj(linkTarget?.cnpj_cpf)
   const linkMatches = linkTarget && expectedCnpjs.length && linkTargetCnpj ? expectedCnpjs.includes(linkTargetCnpj) : null
@@ -152,6 +159,7 @@ export function ReviewCustomerForm({
       name: name.trim(),
       email: canEditContacts ? email.trim().toLowerCase() : '',
       sendPortalInvite: canInvitePortal && portal === 'convidar',
+      profile: receitaCnpj && receita.data?.status === 'encontrado' ? reviewProfileFromLookup(receita.data.data) : null,
     })
   }
 
@@ -185,7 +193,7 @@ export function ReviewCustomerForm({
             ) : null}
           </div>
           {/* ADR 0126: razão social da Receita para o CNPJ aceito (um dos lidos no B/L). */}
-          <ReceitaNameNote cnpj={cnpjMismatch ? null : validCnpj} name={name} onUseName={setName} />
+          <ReceitaNameNote cnpj={receitaCnpj} name={name} onUseName={setName} />
           {canInvitePortal ? (
           <ChoiceCards
             label="Portal do Cliente"

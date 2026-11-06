@@ -38,3 +38,19 @@ export async function lookupCnpj(cnpj: string): Promise<CnpjLookupResult> {
     return { status: 'indisponivel' }
   }
 }
+
+/** Perfil do Cliente criado pela Revisão (`p_profile` da migration 595). */
+export type ReviewCustomerProfile = {
+  trade_name: string
+  address: string
+  city: string
+  state: string
+  zip: string
+}
+
+/** Dados da Receita que a Revisão grava no Cliente novo; null sem endereço nem nome fantasia. */
+export function reviewProfileFromLookup(data: CnpjLookupData | null | undefined): ReviewCustomerProfile | null {
+  if (!data) return null
+  const profile = { trade_name: data.nome_fantasia, address: data.endereco, city: data.cidade, state: data.uf, zip: data.cep }
+  return Object.values(profile).some((value) => value.trim()) ? profile : null
+}
