@@ -247,3 +247,4 @@ src/integration/reforcoPorTempoDosAlertas.local-pg.test.ts
 src/integration/ataAtdCriticosEm16Horas.local-pg.test.ts
 src/integration/containerSemDescarga.local-pg.test.ts
 src/integration/alertasDoDesbloqueioDeCe.local-pg.test.ts
+src/integration/adrRecusaSemExportacao.local-pg.test.ts

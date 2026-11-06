@@ -61,6 +61,7 @@ No exemplo, com a carga cheia e a carga solta no TVV, a Carga descarregada do TV
 ::: atencao
 - Seção sem dado ("Nada operado nesta frente.", "Nada operado nesta escala." ou "Não há frente atribuída a este terminal.") continua pedindo resolução: o vazio não é conclusão.
 - Mudar uma decisão já registrada pede justificativa. Voltar uma seção a **Pendente** desfaz a assinatura da equipe dona ([11.3](#113-assinar-pela-equipe)).
+- Com exportação declarada na escala e o manifesto não vinculado à Viagem, **Carga carregada** (Granito) e **Embarque de vazios** não aceitam **Nada a declarar**: o Vela recusa e diz o que falta. Vincule o manifesto em **Granito** ou no Embarque de vazios, ou corrija a exportação da escala (capítulo 10).
 :::
 
 ## 11.3 Assinar pela equipe
@@ -116,6 +117,7 @@ Com o ADR fechado, o Vela trava o que mexe nele: o terminal das frentes, o ATB, 
 
 ::: atencao
 - Uma frente em TBC em qualquer ponto da escala impede o fechamento, também a que nasceu depois de os terminais serem escolhidos (carga solta, vazios, Granito, carga em transbordo). O bloco **ADR** mostra o aviso **Sem terminal (TBC)**, **Fechar ADR** fica apagado e, com as três assinaturas, o bloco diz "Frente sem terminal impede o fechamento" no lugar de "Pronto para fechar". Escolha o terminal em **Editar escala** ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)); no Embarque de vazios antigo, em **Definir terminal** ([10.5](10-veiculos-vazios-granito.md#105-registrar-o-embarque-de-vazios)).
+- Com exportação declarada na escala (Granito ou Embarque de vazios) e o manifesto não vinculado à Viagem, o Vela recusa **Fechar ADR** e diz o que falta. Vincule o manifesto ou corrija a exportação da escala.
 - O Vela deixa fechar antes da saída do navio, mas depois não aceita o ATD daquele terminal sem reabrir, e o ADR fechado sem ATD fica fora do **Prazo do ADR**. Feche depois de registrar o ATD.
 :::
 
