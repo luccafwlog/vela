@@ -22,7 +22,7 @@ const OPERATION_BOOKINGS_PAGE_SIZE = 1000;
 
 export type VaziosExportServiceLineWithObservation = VaziosExportServiceLine & {
   observation: string | null;
-  /** Migration 603; `database.ts` protegido ainda não a descreve. */
+  /** Migration 606; `database.ts` protegido ainda não a descreve. */
   free_time_days?: number | null;
 };
 
@@ -37,7 +37,7 @@ export type ManualBookingInput = {
   handInDate?: string | null;
   handOutDate?: string | null;
   movementDate?: string | null;
-  /** Porto de descarga (LOCODE), obrigatório desde a migration 603. */
+  /** Porto de descarga (LOCODE), obrigatório desde a migration 606. */
   pod: string;
 };
 
@@ -179,7 +179,7 @@ export async function listVaziosBookingsForOperation(operationId: string) {
 
 /**
  * Storage do ADR: unidades com dia cobrável e os dias cobráveis, com o free
- * time congelado nas linhas de armazenagem (603). A unidade de Depot que ficou
+ * time congelado nas linhas de armazenagem (606). A unidade de Depot que ficou
  * dentro do free time não gerou armazenagem e não conta (C2), e a quantidade
  * informada à mão na linha vale, com o calculado pela lista ao lado (C4;
  * revisão de 2026-11-06). Regra em `totaisDeArmazenagem`.
@@ -392,7 +392,7 @@ export type VaziosOperationBookingRow = Pick<
   VaziosBooking,
   "operation_id" | "local_id" | "condition" | "hand_in_date" | "hand_out_date" | "created_at"
 > & {
-  /** O tamanho decide em que linha de armazenagem a unidade conta (603). */
+  /** O tamanho decide em que linha de armazenagem a unidade conta (606). */
   container_type?: string | null;
   /** Migration 332; vazia nas unidades anteriores a ela (`database.ts` protegido ainda não a descreve). */
   updated_at?: string | null;
@@ -456,7 +456,7 @@ export function summarizeVaziosOperations(
   operations: VaziosOperationListRow[],
   bookings: VaziosOperationBookingRow[],
   depots: StorageDepot[],
-  /** Serviços de armazenagem do catálogo: dizem se a armazenagem se divide por tamanho (603). */
+  /** Serviços de armazenagem do catálogo: dizem se a armazenagem se divide por tamanho (606). */
   catalogo: StorageCatalogService[] = [],
 ): VaziosOperationSummary[] {
   const byOperation = new Map<string, VaziosOperationBookingRow[]>();
@@ -500,7 +500,7 @@ export function summarizeVaziosOperations(
 }
 
 export type EmptyExportRoute = {
-  /** Porto de descarga; vazio na unidade gravada antes da 603 sem POD. */
+  /** Porto de descarga; vazio na unidade gravada antes da 606 sem POD. */
   pod: string
   unidades: number
   teu: number
@@ -510,7 +510,7 @@ export type EmptyExportRoute = {
 
 /**
  * Rotas de exportação dos vazios (porto do embarque → POD), com as unidades,
- * o TEU e o Nº do Manifesto Mercante da rota (603; decisão do dono de
+ * o TEU e o Nº do Manifesto Mercante da rota (606; decisão do dono de
  * 2026-11-06: os vazios embarcam já manifestados, o Vela registra o número).
  */
 export function summarizeEmptyExportRoutes(

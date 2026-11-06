@@ -2,7 +2,7 @@
 
 Status: aceito — 2026-11-06 (decisões do dono sobre a
 [revisão do Embarque de vazios](../archive/audits/2026-11-06-revisao-embarque-de-vazios.md)).
-Implementada na migration `603`. Estende a
+Implementada na migration `606`. Estende a
 [ADR 0033](./0033-embarque-vazios-unidades-importadas-servicos-lancados.md) e
 a [ADR 0113](./0113-embarque-de-vazios-opera-num-terminal.md).
 
@@ -80,7 +80,7 @@ A revisão de 2026-11-06 encontrou estas lacunas no Embarque de vazios:
   **Manifesto Mercante** de **Vazios de importação** só oferece os manifestos
   com POD brasileiro. A rota de exportação para porto estrangeiro não é rota
   de importação.
-- **Unidades antigas.** Unidade gravada antes da `603` sem POD continua até a
+- **Unidades antigas.** Unidade gravada antes da `606` sem POD continua até a
   próxima edição dela, que pede o POD. A produção não tinha Embarque de vazios
   em 2026-11-06.
 

@@ -159,8 +159,8 @@ describeLocal('Embarque de vazios: local e serviço inativos recusados (migratio
   })
 
   it('transporte para destino inativo é recusado; a linha já lançada segue editável (migration 331)', () => {
-    // A regra da 331 vale na definição vigente (603); reaplicar a 331 aqui
-    // desfaria a 603 no banco compartilhado pelas suítes seguintes.
+    // A regra da 331 vale na definição vigente (606); reaplicar a 331 aqui
+    // desfaria a 606 no banco compartilhado pelas suítes seguintes.
     const insertTransport = () => asUser(`INSERT INTO public.vazios_export_service_lines (operation_id, service_id, local_id, destino_id, quantidade, valor_unitario)
       VALUES (${operationId}, ${serviceId('A326 TRANSPORTE')}, ${depotId(activeDepot)}, ${depotId(destination)}, 1, 10)`)
     expect(insertTransport().stderr).toBe('')

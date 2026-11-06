@@ -723,7 +723,7 @@ export type EmptyEmbarkRow = {
   type: string
   condition: string
   localLabel: string
-  /** Porto de descarga (603); ausente nos retratos fechados antes dele. */
+  /** Porto de descarga (606); ausente nos retratos fechados antes dele. */
   pod?: string
   quantity: number
 }
@@ -742,7 +742,7 @@ export function groupEmptyEmbarkBookings(
     const type = item.type || '—'
     const condition = (item.condition && VAZIOS_CONDITION_LABELS[item.condition]) || item.condition || '—'
     const localLabel = item.localLabel || '—'
-    // 603: o POD entra na listagem; "—" na unidade anterior sem POD.
+    // 606: o POD entra na listagem; "—" na unidade anterior sem POD.
     const pod = item.pod === undefined ? undefined : item.pod || '—'
     const key = `${type}::${condition}::${localLabel}::${pod ?? ''}`
     const existing = rows.get(key)
@@ -1055,7 +1055,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
   for (const result of [vaziosExpRes, serviceLinesRes]) {
     if (result.error) throw result.error
   }
-  // 603: Nº do Manifesto Mercante de cada rota de exportação dos vazios.
+  // 606: Nº do Manifesto Mercante de cada rota de exportação dos vazios.
   const vaziosManifestos = operation ? await listVaziosMercanteManifestos([voyageId]) : []
 
   // Task 10 (ADR 2026-07-31): Embarque de Vazios lançado num porto que não é
@@ -1248,7 +1248,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
     return line
   }).map((line, _index, lines) => ({
     ...line,
-    // 603: a armazenagem se divide por tamanho conforme as linhas lançadas, e o
+    // 606: a armazenagem se divide por tamanho conforme as linhas lançadas, e o
     // free time é o congelado na linha; por isso o contexto são todas as linhas.
     quantidade: quantidadeEfetiva(line, units, allDepots, lines),
     total: totalLinha(line, units, allDepots, lines),

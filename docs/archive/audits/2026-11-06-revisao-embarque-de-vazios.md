@@ -40,7 +40,7 @@ assim:
 
 As decisões 1 a 5 estão na
 [ADR 0130](../../adr/0130-embarque-de-vazios-pod-tamanho-e-free-time-congelado.md),
-implementadas na migration `603`. Elas resolvem C1 a C9, C11, L1, L3, L4 e L8.
+implementadas na migration `606`. Elas resolvem C1 a C9, C11, L1, L3, L4 e L8.
 O L2 se resolve como registro do número, sem EDI.
 
 Seguem abertos:
@@ -53,7 +53,7 @@ Seguem abertos:
 - **L9:** um terminal por escala.
 - **Lote E:** dados do catálogo, a cargo de Equipamentos.
 
-O texto abaixo descreve o sistema antes da `603`.
+O texto abaixo descreve o sistema antes da `606`.
 
 ## Resposta curta
 

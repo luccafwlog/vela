@@ -1,4 +1,4 @@
--- 603: Embarque de vazios com porto de descarga, preço por tamanho e free time
+-- 606: Embarque de vazios com porto de descarga, preço por tamanho e free time
 -- congelado (decisões do dono de 2026-11-06, ADR 0130; revisão em
 -- docs/archive/audits/2026-11-06-revisao-embarque-de-vazios.md).
 --
@@ -59,7 +59,7 @@ ALTER TABLE public.vazios_export_service_lines
   ADD CONSTRAINT vazios_export_service_lines_free_time_days_check
   CHECK (free_time_days IS NULL OR free_time_days >= 0);
 COMMENT ON COLUMN public.vazios_export_service_lines.free_time_days IS
-  'Free time do depot para a condição, congelado no lançamento da linha de armazenagem (603). Nulo: linha anterior à 603, segue o cadastro.';
+  'Free time do depot para a condição, congelado no lançamento da linha de armazenagem (606). Nulo: linha anterior à 606, segue o cadastro.';
 
 ALTER TABLE public.depot_services
   ADD CONSTRAINT depot_services_container_size_check
@@ -68,9 +68,9 @@ ALTER TABLE public.vazios_export_service_lines
   ADD CONSTRAINT vazios_export_service_lines_container_size_check
   CHECK (container_type IS NULL OR container_type IN ('20', '40')) NOT VALID;
 COMMENT ON COLUMN public.depot_services.container_type IS
-  'Tamanho do container que o serviço cobra: 20 ou 40 (603). Nulo: qualquer tamanho.';
+  'Tamanho do container que o serviço cobra: 20 ou 40 (606). Nulo: qualquer tamanho.';
 COMMENT ON COLUMN public.vazios_export_service_lines.container_type IS
-  'Tamanho do serviço lançado, copiado do catálogo (603): 20, 40 ou nulo.';
+  'Tamanho do serviço lançado, copiado do catálogo (606): 20, 40 ou nulo.';
 
 DROP INDEX IF EXISTS public.uq_vazios_storage_line_operation_local_condition;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_vazios_storage_line_operation_local_condition_size
@@ -118,7 +118,7 @@ BEGIN
   IF v_local_tipo = 'terminal_portuario' AND (NEW.hand_in_date IS NOT NULL OR NEW.hand_out_date IS NOT NULL) THEN
     RAISE EXCEPTION 'Terminal portuário não aceita entrada ou saída.' USING ERRCODE = '22023';
   END IF;
-  -- 603: o Embarque direto sai de um terminal do porto do embarque.
+  -- 606: o Embarque direto sai de um terminal do porto do embarque.
   IF v_local_tipo = 'terminal_portuario' AND (TG_OP = 'INSERT' OR NEW.local_id IS DISTINCT FROM OLD.local_id)
      AND v_local_port IS DISTINCT FROM v_embark_port THEN
     RAISE EXCEPTION 'O terminal portuário % fica em %, e o embarque é em %: use um terminal de % ou um depot.',
@@ -126,8 +126,8 @@ BEGIN
       USING ERRCODE = '22023';
   END IF;
 
-  -- 603: POL é o porto do embarque; POD é obrigatório, em LOCODE, e não é o
-  -- porto do embarque. A unidade gravada antes da 603 sem POD continua até a
+  -- 606: POL é o porto do embarque; POD é obrigatório, em LOCODE, e não é o
+  -- porto do embarque. A unidade gravada antes da 606 sem POD continua até a
   -- próxima mudança dela.
   NEW.pol := v_embark_port;
   NEW.pod := CASE WHEN v_raw_pod IS NULL THEN NULL ELSE public.normalize_port_code(v_raw_pod) END;
@@ -181,7 +181,7 @@ BEGIN
           AND public.normalize_port_code(c.pol) = public.normalize_port_code(mm.pol)
           AND public.normalize_port_code(c.pod) = public.normalize_port_code(mm.pod)
       )
-      -- 603: a rota de exportação do Embarque de vazios (porto do embarque →
+      -- 606: a rota de exportação do Embarque de vazios (porto do embarque →
       -- POD da unidade) também é rota viva.
       AND NOT EXISTS (
         SELECT 1 FROM public.vazios_bookings b
@@ -261,7 +261,7 @@ BEGIN
        OR (COALESCE(d.tipo, 'depot') = 'depot' AND r.hand_out_date < r.hand_in_date)
        OR (d.id IS NOT NULL AND d.tipo = 'terminal_portuario' AND (r.hand_in_date IS NOT NULL OR r.hand_out_date IS NOT NULL))
        OR r.condition IS NULL OR r.condition NOT IN ('vazio', 'material')
-       -- 603: POD obrigatório, em LOCODE (o gatilho da unidade dá o motivo).
+       -- 606: POD obrigatório, em LOCODE (o gatilho da unidade dá o motivo).
        OR NULLIF(btrim(COALESCE(r.pod, '')), '') IS NULL
        OR COALESCE(public.normalize_port_code(r.pod), '') !~ '^[A-Z]{2}[A-Z0-9]{3}$'
   ) THEN
@@ -324,7 +324,7 @@ BEGIN
   UPDATE public.vazios_manifests vm
   SET total_bookings = (SELECT count(*) FROM public.vazios_bookings b WHERE b.manifest_id = vm.id)
   WHERE vm.voyage_id = p_voyage_id;
-  -- 603: o Nº de rota de exportação que ficou sem unidade sai, como na importação.
+  -- 606: o Nº de rota de exportação que ficou sem unidade sai, como na importação.
   PERFORM public._vazios_importacao_prune(p_voyage_id);
 
   RETURN jsonb_build_object(
@@ -427,7 +427,7 @@ BEGIN
       movement_date = p_movement_date,
       pod = p_pod
   WHERE id = p_booking_id;
-  -- 603: trocar o POD pode deixar a rota antiga sem unidade.
+  -- 606: trocar o POD pode deixar a rota antiga sem unidade.
   PERFORM public._vazios_importacao_prune(v_booking.voyage_id);
 END;
 $function$;
@@ -474,7 +474,7 @@ BEGIN
       SELECT 1 FROM public.vazios_bookings booking
       WHERE booking.manifest_id = manifest.id
     );
-  -- 603: a última unidade de uma rota leva o Nº da rota de exportação junto.
+  -- 606: a última unidade de uma rota leva o Nº da rota de exportação junto.
   PERFORM public._vazios_importacao_prune(v_booking.voyage_id);
 END;
 $function$;
@@ -523,7 +523,7 @@ BEGIN
   IF v_new_launch AND NOT v_service_active THEN
     RAISE EXCEPTION 'Serviço inativo: escolha um serviço ativo ou reative o serviço no cadastro do local.' USING ERRCODE = '23514';
   END IF;
-  -- 603: o tamanho da linha é o do serviço no lançamento; depois não muda por
+  -- 606: o tamanho da linha é o do serviço no lançamento; depois não muda por
   -- escrita direta.
   IF v_new_launch THEN
     NEW.container_type := v_service_size;
@@ -538,7 +538,7 @@ BEGIN
        OR NEW.percentual IS NOT NULL THEN
       RAISE EXCEPTION 'Armazenagem exige depot e a condição da linha (a do serviço, quando ele tem uma), sem rota ou percentual.' USING ERRCODE = '23514';
     END IF;
-    -- 603: free time do depot para a condição, congelado no lançamento.
+    -- 606: free time do depot para a condição, congelado no lançamento.
     IF v_new_launch OR NEW.condition IS DISTINCT FROM OLD.condition THEN
       NEW.free_time_days := CASE WHEN NEW.condition = 'material' THEN v_free_time_material ELSE v_free_time_vazio END;
     ELSE

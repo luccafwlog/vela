@@ -47,7 +47,7 @@ it('consolida containers distintos por tipo e veiculos distintos por modelo', ()
 })
 vi.mock('../vaziosExportOperations', async (importOriginal) => ({
   computeStorageTotals: vi.fn(() => ({ containers: 0, days: 0 })),
-  // 603: as rotas de exportação usam a regra real.
+  // 606: as rotas de exportação usam a regra real.
   summarizeEmptyExportRoutes: (await importOriginal<typeof import('../vaziosExportOperations')>()).summarizeEmptyExportRoutes,
 }))
 

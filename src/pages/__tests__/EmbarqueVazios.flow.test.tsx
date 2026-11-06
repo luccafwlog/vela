@@ -26,7 +26,7 @@ const mocks = vi.hoisted(() => ({
   // Estado de leitura forçado por chave (carregando ou falha), sem dado.
   queryOverrides: {} as Record<string, { isLoading?: boolean; error?: unknown }>,
   createOperation: vi.fn(() => Promise.resolve({ id: "operation-new", created: true, terminalId: "terminal-1" })),
-  // 603: Nº do Manifesto Mercante das rotas de exportação.
+  // 606: Nº do Manifesto Mercante das rotas de exportação.
   manifestosData: [] as unknown[],
   setRouteCeMaster: vi.fn(() => Promise.resolve()),
   adrLocked: false,
@@ -274,18 +274,18 @@ describe("EmbarqueVazios", () => {
       localId: "depot-1",
       containerNumber: "MSCU1234567",
       condition: "vazio",
-      // Migration 603: o POD digitado pelo nome vai em LOCODE.
+      // Migration 606: o POD digitado pelo nome vai em LOCODE.
       pod: "CNSHA",
     })));
     await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["agency-report", 179] }));
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["vazios-export-operations"] });
-    // 603: gravar unidade pode tirar o Nº do Manifesto Mercante da rota que
+    // 606: gravar unidade pode tirar o Nº do Manifesto Mercante da rota que
     // ficou sem unidade; o bloco por porto de descarga e Rotas e Manifestos releem.
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["manifestos-mercante"] });
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["voyage-route-ce-masters"] });
   });
 
-  it("603: registra o Nº do Manifesto Mercante da rota de exportação pela gravação de Rotas e Manifestos", async () => {
+  it("606: registra o Nº do Manifesto Mercante da rota de exportação pela gravação de Rotas e Manifestos", async () => {
     mocks.unitsData = { rows: [
       { id: "u1", container_number: "MSCU1234567", container_type: "40HC", local_id: "depot-1", condition: "vazio", hand_in_date: "2026-10-01", hand_out_date: "2026-10-02", movement_date: null, pod: "CNSHA" },
       { id: "u2", container_number: "MSCU1234568", container_type: "20DV", local_id: "depot-1", condition: "vazio", hand_in_date: "2026-10-01", hand_out_date: "2026-10-02", movement_date: null, pod: "CNNGB" },
@@ -310,7 +310,7 @@ describe("EmbarqueVazios", () => {
     })));
   });
 
-  it("603: sem porto de descarga, ou com o porto do embarque, a unidade não é gravada", () => {
+  it("606: sem porto de descarga, ou com o porto do embarque, a unidade não é gravada", () => {
     renderPage();
     fireEvent.click(screen.getByRole("button", { name: /Adicionar unidade/i }));
     const dialog = screen.getByRole("dialog");

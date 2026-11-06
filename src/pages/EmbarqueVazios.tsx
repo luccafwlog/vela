@@ -88,7 +88,7 @@ type UnitForm = {
   handInDate: string;
   handOutDate: string;
   movementDate: string;
-  /** Porto de descarga (POD), obrigatório desde a migration 603. */
+  /** Porto de descarga (POD), obrigatório desde a migration 606. */
   pod: string;
 };
 
@@ -216,7 +216,7 @@ export function EmbarqueVazios() {
   const operations = useQuery({ queryKey: OPERATIONS_KEY, queryFn: listVaziosExportOperationsWithUnits });
   const depots = useDepots();
   const depotRows = useMemo(() => (Array.isArray(depots.data) ? depots.data : []), [depots.data]);
-  // 603: o catálogo diz se a armazenagem de um depot se divide por tamanho.
+  // 606: o catálogo diz se a armazenagem de um depot se divide por tamanho.
   const storageCatalog = useQuery({ queryKey: ["armazenagem-services"], queryFn: listArmazenagemServices });
   const summaries = useMemo(
     () => (operations.data
@@ -664,7 +664,7 @@ function EmbarqueDetalhe({
     queryKey: ["armazenagem-services"],
     queryFn: listArmazenagemServices,
   });
-  // 603: Nº do Manifesto Mercante de cada rota de exportação (porto do
+  // 606: Nº do Manifesto Mercante de cada rota de exportação (porto do
   // embarque → POD), no mesmo cadastro da aba Rotas e Manifestos.
   const vaziosManifestos = useQuery({
     queryKey: [...queryKeys.manifestosMercante.all(), "vazio", [ref.voyage_id]],
@@ -709,12 +709,12 @@ function EmbarqueDetalhe({
   }));
   // Combinações (depot, condição, tamanho) com dias calculados pela lista de
   // unidades e sem linha lançada (ADR 0033 mantém o lançamento manual); 0 dia
-  // fica fora. O catálogo diz se o depot cobra 20' e 40' à parte (603).
+  // fica fora. O catálogo diz se o depot cobra 20' e 40' à parte (606).
   const missingArmazenagem = armazenagemALancar(unitRows, depotRows, costLines, armazenagemServiceRows);
   const embarkPort = normalizePortCode(ref.embark_port) ?? ref.embark_port.trim().toUpperCase();
-  // 603: rotas de exportação (porto do embarque → POD), com unidades, TEU e o Nº do Manifesto Mercante.
+  // 606: rotas de exportação (porto do embarque → POD), com unidades, TEU e o Nº do Manifesto Mercante.
   const exportRoutes = summarizeEmptyExportRoutes(unitRows, embarkPort, ref.voyage_id, vaziosManifestos.data ?? []);
-  // O Embarque direto sai de um terminal do porto do embarque (603); os depots não têm porto.
+  // O Embarque direto sai de um terminal do porto do embarque (606); os depots não têm porto.
   const portTerminalIds = new Set((terminal.data?.options ?? []).map((item) => item.id));
   const shipmentTotal = operation.data
     ? totalEmbarque({ unidades: unitRows, linhas: costLines, depots: depotRows })
@@ -724,7 +724,7 @@ function EmbarqueDetalhe({
   async function refreshOperationData(options: { operation?: boolean; routes?: boolean } = {}) {
     const refreshes: Array<Promise<unknown>> = [units.refetch()];
     if (options.operation !== false) refreshes.push(operation.refetch());
-    // 603: a gravação de unidades tira o Nº do Manifesto Mercante da rota que
+    // 606: a gravação de unidades tira o Nº do Manifesto Mercante da rota que
     // ficou sem unidade (`_vazios_importacao_prune`); o bloco por porto de
     // descarga, Rotas e Manifestos e Vazios de importação releem o cadastro.
     if (options.routes) {
@@ -764,7 +764,7 @@ function EmbarqueDetalhe({
     if (!file || !user?.id) return;
     let parsed: ParsedVaziosManifest;
     try {
-      // 603: o leitor confere o POD contra o porto do embarque e o terminal contra os terminais do porto.
+      // 606: o leitor confere o POD contra o porto do embarque e o terminal contra os terminais do porto.
       parsed = await parseVaziosManifestFile(file, depotRows, {
         embarkPort,
         portTerminalIds: terminal.data ? portTerminalIds : null,
@@ -995,7 +995,7 @@ function EmbarqueDetalhe({
         localId: local.id,
         local,
         destinoId: selectedService.natureza === "transporte" ? selectedService.route_destino_id ?? null : null,
-        // 603: a linha leva o tamanho do serviço (o banco confere).
+        // 606: a linha leva o tamanho do serviço (o banco confere).
         containerType: sizeOf(selectedService.container_type),
         // B12 (ADR 0033): o serviço genérico leva a condição escolhida na linha.
         condition: selectedService.natureza === "armazenagem" ? selectedService.condition ?? (line.condition || null) : null,
@@ -1107,7 +1107,7 @@ function EmbarqueDetalhe({
   const unitLocal = depotRows.find((item) => item.id === unit.localId);
   const unitTerminal = unitLocal?.tipo === "terminal_portuario";
   // A unidade já lançada num local depois desativado continua editável nele.
-  // 603: terminal só do porto do embarque; os depots não têm porto.
+  // 606: terminal só do porto do embarque; os depots não têm porto.
   const portLocalOptions = activeDepots.filter((item) => item.tipo !== "terminal_portuario" || portTerminalIds.has(item.id));
   const unitLocalOptions = unit.id && unitLocal && !portLocalOptions.some((item) => item.id === unitLocal.id)
     ? [...portLocalOptions, unitLocal]
@@ -1368,7 +1368,7 @@ function EmbarqueDetalhe({
                       {missingArmazenagem.map((need) => {
                         const depot = depotRows.find((item) => item.id === need.depot_id);
                         // B12 (ADR 0033): o serviço da mesma condição vence; sem ele, o
-                        // serviço sem condição (genérico) serve. 603: do mesmo tamanho.
+                        // serviço sem condição (genérico) serve. 606: do mesmo tamanho.
                         const suggestedService = servicoDeArmazenagem(armazenagemServiceRows, need);
                         const inactiveDepot = depot?.active === false;
                         return (

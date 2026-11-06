@@ -28,7 +28,7 @@ describe("createManualVaziosBooking", () => {
         p_voyage_id: 39,
         p_uploaded_by: "user-1",
         p_container_number: "MSCU1234567",
-        // Migration 603: o porto de descarga vai junto, em maiúsculas.
+        // Migration 606: o porto de descarga vai junto, em maiúsculas.
         p_pod: "CNSHA",
       }),
     );

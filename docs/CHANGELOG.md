@@ -7,7 +7,7 @@
 ## 2026-11
 
 - **Embarque de vazios: porto de descarga, Nº do manifesto da rota, preço por tamanho e free time congelado
-  (decisões do dono de 2026-11-06, migration `603`, ADR 0130):** a revisão do Embarque de vazios
+  (decisões do dono de 2026-11-06, migration `606`, ADR 0130):** a revisão do Embarque de vazios
   ([relatório](archive/audits/2026-11-06-revisao-embarque-de-vazios.md)) levou a estas mudanças:
   - **POD obrigatório.** Toda unidade tem porto de descarga (POD), na planilha (oitava coluna) e na janela.
   - **Embarque direto.** Só sai de um terminal do porto do embarque.

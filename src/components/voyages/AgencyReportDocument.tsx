@@ -295,7 +295,7 @@ type EmptyEmbarkRowLike = {
   type: string;
   condition: string;
   localLabel: string;
-  /** 603; ausente nos retratos fechados antes dele. */
+  /** 606; ausente nos retratos fechados antes dele. */
   pod?: string;
   quantity: number;
 };
@@ -319,7 +319,7 @@ function asEmptyEmbarkRows(value: unknown): EmptyEmbarkRowLike[] {
 
 type EmptyExportRouteLike = { pod: string; unidades: number; teu: number; manifesto: string | null };
 
-// 603: rotas de exportação dos vazios gravadas em `sections.operation.rotas`.
+// 606: rotas de exportação dos vazios gravadas em `sections.operation.rotas`.
 function asEmptyExportRoutes(value: unknown): EmptyExportRouteLike[] {
   if (!Array.isArray(value)) return [];
   return value.map((item) => {

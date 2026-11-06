@@ -254,7 +254,7 @@ export function DepotCadastro() {
         // B31: `active` vem do registro atual, não do momento em que se clicou Editar.
         active: original?.active ?? serviceForm.active,
         depot_id: selected.id,
-        // Migration 603: o serviço pode cobrar só um tamanho (20' ou 40'); vazio = qualquer.
+        // Migration 606: o serviço pode cobrar só um tamanho (20' ou 40'); vazio = qualquer.
         container_type: serviceForm.container_type === '20' || serviceForm.container_type === '40' ? serviceForm.container_type : null,
         route_destino_id: serviceForm.natureza === 'transporte' ? serviceForm.route_destino_id || null : null,
         condition: serviceForm.natureza === 'armazenagem' ? serviceForm.condition || null : null,

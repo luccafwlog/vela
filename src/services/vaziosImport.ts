@@ -17,7 +17,7 @@ const HEADER_MAP: Record<string, string> = {
   'hand-out': 'hand_out_date', 'hand out': 'hand_out_date', saida: 'hand_out_date', 'gate out': 'hand_out_date',
   'empty gate out': 'hand_out_date',
   embarque: 'movement_date', 'data embarque': 'movement_date', 'load date': 'movement_date', data: 'movement_date',
-  // Migration 603: porto de descarga do vazio, obrigatório.
+  // Migration 606: porto de descarga do vazio, obrigatório.
   pod: 'pod', 'porto de descarga': 'pod', 'port of discharge': 'pod', 'discharge port': 'pod',
 }
 
@@ -56,7 +56,7 @@ export type ParsedVaziosBooking = {
   hand_in_date: string | null
   hand_out_date: string | null
   movement_date: string | null
-  /** Porto de descarga (LOCODE), obrigatório desde a migration 603. */
+  /** Porto de descarga (LOCODE), obrigatório desde a migration 606. */
   pod: string | null
 }
 
@@ -81,7 +81,7 @@ export type ParsedVaziosManifest = {
 export type DepotLookup = { id?: string; code: string; tipo: string; active: boolean }
 
 /**
- * Contexto do embarque para conferir a linha como o banco confere (603): o
+ * Contexto do embarque para conferir a linha como o banco confere (606): o
  * porto do embarque (o POD não pode ser ele) e os terminais desse porto (o
  * Embarque direto só sai deles).
  */
@@ -211,7 +211,7 @@ function validateLocalAgainstDepots(
   } else if (depot.tipo === 'terminal_portuario' && (handInDate || handOutDate)) {
     rowErrors.add(rowNumber, `Container ${containerNumber}: terminal portuário "${localCode}" não aceita entrada ou saída de depot.`, row)
   } else if (depot.tipo === 'terminal_portuario' && depot.id && context.portTerminalIds && !context.portTerminalIds.has(depot.id)) {
-    // Migration 603: o Embarque direto sai de um terminal do porto do embarque.
+    // Migration 606: o Embarque direto sai de um terminal do porto do embarque.
     rowErrors.add(rowNumber, `Container ${containerNumber}: terminal portuário "${localCode}" não é de ${context.embarkPort ?? 'porto do embarque'}; use um terminal desse porto ou um depot.`, row)
   }
 }

@@ -87,10 +87,10 @@ describe('Armazenagem a lançar (lote 5b)', () => {
   })
 })
 
-// Decisões do dono de 2026-11-06 (ADR 0130, migration 603): alguns depots
+// Decisões do dono de 2026-11-06 (ADR 0130, migration 606): alguns depots
 // cobram a armazenagem de 20' e de 40' à parte (ZIRAN: R$ 1,58 e R$ 3,14 por
 // dia), e o free time fica congelado na linha lançada.
-describe('armazenagem por tamanho e free time congelado (603)', () => {
+describe('armazenagem por tamanho e free time congelado (606)', () => {
   const ziran = [{ id: 'z', tipo: 'depot' as const, free_time_vazio_days: 30, free_time_material_days: 30 }]
   // 36 dias no depot (01/10 a 05/11) − 30 de free time = 6 dias cobráveis cada.
   const unit = (container: string, type: string | null) => ({
@@ -140,7 +140,7 @@ describe('armazenagem por tamanho e free time congelado (603)', () => {
     const cadastroNovo = [{ ...ziran[0], free_time_vazio_days: 5 }]
     const linha = { natureza: 'armazenagem', local_id: 'z', condition: 'vazio', container_type: null, free_time_days: 30, quantidade: 0, valor_unitario: 2 }
     expect(quantidadeEfetiva(linha, unidades, cadastroNovo, [linha])).toBe(120)
-    // Linha anterior à 603 (sem free time gravado) segue o cadastro.
+    // Linha anterior à 606 (sem free time gravado) segue o cadastro.
     expect(quantidadeEfetiva({ ...linha, free_time_days: null }, unidades, cadastroNovo)).toBe(20 * 31)
   })
 

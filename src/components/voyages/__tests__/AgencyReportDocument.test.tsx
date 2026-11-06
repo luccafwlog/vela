@@ -788,7 +788,7 @@ it("imprime datas com hora em Brasília, traduz a condição e põe o Anexo no f
   expect(small).toEqual([]);
 });
 
-// Migration 603 e revisão de 2026-11-06 (C2, C6, C7): o impresso mostra o POD e
+// Migration 606 e revisão de 2026-11-06 (C2, C6, C7): o impresso mostra o POD e
 // o Nº do Manifesto Mercante por rota, a rota origem → destino e o tamanho da
 // linha, e o anexo lista só quem gerou armazenagem, com os dias.
 it("imprime POD, manifesto por rota, tamanho da linha e o anexo só com quem cobrou armazenagem", () => {

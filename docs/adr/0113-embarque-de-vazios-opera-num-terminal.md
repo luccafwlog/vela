@@ -14,7 +14,7 @@ Implementada na migration `541`.
 > o embarque, e a trava do ADR fechado não o alcançava.
 
 > **Estendida (2026-11-06).** A [ADR 0130](./0130-embarque-de-vazios-pod-tamanho-e-free-time-congelado.md)
-> (migration `603`) acrescenta que a unidade de Embarque direto só sai de um
+> (migration `606`) acrescenta que a unidade de Embarque direto só sai de um
 > terminal portuário do porto do embarque.
 
 Estende a [ADR 0109](./0109-frente-de-operacao-exige-terminal-ate-o-ata.md)

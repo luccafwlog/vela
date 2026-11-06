@@ -542,7 +542,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
     type: booking.container_type ?? '—',
     condition: booking.condition,
     localLabel: booking.local?.name ?? booking.local?.code ?? null,
-    // 603: porto de descarga de cada unidade.
+    // 606: porto de descarga de cada unidade.
     pod: booking.pod ?? null,
   })))
   const emptyEmbarkRoutes = sectionIsVisible('vazios_embarcados') ? (data?.vaziosRotas ?? []) : []
@@ -736,7 +736,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
       directEmbarkCount,
       granito: granite,
       storage: sectionIsVisible('vazios_embarcados') ? data?.storage ?? null : null,
-      // 603: as rotas (POD, unidades, TEU e Nº do Manifesto Mercante) viajam
+      // 606: as rotas (POD, unidades, TEU e Nº do Manifesto Mercante) viajam
       // dentro de `operation`, chave que o fechamento antigo já aceita.
       operation: sectionIsVisible('vazios_embarcados') && data?.operation ? { ...data.operation, rotas: emptyEmbarkRoutes } : null,
       costs: sectionIsVisible('vazios_embarcados') ? data?.costs ?? null : null,

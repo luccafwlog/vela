@@ -20,9 +20,9 @@ export type CostServiceLine = {
   local_id: string
   destino_id?: string | null
   condition?: 'vazio' | 'material' | string | null
-  /** Tamanho do serviço lançado (migration 603): '20', '40' ou nulo (qualquer). */
+  /** Tamanho do serviço lançado (migration 606): '20', '40' ou nulo (qualquer). */
   container_type?: string | null
-  /** Free time congelado no lançamento da armazenagem (603); nulo segue o cadastro. */
+  /** Free time congelado no lançamento da armazenagem (606); nulo segue o cadastro. */
   free_time_days?: number | null
   quantidade: number
   percentual?: number | null
@@ -81,7 +81,7 @@ function depotFreeTime(depot: StorageDepot, condition: string | null | undefined
 /**
  * Dias cobráveis de uma unidade de Depot: `(saída − entrada + 1) − free time`,
  * nunca negativo. O free time é o da linha de armazenagem quando ela o
- * congelou (603) e, sem linha, o do cadastro do depot para a condição.
+ * congelou (606) e, sem linha, o do cadastro do depot para a condição.
  */
 export function diasCobraveis(unidade: EmptyUnit, depot: StorageDepot | null | undefined, freeTime?: number | null): number {
   if (!depot || depot.tipo === 'terminal_portuario' || unidade.local_id !== depot.id) return 0
@@ -204,7 +204,7 @@ export function armazenagemPorDepotCondicao(
  * "Armazenagem a lançar" do Embarque: combinações (depot, condição, tamanho)
  * com dias cobráveis calculados pela lista de unidades e ainda sem linha de
  * armazenagem. O tamanho vem do catálogo: o depot que cobra 20' e 40' à parte
- * (603) tem uma combinação por tamanho; o que cobra igual, uma só. Zero dia
+ * (606) tem uma combinação por tamanho; o que cobra igual, uma só. Zero dia
  * quer dizer que as unidades ficaram dentro do free time e não há o que lançar
  * (decisão de 2026-10-19).
  */

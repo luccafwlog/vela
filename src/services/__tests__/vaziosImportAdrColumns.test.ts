@@ -5,7 +5,7 @@ import { importVaziosManifest, parseVaziosManifestBuffer } from '../vaziosImport
 
 const rpcMock = vi.fn()
 vi.mock('../supabase', () => ({ supabase: { rpc: (...args: unknown[]) => rpcMock(...args) } }))
-// Migration 603: o POD é obrigatório; as linhas sem ele recebem um, salvo quando
+// Migration 606: o POD é obrigatório; as linhas sem ele recebem um, salvo quando
 // o teste é justamente sobre a falta dele (`semPod`).
 const makeBuffer = async (rows: Record<string, unknown>[], { semPod = false } = {}) => {
   const XLSX = await import('@e965/xlsx')
@@ -114,7 +114,7 @@ describe('parser de vazios — novo contrato', () => {
     expect(parsed.bookings[0].hand_in_date).toBeNull()
     expect(parsed.rowErrors.map((error) => error.message).join(' ')).toContain('data de entrada')
   })
-  it('persiste as oito colunas na RPC, com o POD (603)', async () => {
+  it('persiste as oito colunas na RPC, com o POD (606)', async () => {
     rpcMock.mockResolvedValue({ data: { manifest_id: 'm1' }, error: null })
     await importVaziosManifest({ filename: 'x.xlsx', voyageId: 7, port: 'BRSSA', uploadedBy: 'user-1', manifest: { bookings: [{ rowNumber: 2, container_number: 'ABCD1234569', container_type: '20DV', local_code: 'VBR', condition: 'vazio', hand_in_date: '2026-07-01', hand_out_date: '2026-07-02', movement_date: '2026-07-03', pod: 'CNSHA' }], rowErrors: [] } })
     expect(rpcMock).toHaveBeenCalledWith('import_vazios_bookings_transactional', expect.objectContaining({ p_bookings: [expect.objectContaining({ local_code: 'VBR', condition: 'vazio', pod: 'CNSHA' })] }))
@@ -250,9 +250,9 @@ describe('parser de vazios — divergência apontada por linha contra o Cadastro
   })
 })
 
-// Migration 603 e revisão de 2026-11-06 (C8, C9): porto de descarga obrigatório,
+// Migration 606 e revisão de 2026-11-06 (C8, C9): porto de descarga obrigatório,
 // terminal do porto do embarque e a condição como o depot e o ADR a escrevem.
-describe('parser de vazios — POD, terminal do porto e condição do depot (603)', () => {
+describe('parser de vazios — POD, terminal do porto e condição do depot (606)', () => {
   it('recusa a planilha sem a coluna POD', async () => {
     await expect(parseVaziosManifestBuffer(await makeBuffer([{ Container: 'ABCD1234567', Local: 'VBR', Condition: 'vazio' }], { semPod: true })))
       .rejects.toThrow('Colunas obrigatórias: POD')

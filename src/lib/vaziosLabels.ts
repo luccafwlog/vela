@@ -35,7 +35,7 @@ export function tipoLocalLabel(tipo: string | null | undefined): string {
 }
 
 /**
- * Tamanho do serviço ou da linha (migration 603): "20'", "40'" ou "Qualquer
+ * Tamanho do serviço ou da linha (migration 606): "20'", "40'" ou "Qualquer
  * tamanho" quando o serviço cobra igual.
  */
 export function tamanhoLabel(size: string | null | undefined): string {
