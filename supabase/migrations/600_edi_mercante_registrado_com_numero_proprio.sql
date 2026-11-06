@@ -20,10 +20,15 @@
 --      o nome `FWL_MERCANTE_<número com 6 dígitos>_<sigla>.TXT`. Sem a
 --      gravação, o arquivo não é baixado.
 --   O Histórico da Viagem lê a tabela (`fetchVoyageTimelineSources`).
+--   3. Excluir viagem leva junto os registros do EDI Mercante
+--      (`voyage_delete_children_spec`, corpo da 597, item 20): sem isso, o
+--      guarda `guard_voyage_hard_delete` (573) achava a linha em
+--      `mercante_edi_files` e recusava a exclusão que a prévia permitia.
 --
 -- Só cria objetos novos; não grava nem reescreve linhas existentes.
--- Rollback: DROP FUNCTION public.register_mercante_edi_file(bigint, text,
--- text, text, text, integer, integer); DROP TABLE public.mercante_edi_files.
+-- Rollback: voltar `voyage_delete_children_spec` ao corpo da 597;
+-- DROP FUNCTION public.register_mercante_edi_file(bigint, text, text, text,
+-- text, integer, integer); DROP TABLE public.mercante_edi_files.
 
 CREATE TABLE public.mercante_edi_files (
   number bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -112,3 +117,35 @@ $function$;
 
 REVOKE ALL ON FUNCTION public.register_mercante_edi_file(bigint, text, text, text, text, integer, integer) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.register_mercante_edi_file(bigint, text, text, text, text, integer, integer) TO authenticated;
+
+-- 3 -------------------------------------------------------------------------
+-- Corpo da 597 com os registros do EDI Mercante entre os filhos da viagem excluída.
+CREATE OR REPLACE FUNCTION public.voyage_delete_children_spec()
+RETURNS TABLE(ord integer, table_name text, column_name text, action text, label text)
+LANGUAGE sql
+IMMUTABLE
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+  VALUES
+    (1, 'vehicles', 'voyage_id', 'delete', 'veículo(s)'),
+    (2, 'bls', 'voyage_id', 'delete', 'B/L(s), com containers e taxas'),
+    (3, 'import_batches', 'voyage_id', 'delete', 'importação(ões) de manifesto'),
+    (4, 'manifestos_mercante', 'voyage_id', 'delete', 'Manifesto(s) Mercante'),
+    (5, 'voyage_route_ce_master', 'voyage_id', 'delete', 'CE Master por rota'),
+    (6, 'baplie_reconciliation_resolutions', 'voyage_id', 'delete', 'resolução(ões) de BAPLIE'),
+    (7, 'baplie_containers', 'voyage_id', 'delete', 'container(es) do BAPLIE'),
+    (8, 'agency_departure_reports', 'voyage_id', 'delete', 'ADR(s) de Saída em aberto'),
+    (9, 'vazios_bookings', 'voyage_id', 'delete', 'unidade(s) de vazios'),
+    (10, 'vazios_export_operations', 'voyage_id', 'delete', 'operação(ões) de embarque de vazios'),
+    (11, 'voyage_omissions', 'voyage_id', 'delete', 'omissão(ões) de escala e transbordo'),
+    (12, 'voyage_escala_terminal_state', 'voyage_id', 'delete', 'atracação(ões)'),
+    (13, 'voyage_escala_operation_fronts', 'voyage_id', 'delete', 'frente(s) de operação'),
+    (14, 'voyage_escala_revision_state', 'voyage_id', 'delete', 'revisão(ões) de escala'),
+    (15, 'voyage_export_schedules', 'voyage_id', 'delete', 'escala(s) de exportação'),
+    (16, 'granite_manifests', 'voyage_id', 'detach', 'manifesto(s) de Granito ficam sem viagem'),
+    (17, 'vazios_manifests', 'voyage_id', 'delete', 'manifesto(s) de vazios'),
+    (18, 'vazios_importacao_manifests', 'voyage_id', 'delete', 'manifesto(s) de vazios de importação'),
+    (19, 'voyage_vehicle_declarations', 'voyage_id', 'delete', 'resposta de Equipamentos sobre veículos'),
+    (20, 'mercante_edi_files', 'voyage_id', 'delete', 'registro(s) de EDI Mercante gerado');
+$function$;
+REVOKE ALL ON FUNCTION public.voyage_delete_children_spec() FROM PUBLIC, anon, authenticated;

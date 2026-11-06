@@ -84,4 +84,17 @@ describeLocal('600 — EDI Mercante registrado com número próprio', () => {
     expect(direct.status).not.toBe(0)
     expect(direct.stderr).toContain('permission denied')
   })
+
+  // Por último: a Viagem é excluída aqui. Achado da revisão da PR #1240.
+  it('Excluir viagem com EDI registrado leva o registro junto, como a prévia diz', () => {
+    setDev(true)
+    w.json<Registered>('administrativo', call(valid(w.voyageId)))
+    const preview = w.json<{ items: Array<{ table: string; action: string; count: number }> }>('administrativo',
+      `SELECT public.voyage_delete_preview(${w.voyageId})`)
+    expect(preview.items).toContainEqual(expect.objectContaining({ table: 'mercante_edi_files', action: 'delete' }))
+
+    w.asOk('administrativo', `SELECT public.delete_records('voyage', ARRAY['${w.voyageId}']::text[], false, 'Excluída no teste 600')`)
+    expect(w.psql(`SELECT count(*) FROM public.voyages WHERE id = ${w.voyageId}`)).toBe('0')
+    expect(w.psql(`SELECT count(*) FROM public.mercante_edi_files WHERE voyage_id = ${w.voyageId}`)).toBe('0')
+  })
 })

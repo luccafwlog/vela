@@ -1346,6 +1346,8 @@ ao Mercante continua fora do Vela. **Código:**
     dígitos>_<sigla>.TXT`. A sigla são as iniciais do navio e o número da
     viagem (GREEN GUANGZHOU V.6 → `GG6`).
   - Sem o registro, nada é baixado e a janela mostra a recusa.
+  - Excluir viagem leva os registros junto (`voyage_delete_children_spec`,
+    item 20).
   - O Histórico da Viagem mostra cada arquivo como "EDI Mercante gerado · POL
     → POD", com o nome, a natureza, o conteúdo e quem gerou.
 - **Fora desta fase.** Retificação de manifesto ou CE já registrado.
