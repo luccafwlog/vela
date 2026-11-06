@@ -160,6 +160,19 @@ export async function afterDeclaracaoVeiculosAlterada(queryClient: QueryInvalida
 }
 
 /**
+ * Declaração "Viagem sem Baplie" feita ou desfeita (migration 610): a própria
+ * declaração, a linha do tempo da viagem e os alertas (o "Baplie ausente" fecha
+ * ou reabre).
+ */
+export async function afterDeclaracaoBaplieAlterada(queryClient: QueryInvalidator, options: { voyageId: number | string }): Promise<void> {
+  await invalidate(queryClient, [
+    queryKeys.baplie.declaration(Number(options.voyageId)), voyageTimelineKey(options.voyageId),
+    queryKeys.alerts.all(), queryKeys.alerts.departmentSummary(), queryKeys.alerts.operationalCount(),
+    queryKeys.alerts.internalNotifications(), queryKeys.alerts.internalNotificationsUnreadCount(),
+  ])
+}
+
+/**
  * Gravidade de um tipo de alerta trocada na tela Regras de alertas (migration
  * 603, ADR 0130): a própria tela, a fila (ordem e cartão Críticos), os cartões
  * por setor do Painel, o painel financeiro e o Histórico de ações.
@@ -182,7 +195,8 @@ export async function afterBaplieImportado(queryClient: QueryInvalidator, option
     ['baplie-staging', String(options.voyageId)], ...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS, ...LINEUP_KEYS,
     // O Baplie pode criar a escala do porto marcado (migration 410): as
     // escalas da conferência, a linha do tempo e o rail mudam junto.
-    queryKeys.baplie.voyageContext(Number(options.voyageId)), voyageTimelineKey(options.voyageId), ['voyages'],
+    queryKeys.baplie.voyageContext(Number(options.voyageId)), queryKeys.baplie.declaration(Number(options.voyageId)),
+    voyageTimelineKey(options.voyageId), ['voyages'],
   ])
 }
 

@@ -52,6 +52,8 @@ export type Permission =
   | 'cancel_demurrage_invoices'
   /** Responder se a viagem terá veículos, trocar e desfazer: Equipamentos e Administrativo (migration 598). */
   | 'declare_voyage_vehicles'
+  /** Declarar a viagem sem Baplie e desfazer: Documentação e Administrativo (migration 610, ADR 0131 D4). */
+  | 'declare_voyage_without_baplie'
   | 'customer_communications'
   | 'edit_customer_contacts'
   /** Trocar a gravidade de um alerta na tela Regras de alertas: só o Administrativo (migration 603, ADR 0130). */
@@ -67,6 +69,7 @@ export function roleHasPermission(role: UserProfileRole | undefined, permission:
   const effectiveRole: UserProfileRole = role === 'operator' ? 'documentacao' : role
   if (permission === 'cancel_demurrage_invoices') return ['administrativo', 'financeiro', 'equipamentos'].includes(effectiveRole)
   if (permission === 'declare_voyage_vehicles') return ['administrativo', 'equipamentos'].includes(effectiveRole)
+  if (permission === 'declare_voyage_without_baplie') return ['administrativo', 'documentacao'].includes(effectiveRole)
   // Ler o Desbloqueio de CE e abrir os documentos do pedido é de todos os
   // Departamentos; gerir o pedido segue de Administrativo e Documentação
   // (ADR 0085, D11; migration 250).

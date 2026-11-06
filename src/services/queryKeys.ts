@@ -146,6 +146,8 @@ export const queryKeys = {
   baplie: {
     /** Navio, viagem e escalas da Viagem para as regras do Baplie (ADR 0078, item 21). */
     voyageContext: (voyageId: number) => ['baplie-voyage-context', voyageId] as const,
+    /** Declaração "Viagem sem Baplie" (migration 610). */
+    declaration: (voyageId: number) => ['baplie-declaration', voyageId] as const,
   },
   customers: {
     all: () => ['customers'] as const,

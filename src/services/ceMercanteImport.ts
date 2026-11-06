@@ -96,6 +96,8 @@ export type CeServerPreview = {
   changes: number
   moves: number
   needs_confirmation: boolean
+  /** 610: divergência aberta entre o Baplie e os B/Ls da viagem; pede confirmação. */
+  baplie_divergence?: string | null
   manifesto: { numero: string | null; exists: boolean }
 }
 

@@ -73,6 +73,7 @@ function cleanup(): void {
     DELETE FROM public.customer_contact_change_events WHERE customer_id = ${customerId};
     DELETE FROM public.customer_contacts WHERE customer_id = ${customerId};
     DELETE FROM public.voyage_vehicle_declarations WHERE voyage_id = ${voyageId};
+    DELETE FROM public.voyage_baplie_declarations WHERE voyage_id = ${voyageId};
     DELETE FROM public.voyages WHERE id = ${voyageId};
     DELETE FROM public.vessels WHERE id = ${vesselId};
     DELETE FROM public.carriers WHERE id = ${carrierId};

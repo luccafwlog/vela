@@ -17,6 +17,10 @@ const mocks = vi.hoisted(() => ({
   resolveDivergence: vi.fn(() => Promise.resolve()),
   reconcile: vi.fn(),
   refetchContext: vi.fn(),
+  // 610: declaração "Viagem sem Baplie".
+  canDeclare: false,
+  declaration: { voyageId: 7, hasBaplie: false, declared: false, reason: null, declaredAt: null, declaredByName: null } as unknown,
+  declare: vi.fn(() => Promise.resolve({})),
   // Viagem conferida: as regras do Baplie rodaram e a importação pode seguir.
   voyageContext: {
     data: { voyageNumber: '14', vesselName: 'GREEN SANTOS', eligiblePods: [] } as unknown,
@@ -25,7 +29,9 @@ const mocks = vi.hoisted(() => ({
   },
 }))
 vi.mock('../../services/supabase', () => ({ supabase: {} }))
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, profile: { id: 'user-1' } }) }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, profile: { id: 'user-1' }, can: () => mocks.canDeclare }) }))
+vi.mock('../../hooks/useVoyageBaplieDeclaration', () => ({ useVoyageBaplieDeclaration: () => ({ isSuccess: true, data: mocks.declaration }) }))
+vi.mock('../../services/baplieDeclaration', () => ({ declareVoyageWithoutBaplie: mocks.declare, undoVoyageBaplieDeclaration: vi.fn() }))
 vi.mock('../../hooks/useBls', () => ({ useVoyages: () => ({ data: [], isLoading: false }) }))
 vi.mock('../../components/shared/VoyageCombobox', () => ({
   VoyageCombobox: ({ onSelect }: { onSelect: (id: number) => void }) => <button onClick={() => onSelect(24)}>Escolher viagem 24</button>,
@@ -229,6 +235,27 @@ describe('revisão da etapa 9 na página Baplie', () => {
     } finally {
       vi.mocked(listBaplieStaging).mockResolvedValue([])
       vi.mocked(hasBlsForVoyage).mockResolvedValue(false)
+      client.clear()
+    }
+  })
+})
+
+describe('Viagem sem Baplie (migration 610)', () => {
+  it('Documentação declara a viagem sem Baplie com o motivo; sem a permissão, o botão não aparece', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })
+    try {
+      const view = render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=7']}><Baplie /></MemoryRouter></QueryClientProvider>)
+      await screen.findByRole('button', { name: /Importar Baplie/ })
+      expect(screen.queryByRole('button', { name: 'Viagem sem Baplie' })).toBeNull()
+      view.unmount()
+
+      mocks.canDeclare = true
+      render(<QueryClientProvider client={client}><MemoryRouter initialEntries={['/?voyage=7']}><Baplie /></MemoryRouter></QueryClientProvider>)
+      fireEvent.click(await screen.findByRole('button', { name: 'Viagem sem Baplie' }))
+      await waitFor(() => expect(mocks.declare).toHaveBeenCalledWith(7, 'Armador confirmou o B/L'))
+      expect(mocks.showToast).toHaveBeenCalledWith('Viagem declarada sem Baplie.', 'success')
+    } finally {
+      mocks.canDeclare = false
       client.clear()
     }
   })

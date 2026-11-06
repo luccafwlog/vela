@@ -424,9 +424,11 @@ export function CeMercanteImportModal({
               />
               <span>
                 <span className="app-import-override__title">
-                  Confirmo trocar o CE de {plural(serverPreview.changes, 'B/L', 'B/Ls')} e mudar o Manifesto de {plural(serverPreview.moves, 'B/L', 'B/Ls')}
+                  {ceConfirmationTitle(serverPreview)}
                 </span>
-                <span className="app-import-override__hint">A fatura emitida não muda. O motivo fica no Histórico de cada B/L.</span>
+                <span className="app-import-override__hint">
+                  {serverPreview.baplie_divergence ? 'A divergência continua aberta em Baplie. ' : ''}A fatura emitida não muda. O motivo fica no Histórico de cada B/L.
+                </span>
               </span>
             </label>
             <Field label="Motivo" required>
@@ -725,4 +727,13 @@ export function BillingProgress({
       ) : null}
     </ImportSection>
   )
+}
+
+/** Título da confirmação: trocas de CE, mudança de Manifesto e, desde a 610, a divergência do Baplie. */
+function ceConfirmationTitle(preview: Pick<CeServerPreview, 'changes' | 'moves' | 'baplie_divergence'>): string {
+  const parts: string[] = []
+  if (preview.changes > 0) parts.push(`trocar o CE de ${plural(preview.changes, 'B/L', 'B/Ls')}`)
+  if (preview.moves > 0) parts.push(`mudar o Manifesto de ${plural(preview.moves, 'B/L', 'B/Ls')}`)
+  if (preview.baplie_divergence) parts.push('vincular o CE com a divergência entre o Baplie e os B/Ls')
+  return `Confirmo ${parts.join(' e ')}`
 }

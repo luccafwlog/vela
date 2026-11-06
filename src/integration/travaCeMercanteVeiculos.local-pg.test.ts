@@ -127,6 +127,7 @@ function cleanup() {
     ${firstRuleVersionId === null ? '' : `DELETE FROM public.pricing_rule_versions WHERE id > ${firstRuleVersionId};`}
     DELETE FROM public.bls WHERE id IN ('${BLS.join("', '")}');
     DELETE FROM public.voyage_vehicle_declarations WHERE voyage_id IN (${VOYAGES.join(', ')});
+    DELETE FROM public.voyage_baplie_declarations WHERE voyage_id IN (${VOYAGES.join(', ')});
     DELETE FROM public.audit_logs WHERE changed_by IN ('${ADMIN_ID}', '${EQP_ID}', '${DOC_ID}')
       OR ${VOYAGES.map((id) => `entity_id = '${id}' OR entity_id LIKE '${id}::%'`).join(' OR ')} OR entity_id IN ('${BLS.join("', '")}');
     DELETE FROM public.voyages WHERE id IN (${VOYAGES.join(', ')});
@@ -159,6 +160,9 @@ describeLocal('597 — resposta de veículos em D-7 e CE Mercante travado', () =
         (${V_MAIN}, ${VESSEL_ID}, 'V595M', 'active'),
         (${V_DONE}, ${VESSEL_ID}, 'V595D', 'completed'),
         (${V_NO}, ${VESSEL_ID}, 'V595N', 'active');
+      -- 610: esta suíte mede só a trava dos veículos; o Baplie fica declarado.
+      INSERT INTO public.voyage_baplie_declarations (voyage_id, reason) VALUES
+        (${V_MAIN}, 'fixture de teste'), (${V_DONE}, 'fixture de teste'), (${V_NO}, 'fixture de teste');
       SET session_replication_role = origin;
     `)
     as(ADMIN_ID, `

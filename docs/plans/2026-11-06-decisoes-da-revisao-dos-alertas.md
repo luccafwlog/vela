@@ -17,7 +17,7 @@ mudança. Ao terminar o último lote, este plano vai para
 | 4 | D2 | Alerta de descarga ausente por atracação: Normal no ATB, Crítico 24 horas depois, a Equipamentos | B05 | feito: migration `607`, `containerSemDescarga.local-pg.test.ts` |
 | 5 | D1 | Desbloqueio de CE: solicitação sem análise em 2 horas úteis (8h–17h) abre Crítico; prazo correndo abre Normal 2 horas depois do início e vira Crítico 2 horas antes do vencimento; Documentação e Administrativo | B01, B02 | feito: migration `608`, `alertasDoDesbloqueioDeCe.local-pg.test.ts` |
 | 6 | D5 | ADR de Saída recusa **Nada a declarar** e **Fechar ADR** com a exportação declarada e não lançada | B10 | feito: migration `609`, `adrRecusaSemExportacao.local-pg.test.ts` |
-| 7 | D4 | CE Mercante do B/L de container travado sem Baplie conciliado (salvo declaração "Viagem sem Baplie", com motivo), além da trava dos veículos; a prévia mostra as divergências da rota e pede confirmação | B16, B17 | a fazer |
+| 7 | D4 | CE Mercante do B/L de container travado sem Baplie conciliado (salvo declaração "Viagem sem Baplie", com motivo), além da trava dos veículos; a prévia mostra as divergências da rota e pede confirmação | B16, B17 | feito: migration `610`, `travaCeMercanteSemBaplie.local-pg.test.ts` |
 | 8 | D6 | ADR fecha sozinho com as três assinaturas e manda e-mail com resumo e link a todos os usuários internos ativos | B09 | a fazer |
 
 ## Regras comuns

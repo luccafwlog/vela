@@ -256,6 +256,7 @@ export function financeWorld(ns: number, opts: { pod?: string } = {}) {
       DELETE FROM public.charge_table_items WHERE charge_table_id IN ${tables};
       DELETE FROM public.charge_tables WHERE id IN ${tables};
       DELETE FROM public.voyage_vehicle_declarations WHERE voyage_id = ${voyageId};
+      DELETE FROM public.voyage_baplie_declarations WHERE voyage_id = ${voyageId};
       DELETE FROM public.voyages WHERE id = ${voyageId};
       DELETE FROM public.vessels WHERE id = ${vesselId};
       DELETE FROM public.carriers WHERE id = ${carrierId};

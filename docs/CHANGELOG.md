@@ -6,6 +6,11 @@
 
 ## 2026-11
 
+- **CE travado sem Baplie (decisão D4 do dono de 2026-11-06, migration `610`, ADR 0131):** na Viagem ativa, o CE
+  Mercante de B/L de container também espera o Baplie importado; sem ele, a Documentação ou o Administrativo declara
+  **Viagem sem Baplie**, com motivo, na página Baplie (a declaração fecha o alerta **Baplie ausente**). A prévia do CE
+  mostra a divergência aberta entre o Baplie e os B/Ls e pede confirmação com motivo. Prova:
+  `travaCeMercanteSemBaplie.local-pg.test.ts`, `Baplie.cacheRefresh.test.tsx`.
 - **ADR recusa sem a exportação lançada (decisão D5 do dono de 2026-11-06, migration `609`, ADR 0131):** com a
   escala declarando Granito ou Embarque de vazios e o manifesto não vinculado à Viagem, **Carga carregada** e **Embarque
   de vazios** recusam **Nada a declarar** e **Fechar ADR** recusa, dizendo o que falta. Prova:
