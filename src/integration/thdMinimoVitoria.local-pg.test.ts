@@ -5,7 +5,8 @@ import { financeWorld } from './frenteFinanceira'
 // ADR 0125 (migration 594): o THD por tonelada da tabela de carga solta de
 // Vitória cobra no mínimo R$ 380,00 por B/L, também com Condição do Cliente.
 // Quantidade e unitário ficam os da tabela; só o total sobe. Outros itens por
-// tonelada e tabelas de outros portos não mudam.
+// tonelada e tabelas de outros portos não mudam. O item da fatura cobrado pelo
+// mínimo leva a marca `minimum_value` (migration 602).
 
 const vix = financeWorld(9594, { pod: 'BRVIX' })
 const outro = financeWorld(9595)
@@ -103,5 +104,21 @@ describeLocal('594 — THD mínimo de R$ 380 na carga solta de Vitória', () => 
     const invoice = vix.issueByCe(id, '959400000000001')
     // THD R$ 380,00 + Armazenagem 2 t × R$ 10,00.
     expect(vix.invoice(invoice).total).toBe(400)
+    // 602: só o item do THD cobrado pelo mínimo leva a marca no snapshot, e o
+    // Portal a recebe (portal_invoice_details só tira `charge_adjustment`).
+    expect(vix.psql(`SELECT charge_item_id || ':' || coalesce(snapshot_payload->'minimum_value'->>'value_brl', '-')
+      FROM public.invoice_items WHERE invoice_id = ${invoice} ORDER BY charge_item_id`))
+      .toBe(`${vixTable.thd}:380.00\n${vixTable.armazenagem}:-`)
+  })
+
+  it('o THD acima do mínimo e a taxa alterada à mão não levam a marca; o valor alterado vence o mínimo', () => {
+    const acima = bbBl(vix, vixTable.tableId, 'ACIMA', 10)
+    const alterada = bbBl(vix, vixTable.tableId, 'ALT', 2)
+    vix.asOk('operacoes', `SELECT public.alter_bl_charge_value('${alterada}', 'auto:item:${vixTable.thd}', 'unit', 100, 'Ajuste do teste do mínimo', '${vix.actors.operacoes}'::uuid)`)
+    expect(line(vix, alterada, vixTable.thd)).toBe('2.000|100.00|200.00')
+    const minimum = (id: string) => vix.psql(`SELECT public._invoice_item_minimum_value_brl(cc.id, cc.quantity, cc.unit_value_brl, cc.total_value_brl)
+      FROM public.charge_calculations cc WHERE cc.bl_id = '${id}' AND cc.calculation_key = 'auto:item:${vixTable.thd}'`)
+    expect(minimum(acima)).toBe('')
+    expect(minimum(alterada)).toBe('')
   })
 })

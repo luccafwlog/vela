@@ -54,6 +54,12 @@ const editableFields: (keyof Pick<
   | 'payment_type'
   | 'free_time_override'
   | 'notes'
+  | 'consignee_block'
+  | 'shipper_block'
+  | 'notify_block'
+  | 'manifest_customer_cnpj_cpf'
+  | 'total_packages'
+  | 'packages_unit'
 > | 'ncm_codes')[] = [
   'shipper',
   'consignee',
@@ -78,7 +84,16 @@ const editableFields: (keyof Pick<
   'free_time_override',
   'notes',
   'ncm_codes',
+  // Dados do manifesto (EDI Mercante), corrigidos na ficha (migration 601):
+  // a reimportação do B/L não sobrescreve o campo corrigido.
+  'consignee_block',
+  'shipper_block',
+  'notify_block',
+  'manifest_customer_cnpj_cpf',
+  'total_packages',
+  'packages_unit',
 ]
+
 // `review_status` é deliberadamente omitido: o RPC save_bl_review recalcula o
 // status a partir de compute_bl_review_pendencies e ignora qualquer valor enviado
 // pelo cliente (além de descartar a linha de auditoria correspondente). Mantê-lo
@@ -116,6 +131,12 @@ const EDITABLE_FIELD_LABELS: Record<keyof BlForm, string> = {
   free_time_override: 'Free time',
   notes: 'Notas',
   ncm_codes: 'NCM',
+  consignee_block: 'Consignatário (bloco do manifesto)',
+  shipper_block: 'Embarcador (bloco do manifesto)',
+  notify_block: 'Notify (bloco do manifesto)',
+  manifest_customer_cnpj_cpf: 'CNPJ/CPF do consignatário',
+  total_packages: 'Total de volumes',
+  packages_unit: 'Unidade dos volumes',
 }
 
 const INVALID_NUMERIC_VALUE = Symbol('INVALID_NUMERIC_VALUE')
@@ -302,6 +323,12 @@ function makeForm(bl: BLDetail): BlForm {
     free_time_override: bl.free_time_override,
     notes: bl.notes,
     ncm_codes: formatNcmList(documentBl.ncm_codes),
+    consignee_block: bl.consignee_block ?? null,
+    shipper_block: bl.shipper_block ?? null,
+    notify_block: bl.notify_block ?? null,
+    manifest_customer_cnpj_cpf: bl.manifest_customer_cnpj_cpf ?? null,
+    total_packages: bl.total_packages ?? null,
+    packages_unit: bl.packages_unit ?? null,
   }
 }
 
@@ -334,7 +361,7 @@ function toJsonValue(value: unknown): Json {
 
 function normalizeFormValue(field: keyof BlForm, value: unknown) {
   if (
-    ['bb_machine_qty', 'bb_packages_qty', 'bb_packages_total', 'bb_weight_ton', 'bb_cbm', 'total_weight_kg', 'total_cbm', 'free_time_override'].includes(
+    ['bb_machine_qty', 'bb_packages_qty', 'bb_packages_total', 'bb_weight_ton', 'bb_cbm', 'total_weight_kg', 'total_cbm', 'free_time_override', 'total_packages'].includes(
       field,
     )
   ) {

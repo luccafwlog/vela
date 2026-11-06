@@ -25,6 +25,18 @@ export type VoyageBaplieImportEvent = {
   imported_at: string | null
   container_count: number | null
 }
+/** EDI Mercante baixado em Rotas e Manifestos (migration 600): um evento por arquivo. */
+export type VoyageMercanteEdiFileEvent = {
+  number: number
+  file_name: string
+  pol: string
+  pod: string
+  cargo_mode: 'container' | 'carga_solta' | 'vazio'
+  bl_count: number
+  item_count: number
+  generated_by: string | null
+  generated_at: string
+}
 export type VoyageImportBatchEvent = { id: number; filename: string; cargo_mode: 'container' | 'carga_solta' | null; uploaded_at: string | null; uploaded_by?: string | null; route_summary?: string | null; total_bls?: number | null; ce_master?: string | null }
 
 /**
@@ -40,10 +52,11 @@ export async function fetchVoyageTimelineSources(
   resolutions: VoyageResolutionEvent[]
   baplieImports: VoyageBaplieImportEvent[]
   importBatches: VoyageImportBatchEvent[]
+  mercanteEdiFiles: VoyageMercanteEdiFileEvent[]
   actorNames: Record<string, string>
   actorDepartments: Record<string, string>
 }> {
-  const [scheduleRes, auditRes, resolutionRes, baplieRes, importsRes] = await Promise.all([
+  const [scheduleRes, auditRes, resolutionRes, baplieRes, importsRes, ediRes] = await Promise.all([
     supabase
       .from('audit_logs')
       .select('entity_type, entity_id, field_name, old_value, new_value, changed_by, actor_role, actor_department, justification, changed_at')
@@ -73,6 +86,13 @@ export async function fetchVoyageTimelineSources(
       .order('imported_at', { ascending: true })
       .limit(1),
     supabase.from('import_batches').select('id, filename, cargo_mode, uploaded_at, uploaded_by, route_summary, total_bls, ce_master').eq('voyage_id', voyageId).order('uploaded_at', { ascending: false }),
+    // Tabela da migration 600, ainda fora dos tipos gerados.
+    supabase
+      .from('mercante_edi_files' as never)
+      .select('number, file_name, pol, pod, cargo_mode, bl_count, item_count, generated_by, generated_at')
+      .eq('voyage_id', voyageId)
+      .order('generated_at', { ascending: false })
+      .range(0, 499),
   ])
 
   if (scheduleRes.error) throw scheduleRes.error
@@ -80,6 +100,8 @@ export async function fetchVoyageTimelineSources(
   if (resolutionRes.error) throw resolutionRes.error
   if (baplieRes.error) throw baplieRes.error
   if (importsRes.error) throw importsRes.error
+  if (ediRes.error) throw ediRes.error
+  const mercanteEdiFiles = (ediRes.data ?? []) as unknown as VoyageMercanteEdiFileEvent[]
 
   const importBatchIds = (importsRes.data ?? []).map((row) => String(row.id))
   const importBatchAuditRes = importBatchIds.length
@@ -98,6 +120,7 @@ export async function fetchVoyageTimelineSources(
       ...(auditRes.data ?? []).map((row) => row.changed_by),
       ...(importBatchAuditRes.data ?? []).map((row) => row.changed_by),
       ...(importsRes.data ?? []).map((row) => row.uploaded_by),
+      ...mercanteEdiFiles.map((row) => row.generated_by),
     ].filter(Boolean)),
   ) as string[]
   const actorNames: Record<string, string> = {}
@@ -130,6 +153,7 @@ export async function fetchVoyageTimelineSources(
       container_count: baplieRes.count ?? null,
     })),
     importBatches: (importsRes.data ?? []).map((row) => ({ ...row, cargo_mode: row.cargo_mode === 'carga_solta' ? 'carga_solta' : 'container' })) as VoyageImportBatchEvent[],
+    mercanteEdiFiles,
     actorNames,
     actorDepartments,
   }

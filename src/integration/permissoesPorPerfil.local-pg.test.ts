@@ -129,6 +129,7 @@ function cleanup() {
     DELETE FROM public.customers WHERE id = ${CUSTOMER_ID};
     DELETE FROM public.voyage_export_schedules WHERE voyage_id = ${VOYAGE_ID};
     DELETE FROM public.baplie_containers WHERE voyage_id = ${VOYAGE_ID};
+    DELETE FROM public.mercante_edi_files WHERE voyage_id = ${VOYAGE_ID};
     DELETE FROM public.voyages WHERE id = ${VOYAGE_ID};
     DELETE FROM public.vessels WHERE id = ${VESSEL_ID};
     DELETE FROM public.carriers WHERE id = ${CARRIER_ID};
@@ -979,6 +980,20 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
       psql(`UPDATE public.user_profiles SET is_dev = false WHERE id IN ('${PROFILES.administrativo}', '${PROFILES.documentacao}');
         UPDATE public.app_settings SET communications_enabled = ${before === 't'} WHERE id = 1;
         DELETE FROM public.audit_logs WHERE entity_id IN ('${PROFILES.administrativo}', '${PROFILES.documentacao}', '1') AND field_name IN ('is_dev', 'communications_enabled');`)
+    }
+  })
+
+  it('Dev: só a conta Dev registra o EDI Mercante baixado', () => {
+    const call = `public.register_mercante_edi_file(${VOYAGE_ID}, 'CNTAC', 'BRVIX', 'container', 'P85', 1, 1)`
+    try {
+      for (const profile of ALL_PROFILES) expect(sqlstateAs(profile, call), profile).toBe('42501')
+      const dev = runAsUser(DEV_USER, `SELECT public.register_mercante_edi_file(${VOYAGE_ID}, 'CNTAC', 'BRVIX', 'container', 'P85', 1, 1)->>'file_name'`)
+      expect(dev.error).toBe('')
+      expect(dev.output).toMatch(/^FWL_MERCANTE_\d{6}_P85\.TXT$/)
+      // Todo setor lê o registro, que aparece no Histórico da Viagem.
+      for (const profile of ALL_PROFILES) expect(runAs(profile, `SELECT count(*) FROM public.mercante_edi_files WHERE voyage_id = ${VOYAGE_ID}`).output, profile).toBe('1')
+    } finally {
+      psql(`DELETE FROM public.mercante_edi_files WHERE voyage_id = ${VOYAGE_ID};`)
     }
   })
 

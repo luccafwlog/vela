@@ -64,6 +64,7 @@ function harness(options: {
   const store = options.store ?? new Map<string, string>()
   const rpcCalls: Array<{ fn: string; args?: Record<string, unknown> }> = []
   const logs: string[] = []
+  const alerts: string[] = []
   const siteverify: unknown[] = []
   let clock = 1_800_000_000_000
   let turnstile: Turnstile = { success: true, action: '', hostname: 'portalfwlog.com.br', ...options.turnstile }
@@ -110,9 +111,10 @@ function harness(options: {
     now: () => clock,
     sleep: (ms) => { clock += ms; return Promise.resolve() },
     log: (event, details) => logs.push(JSON.stringify({ event, ...details })),
+    alert: (status) => { alerts.push(status) },
   }
   return {
-    deps, store, rpcCalls, logs, siteverify,
+    deps, store, rpcCalls, logs, alerts, siteverify,
     setTurnstile: (value: Partial<Turnstile>) => { turnstile = { ...turnstile, ...value } },
     advance: (ms: number) => { clock += ms },
     get clock() { return clock },
@@ -362,6 +364,34 @@ Deno.test('busca: disjuntor aberto não vai ao Sentry e não passa por cima do l
   const failing = instrumentHttpHandler('public-container-lookup', (req) => handlePublicContainerLookup(req, down.deps), report)
   assertEquals((await failing(request({ turnstile_token: 'lookup', container_number: FOUND }))).status, 503)
   assertEquals(reported.map((context) => context.status), ['http_503'])
+})
+
+Deno.test('disjuntor: só o pedido que abre manda o aviso, um por hora', async () => {
+  const h = harness({ rows: [] })
+  const key = () => globalMissKey('projeto.supabase.co', h.clock)
+  const miss = (ip: string) => handlePublicContainerLookup(request({ turnstile_token: 'lookup', container_number: FOUND }, { ip }), h.deps)
+
+  // Um "não encontrado" antes do teto: sem aviso.
+  h.store.set(key(), String(LOOKUP_MISS_GLOBAL_HOURLY_LIMIT - 2))
+  assertEquals((await miss('192.0.2.10')).status, 200)
+  assertEquals(h.alerts, [])
+
+  // O que leva o contador ao teto ainda recebe "não encontrado" e abre o disjuntor.
+  const opening = await miss('192.0.2.11')
+  assertEquals(opening.status, 200)
+  assertEquals(await body(opening), { found: false })
+  assertEquals(h.alerts, ['breaker_open'])
+  assert(h.logs.some((line) => line.includes('"outcome":"breaker_tripped"')))
+
+  // Com o disjuntor aberto, os pedidos seguintes são recusados sem novo aviso.
+  for (const ip of ['192.0.2.12', '192.0.2.13']) assertEquals((await miss(ip)).status, 429)
+  assertEquals(h.alerts, ['breaker_open'])
+
+  // Na hora seguinte o contador recomeça; se abrir de novo, há outro aviso.
+  h.advance(secondsUntilNextHour(h.clock) * 1000)
+  h.store.set(key(), String(LOOKUP_MISS_GLOBAL_HOURLY_LIMIT - 1))
+  assertEquals((await miss('192.0.2.14')).status, 200)
+  assertEquals(h.alerts, ['breaker_open', 'breaker_open'])
 })
 
 Deno.test('disjuntor: Retry-After até a hora UTC virar', () => {

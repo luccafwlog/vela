@@ -1,15 +1,22 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render as renderDom, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { ReactElement } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { MercanteCargoInput, MercanteVaziosInput } from '../../../services/mercanteEdiData'
 
-const state = vi.hoisted(() => ({ data: undefined as unknown }))
+const state = vi.hoisted(() => ({ data: undefined as unknown, register: vi.fn() }))
 
 vi.mock('../../../hooks/useManifestosMercante', () => ({
   useMercanteEdiInput: () => ({ data: state.data, isLoading: false, error: null }),
 }))
+vi.mock('../../../services/mercanteEdiData', () => ({ registerMercanteEdiFile: state.register }))
 
 import { MercanteEdiModal } from '../MercanteEdiModal'
+
+function render(ui: ReactElement) {
+  return renderDom(<QueryClientProvider client={new QueryClient()}>{ui}</QueryClientProvider>)
+}
 
 const header = {
   carrierCode: 'CN001321',
@@ -57,8 +64,9 @@ afterEach(() => {
 })
 
 describe('Gerar EDI Mercante (Rotas e Manifestos)', () => {
-  it('rota completa: mostra o resumo e baixa o arquivo com o nome do navio e da viagem', async () => {
+  it('rota completa: registra no Histórico e baixa com o número do Vela e a sigla do navio e da viagem', async () => {
     state.data = cargo()
+    state.register.mockResolvedValue({ number: 7, fileName: 'FWL_MERCANTE_000007_GG6.TXT', generatedAt: '2026-11-06T12:00:00Z' })
     const createObjectURL = vi.fn<(blob: Blob) => string>(() => 'blob:edi')
     Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() })
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
@@ -67,14 +75,27 @@ describe('Gerar EDI Mercante (Rotas e Manifestos)', () => {
     expect(screen.getByText('CNTAG → BRVIX')).toBeTruthy()
     expect(screen.getByText(/Pronto para baixar/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Baixar arquivo' }))
-    expect(createObjectURL).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(createObjectURL).toHaveBeenCalledTimes(1))
+    expect(state.register).toHaveBeenCalledWith({ voyageId: 169, pol: 'CNTAC', pod: 'BRVIX', mode: 'container', tag: 'GG6', blCount: 1, itemCount: 1 })
     const link = click.mock.contexts[0] as HTMLAnchorElement
-    expect(link.download).toMatch(/^FWL_MERCANTE_\d{12}_GG6\.TXT$/)
+    expect(link.download).toBe('FWL_MERCANTE_000007_GG6.TXT')
     // TXT sem BOM: os primeiros bytes são o tipo do registro M5, não EF BB BF.
     const blob = createObjectURL.mock.calls[0][0]
     expect(blob.type).toBe('text/plain;charset=utf-8')
     const bytes = new Uint8Array(await blob.arrayBuffer())
     expect(String.fromCharCode(...bytes.slice(0, 2))).toBe('M5')
+  })
+
+  it('sem o registro no Histórico, nada é baixado e a recusa aparece', async () => {
+    state.data = cargo()
+    state.register.mockRejectedValue(new Error('Gerar EDI Mercante é só da conta Dev.'))
+    const createObjectURL = vi.fn<(blob: Blob) => string>(() => 'blob:edi')
+    Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() })
+    render(<MercanteEdiModal voyageId={169} route={route} onClose={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Baixar arquivo' }))
+    expect(await screen.findByRole('alert')).toBeTruthy()
+    expect(createObjectURL).not.toHaveBeenCalled()
   })
 
   it('impedimento bloqueia o download e aparece junto ao B/L', () => {

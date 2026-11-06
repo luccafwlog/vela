@@ -313,6 +313,11 @@ export type BuildBlFreightPreviewArgs = {
   onlyBlId?: string | null
   /** B/Ls em COD vivo: a reimportação não muda o POD (ADR 0078, item 13) */
   codBlIds?: Set<string> | null
+  /**
+   * Dados do manifesto corrigidos na ficha, por B/L e campo (migration 601): o
+   * servidor mantém a correção, e a prévia avisa quando o arquivo traz outro valor.
+   */
+  manifestCorrections?: Map<string, Map<string, string | null>> | null
   /** portos omitidos (não revertidos) na Viagem escolhida */
   omittedPods?: Set<string> | null
   /** customers indexed by document/name so the import links each B/L to its payer */
@@ -379,7 +384,7 @@ export async function previewBlFreightImport(args: {
   // with a unique one (same count) still changes container_distinct_voyage billing.
   const existingContainerNumbers = existingBls.flatMap((bl) => (bl.bl_containers ?? []).map((container) => container.container_number))
   const sharedContainerNumbers = await fetchSharedContainerNumbers(blNumbers, [...containerNumbers, ...existingContainerNumbers])
-  const [selectedVoyage, knownPorts, containerSiblings, codBlIds, omittedPods, manualPolAtds, knownContainerTypes] = await Promise.all([
+  const [selectedVoyage, knownPorts, containerSiblings, codBlIds, omittedPods, manualPolAtds, knownContainerTypes, manifestCorrections] = await Promise.all([
     fetchSelectedVoyage(args.voyageId),
     fetchPortCatalog(),
     fetchContainerSiblings(args.voyageId, blNumbers, containerNumbers),
@@ -387,6 +392,7 @@ export async function previewBlFreightImport(args: {
     fetchOmittedPods(args.voyageId),
     fetchManualPolAtds(args.voyageId),
     fetchKnownContainerTypes(),
+    fetchManifestCorrections([...existingIds]),
   ])
   if (!selectedVoyage) throw new Error('Viagem selecionada não encontrada.')
 
@@ -437,6 +443,72 @@ export async function previewBlFreightImport(args: {
     containerRemovalBlockers,
     manualPolAtds,
     knownContainerTypes,
+    manifestCorrections,
+  })
+}
+
+/** Campos do manifesto corrigidos na ficha (migration 601), por B/L, em páginas. */
+async function fetchManifestCorrections(blIds: string[]): Promise<Map<string, Map<string, string | null>>> {
+  const corrections = new Map<string, Map<string, string | null>>()
+  if (!blIds.length) return corrections
+  const { rows } = await fetchAllPages<{ bl_id: string; field_name: string; value: string | null }>((from, to) => supabase
+    .from('bl_manifest_corrections' as never)
+    .select('bl_id, field_name, value')
+    .in('bl_id', blIds)
+    .order('bl_id')
+    .order('field_name')
+    .range(from, to) as never)
+  for (const row of rows) {
+    const fields = corrections.get(row.bl_id) ?? new Map<string, string | null>()
+    fields.set(row.field_name, row.value)
+    corrections.set(row.bl_id, fields)
+  }
+  return corrections
+}
+
+const MANIFEST_CORRECTION_LABELS: Record<string, string> = {
+  consignee_block: 'Bloco do consignatário',
+  shipper_block: 'Bloco do embarcador',
+  notify_block: 'Bloco do notify',
+  manifest_customer_cnpj_cpf: 'CNPJ/CPF do consignatário',
+  total_packages: 'Total de volumes',
+  packages_unit: 'Unidade dos volumes',
+}
+
+/** Compara sem diferença de espaços, caixa e pontuação de documento. */
+function manifestComparable(field: string, value: unknown): string {
+  const text = value === null || value === undefined ? '' : String(value)
+  if (field === 'manifest_customer_cnpj_cpf') return text.replace(/[^0-9A-Za-z]/g, '').toUpperCase()
+  return text.replace(/\s+/g, ' ').trim().toUpperCase()
+}
+
+/** Correções do consignatário que a troca de Cliente solta (gatilho da migration 601). */
+const CONSIGNEE_CORRECTION_FIELDS = new Set(['consignee_block', 'manifest_customer_cnpj_cpf'])
+
+/**
+ * Campo corrigido na ficha que o arquivo traz diferente: o servidor mantém a
+ * correção (gatilho `zz_keep_bl_manifest_corrections`) e a prévia diz isso.
+ * Quando o arquivo aponta outro Cliente cadastrado, a troca confirmada
+ * (`troca`) ou o vínculo do B/L sem Cliente (`vinculo`) solta as correções do
+ * consignatário cujo CNPJ não é o do Cliente novo, e o aviso diz isso.
+ */
+export function describeManifestCorrectionsKept(
+  payload: Record<string, unknown>,
+  corrections: Map<string, string | null> | undefined,
+  customerSwitch: 'troca' | 'vinculo' | null = null,
+): string[] {
+  if (!corrections?.size) return []
+  return [...corrections.entries()].flatMap(([field, value]) => {
+    if (!(field in payload)) return []
+    if (manifestComparable(field, payload[field]) === manifestComparable(field, value)) return []
+    const label = MANIFEST_CORRECTION_LABELS[field] ?? field
+    if (customerSwitch === 'troca' && CONSIGNEE_CORRECTION_FIELDS.has(field)) {
+      return [`${label} corrigido na ficha: o arquivo aponta outro Cliente. Se a troca de cliente for confirmada, vale o do arquivo; sem ela, fica a correção da ficha.`]
+    }
+    if (customerSwitch === 'vinculo' && CONSIGNEE_CORRECTION_FIELDS.has(field)) {
+      return [`${label} corrigido na ficha: o arquivo vincula um Cliente ao B/L. Se o CNPJ dele não for o corrigido, vale o do arquivo.`]
+    }
+    return [`${label} corrigido na ficha: o arquivo traz outro valor e fica a correção da ficha. Para usar o do arquivo, corrija o campo na ficha.`]
   })
 }
 
@@ -469,6 +541,7 @@ export function buildBlFreightPreview({
   containerRemovalBlockers = null,
   manualPolAtds = null,
   knownContainerTypes = null,
+  manifestCorrections = null,
 }: BuildBlFreightPreviewArgs): BlFreightImportPreview {
   const existingById = new Map(existingBls.map((bl) => [bl.id, bl]))
   const earliestLadenByPol = new Map<string, string>()
@@ -548,6 +621,23 @@ export function buildBlFreightPreview({
       ? describeContainerRemovalBlocks(existing, payload, containerRemovalBlockers)
       : []
     blockedReasons.push(...removal)
+    if (payload && existing) {
+      const corrections = manifestCorrections?.get(existing.id)
+      const customerSwitch = payload.customer_id == null || payload.customer_id === existing.customer_id
+        ? null
+        : existing.customer_id == null ? 'vinculo' : 'troca'
+      warnings.push(...describeManifestCorrectionsKept(payload as unknown as Record<string, unknown>, corrections, customerSwitch))
+      // CNPJ/CPF corrigido na ficha (migration 601): sem outro Cliente
+      // cadastrado no arquivo, o CNPJ do arquivo não é troca de consignatário.
+      // Comparado com o corrigido, o mesmo arquivo errado de antes pedia
+      // "Troca de Consignatário" (e, sob a confirmação única do arquivo,
+      // tirava o Cliente e a correção) e o impacto "CNPJ faturado". O servidor
+      // manteria o corrigido de qualquer forma (decisão do dono, 2026-11-06,
+      // revisão da PR #1241).
+      if (corrections?.has('manifest_customer_cnpj_cpf') && !customerSwitch) {
+        payload.manifest_customer_cnpj_cpf = existing.manifest_customer_cnpj_cpf ?? null
+      }
+    }
     // COD vivo: o POD do B/L é o destino do COD; o arquivo não o troca
     // (o servidor também mantém, migration 183). Mudar POD aqui é correção, nunca COD.
     if (payload && existing && codBlIds?.has(existing.id) && payload.pod && existing.pod && payload.pod !== existing.pod) {

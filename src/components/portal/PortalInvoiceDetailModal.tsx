@@ -8,7 +8,7 @@ import { ConsolidatedMark, StatusText } from '../ui/StatusText'
 import { Modal } from '../ui/Modal'
 import { paymentMethodLabel } from '../billing/invoiceDetailPresentation'
 import { formatBRL, formatDate, splitIsoDateTime, stripBlPrefix } from '../../lib/utils'
-import { invoiceItemUnit } from '../../lib/invoiceItemUnit'
+import { INVOICE_ITEM_MINIMUM_LABEL, invoiceItemMinimumApplied, invoiceItemUnit } from '../../lib/invoiceItemUnit'
 import { invoiceSituation } from '../../lib/invoiceSituation'
 import { formatPortalPaymentDate, localInvoiceShowsPix } from '../../lib/portalInvoiceStatus'
 import { invoiceTypeLabel } from '../../services/billing'
@@ -189,7 +189,10 @@ export function PortalInvoiceDetailModal({
                     {items.map((item) => (
                       <tr key={item.id} className={cancelled ? 'app-table__row--muted' : undefined}>
                         {multipleBls ? <td className="whitespace-nowrap">{item.bl_id ?? <NoValue label="Sem B/L" />}</td> : null}
-                        <td className="app-table__text app-table__text--wrap">{stripBlPrefix(item.description, item.bl_id)}</td>
+                        <td className="app-table__text app-table__text--wrap">
+                          {stripBlPrefix(item.description, item.bl_id)}
+                          {invoiceItemMinimumApplied(item) ? <> <StatusText tone="muted">{INVOICE_ITEM_MINIMUM_LABEL}</StatusText></> : null}
+                        </td>
                         <td className="tabular-nums">{String(Number(item.quantity ?? 1)).replace('.', ',')}</td>
                         <td className="whitespace-nowrap tabular-nums">{invoiceItemUnit(item) ?? <NoValue label="Sem valor unitário" />}</td>
                         <td className="whitespace-nowrap tabular-nums">{formatBRL(item.total_value_brl)}</td>

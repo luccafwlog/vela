@@ -164,6 +164,22 @@ const CONTAINER_NUMBER = /^[A-Z]{4}\d{7}$/
 const VESSEL_IMO = /^\d{7}$/
 const SAME_AS_CONSIGNEE = /^\s*SAME\s+AS\s+CONSIGNEE\b/i
 const TO_ORDER = /^\s*TO\s+(THE\s+)?ORDER\b/i
+// Sinal de consignatário no Brasil no bloco: o país, CEP, CNPJ/CPF ou forma societária brasileira.
+const BRAZILIAN_PARTY = /\b(BRASIL|BRAZIL|CNPJ|CPF|CEP|LTDA|EIRELI|S\/A)\b|\b\d{5}-\d{3}\b/
+
+/**
+ * Consignatário que parece estrangeiro: sem CNPJ/CPF lido e sem nenhum sinal de
+ * endereço ou empresa no Brasil no bloco. O manifesto pede passaporte e nome do
+ * estrangeiro (posições 283–367 do C5), que o Vela não preenche; até aparecer um
+ * caso real, o arquivo é impedido com esse motivo (decisão do dono, 2026-11-06).
+ * ponytail: heurística pelo texto do bloco; um bloco brasileiro sem país, CEP nem
+ * forma societária também cai aqui, com a mesma saída (corrigir o CNPJ na ficha).
+ */
+export function looksLikeForeignConsignee(block: string | null | undefined, cnpjCpf: string | null | undefined): boolean {
+  const text = asciiUpper(block)
+  if (!text || documentDigits(cnpjCpf).length) return false
+  return !BRAZILIAN_PARTY.test(text)
+}
 
 // --- texto ---------------------------------------------------------------
 
@@ -292,22 +308,14 @@ function seals(value: string | null | undefined): string[] {
   return asciiUpper(value).split(/[/,;\s]+/).map((seal) => seal.replace(/[^A-Z0-9]/g, '')).filter(Boolean)
 }
 
-/** Sigla do navio e da viagem no nome do arquivo: GREEN GUANGZHOU V.6 → GG6. */
+/**
+ * Sigla do navio e da viagem no nome do arquivo: GREEN GUANGZHOU V.6 → GG6. O
+ * nome inteiro (`FWL_MERCANTE_<número>_<sigla>.TXT`) vem do registro no banco,
+ * com o número sequencial do Vela (`registerMercanteEdiFile`, migration 600).
+ */
 export function mercanteFileTag(vesselName: string, voyageNumber: string): string {
   const initials = asciiUpper(vesselName).split(/\s+/).filter(Boolean).map((word) => word.replace(/[^A-Z0-9]/g, '').charAt(0)).join('')
   return `${initials}${asciiUpper(voyageNumber).replace(/[^A-Z0-9]/g, '')}`
-}
-
-/**
- * Nome do arquivo no padrão do sistema externo (`FWL_MERCANTE_<número>.TXT`) com a
- * sigla do navio e da viagem no fim. ponytail: o número é o instante da geração
- * (AAAAMMDDHHMM), único e sem gravação; se a geração passar a ser registrada no
- * Histórico, o número pode virar uma sequência própria.
- */
-export function mercanteFileName(vesselName: string, voyageNumber: string, now: Date): string {
-  const pad = (value: number) => String(value).padStart(2, '0')
-  const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}`
-  return `FWL_MERCANTE_${stamp}_${mercanteFileTag(vesselName, voyageNumber)}.TXT`
 }
 
 // --- montagem ------------------------------------------------------------
@@ -385,16 +393,18 @@ function buildC5(ctx: Ctx, header: MercanteEdiHeader, bl: MercanteEdiBl): string
   if (TO_ORDER.test(asciiUpper(bl.consigneeBlock))) {
     block(ctx, ref, 'B/L à ordem: o manifesto pede outro preenchimento (sem CNPJ), ainda não feito pelo Vela.')
   }
-  if (!consignee) block(ctx, ref, 'Sem bloco do consignatário — reimporte o arquivo do B/L.')
+  if (!consignee) block(ctx, ref, 'Sem bloco do consignatário — corrija na ficha do B/L.')
   // ponytail: CPF (11) só tem o tamanho conferido; o CNPJ passa pelos dígitos verificadores.
-  if (consigneeCnpj.length !== 14 && consigneeCnpj.length !== 11) block(ctx, ref, 'Sem CNPJ/CPF do consignatário — reimporte o arquivo do B/L.')
+  if (!TO_ORDER.test(asciiUpper(bl.consigneeBlock)) && looksLikeForeignConsignee(bl.consigneeBlock, bl.consigneeCnpj)) {
+    block(ctx, ref, 'Consignatário estrangeiro (sem CNPJ/CPF e sem endereço no Brasil): o manifesto pede passaporte e nome do estrangeiro, ainda não feito pelo Vela. Se o consignatário é brasileiro, informe o CNPJ/CPF na ficha do B/L.')
+  } else if (consigneeCnpj.length !== 14 && consigneeCnpj.length !== 11) block(ctx, ref, 'Sem CNPJ/CPF do consignatário — corrija na ficha do B/L.')
   else if (consigneeCnpj.length === 14 && !isValidCnpj(consigneeCnpj)) block(ctx, ref, `CNPJ do consignatário ${consigneeCnpj} inválido (dígitos verificadores) — corrija na ficha do B/L.`)
   // Número do B/L cortado vira outro conhecimento: impede também o arquivo parcial.
   if (bl.id.length > BL_ID_LENGTH) fatal(ctx, ref, `Número do B/L com mais de ${BL_ID_LENGTH} caracteres não cabe no Mercante.`)
   if (bl.totalCbm === null || bl.totalCbm === undefined) block(ctx, ref, 'Sem cubagem do B/L.')
   for (const message of bl.warnings ?? []) warn(ctx, ref, message)
   const shipper = cleanMercanteText(bl.shipperBlock, 'party')
-  if (!shipper) block(ctx, ref, 'Sem bloco do embarcador (shipper) — reimporte o arquivo do B/L.')
+  if (!shipper) block(ctx, ref, 'Sem bloco do embarcador (shipper) — corrija na ficha do B/L.')
   if (!date8(bl.emissionDate)) block(ctx, ref, 'Sem data de emissão do B/L.')
   if (consignee.length > PARTY_LENGTH) warn(ctx, ref, `Consignatário cortado em ${PARTY_LENGTH} caracteres.`)
 

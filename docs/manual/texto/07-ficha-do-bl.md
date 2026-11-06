@@ -44,6 +44,18 @@ A aba **Detalhes do B/L** é o documento como o Vela o guarda: as partes (shippe
 
 O CE Mercante e o Manifesto ficam no alto da aba, no bloco **Documento Mercante**, e não entram no **Salvar alterações**: cada um tem a sua ação ([7.5](#75-o-ce-e-o-manifesto-pela-ficha)). A Viagem do B/L não muda pela ficha ([6.9](06-importacao.md#69-trocar-o-bl)).
 
+O bloco **Dados do manifesto** traz o que vai ao EDI Mercante:
+
+- os blocos de consignatário, embarcador e notify, como o B/L os escreve;
+- o **CNPJ/CPF do consignatário**;
+- o **Total de volumes** e a **Unidade dos volumes**.
+
+Corrija aqui quando o arquivo do B/L vem errado ou ilegível. O campo corrigido fica: a reimportação do B/L não o sobrescreve, e o **Histórico** registra a correção ([6.3](06-importacao.md#63-reimportar-um-bl-que-o-armador-corrigiu)). Para voltar ao valor do arquivo, corrija o campo de novo aqui.
+
+::: atencao
+Com Cliente no B/L, o CNPJ/CPF do consignatário precisa ser o CNPJ desse Cliente. Se o consignatário é outro, troque o Cliente do B/L antes ("O CNPJ/CPF … não é o do Cliente do B/L (…). Para outro consignatário, troque o Cliente do B/L antes."). O CNPJ precisa ter os 14 dígitos válidos, e o CPF, 11.
+:::
+
 Ao salvar, o Vela refaz sozinho o que depende do que você mudou:
 
 - **POD**, pesos ou **Movement To** recalculam as Taxas Locais do B/L ainda sem fatura. Mudar o POD troca a tabela de cobrança, que é a do porto de descarga.

@@ -155,3 +155,35 @@ it('mostra o motivo da recusa do banco em vez da frase genérica (BLR-D07)', asy
   await act(async () => submitted)
   expect(mocks.showToast).toHaveBeenCalledWith('O B/L está cancelado: reative para editar.', 'error')
 })
+
+// Migration 601 (issue #1238, item 1): os dados do manifesto do EDI Mercante
+// se corrigem na ficha; o total de volumes vai como número.
+it('corrige na ficha o bloco do consignatário, o CNPJ/CPF e o total de volumes do manifesto', async () => {
+  const { result } = renderHook(() => useBlEditForm(bl), { wrapper: makeWrapper() })
+  act(() => {
+    result.current.setField('consignee_block', 'ACME LTDA\nRUA X 10, VILA VELHA - ES')
+    result.current.setField('manifest_customer_cnpj_cpf', '28.772.926/0001-14')
+    result.current.setField('total_packages', '775')
+    result.current.setField('packages_unit', 'WOODEN BOXES')
+    result.current.setJustification('Arquivo do B/L sem o CNPJ legível')
+  })
+
+  let submitted: Promise<void> | undefined
+  act(() => {
+    submitted = result.current.handleSubmit({ preventDefault: vi.fn() } as never)
+  })
+  const dialog = await screen.findByRole('dialog')
+  expect(within(dialog).getByText('CNPJ/CPF do consignatário')).toBeTruthy()
+  expect(within(dialog).getByText('Total de volumes')).toBeTruthy()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Salvar alterações' }))
+  await act(async () => submitted)
+
+  expect(mocks.rpc).toHaveBeenCalledWith('save_bl_review', expect.objectContaining({
+    p_update_payload: {
+      consignee_block: 'ACME LTDA\nRUA X 10, VILA VELHA - ES',
+      manifest_customer_cnpj_cpf: '28.772.926/0001-14',
+      total_packages: 775,
+      packages_unit: 'WOODEN BOXES',
+    },
+  }))
+})

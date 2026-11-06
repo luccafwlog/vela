@@ -443,10 +443,15 @@ Administrativo: excluir, cancelar e reativar B/L (BLR-015, BLR-102).
 - **Por quê:** o Mercante recusa o arquivo incompleto; o Vela não inventa o
   dado que o B/L ou o cadastro não têm.
 - **O que você faz:** corrija onde a mensagem diz (Rotas e Manifestos ›
-  Editar, escala, ficha do B/L ou reimportação do arquivo do B/L) e abra
-  **Gerar EDI Mercante** de novo. Código Mercante ausente de armador, terminal
-  ou tipo de contêiner é pedido ao responsável pelo sistema.
-- **Regras:** VIA-146.
+  Editar, escala, ou ficha do B/L) e abra **Gerar EDI Mercante** de novo.
+  Bloco das partes, CNPJ/CPF do consignatário e volumes se corrigem no bloco
+  **Dados do manifesto** da ficha do B/L (BLR-151). "Consignatário
+  estrangeiro" quer dizer que o B/L não tem CNPJ/CPF nem endereço no Brasil:
+  se o consignatário é brasileiro, informe o CNPJ/CPF na ficha; se é
+  estrangeiro de fato, o Vela ainda não gera esse manifesto. Código Mercante
+  ausente de armador, terminal ou tipo de contêiner é pedido ao responsável
+  pelo sistema.
+- **Regras:** VIA-146; BLR-151.
 
 #### S6.37 — O EDI de carga solta saiu com campos em branco
 

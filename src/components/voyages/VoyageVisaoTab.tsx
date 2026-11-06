@@ -88,6 +88,7 @@ export function VoyageVisaoTab({
     () =>
       buildVoyageTimeline({
         importBatches: (timelineSources?.importBatches ?? importBatches).map((batch) => ({ ...batch, route: batch.route_summary ?? undefined, routes: routesByBatchId.get(batch.id) })),
+        mercanteEdiFiles: timelineSources?.mercanteEdiFiles,
         scheduleEvents: timelineSources?.scheduleEvents,
         auditEvents: timelineSources?.auditEvents,
         resolutions: timelineSources?.resolutions,

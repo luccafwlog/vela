@@ -2,6 +2,8 @@
 
 Status: aceito — 2026-11-05 (decisão do dono). Implementada na migration `594`.
 
+> **Situação atual (2026-11-05).** Pedido do dono depois da `594`: o item da fatura cobrado pelo mínimo mostra **Valor mínimo aplicado** no detalhe da fatura do Vela, no Portal e no documento impresso. A emissão marca `minimum_value` no `snapshot_payload` do item (gatilho `mark_minimum_invoice_item`, com `_invoice_item_minimum_value_brl` reconhecendo a linha calculada sem taxa alterada à mão cujo total é o mínimo), e a migration `602` marcou os itens já emitidos com o mínimo. Isso substitui a primeira consequência abaixo: o total continua não sendo quantidade × unitário, mas a linha agora explica.
+
 ## Contexto
 
 A tabela de Taxas Locais de carga solta de Vitória (BRVIX) cobra o THD por

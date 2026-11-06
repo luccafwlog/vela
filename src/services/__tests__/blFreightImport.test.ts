@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  describeManifestCorrectionsKept,
   BL_FREIGHT_DIFF_LABELS,
   buildBlFreightPayload,
   buildBlFreightPreview,
@@ -1861,5 +1862,72 @@ describe('blFreightImport', () => {
       expect(row.payload?.container_load_type).toBeNull()
       expect((row.warnings ?? []).join(' ')).toContain('Modalidade FCL/LCL não lida no Type of Movement')
     })
+  })
+})
+
+describe('dados do manifesto corrigidos na ficha (migration 601)', () => {
+  it('avisa só o campo que o arquivo traz diferente, sem contar pontuação do CNPJ nem espaços', () => {
+    const corrections = new Map<string, string | null>([
+      ['manifest_customer_cnpj_cpf', '28772926000114'],
+      ['shipper_block', 'SHIPPER CO\nRUA 1'],
+      ['total_packages', '775'],
+    ])
+    const warnings = describeManifestCorrectionsKept(
+      { manifest_customer_cnpj_cpf: '28.772.926/0001-14', shipper_block: 'shipper  co rua 1', total_packages: 10 },
+      corrections,
+    )
+    expect(warnings).toEqual([expect.stringContaining('Total de volumes corrigido na ficha')])
+    expect(describeManifestCorrectionsKept({ total_packages: 10 }, undefined)).toEqual([])
+  })
+})
+
+describe('reimportação de B/L com o CNPJ corrigido na ficha (revisão da PR #1241)', () => {
+  const corrected = new Map([['CSC45250E02Y00', new Map<string, string | null>([['manifest_customer_cnpj_cpf', '12345678000195']])]])
+
+  it('o CNPJ errado do arquivo, sem Cliente cadastrado, não vira troca: Cliente e correção ficam', () => {
+    const doc = parsedBL()
+    doc.parties.consigneeTaxId = '98765432000110'
+
+    const preview = buildBlFreightPreview({
+      documents: [doc],
+      selectedVoyage: { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
+      existingBls: [{ ...existingBl(), customer_id: 42, bl_containers: [existingContainer()] }],
+      billingLockedBlIds: new Set(['CSC45250E02Y00']),
+      manifestCorrections: corrected,
+    })
+
+    const row = preview.rows[0]
+    expect(row?.customerChange).toBeNull()
+    expect(row?.requiresCustomerConfirmation).toBe(false)
+    expect(preview.summary.customerChangeCount).toBe(0)
+    // Sem "CNPJ faturado" nem diferença de CNPJ: o servidor recebe o corrigido.
+    expect(row?.billingImpacts.join(' ')).not.toContain('CNPJ')
+    expect(row?.diffs.find((diff) => diff.field === 'manifest_customer_cnpj_cpf')).toBeUndefined()
+    expect(row?.payload?.manifest_customer_cnpj_cpf).toBe('12345678000195')
+    expect(row?.warnings).toEqual(expect.arrayContaining([expect.stringContaining('CNPJ/CPF do consignatário corrigido na ficha: o arquivo traz outro valor e fica a correção da ficha')]))
+  })
+
+  it('o arquivo que aponta outro Cliente cadastrado continua pedindo a troca, e o aviso diz que ela solta a correção', () => {
+    const doc = parsedBL()
+    doc.parties.consigneeTaxId = '98765432000110'
+
+    const preview = buildBlFreightPreview({
+      documents: [doc],
+      selectedVoyage: { id: 7, vesselName: 'GREEN SANTOS', voyageNumber: '14' },
+      existingBls: [{ ...existingBl(), customer_id: 42, bl_containers: [existingContainer()] }],
+      customerMaps: {
+        customersByDocument: new Map([['98765432000110', { id: 43, name: 'NOVO IMPORTADOR LTDA' }]]),
+        customersByName: new Map(),
+        customersByCanonicalName: new Map(),
+        canonicalList: [],
+      },
+      manifestCorrections: corrected,
+    })
+
+    const row = preview.rows[0]
+    expect(row?.requiresCustomerConfirmation).toBe(true)
+    expect(row?.customerChange).toMatchObject({ fromCustomerId: 42, toCustomerId: 43 })
+    expect(row?.payload?.manifest_customer_cnpj_cpf).toBe('98765432000110')
+    expect(row?.warnings).toEqual(expect.arrayContaining([expect.stringContaining('Se a troca de cliente for confirmada, vale o do arquivo')]))
   })
 })
