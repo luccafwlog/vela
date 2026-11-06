@@ -94,15 +94,6 @@ const editableFields: (keyof Pick<
   'packages_unit',
 ]
 
-/** Campos que vão ao EDI Mercante e ficam protegidos da reimportação depois de corrigidos. */
-export const BL_MANIFEST_FIELDS = [
-  'consignee_block',
-  'shipper_block',
-  'notify_block',
-  'manifest_customer_cnpj_cpf',
-  'total_packages',
-  'packages_unit',
-] as const
 // `review_status` é deliberadamente omitido: o RPC save_bl_review recalcula o
 // status a partir de compute_bl_review_pendencies e ignora qualquer valor enviado
 // pelo cliente (além de descartar a linha de auditoria correspondente). Mantê-lo
