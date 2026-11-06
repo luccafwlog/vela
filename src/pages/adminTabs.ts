@@ -3,20 +3,17 @@
 // eslint de fast-refresh exige que um arquivo de componente só exporte componentes.
 
 /**
- * `devOnly`: só a conta Dev (Administrativo com a marca Dev, ADR 0104) vê e
- * abre a aba. Decisão do dono de 2026-11-06: Sistema é da conta Dev, e as
- * Falhas de entrega de alertas vão morar dentro dela
- * (docs/plans/2026-11-06-administracao-revisada.md). Os demais do
- * Administrativo veem Usuários, Histórico de ações e, até ir para Relatórios,
- * Prazo do ADR. É controle de navegação: o que a aba Sistema ganhar de
- * leitura ou escrita sensível tem de ser barrado no banco (`is_dev_user()`).
+ * Decisões do dono de 2026-11-06 (docs/archive/plans/2026-11-06-administracao-revisada.md):
+ * a Administração tem Usuários, Histórico de ações e Sistema. `devOnly`: só a
+ * conta Dev (Administrativo com a marca Dev, ADR 0104) vê e abre a aba; as
+ * leituras de Sistema são recusadas no banco aos demais (`is_dev_user()`,
+ * migration 605). As Falhas de entrega de alertas moram dentro de Sistema, e o
+ * Prazo do ADR mora em Relatórios.
  */
 export const ADMIN_TABS = [
   { slug: 'usuarios', label: 'Usuários', devOnly: false },
-  { slug: 'falhas-de-alertas', label: 'Falhas de entrega de alertas', devOnly: true },
   { slug: 'historico', label: 'Histórico de ações', devOnly: false },
   { slug: 'sistema', label: 'Sistema', devOnly: true },
-  { slug: 'prazo-do-adr', label: 'Prazo do ADR', devOnly: false },
 ] as const
 
 export type AdminTab = (typeof ADMIN_TABS)[number]['slug']
@@ -24,23 +21,27 @@ export type AdminTab = (typeof ADMIN_TABS)[number]['slug']
 export const DEFAULT_ADMIN_TAB: AdminTab = 'usuarios'
 
 /**
- * Endereços das abas antes do lote 5b da identidade visual (2026-10-19):
- * continuam abrindo a aba certa, redirecionados para o endereço novo.
+ * Endereços antigos das abas: os de antes do lote 5b da identidade visual
+ * (2026-10-19) e as abas que mudaram de casa em 2026-11-06 (Falhas de entrega
+ * de alertas, dentro de Sistema; Prazo do ADR, em Relatórios). Continuam
+ * abrindo o lugar certo, redirecionados para o endereço novo.
  */
-export const LEGACY_ADMIN_TABS: Readonly<Record<string, AdminTab>> = {
-  falhas: 'falhas-de-alertas',
-  logs: 'historico',
-  metricas: 'sistema',
-  'prazo-adr': 'prazo-do-adr',
+export const LEGACY_ADMIN_PATHS: Readonly<Record<string, string>> = {
+  falhas: '/admin/sistema',
+  'falhas-de-alertas': '/admin/sistema',
+  logs: '/admin/historico',
+  metricas: '/admin/sistema',
+  'prazo-adr': '/relatorios?visao=prazo-do-adr',
+  'prazo-do-adr': '/relatorios?visao=prazo-do-adr',
 }
 
 export function isAdminTab(value: string | undefined): value is AdminTab {
   return ADMIN_TABS.some((entry) => entry.slug === value)
 }
 
-/** Aba nova de um endereço antigo, ou `null` quando não é endereço antigo. */
-export function legacyAdminTab(value: string | undefined): AdminTab | null {
-  return value !== undefined && Object.hasOwn(LEGACY_ADMIN_TABS, value) ? LEGACY_ADMIN_TABS[value] : null
+/** Endereço novo de um endereço antigo de aba, ou `null` quando não é endereço antigo. */
+export function legacyAdminPath(value: string | undefined): string | null {
+  return value !== undefined && Object.hasOwn(LEGACY_ADMIN_PATHS, value) ? LEGACY_ADMIN_PATHS[value] : null
 }
 
 /** A aba é só da conta Dev. */

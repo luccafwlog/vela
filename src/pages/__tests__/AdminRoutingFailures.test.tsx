@@ -58,9 +58,10 @@ function renderAdmin(tab = 'usuarios') {
 afterEach(cleanup)
 beforeEach(() => vi.clearAllMocks())
 
+// Desde 2026-11-06 a lista mora dentro da aba Sistema, da conta Dev.
 describe('Admin — Falhas de entrega de alertas', () => {
   it('lista a falha com Quando, Alerta, Setor sem destinatário, Motivo e a ação de abrir o alerta', () => {
-    renderAdmin('falhas-de-alertas')
+    renderAdmin('sistema')
 
     expect(screen.getByText('Setor sem destinatário')).toBeTruthy()
     expect(screen.getByText('Baplie ausente')).toBeTruthy()
@@ -73,9 +74,9 @@ describe('Admin — Falhas de entrega de alertas', () => {
     expect(screen.getByText('Para resolver: ativar alguém do setor na aba Usuários.')).toBeTruthy()
   })
 
-  it('o endereço antigo /admin/falhas abre a aba nova', () => {
-    renderAdmin('falhas')
-    expect(screen.getByRole('tab', { name: 'Falhas de entrega de alertas' }).getAttribute('aria-selected')).toBe('true')
+  it.each(['falhas', 'falhas-de-alertas'])('o endereço antigo /admin/%s abre a aba Sistema', (tab) => {
+    renderAdmin(tab)
+    expect(screen.getByRole('tab', { name: 'Sistema' }).getAttribute('aria-selected')).toBe('true')
   })
 
   it('a aba Usuários não fala mais em "fallback" nem no papel Administrador', () => {

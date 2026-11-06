@@ -43,8 +43,8 @@ const globals = new Set([...section('MATRIX_GLOBAL').matchAll(/\{ row: '([^']+)'
 const titles = [...battery.matchAll(/\bit(?:\.each\([^)]*\))?\(\s*'([^']+)'/g)].map(([, title]) => title)
 
 describe('catálogo "O que cada setor pode"', () => {
-  it('tem as 48 linhas (39 da página aprovada, o disparo de Comunicado, a remoção de atracação, o Novo cliente de 2026-10-27, Isentar Taxas Locais, Dispensar cobrança de Demurrage, os dois cancelamentos de baixa desmembrados em 2026-11-04, a resposta de veículos e o EDI Mercante da conta Dev de 2026-11-06), nos nove assuntos, com os cinco setores', () => {
-    expect(PERMISSION_MATRIX).toHaveLength(48)
+  it('tem as 49 linhas (39 da página aprovada, o disparo de Comunicado, a remoção de atracação, o Novo cliente de 2026-10-27, Isentar Taxas Locais, Dispensar cobrança de Demurrage, os dois cancelamentos de baixa desmembrados em 2026-11-04, a resposta de veículos o EDI Mercante da conta Dev de 2026-11-06 e a aba Sistema da conta Dev), nos nove assuntos, com os cinco setores', () => {
+    expect(PERMISSION_MATRIX).toHaveLength(49)
     expect(rowsByGroup().map(({ group }) => group.label)).toEqual(PERMISSION_GROUPS.map((group) => group.label))
     expect(new Set(PERMISSION_MATRIX.map((row) => row.id)).size).toBe(PERMISSION_MATRIX.length)
     for (const row of PERMISSION_MATRIX) {

@@ -17,6 +17,7 @@ import { PermissionMatrixBlock } from './PermissionMatrixBlock'
 import { formatBrasiliaDateTime } from './auditLogPresentation'
 import { classifyDbError } from '../../lib/errors'
 import { departmentLabel } from '../../lib/departmentLabel'
+import { isLastActiveOfTeam } from './teamCoverage'
 import { formatDate } from '../../lib/utils'
 import { useAuth } from '../../hooks/useAuth'
 import { reactivateCatalogRow } from '../../services/deleteRecords'
@@ -153,10 +154,14 @@ export function AdminUsersTab() {
     // A7: com a ação deste usuário em andamento, o segundo clique não repete a chamada.
     if (pendingId === user.id) return
     const current = user.active
+    // A última pessoa ativa da equipe: o aviso vem antes de os alertas perderem destinatário.
+    const lastOfTeam = current && isLastActiveOfTeam(user, usersQuery.data ?? [])
     const confirmOptions = {
       title: current ? 'Desativar usuário' : 'Reativar usuário',
       message: current
-        ? 'Desativar este usuário revoga o acesso e encerra a sessão dele imediatamente. Confirmar?'
+        ? lastOfTeam
+          ? `${user.full_name} é a última pessoa ativa de ${departmentLabel(user.role)}: sem ninguém, os alertas dessa equipe não têm a quem avisar. Ative ou crie outra pessoa da equipe antes, se puder. Desativar mesmo assim?`
+          : 'Desativar este usuário revoga o acesso e encerra a sessão dele imediatamente. Confirmar?'
         : 'Reativar este usuário restaura o acesso dele ao sistema. Confirmar?',
       confirmLabel: current ? 'Desativar' : 'Reativar',
       tone: current ? ('danger' as const) : ('primary' as const),

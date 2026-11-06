@@ -19,6 +19,8 @@ export function useSetCommunicationsEnabled() {
     // mostrando o estado anterior.
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.appSettings() })
+      // A aba Sistema da Administração mostra o mesmo estado (migration 605).
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.systemHealth() })
     },
   })
 }

@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   restoreUserRole: vi.fn(),
   authUserId: 'u-admin' as string | null,
   isDev: false,
+  setCommunicationsEnabled: vi.fn(),
+  sendAdminTestEmail: vi.fn(),
   signOut: vi.fn(),
   createUser: vi.fn(),
   updateUserCredentials: vi.fn(),
@@ -49,8 +51,20 @@ vi.mock('@tanstack/react-query', () => ({
         .then(() => opts.mutationFn(vars))
         .then((data) => opts.onSuccess?.(data, vars), (err) => opts.onError?.(err, vars))
     },
+    mutateAsync: (vars: unknown) => {
+      mocks.mutate(vars)
+      return Promise.resolve().then(() => opts.mutationFn(vars))
+    },
     isPending: false,
   }),
+}))
+vi.mock('../../services/appSettings', async (importActual) => ({
+  ...(await importActual<typeof import('../../services/appSettings')>()),
+  setCommunicationsEnabled: mocks.setCommunicationsEnabled,
+}))
+vi.mock('../../services/adminObservability', async (importActual) => ({
+  ...(await importActual<typeof import('../../services/adminObservability')>()),
+  sendAdminTestEmail: mocks.sendAdminTestEmail,
 }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm, useConfirmWithReason: () => async (options: unknown) => ((await mocks.confirm(options)) ? 'motivo' : null) }))
@@ -101,26 +115,22 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
-it('a conta Dev vê as cinco abas com os nomes aprovados', () => {
+it('a conta Dev vê Usuários, Histórico de ações e Sistema (decisões de 2026-11-06)', () => {
   mocks.isDev = true
   renderAdmin()
-  expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
-    'Usuários', 'Falhas de entrega de alertas', 'Histórico de ações', 'Sistema', 'Prazo do ADR',
-  ])
+  expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Usuários', 'Histórico de ações', 'Sistema'])
 })
 
-it('o Administrativo sem a marca Dev não vê Sistema nem Falhas de entrega de alertas (decisão de 2026-11-06)', () => {
+it('o Administrativo sem a marca Dev vê só Usuários e Histórico de ações', () => {
   renderAdmin()
-  expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Usuários', 'Histórico de ações', 'Prazo do ADR'])
+  expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Usuários', 'Histórico de ações'])
 })
 
-it.each(['sistema', 'falhas-de-alertas', 'metricas'])('o endereço /admin/%s, sem a marca Dev, diz que a aba é da conta Dev e não lê os dados', (tab) => {
-  mocks.dataByKey = { 'admin-metrics': { lastVoyageCreatedAt: '2026-10-20T00:03:00Z', lastInvoiceIssuedAt: null } }
-  renderAdmin(tab)
+it('o endereço /admin/sistema, sem a marca Dev, diz que a aba é da conta Dev e não lê os dados', () => {
+  renderAdmin('sistema')
   expect(screen.getByRole('alert').textContent).toContain('Esta aba é exclusiva da conta Dev do Administrativo.')
   expect(screen.getByRole('link', { name: 'Ir para Usuários' }).getAttribute('href')).toBe('/admin/usuarios')
-  expect(screen.queryByText('Última viagem criada')).toBeNull()
-  expect(screen.queryByText('Nenhuma falha de entrega registrada.')).toBeNull()
+  expect(screen.queryByText('Pontos de atenção')).toBeNull()
 })
 
 it('lista os ativos por padrão, com e-mail em coluna própria, setor e situação em texto', () => {
@@ -207,6 +217,15 @@ it('desativa pela Edge Function depois de confirmar', async () => {
   fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Desativar Alice Operadora' }))
   await waitFor(() => expect(mocks.confirm).toHaveBeenCalled())
   await waitFor(() => expect(mocks.deactivateUser).toHaveBeenCalledWith('u-1'))
+})
+
+it('desativar a última pessoa ativa da equipe avisa que os alertas dela ficam sem destinatário (2026-11-06)', async () => {
+  mocks.deactivateUser.mockResolvedValue(undefined)
+  renderAdmin()
+  // Alice é a única pessoa ativa de Operações na lista.
+  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Desativar Alice Operadora' }))
+  await waitFor(() => expect(mocks.confirm).toHaveBeenCalled())
+  expect(mocks.confirm.mock.calls[0][0].message).toMatch(/Alice Operadora é a última pessoa ativa de Operações/)
 })
 
 it('cancelar a confirmação não desativa o usuário', async () => {
@@ -678,54 +697,69 @@ it('A5: Histórico em erro não diz "nenhuma ação"', () => {
   expect(screen.queryByText('Nenhuma ação registrada.')).toBeNull()
 })
 
-it('Sistema: versão, ambiente da configuração e as datas que dizem o que medem', () => {
+const health = (patch: Record<string, unknown> = {}) => ({
+  alert_failures_30d: 0, last_alert_failure_at: null, teams_without_active: [], routines_failing: [], routine_failures_7d: 0,
+  pix_provider: 'itau', pix_polled_until: new Date().toISOString(), pix_expiration_seconds: 2_592_000, pix_settlement_actor_name: 'API ITAÚ',
+  suppressed_emails: 0, holidays_last_day: '2027-12-25', holidays_next_year: 13, next_year: 2027,
+  communications_enabled: true, dunning_interval_days: 7, routine_actor_name: null, routine_actor_effective_name: 'Dono Dev', ...patch,
+})
+
+it('Sistema: tudo em dia, as rotinas pelo nome e as configurações com quem muda (2026-11-06)', () => {
   mocks.isDev = true
-  mocks.dataByKey = { 'admin-metrics': { lastVoyageCreatedAt: '2026-10-20T00:03:00Z', lastInvoiceIssuedAt: null } }
+  mocks.dataByKey = {
+    'admin-system-health': health(),
+    'admin-system-routines': [{ jobname: 'itau-pix-queue', schedule: '* * * * *', active: true, last_run_at: '2026-11-06T10:14:00Z', last_status: 'succeeded', failures_7d: 0 }],
+    'admin-routing-failures': { rows: [], count: 0 },
+  }
   renderAdmin('sistema')
+  expect(screen.getByText('Nada pede atenção')).toBeTruthy()
+  const routine = screen.getByText('Leitura do Pix Itaú').closest('tr') as HTMLElement
+  expect(within(routine).getByText('a cada minuto')).toBeTruthy()
+  expect(within(routine).getByText('06/11/2026 07:14')).toBeTruthy()
+  expect(within(routine).getByText('Em dia')).toBeTruthy()
+  expect(screen.getByText('Envio real ligado')).toBeTruthy()
+  expect(screen.getByText(/Não escolhida: usa Dono Dev/)).toBeTruthy()
+  expect(screen.getByText('Cadastrados até 25/12/2027')).toBeTruthy()
+  // As falhas de entrega de alertas moram aqui; Versão e Ambiente no rodapé.
+  expect(screen.getByText('Nenhuma falha de entrega registrada.')).toBeTruthy()
   expect(screen.getByText('Versão')).toBeTruthy()
-  expect(screen.getByText('Ambiente')).toBeTruthy()
-  expect(screen.getByText('Última viagem criada')).toBeTruthy()
-  expect(screen.getByText('19/10/2026 21:03')).toBeTruthy()
-  expect(screen.getByText('Última fatura emitida')).toBeTruthy()
-  expect(screen.queryByText('Operacional')).toBeNull()
-  expect(screen.queryByText(/conciliação Pix/i)).toBeNull()
+  expect(screen.queryByText('Última viagem criada')).toBeNull()
+})
+
+it('Sistema: equipe sem pessoa ativa, rotina com falha e feriados faltando viram pontos de atenção', () => {
+  mocks.isDev = true
+  mocks.dataByKey = {
+    'admin-system-health': health({ teams_without_active: ['equipamentos'], routines_failing: ['demurrage-dunning'], holidays_next_year: 0, alert_failures_30d: 1 }),
+    'admin-system-routines': [],
+    'admin-routing-failures': { rows: [], count: 0 },
+  }
+  renderAdmin('sistema')
+  expect(screen.getByText('4 pontos pedem atenção')).toBeTruthy()
+  expect(screen.getByText(/Equipamentos sem nenhuma pessoa ativa/)).toBeTruthy()
+  expect(screen.getByRole('link', { name: 'Abrir Usuários' }).getAttribute('href')).toBe('/admin/usuarios')
+  expect(screen.getByText('A última execução falhou: Régua de cobrança da Demurrage.')).toBeTruthy()
+  expect(screen.getByText(/Faltam os feriados de 2027/)).toBeTruthy()
+})
+
+it('Sistema: o Envio real troca com confirmação, e o e-mail de teste vai para quem pediu', async () => {
+  mocks.isDev = true
+  mocks.setCommunicationsEnabled.mockResolvedValue(false)
+  mocks.sendAdminTestEmail.mockResolvedValue('dono@fwlog.com.br')
+  mocks.dataByKey = { 'admin-system-health': health(), 'admin-system-routines': [], 'admin-routing-failures': { rows: [], count: 0 } }
+  renderAdmin('sistema')
+  fireEvent.click(screen.getByRole('switch', { name: 'Envio real ligado' }))
+  await waitFor(() => expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: 'Desativar envio real' })))
+  await waitFor(() => expect(mocks.setCommunicationsEnabled).toHaveBeenCalledWith(false))
+  fireEvent.click(screen.getByRole('button', { name: 'Enviar teste para mim' }))
+  await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('E-mail de teste enviado para dono@fwlog.com.br.', 'success'))
 })
 
 it('Sistema: erro de consulta tem mensagem própria', () => {
   mocks.isDev = true
-  mocks.errorByKey = { 'admin-metrics': new Error('metrics down') }
+  mocks.errorByKey = { 'admin-system-health': new Error('health down'), 'admin-system-routines': new Error('routines down') }
+  mocks.dataByKey = { 'admin-routing-failures': { rows: [], count: 0 } }
   renderAdmin('sistema')
-  expect(screen.getByText('Não foi possível carregar as datas do sistema.')).toBeTruthy()
+  expect(screen.getByText('Não foi possível conferir o sistema.')).toBeTruthy()
+  expect(screen.getByText('Não foi possível carregar as rotinas.')).toBeTruthy()
 })
 
-it('Prazo do ADR: cartões "x de y no prazo" e células em texto (A6)', () => {
-  mocks.dataByKey = {
-    'agency-report-sla': [{
-      voyageId: 1, port: 'BRSSZ', terminal: 'BTP', voyageNumber: '012S', vesselName: 'XIN PU DONG',
-      atd: '2026-09-08', deadlineDate: '2026-09-11', deadlineAt: '2026-09-11T12:00:00Z',
-      closedAt: '2026-09-11T15:00:00Z', closedBy: null, elapsedCalendarDaysToClosure: 3,
-      departments: [
-        { department: 'operacoes', label: 'Operações', signedAt: '2026-09-10T10:00:00Z', hoursElapsed: 40, state: 'on-time', outcome: 'on-time', hoursLate: null },
-        { department: 'documentacao', label: 'Documentação', signedAt: '2026-09-11T18:00:00Z', hoursElapsed: 80, state: 'overdue', outcome: 'late', hoursLate: 6 },
-        { department: 'equipamentos', label: 'Equipamentos', signedAt: null, hoursElapsed: null, state: 'no-deadline', outcome: 'unsigned', hoursLate: null },
-      ],
-    }],
-  }
-  renderAdmin('prazo-do-adr')
-  const row = screen.getByText('XIN PU DONG / 012S').closest('tr') as HTMLElement
-  expect(within(row).getByText('No prazo').getAttribute('title')).toMatch(/^Assinou em 10\/09\/2026/)
-  expect(within(row).getByText('Atrasou 6 h')).toBeTruthy()
-  expect(within(row).getByText('Não assinou')).toBeTruthy()
-  expect(within(row).getByText('3 dias')).toBeTruthy()
-  expect(within(row).getByText('3 dias').getAttribute('title')).toBe('Fechado em 11/09/2026 12:00')
-  expect(screen.getByRole('columnheader', { name: 'Dias corridos do ATD ao Fechamento' })).toBeTruthy()
-  expect(screen.getAllByText('1 de 1')).toHaveLength(1)
-  expect(screen.queryByText('Sem prazo')).toBeNull()
-})
-
-it('Prazo do ADR vazio não fala em "snapshots"', () => {
-  mocks.dataByKey = { 'agency-report-sla': [] }
-  renderAdmin('prazo-do-adr')
-  expect(screen.getByText('Nenhum ADR fechado no período.')).toBeTruthy()
-  expect(document.body.textContent).not.toMatch(/snapshot/i)
-})

@@ -247,24 +247,77 @@ export async function fetchRoutingFailures(page = 0): Promise<{ rows: RoutingFai
   }
 }
 
-export type SystemMetrics = {
-  /** Criação da viagem mais recente. */
-  lastVoyageCreatedAt: string | null
-  /** Emissão da fatura mais recente (`issued_at`), não a criação. */
-  lastInvoiceIssuedAt: string | null
+/** Pontos de atenção e configurações da aba Sistema (RPC `admin_system_health`, migration `605`; só a conta Dev). */
+export type SystemHealth = {
+  alert_failures_30d: number
+  last_alert_failure_at: string | null
+  /** Setores sem nenhuma pessoa ativa (códigos de `user_profiles.role`). */
+  teams_without_active: string[]
+  /** Rotinas ativas cuja última execução falhou. */
+  routines_failing: string[]
+  routine_failures_7d: number
+  pix_provider: string | null
+  pix_polled_until: string | null
+  pix_expiration_seconds: number | null
+  pix_settlement_actor_name: string | null
+  suppressed_emails: number
+  holidays_last_day: string | null
+  holidays_next_year: number
+  next_year: number
+  communications_enabled: boolean
+  dunning_interval_days: number | null
+  routine_actor_name: string | null
+  routine_actor_effective_name: string | null
 }
 
-export async function fetchSystemMetrics(): Promise<SystemMetrics> {
-  const [voyageRes, invoiceRes] = await Promise.all([
-    supabase.from('voyages').select('created_at').order('created_at', { ascending: false }).limit(1),
-    supabase.from('invoices').select('issued_at').not('issued_at', 'is', null).order('issued_at', { ascending: false }).limit(1),
-  ])
-
-  if (voyageRes.error) throw voyageRes.error
-  if (invoiceRes.error) throw invoiceRes.error
-
+export async function fetchSystemHealth(): Promise<SystemHealth> {
+  const { data, error } = await supabase.rpc('admin_system_health' as never)
+  if (error) throw error
+  const raw = (data ?? {}) as Partial<SystemHealth>
   return {
-    lastVoyageCreatedAt: voyageRes.data?.[0]?.created_at ?? null,
-    lastInvoiceIssuedAt: (invoiceRes.data?.[0] as { issued_at?: string | null } | undefined)?.issued_at ?? null,
+    alert_failures_30d: Number(raw.alert_failures_30d ?? 0),
+    last_alert_failure_at: raw.last_alert_failure_at ?? null,
+    teams_without_active: raw.teams_without_active ?? [],
+    routines_failing: raw.routines_failing ?? [],
+    routine_failures_7d: Number(raw.routine_failures_7d ?? 0),
+    pix_provider: raw.pix_provider ?? null,
+    pix_polled_until: raw.pix_polled_until ?? null,
+    pix_expiration_seconds: raw.pix_expiration_seconds ?? null,
+    pix_settlement_actor_name: raw.pix_settlement_actor_name ?? null,
+    suppressed_emails: Number(raw.suppressed_emails ?? 0),
+    holidays_last_day: raw.holidays_last_day ?? null,
+    holidays_next_year: Number(raw.holidays_next_year ?? 0),
+    next_year: Number(raw.next_year ?? new Date().getFullYear() + 1),
+    communications_enabled: raw.communications_enabled === true,
+    dunning_interval_days: raw.dunning_interval_days ?? null,
+    routine_actor_name: raw.routine_actor_name ?? null,
+    routine_actor_effective_name: raw.routine_actor_effective_name ?? null,
   }
+}
+
+export type SystemRoutine = {
+  jobname: string
+  schedule: string
+  active: boolean
+  last_run_at: string | null
+  last_status: string | null
+  failures_7d: number
+}
+
+/** Rotinas do `pg_cron` (RPC `admin_system_routines`, migration `605`; só a conta Dev). */
+export async function fetchSystemRoutines(): Promise<SystemRoutine[]> {
+  const { data, error } = await supabase.rpc('admin_system_routines' as never)
+  if (error) throw error
+  return ((data ?? []) as SystemRoutine[]).map((row) => ({ ...row, failures_7d: Number(row.failures_7d ?? 0) }))
+}
+
+/** "Enviar teste para mim": Edge Function `admin-test-email`; devolve o endereço que recebeu. */
+export async function sendAdminTestEmail(): Promise<string> {
+  const { data, error } = await supabase.functions.invoke('admin-test-email', { body: {} })
+  if (error) {
+    const context = (error as { context?: Response }).context
+    const body = context && typeof context.json === 'function' ? await context.json().catch(() => null) as { error?: string } | null : null
+    throw new Error(body?.error ?? 'Não foi possível enviar o e-mail de teste. Tente novamente.')
+  }
+  return (data as { to?: string } | null)?.to ?? ''
 }

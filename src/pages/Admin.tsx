@@ -5,19 +5,17 @@ import { TabButton } from '../components/ui/TabButton'
 import { TabList } from '../components/ui/TabList'
 import { StatusScreen } from '../components/layout/StatusScreen'
 import { AdminUsersTab } from '../components/admin/AdminUsersTab'
-import { AdminAlertFailuresTab } from '../components/admin/AdminAlertFailuresTab'
 import { AdminHistoryTab } from '../components/admin/AdminHistoryTab'
 import { AdminSystemTab } from '../components/admin/AdminSystemTab'
-import { AdminAdrDeadlineTab } from '../components/admin/AdminAdrDeadlineTab'
 import { useAuth } from '../hooks/useAuth'
 import { NaoEncontrado } from './NaoEncontrado'
-import { DEFAULT_ADMIN_TAB, isAdminTab, isDevOnlyAdminTab, legacyAdminTab, visibleAdminTabs, type AdminTab } from './adminTabs'
+import { DEFAULT_ADMIN_TAB, isAdminTab, isDevOnlyAdminTab, legacyAdminPath, visibleAdminTabs, type AdminTab } from './adminTabs'
 
 /**
- * Administração (lote 5b da identidade visual): uma sub-rota por aba. Só o
- * Administrativo abre a tela (rota `adminOnly`; os dados de usuários são
- * recusados pelo banco aos demais). Sistema e Falhas de entrega de alertas são
- * só da conta Dev (decisão do dono de 2026-11-06, `adminTabs.ts`).
+ * Administração: uma sub-rota por aba. Só o Administrativo abre a tela (rota
+ * `adminOnly`; os dados de usuários são recusados pelo banco aos demais).
+ * Usuários e Histórico de ações para todo o Administrativo; Sistema só para a
+ * conta Dev (decisões do dono de 2026-11-06, `adminTabs.ts`).
  */
 export function Admin() {
   const navigate = useNavigate()
@@ -25,8 +23,8 @@ export function Admin() {
   // A aba vive na URL: `/admin/historico` é compartilhável e sobrevive ao refresh.
   // `/admin` sem sufixo abre a aba padrão.
   const { tab: tabParam } = useParams<{ tab?: string }>()
-  const legacy = legacyAdminTab(tabParam)
-  if (legacy) return <Navigate to={`/admin/${legacy}`} replace />
+  const legacy = legacyAdminPath(tabParam)
+  if (legacy) return <Navigate to={legacy} replace />
   // `/admin/<aba-inexistente>` não é silenciosamente corrigido.
   if (tabParam !== undefined && !isAdminTab(tabParam)) return <NaoEncontrado />
   const tab: AdminTab = isAdminTab(tabParam) ? tabParam : DEFAULT_ADMIN_TAB
@@ -63,10 +61,8 @@ export function Admin() {
       ) : (
         <div id="admin-panel" role="tabpanel" aria-labelledby={`admin-tab-${tab}`}>
           {tab === 'usuarios' ? <AdminUsersTab /> : null}
-          {tab === 'falhas-de-alertas' ? <AdminAlertFailuresTab /> : null}
           {tab === 'historico' ? <AdminHistoryTab /> : null}
           {tab === 'sistema' ? <AdminSystemTab /> : null}
-          {tab === 'prazo-do-adr' ? <AdminAdrDeadlineTab /> : null}
         </div>
       )}
     </>

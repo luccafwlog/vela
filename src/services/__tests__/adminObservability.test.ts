@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { fetchActionHistory, fetchActionHistoryActions, fetchActionHistoryForExport, fetchSystemMetrics, routingFailureReasonLabel } from '../adminObservability'
+import { fetchActionHistory, fetchActionHistoryActions, fetchActionHistoryForExport, fetchSystemHealth, routingFailureReasonLabel } from '../adminObservability'
 
 const { fromMock, rpcMock, supabaseMock } = vi.hoisted(() => {
   const supabaseMock = { from: vi.fn(), rpc: vi.fn() }
@@ -40,16 +40,6 @@ it('motivo da falha de entrega de alerta nunca mostra o texto técnico gravado',
   }
 })
 
-it('propaga falha de qualquer leitura das metricas', async () => {
-  fromMock.mockImplementation((table: string) => {
-    if (table === 'voyages') return builder({ data: [], error: null })
-    if (table === 'invoices') return builder({ data: null, error: new Error('invoices unavailable') })
-    throw new Error(`Tabela inesperada: ${table}`)
-  })
-
-  await expect(fetchSystemMetrics()).rejects.toThrow('invoices unavailable')
-})
-
 it('mantém o cliente Supabase ligado ao builder de falhas de roteamento', async () => {
   const result = builder({
     data: [{
@@ -79,22 +69,6 @@ it('mantém o cliente Supabase ligado ao builder de falhas de roteamento', async
     count: 1,
     rows: [expect.objectContaining({ id: 7, entity_type: 'invoice', entity_id: 'INV-7' })],
   })
-})
-
-it('Última fatura emitida lê a data de emissão, não a criação (achado A4)', async () => {
-  const invoices = builder({ data: [{ issued_at: '2026-10-19T21:03:00Z' }], error: null })
-  fromMock.mockImplementation((table: string) => {
-    if (table === 'voyages') return builder({ data: [{ created_at: '2026-10-18T10:00:00Z' }], error: null })
-    if (table === 'invoices') return invoices
-    throw new Error(`Tabela inesperada: ${table}`)
-  })
-
-  await expect(fetchSystemMetrics()).resolves.toEqual({
-    lastVoyageCreatedAt: '2026-10-18T10:00:00Z',
-    lastInvoiceIssuedAt: '2026-10-19T21:03:00Z',
-  })
-  expect(invoices.select).toHaveBeenCalledWith('issued_at')
-  expect(invoices.order).toHaveBeenCalledWith('issued_at', { ascending: false })
 })
 
 it('Histórico de ações com nomes: filtros vão para a RPC e o total vem da busca (558)', async () => {
@@ -171,4 +145,13 @@ it('Histórico: as linhas de uma ação pela chave, e a planilha lê em páginas
   expect(rows).toHaveLength(1500)
   expect(capped).toBe(false)
   expect(rpcMock).toHaveBeenLastCalledWith('admin_action_history', expect.objectContaining({ p_limit: 1000, p_offset: 1000 }))
+})
+
+it('Sistema (605): a leitura da conta Dev chega com números e listas, e a recusa do banco passa adiante', async () => {
+  rpcMock.mockResolvedValueOnce({ data: { alert_failures_30d: '2', teams_without_active: ['equipamentos'], routines_failing: [], suppressed_emails: '0', communications_enabled: true }, error: null })
+  const health = await fetchSystemHealth()
+  expect(rpcMock).toHaveBeenCalledWith('admin_system_health')
+  expect(health).toMatchObject({ alert_failures_30d: 2, teams_without_active: ['equipamentos'], communications_enabled: true, holidays_next_year: 0 })
+  rpcMock.mockResolvedValueOnce({ data: null, error: new Error('Somente a conta Dev consulta o Sistema.') })
+  await expect(fetchSystemHealth()).rejects.toThrow('Somente a conta Dev')
 })

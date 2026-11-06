@@ -284,6 +284,14 @@ export async function exportActionHistoryWorkbook(rows: Record<string, unknown>[
   ], filterLines(filters)))
 }
 
+/** Relatórios › Prazo do ADR: uma linha por ADR fechado, por equipe, nunca por pessoa. */
+export async function exportAdrDeadlineWorkbook(rows: Record<string, unknown>[], filters: ReportFilterLine[] = []) {
+  await writeWorkbook(vela('Prazo do ADR', 'prazo-do-adr', [
+    sheet('Prazo do ADR', rows, { unit: 'ADRs' }),
+    filtersSheet(filters),
+  ], filterLines(filters)))
+}
+
 export async function exportOperationalReportWorkbook(rows: OperationalReportRow[], filters: ReportFilterLine[] = []) {
   const exportRows = rows.map((row) => ({
     // Rótulos da tela (ACE-D08).

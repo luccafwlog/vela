@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render as renderBase, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render as renderBase, screen, waitFor, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactElement } from 'react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { DatabaseError } from '../../lib/errors'
 import type { CustomerCommunicationConference } from '../../services/customerCommunications'
 import { ClientesComunicacao } from '../ClientesComunicacao'
 import { ClientesComunicacaoViagem } from '../ClientesComunicacaoViagem'
@@ -316,126 +315,15 @@ describe('Página ClientesComunicacao (UI e fluxos)', () => {
     expect(screen.getByRole('heading', { name: 'Cobertura por viagem e porto' })).toBeTruthy()
   })
 
-  it('exibe o banner permanente de redirecionamento ao suporte quando communications_enabled é false', () => {
+  it('a chave do envio real não fica mais aqui, nem para a conta Dev (mora em Administração › Sistema desde 2026-11-06)', () => {
     mockAppSettings = { communications_enabled: false }
     render(
       <MemoryRouter initialEntries={['/clientes/comunicacao']}>
         <ClientesComunicacao />
       </MemoryRouter>,
     )
-
-    // Canal de envio (lote 5a; ADR 0104): "Redirecionado ao suporte" em âmbar e a chave desligada.
-    expect(screen.getByRole('heading', { name: 'Canal de envio' })).toBeTruthy()
-    expect(screen.getByText('Redirecionado ao suporte').classList.contains('app-lead__value--warning')).toBe(true)
-    expect(screen.getByText(/Todo e-mail de Cliente vai para suporte@portalfwlog\.com\.br/)).toBeTruthy()
-    expect(screen.getByRole('switch', { name: 'Envio real desligado' }).getAttribute('aria-checked')).toBe('false')
-  })
-
-  it('a chave do envio real pede a confirmação de hoje antes de ligar, e só a conta Dev a vê', async () => {
-    mockAppSettings = { communications_enabled: false }
-    render(
-      <MemoryRouter initialEntries={['/clientes/comunicacao']}>
-        <ClientesComunicacao />
-      </MemoryRouter>,
-    )
-
-    fireEvent.click(screen.getByRole('switch', { name: 'Envio real desligado' }))
-    await waitFor(() => expect(mockSetCommunicationsMutation.mutateAsync).toHaveBeenCalledWith(true))
-    expect(mockConfirm.mock.calls[0][0]).toMatchObject({ title: 'Ativar envio real', tone: 'danger' })
-    cleanup()
-
-    // Sem a marca Dev, nem o bloco Canal de envio aparece (decisão do dono de
-    // 2026-11-03: os demais não enxergam a funcionalidade).
-    authState.isDev = false
-    render(
-      <MemoryRouter initialEntries={['/clientes/comunicacao']}>
-        <ClientesComunicacao />
-      </MemoryRouter>,
-    )
-    expect(screen.queryByRole('switch')).toBeNull()
     expect(screen.queryByText('Canal de envio')).toBeNull()
-    expect(screen.queryByText('Redirecionado ao suporte')).toBeNull()
-  })
-
-  it('a troca da chave recusada mostra o motivo no bloco Canal de envio', async () => {
-    mockAppSettings = { communications_enabled: false }
-    mockSetCommunicationsMutation.mutateAsync.mockRejectedValueOnce(
-      new DatabaseError('Somente a conta Dev pode ligar ou desligar o envio real de e-mails.', { code: '42501' }),
-    )
-    render(
-      <MemoryRouter initialEntries={['/clientes/comunicacao']}>
-        <ClientesComunicacao />
-      </MemoryRouter>,
-    )
-
-    fireEvent.click(screen.getByRole('switch', { name: 'Envio real desligado' }))
-    expect(await screen.findByText('Somente a conta Dev pode ligar ou desligar o envio real de e-mails.')).toBeTruthy()
-    cleanup()
-
-    // Falha sem resposta do servidor: texto de tela, sem o erro técnico.
-    mockSetCommunicationsMutation.mutateAsync.mockRejectedValueOnce(new TypeError('Failed to fetch'))
-    render(
-      <MemoryRouter initialEntries={['/clientes/comunicacao']}>
-        <ClientesComunicacao />
-      </MemoryRouter>,
-    )
-    fireEvent.click(screen.getByRole('switch', { name: 'Envio real desligado' }))
-    expect(await screen.findByText('Não foi possível trocar a chave de envio. Tente novamente.')).toBeTruthy()
-    expect(screen.queryByText(/Failed to fetch/)).toBeNull()
-  })
-
-  it('exibe o banner de canal ativo quando communications_enabled é true', () => {
-    mockAppSettings = { communications_enabled: true }
-    render(
-      <MemoryRouter initialEntries={['/clientes/comunicacao']}>
-        <ClientesComunicacao />
-      </MemoryRouter>,
-    )
-
-    expect(screen.getByText('Envio real')).toBeTruthy()
-    expect(screen.getByRole('switch', { name: 'Envio real ligado' }).getAttribute('aria-checked')).toBe('true')
-  })
-
-
-  it('exibe o banner de redirecionamento como fallback seguro quando settings é nulo ou indefinido', () => {
-    mockAppSettings = null
-    render(
-      <MemoryRouter initialEntries={['/clientes/comunicacao']}>
-        <ClientesComunicacao />
-      </MemoryRouter>,
-    )
-
-    expect(screen.getByText('Redirecionado ao suporte')).toBeTruthy()
-  })
-
-  it('exibe o estado de carregamento da chave sem ocultar o painel', () => {
-    mockAppSettings = null
-    mockAppSettingsLoading = true
-
-    render(
-      <MemoryRouter initialEntries={['/clientes/comunicacao']}>
-        <ClientesComunicacao />
-      </MemoryRouter>,
-    )
-
-    expect(screen.getByRole('status')).toBeTruthy()
-    expect(screen.queryByText('Redirecionado ao suporte')).toBeNull()
-    expect(screen.queryByRole('switch')).toBeNull()
-  })
-
-  it('exibe erro da chave e permite tentar novamente', () => {
-    mockAppSettings = null
-    mockAppSettingsError = new Error('falha de rede')
-
-    render(
-      <MemoryRouter initialEntries={['/clientes/comunicacao']}>
-        <ClientesComunicacao />
-      </MemoryRouter>,
-    )
-
-    expect(screen.getByRole('alert')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }))
-    expect(mockRefetchSettings).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('switch', { name: /Envio real/ })).toBeNull()
   })
 
   it('renderiza o painel de cobertura na aba padrão com viagens e contadores', () => {
