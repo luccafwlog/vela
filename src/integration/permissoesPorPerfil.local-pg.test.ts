@@ -873,7 +873,7 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     { row: 'Informar PTAX', allowed: ['administrativo', 'financeiro', 'equipamentos'], call: `public.recalculate_demurrage_invoices_manual(0)` },
     { row: 'Responder Disputa', allowed: ['administrativo', 'equipamentos'], call: `public.add_demurrage_dispute_message(-1, 'mensagem', 'invalido')` },
     { row: 'Reabrir Disputa', allowed: ['administrativo', 'equipamentos'], call: `public.reopen_demurrage_dispute(-1, 'motivo')` },
-    // Migration 597 (ADR 0127, item 9): a resposta de veículos é de Equipamentos e do Administrativo.
+    // Migration 598 (ADR 0128, item 9): a resposta de veículos é de Equipamentos e do Administrativo.
     { row: 'Responder se a viagem terá veículos', allowed: ['administrativo', 'equipamentos'], call: `public.declare_voyage_with_vehicles(-1)` },
     { row: 'Desfazer a resposta de veículos', allowed: ['administrativo', 'equipamentos'], call: `public.undo_voyage_vehicle_declaration(-1, 'motivo')` },
     { row: 'Editar contatos do Cliente', allowed: ADM_DOC_EQU, call: `public.internal_save_customer_contact_configuration(-1, '[]'::jsonb, 'motivo')` },

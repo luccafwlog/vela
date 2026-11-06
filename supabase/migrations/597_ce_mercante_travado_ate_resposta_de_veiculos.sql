@@ -1,6 +1,6 @@
--- 596: CE Mercante travado até Equipamentos responder se a viagem terá
+-- 597: CE Mercante travado até Equipamentos responder se a viagem terá
 -- veículos (decisão do dono de 2026-11-05/06, com Documentação e Equipamentos;
--- ADR 0127).
+-- ADR 0128).
 --
 -- Problema:
 --   A 468 abriu em D-5 o alerta "Planilha de Veículos pendente", com a
@@ -76,9 +76,9 @@ ALTER TABLE public.voyage_vehicle_declarations
   ADD COLUMN has_vehicles boolean NOT NULL DEFAULT false;
 
 COMMENT ON TABLE public.voyage_vehicle_declarations IS
-  'Resposta de Equipamentos sobre veículos na viagem (468, 596): has_vehicles falso = "não terá veículos", verdadeiro = "terá veículos".';
+  'Resposta de Equipamentos sobre veículos na viagem (468, 597): has_vehicles falso = "não terá veículos", verdadeiro = "terá veículos".';
 COMMENT ON COLUMN public.voyage_vehicle_declarations.has_vehicles IS
-  'Verdadeiro: a viagem terá veículos e o CE Mercante de container fica travado até o primeiro veículo importado (596).';
+  'Verdadeiro: a viagem terá veículos e o CE Mercante de container fica travado até o primeiro veículo importado (597).';
 
 -- 2 -------------------------------------------------------------------------
 INSERT INTO public.alert_type_catalog (type, severity, responsible_department, audience_departments, default_destination)
@@ -465,7 +465,7 @@ BEGIN
   END IF;
 
   -- O veículo que chega desfaz a declaração "não terá veículos": o fato vale
-  -- mais. A resposta "terá veículos" continua (596).
+  -- mais. A resposta "terá veículos" continua (597).
   FOREACH v_voyage IN ARRAY COALESCE(v_arrived, ARRAY[]::bigint[]) LOOP
     PERFORM 1 FROM public.voyages WHERE id = v_voyage FOR NO KEY UPDATE;
     DELETE FROM public.voyage_vehicle_declarations WHERE voyage_id = v_voyage AND NOT has_vehicles;
@@ -733,7 +733,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- 596: o B/L de container ou misto só recebe o primeiro CE na viagem em que
+  -- 597: o B/L de container ou misto só recebe o primeiro CE na viagem em que
   -- Equipamentos já respondeu "não terá veículos" ou importou um veículo.
   FOR v_lock IN
     SELECT b.voyage_id, public.voyage_ce_mercante_vehicle_lock(b.voyage_id) AS lock

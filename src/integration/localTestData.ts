@@ -52,7 +52,7 @@ export function describeWithProbe(probe: () => boolean, requirement: string): ty
 }
 
 /**
- * Migration 596: B/L de container (ou misto) só recebe o primeiro CE Mercante
+ * Migration 597: B/L de container (ou misto) só recebe o primeiro CE Mercante
  * na viagem ativa em que Equipamentos respondeu "não terá veículos" ou que já
  * tem veículo importado. A fixture que vincula CE sem medir essa trava
  * responde "não terá veículos" pelas viagens dela; quem mede a trava fica em

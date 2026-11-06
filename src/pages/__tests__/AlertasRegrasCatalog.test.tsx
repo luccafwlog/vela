@@ -117,7 +117,7 @@ describe('Regras de Alertas', () => {
 
     expect(screen.getByText('6 regras')).toBeTruthy()
     // Planilha de Veículos ausente (migration 468), o prazo da Disputa de
-    // Demurrage (migration 520) e a Declaração de veículos pendente (596) são
+    // Demurrage (migration 520) e a Declaração de veículos pendente (597) são
     // de Equipamentos.
     expect(screen.getByRole('button', { name: /Disputa de Demurrage sem resposta no prazo/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Planilha de Veículos ausente/ })).toBeTruthy()

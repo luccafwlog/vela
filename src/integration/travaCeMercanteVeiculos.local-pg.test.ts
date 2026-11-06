@@ -2,7 +2,7 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
-// Migration 596 (decisão do dono de 2026-11-05/06): Equipamentos responde em
+// Migration 597 (decisão do dono de 2026-11-05/06): Equipamentos responde em
 // D-7 se a viagem terá veículos; sem resposta, o alerta passa ao crítico de
 // D-5. "Terá veículos" trava o primeiro CE Mercante dos B/Ls de container até
 // o primeiro veículo importado; "não terá" libera e cala os alertas.
@@ -25,7 +25,7 @@ function migrationApplied() {
   }
 }
 
-const describeLocal = describeWithProbe(migrationApplied, 'migration 596 (voyage_ce_mercante_vehicle_lock)')
+const describeLocal = describeWithProbe(migrationApplied, 'migration 597 (voyage_ce_mercante_vehicle_lock)')
 
 const ADMIN_ID = '59500000-0000-4000-8000-0000000000a1'
 const EQP_ID = '59500000-0000-4000-8000-0000000000e1'
@@ -139,7 +139,7 @@ function cleanup() {
   `)
 }
 
-describeLocal('596 — resposta de veículos em D-7 e CE Mercante travado', () => {
+describeLocal('597 — resposta de veículos em D-7 e CE Mercante travado', () => {
   beforeAll(() => {
     cleanup()
     firstRuleVersionId = Number(psql('SELECT COALESCE(max(id), 0) FROM public.pricing_rule_versions;'))
@@ -149,12 +149,12 @@ describeLocal('596 — resposta de veículos em D-7 e CE Mercante travado', () =
         ('${EQP_ID}', 'eqp595@test.local', 'authenticated', 'authenticated'),
         ('${DOC_ID}', 'doc595@test.local', 'authenticated', 'authenticated');
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
-        ('${ADMIN_ID}', 'Administrativo 596', 'administrativo', true),
-        ('${EQP_ID}', 'Equipamentos 596', 'equipamentos', true),
-        ('${DOC_ID}', 'Documentação 596', 'documentacao', true);
+        ('${ADMIN_ID}', 'Administrativo 597', 'administrativo', true),
+        ('${EQP_ID}', 'Equipamentos 597', 'equipamentos', true),
+        ('${DOC_ID}', 'Documentação 597', 'documentacao', true);
       SET session_replication_role = replica;
-      INSERT INTO public.carriers (id, name) VALUES (${CARRIER_ID}, 'Carrier 596');
-      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL_ID}, 'Vessel 596', ${CARRIER_ID});
+      INSERT INTO public.carriers (id, name) VALUES (${CARRIER_ID}, 'Carrier 597');
+      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL_ID}, 'Vessel 597', ${CARRIER_ID});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES
         (${V_MAIN}, ${VESSEL_ID}, 'V595M', 'active'),
         (${V_DONE}, ${VESSEL_ID}, 'V595D', 'completed'),
@@ -163,10 +163,10 @@ describeLocal('596 — resposta de veículos em D-7 e CE Mercante travado', () =
     `)
     as(ADMIN_ID, `
       INSERT INTO public.bls (id, voyage_id, pol, pod, cargo_mode, review_status, consignee) VALUES
-        ('${BL_CNTR}', ${V_MAIN}, 'CNSHA', 'BRVIT', 'container', 'ok', 'CONSIGNEE 596'),
-        ('${BL_CNTR2}', ${V_MAIN}, 'CNSHA', 'BRVIT', 'container', 'ok', 'CONSIGNEE 596'),
-        ('${BL_BB}', ${V_MAIN}, 'CNSHA', 'BRVIT', 'carga_solta', 'ok', 'CONSIGNEE 596'),
-        ('${BL_NO}', ${V_NO}, 'CNSHA', 'BRVIX', 'container', 'ok', 'CONSIGNEE 596');
+        ('${BL_CNTR}', ${V_MAIN}, 'CNSHA', 'BRVIT', 'container', 'ok', 'CONSIGNEE 597'),
+        ('${BL_CNTR2}', ${V_MAIN}, 'CNSHA', 'BRVIT', 'container', 'ok', 'CONSIGNEE 597'),
+        ('${BL_BB}', ${V_MAIN}, 'CNSHA', 'BRVIT', 'carga_solta', 'ok', 'CONSIGNEE 597'),
+        ('${BL_NO}', ${V_NO}, 'CNSHA', 'BRVIX', 'container', 'ok', 'CONSIGNEE 597');
       INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES
         ('${BL_CNTR}', 'MSCU5950001', '40HC'),
         ('${BL_CNTR2}', 'MSCU5950002', '40HC'),
@@ -176,7 +176,7 @@ describeLocal('596 — resposta de veículos em D-7 e CE Mercante travado', () =
     psql(`
       SET session_replication_role = replica;
       INSERT INTO public.bls (id, voyage_id, pol, pod, cargo_mode, review_status, consignee)
-      VALUES ('${BL_DONE}', ${V_DONE}, 'CNSHA', 'BRVIX', 'container', 'ok', 'CONSIGNEE 596');
+      VALUES ('${BL_DONE}', ${V_DONE}, 'CNSHA', 'BRVIX', 'container', 'ok', 'CONSIGNEE 597');
       SET session_replication_role = origin;
     `)
   })
@@ -195,13 +195,13 @@ describeLocal('596 — resposta de veículos em D-7 e CE Mercante travado', () =
   it('sem resposta, o CE de container é recusado na prévia e no banco; carga solta passa', () => {
     const errors = previewErrors(V_MAIN, BL_CNTR, '152659500000001')
     expect(errors.map((e) => e.message)).toEqual([
-      'CE Mercante travado na viagem Vessel 596 V595M: Equipamentos ainda não respondeu se a viagem terá veículos. O CE de B/L de container só é vinculado depois da resposta na tela Veículos.',
+      'CE Mercante travado na viagem Vessel 597 V595M: Equipamentos ainda não respondeu se a viagem terá veículos. O CE de B/L de container só é vinculado depois da resposta na tela Veículos.',
     ])
     expect(linkCe(BL_CNTR, '152659500000001').stderr).toContain('Equipamentos ainda não respondeu se a viagem terá veículos')
     expect(linkCe(BL_BB, '152659500000009').stderr).toBe('')
   })
 
-  // 597: a Documentação não solta a própria trava respondendo por Equipamentos.
+  // 598: a Documentação não solta a própria trava respondendo por Equipamentos.
   it('a Documentação não responde nem desfaz a resposta de veículos; o Administrativo responde', () => {
     for (const call of [`public.declare_voyage_without_vehicles(${V_MAIN})`, `public.declare_voyage_with_vehicles(${V_MAIN})`]) {
       expect(rpcAs(DOC_ID, `SELECT ${call};`).stderr).toContain('Apenas Equipamentos ou Administrativo responde se a viagem terá veículos.')
@@ -210,7 +210,7 @@ describeLocal('596 — resposta de veículos em D-7 e CE Mercante travado', () =
     expect(rpcAs(ADMIN_ID, `SELECT public.declare_voyage_without_vehicles(${V_MAIN});`).stderr).toBe('')
     expect(rpcAs(DOC_ID, `SELECT public.undo_voyage_vehicle_declaration(${V_MAIN}, 'teste');`).stderr)
       .toContain('Apenas Equipamentos ou Administrativo desfaz a resposta de veículos da viagem.')
-    expect(rpcAs(ADMIN_ID, `SELECT public.undo_voyage_vehicle_declaration(${V_MAIN}, 'Teste da 597');`).stderr).toBe('')
+    expect(rpcAs(ADMIN_ID, `SELECT public.undo_voyage_vehicle_declaration(${V_MAIN}, 'Teste da 598');`).stderr).toBe('')
     psql(`DELETE FROM public.audit_logs WHERE entity_type = 'voyage' AND entity_id = '${V_MAIN}' AND field_name IN ('sem_veiculos', 'com_veiculos');`)
   })
 
@@ -228,7 +228,7 @@ describeLocal('596 — resposta de veículos em D-7 e CE Mercante travado', () =
     expect(item(SHEET, V_MAIN)).toBe('active|critical|equipamentos')
     expect(message(SHEET, V_MAIN)).toMatch(/^Planilha de Veículos ausente: a viagem foi declarada com veículos e nenhum veículo foi importado; ETA em .*travado até a importação\.$/)
     expect(previewErrors(V_MAIN, BL_CNTR, '152659500000001').map((e) => e.message)).toEqual([
-      'CE Mercante travado na viagem Vessel 596 V595M: Equipamentos declarou que a viagem terá veículos e a planilha de Veículos ainda não foi importada. O CE de B/L de container só é vinculado depois da importação.',
+      'CE Mercante travado na viagem Vessel 597 V595M: Equipamentos declarou que a viagem terá veículos e a planilha de Veículos ainda não foi importada. O CE de B/L de container só é vinculado depois da importação.',
     ])
     expect(linkCe(BL_CNTR, '152659500000001').stderr).toContain('a planilha de Veículos ainda não foi importada')
   })

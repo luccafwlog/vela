@@ -268,7 +268,7 @@ describe('timeline operacional de transbordo', () => {
     expect(titles).not.toContain('Dados da viagem alterados')
   })
 
-  // Migration 596: a resposta "com veículos" e a troca para "sem", com motivo.
+  // Migration 597: a resposta "com veículos" e a troca para "sem", com motivo.
   it('mostra a viagem declarada com veículos, a trava do CE e a troca de resposta com o motivo', () => {
     const at = (day: number) => `2026-11-0${day}T12:00:00Z`
     const events = buildVoyageTimeline({ auditEvents: [

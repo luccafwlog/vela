@@ -48,7 +48,7 @@ const CATALOG_MIGRATIONS = [
   '520_disputas_de_demurrage_repaginadas.sql',
   '535_retorno_de_email_nao_aplicado.sql',
   '584_terminal_da_escala_cobrado.sql',
-  '596_ce_mercante_travado_ate_resposta_de_veiculos.sql',
+  '597_ce_mercante_travado_ate_resposta_de_veiculos.sql',
 ]
 
 // Migrations que aposentam tipos. Aceitam tanto `type IN (...)` quanto

@@ -548,7 +548,7 @@ function alertEntityLinkRaw(alert: {
     if (effectiveType.startsWith('voyage_baplie_')) {
       return `/baplie?voyage=${encodeURIComponent(alert.entity_id)}`
     }
-    // Alertas de veículos (migrations 468 e 596): a tela Veículos da viagem tem
+    // Alertas de veículos (migrations 468 e 597): a tela Veículos da viagem tem
     // as saídas, importar a planilha ou responder se a viagem terá veículos.
     if (effectiveType === 'voyage_vehicle_sheet_pending' || effectiveType === 'voyage_vehicle_declaration_pending') {
       return /^\d+$/.test(alert.entity_id) ? `/veiculos?voyage=${alert.entity_id}` : '/veiculos'
