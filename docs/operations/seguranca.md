@@ -75,7 +75,10 @@ tarifação (`is_active_read_user()`;
 [ADR 0044](../adr/0044-leitura-interna-global-departamento-restringe-escrita.md)).
 A tela `/admin` — Usuários, Falhas de entrega de alertas, Histórico de ações,
 Sistema e Prazo do ADR — só abre para o Administrativo (rota `adminOnly`; o item
-Admin do menu só aparece para ele). No banco, desde a migration `475`
+Admin do menu só aparece para ele); Sistema e Falhas de entrega de alertas só
+aparecem para a conta Dev (decisão do dono de 2026-11-06, navegação em
+`src/pages/adminTabs.ts`; o que Sistema ganhar de leitura sensível passa por
+`is_dev_user()`). No banco, desde a migration `475`
 ([ADR 0106](../adr/0106-nome-do-autor-no-historico-para-todos.md)), ficam só com
 o Administrativo a lista de usuários (`admin_list_users`), as falhas de entrega
 (`alert_notification_failures`) e as linhas de Usuário do Histórico de ações
@@ -175,7 +178,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
 | Ler dado operacional e financeiro | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_read_user()` | ADR 0044 | vigente; leitura direta mais estreita em algumas tabelas ([Visualização global interna](#visualização-global-interna)) |
-| `/admin`: usuários, falhas de entrega de alertas, histórico de ações, sistema e Prazo do ADR | ✔ | — | — | — | — | Usuários: `admin_list_users` (`is_admin`). Histórico de ações: `admin_action_history` (`is_admin`, migrations `558` e `561`), que lê também trilhas sem leitura global (Desbloqueio de CE, contas do Portal, mensagens das disputas). As demais abas: só a navegação (rota `adminOnly`); os dados por trás, como `audit_logs`, têm leitura global (ADR 0044) | ADR 0046 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14) |
+| `/admin`: usuários, falhas de entrega de alertas, histórico de ações, sistema e Prazo do ADR | ✔ | — | — | — | — | Usuários: `admin_list_users` (`is_admin`). Histórico de ações: `admin_action_history` (`is_admin`, migrations `558` e `561`), que lê também trilhas sem leitura global (Desbloqueio de CE, contas do Portal, mensagens das disputas). As demais abas: só a navegação (rota `adminOnly`; Sistema e Falhas de entrega de alertas só aparecem para a conta Dev desde 2026-11-06); os dados por trás, como `audit_logs`, têm leitura global (ADR 0044) | ADR 0046; ADR 0104 (2026-11-06) | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14) |
 | Criar usuário, mudar setor, ativar e desativar, trocar e-mail e senha | ✔ | — | — | — | — | Edge `admin-users` (`is_admin`); policy de `user_profiles` e gatilho `prevent_user_profile_privilege_escalation` | ADR 0046 | vigente (**Teste** local da troca de setor e da situação: `permissoesPorPerfil.local-pg.test.ts`) |
 | Mudar o tipo de conta (`account_kind`, pessoa ou integração) | — | — | — | — | — | INSERT e UPDATE de `user_profiles` por coluna, sem `account_kind` (migration `440`); só migration ou `service_role` | [Conta de integração](../modules/operacao-suporte.md#conta-de-integração) | vigente (**Teste** local: `contaDeIntegracao.local-pg.test.ts`) |
 | Desativar ou rebaixar o último Administrativo ativo | — | — | — | — | — | Gatilho `guard_last_active_administrativo` (migration `239`; só pessoas contam desde a `440`) | ADR 0083, item 2 | vigente (**Teste** local) |

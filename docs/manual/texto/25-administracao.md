@@ -13,7 +13,7 @@ A página **Admin** é do {{Administrativo}}. É nela que nascem os usuários do
 
 **Quem faz:** {{Administrativo}}
 
-**Admin**, no menu, só aparece para o {{Administrativo}}; para as outras equipes, o endereço da página mostra **Acesso restrito** ([1.6](01-o-vela.md#16-quando-algo-dá-errado)). A página **Administração** tem cinco abas, **Usuários** (abre primeiro), **Falhas de entrega de alertas**, **Histórico de ações**, **Sistema** e **Prazo do ADR**, cada uma com endereço próprio: o link copiado abre a mesma aba.
+**Admin**, no menu, só aparece para o {{Administrativo}}; para as outras equipes, o endereço da página mostra **Acesso restrito** ([1.6](01-o-vela.md#16-quando-algo-dá-errado)). A página **Administração** tem cinco abas, **Usuários** (abre primeiro), **Falhas de entrega de alertas**, **Histórico de ações**, **Sistema** e **Prazo do ADR**, cada uma com endereço próprio: o link copiado abre a mesma aba. **Sistema** e **Falhas de entrega de alertas** só aparecem para a conta do {{Administrativo}} com a marca Dev; para os demais, a página mostra as outras três, e o link de uma aba da conta Dev abre **Acesso restrito**, com **Ir para Usuários**.
 
 Na aba **Usuários**, a lista abre só com os **Ativos**; em **Situação**, escolha **Inativos** ou **Todos**. Duas marcas da lista pedem atenção:
 
@@ -120,10 +120,12 @@ O **Histórico de ações** junta numa lista só tudo o que se gravou no Vela: q
 
 1. Em **Admin**, abra **Histórico de ações**.
 2. Recorte por **Assunto** (Viagem, B/L, Fatura, Usuário, Alerta, Configuração do sistema e outros), por **Ação** (**Criou**, **Alterou** ou **Excluiu**), por **Por** (uma pessoa, **Sistema** ou **Cliente pelo Portal**) e pelos dias em **De** e **Até**.
-3. Leia a linha. O **Registro** vem pelo nome (a Viagem como navio e número, o B/L, o Cliente, a fatura), mesmo depois de excluído, e o **Motivo** é a justificativa de quem fez. Passe o mouse no nome, em **Por**, para ver o e-mail e a equipe.
+3. Leia a linha. **Quando** traz a hora com os segundos. O **Registro** vem pelo nome (a Viagem como navio e número, o B/L, o Cliente, a fatura), mesmo depois de excluído, e o **Motivo** é a justificativa de quem fez. Passe o mouse no nome, em **Por**, para ver o e-mail e a equipe.
 4. Clique na seta da linha para ver o **De** e o **Para**.
 
-Na linha do **Sistema**, o **Motivo** diz de onde veio a mudança ("Origem: …"). Cada B/L criado por uma importação tem a sua linha **B/L criado**, com o nome de quem importou e a importação no **Motivo**. O que o Cliente fez no Portal aparece em **Por** como "Cliente pelo Portal", seguido do nome do Cliente.
+Na linha do **Sistema**, e quando a mudança veio de uma importação ou de um passo automático do Vela, o **Motivo** diz de onde ela veio ("Origem: …"). Quando ninguém escreveu motivo, a coluna fica com "—". Cada B/L criado por uma importação tem a sua linha **B/L criado**, com o nome de quem importou e a importação no **Motivo**. O que o Cliente fez no Portal aparece em **Por** como "Cliente pelo Portal", seguido do nome do Cliente.
+
+Uma mesma ação, como uma importação, grava várias linhas no mesmo instante: uma para cada registro e cada campo que mudou. Acima de 10.000 linhas, o título diz **Mais de 10.000 registros** e o rodapé "Exibindo 1–50 de mais de 10.000"; **Próxima** continua enquanto houver linhas, e os filtros ajudam a chegar mais rápido.
 
 Ninguém altera nem apaga uma linha. O Vela guarda cinco anos: as linhas mais antigas saem sozinhas, menos o histórico das escalas, que fica para sempre.
 
@@ -133,7 +135,7 @@ Ninguém altera nem apaga uma linha. O Vela guarda cinco anos: as linhas mais an
 
 ## 25.8 Acompanhar as falhas de entrega de alertas
 
-**Quem faz:** {{Administrativo}}
+**Quem faz:** a conta do {{Administrativo}} com a marca Dev
 
 Todo alerta avisa no sino as pessoas ativas da equipe dele ([20.3](20-alertas.md#203-acompanhar-o-sino)); alguns tipos avisam também o {{Financeiro}} ou o {{Administrativo}}. Quando ninguém dessas equipes está ativo, o alerta crítico vai ao {{Administrativo}}, com o selo **Entrega alternativa**. O alerta normal, e o crítico quando nem o {{Administrativo}} tem alguém ativo, não chegam a ninguém e ficam registrados nesta aba. O alerta em si continua na fila de **Alertas**: o que falhou foi o aviso.
 
@@ -177,7 +179,7 @@ O Vela tem poucas configurações com tela, e cada uma fica no seu assunto:
 
 A marca Dev é dada pela equipe de desenvolvimento, nunca pela tela; na lista de usuários, a conta aparece como "Administrativo · Dev". Cada troca da chave e do intervalo fica no **Histórico de ações**, assunto **Configuração do sistema**.
 
-O resto não tem tela: a cobrança do Pix pelo Itaú, a conta que dá a baixa automática e o calendário de feriados de Vitória/ES ficam com o suporte técnico. Quando faltam os feriados do ano seguinte, abre um alerta ([20.9](20-alertas.md#209-demurrage)). A aba **Sistema** da Administração só mostra a versão do Vela, o ambiente e as datas da última Viagem criada e da última fatura emitida.
+O resto não tem tela: a cobrança do Pix pelo Itaú, a conta que dá a baixa automática e o calendário de feriados de Vitória/ES ficam com o suporte técnico. Quando faltam os feriados do ano seguinte, abre um alerta ([20.9](20-alertas.md#209-demurrage)). A aba **Sistema** da Administração, que só a conta com a marca Dev vê, mostra a versão do Vela, o ambiente e as datas da última Viagem criada e da última fatura emitida.
 
 ::: atencao
 - Se a troca do envio real falha, o bloco **Canal de envio** diz o motivo e continua mostrando o estado de verdade, **Envio real** ou **Redirecionado ao suporte**.

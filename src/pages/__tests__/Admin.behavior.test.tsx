@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   updateUserProfile: vi.fn(),
   restoreUserRole: vi.fn(),
   authUserId: 'u-admin' as string | null,
+  isDev: false,
   signOut: vi.fn(),
   createUser: vi.fn(),
   updateUserCredentials: vi.fn(),
@@ -54,7 +55,7 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm, useConfirmWithReason: () => async (options: unknown) => ((await mocks.confirm(options)) ? 'motivo' : null) }))
 vi.mock('../../services/supabase', () => ({ supabase: { from: vi.fn() } }))
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: mocks.authUserId ? { id: mocks.authUserId } : null, signOut: mocks.signOut }) }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: mocks.authUserId ? { id: mocks.authUserId } : null, signOut: mocks.signOut, isDev: mocks.isDev }) }))
 vi.mock('../../services/deleteRecords', () => ({ reactivateCatalogRow: mocks.reactivateCatalogRow }))
 vi.mock('../../services/adminUsers', async (importActual) => {
   const actual = await importActual<typeof import('../../services/adminUsers')>()
@@ -95,15 +96,31 @@ beforeEach(() => {
   mocks.updateUserProfile.mockResolvedValue(undefined)
   mocks.restoreUserRole.mockResolvedValue(true)
   mocks.authUserId = 'u-admin'
+  mocks.isDev = false
   mocks.confirm.mockResolvedValue(true)
 })
 afterEach(cleanup)
 
-it('mostra as cinco abas com os nomes aprovados', () => {
+it('a conta Dev vê as cinco abas com os nomes aprovados', () => {
+  mocks.isDev = true
   renderAdmin()
   expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
     'Usuários', 'Falhas de entrega de alertas', 'Histórico de ações', 'Sistema', 'Prazo do ADR',
   ])
+})
+
+it('o Administrativo sem a marca Dev não vê Sistema nem Falhas de entrega de alertas (decisão de 2026-11-06)', () => {
+  renderAdmin()
+  expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Usuários', 'Histórico de ações', 'Prazo do ADR'])
+})
+
+it.each(['sistema', 'falhas-de-alertas', 'metricas'])('o endereço /admin/%s, sem a marca Dev, diz que a aba é da conta Dev e não lê os dados', (tab) => {
+  mocks.dataByKey = { 'admin-metrics': { lastVoyageCreatedAt: '2026-10-20T00:03:00Z', lastInvoiceIssuedAt: null } }
+  renderAdmin(tab)
+  expect(screen.getByRole('alert').textContent).toContain('Esta aba é exclusiva da conta Dev do Administrativo.')
+  expect(screen.getByRole('link', { name: 'Ir para Usuários' }).getAttribute('href')).toBe('/admin/usuarios')
+  expect(screen.queryByText('Última viagem criada')).toBeNull()
+  expect(screen.queryByText('Nenhuma falha de entrega registrada.')).toBeNull()
 })
 
 it('lista os ativos por padrão, com e-mail em coluna própria, setor e situação em texto', () => {
@@ -480,7 +497,7 @@ it('Histórico de ações: pessoa pelo nome, "Sistema" sem autor, assunto e fras
   const created = screen.getByText('Tarifa criada: THC Granito').closest('tr') as HTMLElement
   expect(within(created).getByText('Sistema')).toBeTruthy()
   expect(within(created).getByText('Tarifa do Granito')).toBeTruthy()
-  expect(within(created).getByText('19/10/2026 21:04')).toBeTruthy()
+  expect(within(created).getByText('19/10/2026 21:04:00')).toBeTruthy()
   const role = screen.getByText('Setor: Financeiro').closest('tr') as HTMLElement
   expect(within(role).getByText('Alice Operadora')).toBeTruthy()
   expect(within(role).getByText('Usuário')).toBeTruthy()
@@ -579,6 +596,41 @@ it('Histórico de ações: contagem acima do teto diz "Mais de 10.000 registros"
   expect(screen.getByText('Mais de 10.000 registros')).toBeTruthy()
 })
 
+it('Histórico de ações: acima do teto, o rodapé diz "de mais de 10.000" e Próxima passa da página 200', () => {
+  const page = Array.from({ length: 50 }, (_, index) => historyRow({ id: 100 + index, field_name: 'voyage_number', old_value: '011S', new_value: '012S', entity_label: 'Santos / 012S' }))
+  mocks.dataByKey = { 'admin-audit-logs': { count: 10_000, capped: true, rows: page } }
+  renderAdmin('historico')
+  expect(screen.getByText('Exibindo 1–50 de mais de 10.000')).toBeTruthy()
+  // Sem o total, não há "Página 1 de 200": o teto não é o fim da lista.
+  expect(screen.queryByText(/Página \d+ de/)).toBeNull()
+  expect(screen.queryByText('Exibindo 1–50 de 10.000')).toBeNull()
+  expect((screen.getByRole('button', { name: 'Próxima' }) as HTMLButtonElement).disabled).toBe(false)
+})
+
+it('Histórico de ações: hora com segundos, motivo técnico em português e texto padrão do sistema fora da tela', () => {
+  mocks.dataByKey = {
+    'admin-audit-logs': {
+      count: 3,
+      rows: [
+        historyRow({ id: 21, entity_type: 'bl', field_name: 'review_status', old_value: 'reviewed', new_value: 'pending_review', changed_at: '2026-11-04T17:55:11.626336+00:00', justification: 'Gate canonico reaplicado apos e-mail importado', entity_label: 'B/L GSPT1' }),
+        historyRow({ id: 22, entity_type: 'voyage_pol_schedule', field_name: 'etd', old_value: '2026-11-02', new_value: '2026-11-03', changed_at: '2026-11-04T17:55:12Z', justification: 'Atualizacao manual de ETD por POL', entity_label: 'GREEN SEPETIBA / 8 · BRVIX' }),
+        historyRow({ id: 23, entity_type: 'customer', field_name: 'held_billing_reprocessed', new_value: '3', actor_kind: 'sistema', actor_name: null, actor_email: null, actor_department: null, justification: 'Reprocesso automático das faturas retidas (portal_activation) pela conta de sistema', entity_label: 'ATLÂNTICO LTDA' }),
+      ],
+    },
+  }
+  renderAdmin('historico')
+  const gate = screen.getByText('Status de revisão: Pendente').closest('tr') as HTMLElement
+  expect(within(gate).getByText('04/11/2026 14:55:11')).toBeTruthy()
+  expect(within(gate).getByText('Origem: B/L de volta à Revisão depois do e-mail importado')).toBeTruthy()
+  // O texto que a tela salva sem motivo não é motivo de ninguém.
+  const etd = screen.getByText('ETD: 03/11/2026').closest('tr') as HTMLElement
+  expect(within(etd).getByText('04/11/2026 14:55:12')).toBeTruthy()
+  expect(within(etd).getByText('Sem motivo')).toBeTruthy()
+  const held = screen.getByText('Faturamento retido reprocessado').closest('tr') as HTMLElement
+  expect(within(held).getByText('Origem: Faturas retidas emitidas: o Cliente ativou o Portal')).toBeTruthy()
+  expect(document.body.textContent).not.toMatch(/Gate canonico|Atualizacao manual|portal_activation/)
+})
+
 it('"O que cada setor pode": grupo e ação são cabeçalhos da linha', () => {
   renderAdmin()
   const matrix = screen.getByRole('region', { name: 'O que cada setor pode' })
@@ -598,6 +650,7 @@ it('A5: Histórico em erro não diz "nenhuma ação"', () => {
 })
 
 it('Sistema: versão, ambiente da configuração e as datas que dizem o que medem', () => {
+  mocks.isDev = true
   mocks.dataByKey = { 'admin-metrics': { lastVoyageCreatedAt: '2026-10-20T00:03:00Z', lastInvoiceIssuedAt: null } }
   renderAdmin('sistema')
   expect(screen.getByText('Versão')).toBeTruthy()
@@ -610,6 +663,7 @@ it('Sistema: versão, ambiente da configuração e as datas que dizem o que mede
 })
 
 it('Sistema: erro de consulta tem mensagem própria', () => {
+  mocks.isDev = true
   mocks.errorByKey = { 'admin-metrics': new Error('metrics down') }
   renderAdmin('sistema')
   expect(screen.getByText('Não foi possível carregar as datas do sistema.')).toBeTruthy()

@@ -6,6 +6,15 @@
 
 ## 2026-11
 
+- **Administração revisada, etapa 1 (decisões do dono de 2026-11-06, [plano](plans/2026-11-06-administracao-revisada.md)):**
+  as abas **Sistema** e **Falhas de entrega de alertas** passam a ser só da conta Dev; os demais do Administrativo
+  veem Usuários, Histórico de ações e Prazo do ADR, e o link de uma aba da conta Dev mostra "Acesso restrito". No
+  **Histórico de ações**, **Quando** traz os segundos; acima de 10.000 linhas o rodapé diz "de mais de 10.000" e
+  **Próxima** passa da página 200; o Motivo técnico gravado pelo banco ("Gate canonico…", "(portal_activation)")
+  aparece como **Origem** em português e o texto padrão salvo sem motivo some (`src/lib/auditReasons.ts`, também no
+  Histórico do B/L); campos que viravam "B/L alterado" ganham nome e a situação vem em português. Só tela, sem
+  migration. Diagnóstico com os números de produção em
+  [archive/audits/administracao-2026-11-06.md](archive/audits/administracao-2026-11-06.md).
 - **Revisão de segurança dos widgets públicos do fwlog.com.br (2026-11-06):** a abertura do disjuntor global da
   Consulta de container (300 "não encontrado" na hora) manda um aviso ao Sentry, um por hora, sem número de container
   nem IP; antes, a busca podia ficar fora do ar sem ninguém saber. O manual de serviços externos passa a dizer que o

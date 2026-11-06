@@ -13,8 +13,9 @@ import {
   auditValueFacts,
   describeAuditLog,
   displayAuditValue,
-  formatBrasiliaDateTime,
+  formatBrasiliaDateTimeWithSeconds,
 } from './auditLogPresentation'
+import { readRecordedReason, type RecordedReason } from '../../lib/auditReasons'
 import { listAllUserProfiles } from '../../services/adminUsers'
 import {
   LOG_PAGE_SIZE,
@@ -150,12 +151,15 @@ export function AdminHistoryTab() {
                   </tbody>
                 </table>
               </div>
+              {/* Acima do teto a busca para de contar: o rodapé diz "de mais de
+                  10.000", igual ao título, e Próxima segue enquanto a página vier cheia. */}
               <TableFooterPagination
                 page={filters.page}
                 pageBase={0}
                 pageSize={LOG_PAGE_SIZE}
                 totalCount={total}
                 totalPages={Math.max(1, Math.ceil(total / LOG_PAGE_SIZE))}
+                countIsFloor={capped ? { rowsOnPage: rows.length } : undefined}
                 onPageChange={(page) => setFilters((current) => ({ ...current, page }))}
               />
             </>
@@ -180,15 +184,20 @@ function actorDetail(row: ActionHistoryRow): string {
   return [row.actor_email, department && department !== '—' ? department : null].filter(Boolean).join(' · ') || 'Sem e-mail no cadastro'
 }
 
-/** O texto da justificativa: "Origem" quando é o contexto de uma ação automática. */
-function reasonLabel(row: ActionHistoryRow): string {
-  return row.actor_kind === 'sistema' ? 'Origem' : 'Motivo'
+/**
+ * "Origem" quando o texto é o rastro de onde a mudança veio (ação automática,
+ * importação, texto que o banco grava); "Motivo" quando é o que a pessoa escreveu.
+ */
+function isOrigin(row: ActionHistoryRow, reason: RecordedReason): boolean {
+  return row.actor_kind === 'sistema' || reason.origin
 }
 
 function HistoryRow({ row, open, onToggle }: { row: ActionHistoryRow; open: boolean; onToggle: () => void }) {
   const summary = describeAuditLog(row)
   const actor = actorLabel(row)
   const detail = actorDetail(row)
+  // Motivo padrão do sistema some; texto técnico gravado pelo banco vira frase.
+  const reason = readRecordedReason(row.justification)
   return (
     <Fragment>
       <tr>
@@ -197,23 +206,23 @@ function HistoryRow({ row, open, onToggle }: { row: ActionHistoryRow; open: bool
             {open ? <ChevronDown size={15} aria-hidden="true" /> : <ChevronRight size={15} aria-hidden="true" />}
           </button>
         </td>
-        <td className="tabular-nums whitespace-nowrap">{formatBrasiliaDateTime(row.changed_at)}</td>
+        <td className="tabular-nums whitespace-nowrap">{formatBrasiliaDateTimeWithSeconds(row.changed_at)}</td>
         <td className="app-table__text" title={detail}>{actor}</td>
         <td className="app-table__text">{auditSubjectLabel(row.entity_type)}</td>
         <td className="app-table__text" title={row.entity_label ?? undefined}>{row.entity_label ?? <NoValue label="Registro sem nome" />}</td>
         <td className="app-table__text app-table__text--wrap">{summary}</td>
         <td className="app-table__text app-table__text--wrap">
-          {row.justification ? (row.actor_kind === 'sistema' ? `Origem: ${row.justification}` : row.justification) : <NoValue label="Sem motivo" />}
+          {reason ? (isOrigin(row, reason) ? `Origem: ${reason.text}` : reason.text) : <NoValue label="Sem motivo" />}
         </td>
       </tr>
       {open ? (
         <tr data-row-detail>
           <td colSpan={7}>
-            <FactList columns={row.justification ? 4 : 3}>
+            <FactList columns={reason ? 4 : 3}>
               <Fact label="Autor">{actor} · {detail}</Fact>
               <Fact label="De"><AuditValue row={row} side="old" /></Fact>
               <Fact label="Para"><AuditValue row={row} side="new" /></Fact>
-              {row.justification ? <Fact label={reasonLabel(row)}>{row.justification}</Fact> : null}
+              {reason ? <Fact label={isOrigin(row, reason) ? 'Origem' : 'Motivo'}>{reason.text}</Fact> : null}
             </FactList>
           </td>
         </tr>
