@@ -239,3 +239,4 @@ src/integration/limpezaHistoricoCron.local-pg.test.ts
 src/integration/manifestoPorNatureza.local-pg.test.ts
 src/integration/veiculoLclDemurrage.local-pg.test.ts
 src/integration/sinoAvisosDeAcontecimento.local-pg.test.ts
+src/integration/enderecoReceitaRevisao.local-pg.test.ts

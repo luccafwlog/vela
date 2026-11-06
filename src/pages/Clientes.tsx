@@ -18,26 +18,29 @@ import { CustomerTable } from '../components/customers/CustomerTable'
 import { ClientesTabs } from '../components/customers/ClientesTabs'
 import { ImportBaseModal, type CustomerBaseRefusal } from '../components/customers/ImportBaseModal'
 import {
+  applyCnpjLookup,
   emptyCreateCustomerForm,
   newCustomerContact,
+  type CnpjAutofill,
   type CreateCustomerForm,
   type CustomerContactForm,
   type CustomerCreateErrors,
 } from '../components/customers/customerCreateForm'
 import { useAuth } from '../hooks/useAuth'
+import { useCnpjLookup } from '../hooks/useCnpjLookup'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { useFilteredSelection } from '../hooks/useFilteredSelection'
-import { fetchCustomerRows, useCustomers, useCustomerSummary, type CustomerFilters } from '../hooks/useCustomers'
-import { usePortalProvisioning } from '../hooks/usePortalProvisioning'
+import { fetchCustomerRows, useCustomers, useCustomerSummary, useExistingCustomerByCnpj, type CustomerFilters } from '../hooks/useCustomers'
+import { usePortalProvisioning, useSendPortalInvite } from '../hooks/usePortalProvisioning'
 import { formatBRL, formatCnpjCpf, formatCountLabel } from '../lib/utils'
 import { userFacingErrorMessage } from '../lib/errors'
-import { isValidCnpj } from '../lib/cnpj'
+import { canonicalizeValidCnpj, isValidCnpj } from '../lib/cnpj'
 import { type CustomerSortKey } from '../lib/customerTableViewModel'
 import { CUSTOMER_COMMUNICATION_BOXES } from '../services/customerCommunicationBoxes'
 import { compareCustomerBaseWithExisting, customerNameChanges, importCustomerBaseRows, parseCustomerBaseFile, type ParsedCustomerBase } from '../services/customerBase'
 import { afterBlRevisado, afterCargaAlterada } from '../services/cacheEffects'
 import { queryKeys } from '../services/queryKeys'
-import { checkCustomerDependencies, createCustomer, deleteCustomers } from '../services/customers'
+import { checkCustomerDependencies, createCustomer, deleteCustomers, isDuplicateCustomerCnpjError } from '../services/customers'
 import { buildDeleteAffected, formatDeleteOutcome } from '../services/deleteDependencies'
 import { exportCustomerBaseWorkbook } from '../services/exports'
 import {
@@ -68,6 +71,10 @@ export function Clientes() {
   // Novo cliente grava contatos: só os setores que editam contatos (decisão do
   // dono de 2026-10-27, P10; os demais trazem o Cliente pela Base ou Revisão).
   const canCreateCustomer = can('edit_customer_contacts')
+  // O convite do Portal é da Documentação e do Administrativo: a Edge Function
+  // `portal-invite-send` recusa os demais, então só eles veem a opção no cadastro.
+  const canInvitePortal = canCreateCustomer && can('portal_provisioning')
+  const sendPortalInvite = useSendPortalInvite()
   const narrow = useNarrowViewport()
   // Excluir e desativar exigem o Administrativo no banco; a tela só oferece
   // as ações a quem pode executá-las.
@@ -135,6 +142,40 @@ export function Clientes() {
   const [importOpen, setImportOpen] = useState(false)
   const [createForm, setCreateForm] = useState<CreateCustomerForm>(emptyCreateCustomerForm)
   const [createErrors, setCreateErrors] = useState<CustomerCreateErrors>({})
+  // Consulta de CNPJ (ADR 0127): com o CNPJ válido, os dados da Receita entram
+  // nos campos vazios, uma vez por CNPJ (padrão "ajustar estado no render").
+  // Mudou o CNPJ, o que a consulta anterior pôs e ninguém editou sai na hora,
+  // sem esperar a nova resposta: cadastrar nesse intervalo gravaria o CNPJ
+  // novo com o endereço do anterior (revisão da PR #1235).
+  const lookupCnpjValue = createOpen ? canonicalizeValidCnpj(createForm.cnpjCpf) : null
+  // Um Cliente por CNPJ (`customers_cnpj_cpf_key`): o CNPJ já cadastrado vira
+  // erro sob o campo, com a ficha dele, e a Receita nem é consultada. Falha na
+  // conferência não trava: a constraint continua recusando no gravar.
+  const existingQuery = useExistingCustomerByCnpj(lookupCnpjValue)
+  const existingCustomer = lookupCnpjValue && existingQuery.data ? existingQuery.data : null
+  const receitaCnpj = lookupCnpjValue && (existingQuery.isError || (existingQuery.isSuccess && !existingQuery.data)) ? lookupCnpjValue : null
+  const cnpjLookup = useCnpjLookup(receitaCnpj)
+  const [cnpjAutofill, setCnpjAutofill] = useState<{ cnpj: string | null; filled: CnpjAutofill }>({ cnpj: null, filled: {} })
+  if (cnpjAutofill.cnpj !== null && lookupCnpjValue !== cnpjAutofill.cnpj) {
+    setCreateForm(applyCnpjLookup(createForm, null, cnpjAutofill.filled).form)
+    setCnpjAutofill({ cnpj: null, filled: {} })
+  } else if (lookupCnpjValue && cnpjLookup.data && cnpjAutofill.cnpj === null) {
+    const result = cnpjLookup.data
+    const next = applyCnpjLookup(createForm, result.status === 'encontrado' ? result.data : null, {})
+    setCreateForm(next.form)
+    setCnpjAutofill({ cnpj: lookupCnpjValue, filled: next.filled })
+  }
+  const cnpjLookupState = !lookupCnpjValue || existingCustomer
+    ? null
+    : existingQuery.isPending && existingQuery.fetchStatus === 'fetching'
+      ? { state: 'buscando' as const }
+    : cnpjLookup.data
+      ? cnpjLookup.data.status === 'encontrado'
+        ? { state: 'encontrado' as const, situacao: cnpjLookup.data.data.situacao }
+        : { state: cnpjLookup.data.status }
+      : cnpjLookup.isFetching
+        ? { state: 'buscando' as const }
+        : null
   const [saving, setSaving] = useState(false)
   const [baseFile, setBaseFile] = useState<File | null>(null)
   const [baseReadError, setBaseReadError] = useState<string | null>(null)
@@ -179,6 +220,7 @@ export function Clientes() {
         if (!fieldErrors[field]) fieldErrors[field] = issue.message
       }
     }
+    if (existingCustomer) fieldErrors.cnpjCpf = duplicateCnpjMessage(existingCustomer)
 
     const activeContacts = createForm.contacts.filter(
       (contact) => contact.name.trim() || contact.email.trim() || contact.phone.trim(),
@@ -197,16 +239,21 @@ export function Clientes() {
     setCreateErrors(fieldErrors)
     if (Object.keys(fieldErrors).length > 0) return
 
+    const inviteEmail = canInvitePortal && createForm.sendPortalInvite ? primaryContact!.email.trim().toLowerCase() : null
     const confirmed = await confirm({
-      title: 'Cadastrar cliente',
+      title: inviteEmail ? 'Cadastrar cliente e enviar o convite' : 'Cadastrar cliente',
       message: `Cadastrar o cliente "${createForm.name.trim()}" (${formatCnpjCpf(createForm.cnpjCpf)})?`,
-      confirmLabel: 'Cadastrar cliente',
+      confirmLabel: inviteEmail ? 'Cadastrar e convidar' : 'Cadastrar cliente',
       affected: {
         summary: `${createForm.name.trim()} · CNPJ ${formatCnpjCpf(createForm.cnpjCpf)} · ${formatCountLabel(activeContacts.length, 'contato', 'contatos')}`,
         items: activeContacts.map((c) => `${c.name.trim() ? `${c.name.trim()} (${c.email})` : c.email}${c.is_primary ? ' · principal' : ''}`),
       },
-      consequence: 'O cliente entra no cadastro ativo, pode ser vinculado a B/Ls e aparece na fila de Clientes › Portal como "Aguardando análise". Nenhum convite é enviado.',
-      reversibility: 'Os dados podem ser editados na ficha; cadastros sem vínculos operacionais podem ser desativados ou excluídos pelo Administrativo.',
+      consequence: inviteEmail
+        ? `O cliente entra no cadastro ativo e pode ser vinculado a B/Ls. Em seguida, o convite do Portal é enviado para ${inviteEmail}, válido por 48 horas.`
+        : 'O cliente entra no cadastro ativo, pode ser vinculado a B/Ls e aparece na fila de Clientes › Portal como "Aguardando análise". Nenhum convite é enviado.',
+      reversibility: inviteEmail
+        ? 'Os dados podem ser editados na ficha; o convite pendente pode ser cancelado em Clientes › Portal. O e-mail enviado não volta.'
+        : 'Os dados podem ser editados na ficha; cadastros sem vínculos operacionais podem ser desativados ou excluídos pelo Administrativo.',
     })
     if (!confirmed) return
 
@@ -220,9 +267,20 @@ export function Clientes() {
         city: createForm.city,
         state: createForm.state,
         zip: createForm.zip,
-        notes: createForm.notes,
         contacts: activeContacts,
       })
+
+      // O cadastro já está gravado: uma recusa do convite não desfaz o Cliente
+      // nem prende o formulário; vira aviso com o motivo e o caminho do reenvio.
+      let inviteFailure: string | null = null
+      if (inviteEmail) {
+        try {
+          await sendPortalInvite.mutateAsync({ customerId: customer.id, recoveryEmail: inviteEmail, source: 'informado_manualmente' })
+        } catch (cause) {
+          // `sendPortalInvite` já traduz a recusa do servidor (POR-D01).
+          inviteFailure = (cause instanceof Error && cause.message ? cause.message : 'Não foi possível enviar o convite do Portal').replace(/\.$/, '')
+        }
+      }
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['customers'] }),
@@ -232,11 +290,23 @@ export function Clientes() {
         queryClient.invalidateQueries({ queryKey: ['customer-ficha'] }),
       ])
 
-      showToast('Cliente cadastrado.', 'success')
+      if (inviteFailure) {
+        showToast(`Cliente cadastrado, mas o convite do Portal não saiu (${inviteFailure}). Envie de novo em Clientes › Portal.`, 'error')
+      } else {
+        showToast(inviteEmail ? `Cliente cadastrado e convite do Portal enviado para ${inviteEmail}.` : 'Cliente cadastrado.', 'success')
+      }
       setCreateOpen(false)
       setCreateForm(emptyCreateCustomerForm)
+      setCnpjAutofill({ cnpj: null, filled: {} })
       navigate(`/clientes/${encodeURIComponent(customer.cnpj_cpf)}`)
     } catch (cause) {
+      if (isDuplicateCustomerCnpjError(cause)) {
+        // Outra pessoa cadastrou o CNPJ entre a conferência e o gravar: o erro
+        // vai para o campo, e a conferência relida traz o link da ficha.
+        setCreateErrors({ cnpjCpf: `Já existe um Cliente com o CNPJ ${formatCnpjCpf(createForm.cnpjCpf)}. Abra a ficha dele em vez de cadastrar de novo.` })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.customers.all() })
+        return
+      }
       // O formulário continua aberto com o motivo junto dos botões.
       setCreateErrors({ submit: userFacingErrorMessage(cause, 'Não foi possível cadastrar o cliente. Confira os dados e tente de novo.') })
     } finally {
@@ -341,6 +411,7 @@ export function Clientes() {
   function resetCreateModal() {
     setCreateOpen(false)
     setCreateForm(emptyCreateCustomerForm)
+    setCnpjAutofill({ cnpj: null, filled: {} })
     setCreateErrors({})
     setSaving(false)
   }
@@ -600,6 +671,9 @@ export function Clientes() {
         form={createForm}
         errors={createErrors}
         saving={saving}
+        canInvitePortal={canInvitePortal}
+        cnpjLookup={cnpjLookupState}
+        existingCustomer={existingCustomer ? { name: existingCustomer.name, cnpj: existingCustomer.cnpj_cpf, message: duplicateCnpjMessage(existingCustomer) } : null}
         // Fechar durante a gravação deixaria o resultado cair num modal
         // fechado (erro antigo na próxima abertura, segundo cadastro).
         onClose={() => { if (!saving) resetCreateModal() }}
@@ -627,4 +701,11 @@ export function Clientes() {
       />
     </>
   )
+}
+
+/** Texto do CNPJ já cadastrado no Novo cliente (um Cliente por CNPJ). */
+function duplicateCnpjMessage(customer: { name: string; deactivated_at: string | null }) {
+  return customer.deactivated_at
+    ? `Já existe um Cliente desativado com este CNPJ: ${customer.name}. O Administrativo o reativa na ficha.`
+    : `Já existe um Cliente com este CNPJ: ${customer.name}.`
 }

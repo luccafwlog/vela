@@ -7,7 +7,12 @@ import type { ReviewGroup } from '../../../pages/revisaoHelpers'
 
 const reviewOnboardingMocks = vi.hoisted(() => ({
   lookupCustomer: { id: 7, name: 'Cliente Existente', cnpj_cpf: '11222333000181', customer_contacts: [{ email: 'financeiro@existente.com' }] },
+  cnpjLookup: vi.fn((cnpj: string | null) => (cnpj
+    ? { isFetching: false, data: { status: 'encontrado', data: { cnpj, razao_social: 'ALFA COMERCIO LTDA', nome_fantasia: '', cep: '29010000', endereco: 'RUA A, 10', cidade: 'VITORIA', uf: 'ES', situacao: 'ATIVA' } } }
+    : { data: undefined, isFetching: false })),
 }))
+// Consulta de CNPJ (ADR 0127) com resposta fixa: sem QueryClient nem rede.
+vi.mock('../../../hooks/useCnpjLookup', () => ({ useCnpjLookup: (cnpj: string | null) => reviewOnboardingMocks.cnpjLookup(cnpj) }))
 vi.mock('../../../hooks/useCustomers', () => ({ useCustomerLookup: () => ({ data: [reviewOnboardingMocks.lookupCustomer] }) }))
 
 const group = { key: 'document:11222333000181', cnpj: '11222333000181', displayName: 'Alfa', identityKind: 'document', candidateCnpjs: ['11222333000181'], canBulkOnboard: true, items: [{ id: 'BL1', source: 'bl', customer_id: null }] } as never as ReviewGroup
@@ -63,7 +68,7 @@ describe('ReviewCustomerOnboarding', () => {
 
   it('preenche o e-mail conhecido ao selecionar um cliente existente', async () => {
     const user = userEvent.setup()
-    renderForm()
+    const { onSubmit } = renderForm()
     await user.type(screen.getByLabelText('Buscar cliente cadastrado'), 'Cliente')
     const option = screen.getByRole('option', { name: /Cliente Existente/ })
     expect(option.textContent).toMatch(/CNPJ confere com o B\/L/)
@@ -72,6 +77,25 @@ describe('ReviewCustomerOnboarding', () => {
     expect((screen.getByPlaceholderText('financeiro@cliente.com.br') as HTMLInputElement).value).toBe('financeiro@existente.com')
     expect(screen.getByRole('button', { name: /adicionar e-mail e vincular 1 b\/l$/i })).toBeTruthy()
     expect(screen.getByText(/O B\/L passa a Cliente Existente/)).toBeTruthy()
+    // Cliente cadastrado escolhido: a razão social é a dele, sem sugestão da Receita.
+    expect(reviewOnboardingMocks.cnpjLookup).toHaveBeenLastCalledWith(null)
+    expect(screen.queryByRole('button', { name: 'Usar a razão social da Receita' })).toBeNull()
+    // Cliente já cadastrado não recebe o endereço da Receita.
+    await user.click(screen.getByRole('button', { name: /adicionar e-mail e vincular 1 b\/l$/i }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ customerId: 7, profile: null }))
+  })
+
+  it('Cliente novo: sugere a razão social da Receita sem trocar o nome do manifesto sozinho', async () => {
+    const user = userEvent.setup()
+    const { onSubmit } = renderForm()
+    expect(screen.getByText('ALFA COMERCIO LTDA')).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Usar a razão social da Receita' }))
+    await user.type(screen.getByPlaceholderText('financeiro@cliente.com.br'), 'financeiro@alfa.com')
+    await user.click(screen.getByRole('button', { name: /criar cliente e vincular 1 b\/l$/i }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'ALFA COMERCIO LTDA',
+      profile: { trade_name: '', address: 'RUA A, 10', city: 'VITORIA', state: 'ES', zip: '29010000' },
+    }))
   })
 
   it('diz por que não deixa salvar e o efeito de criar um cliente novo', async () => {

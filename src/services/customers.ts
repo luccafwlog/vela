@@ -237,6 +237,29 @@ function normalizeZip(value?: string | null) {
   return digits || null
 }
 
+export type ExistingCustomer = Pick<Customer, 'id' | 'cnpj_cpf' | 'name' | 'deactivated_at'>
+
+/**
+ * Cliente já cadastrado com o CNPJ, ativo ou desativado: o banco guarda um
+ * Cliente por CNPJ (`customers_cnpj_cpf_key`), e o Novo cliente avisa antes de
+ * gravar. O aviso é conveniência; quem recusa é a constraint.
+ */
+export async function findExistingCustomerByCnpj(cnpj: string): Promise<ExistingCustomer | null> {
+  const { data, error } = await supabase
+    .from('customers')
+    .select('id, cnpj_cpf, name, deactivated_at')
+    .eq('cnpj_cpf', canonicalizeDocument(cnpj))
+    .maybeSingle()
+  if (error) throw error
+  return (data as ExistingCustomer | null) ?? null
+}
+
+/** Recusa da constraint de CNPJ único (corrida: outra pessoa cadastrou antes). */
+export function isDuplicateCustomerCnpjError(error: unknown): boolean {
+  const record = (error && typeof error === 'object' ? error : {}) as { code?: unknown; message?: unknown; details?: unknown }
+  return record.code === '23505' && /customers_cnpj_cpf_key|\(cnpj_cpf\)/.test(`${String(record.message ?? '')} ${String(record.details ?? '')}`)
+}
+
 /** Busca cliente existente por CNPJ (fallback de cadastro duplicado). */
 export async function findCustomerIdByDocument(cnpjCpf: string): Promise<number | null> {
   const { data } = await supabase

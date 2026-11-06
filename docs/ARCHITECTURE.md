@@ -742,7 +742,9 @@ padrões.
 - **Sessão interna com papel conferido no servidor:** usuários internos
   (`admin-users`, só `is_admin()`), convite e suspensão de conta do Portal
   (Administrativo ou Documentação), Disparo manual de Comunicados
-  (`send-customer-communication`) e download e exportação do Desbloqueio de CE.
+  (`send-customer-communication`), download e exportação do Desbloqueio de CE e
+  consulta de CNPJ na BrasilAPI (`cnpj-lookup`, qualquer perfil interno;
+  [ADR 0127](adr/0127-consulta-de-cnpj-na-brasilapi.md)).
 - **Webhook assinado:** `portal-email-webhook` só valida a assinatura e grava o
   evento ([E-mail transacional e Comunicados](#e-mail-transacional-e-comunicados)).
 - **Segredo de job:** as rotinas disparadas pelo `pg_cron`, em geral por

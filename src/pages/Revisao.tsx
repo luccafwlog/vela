@@ -542,7 +542,7 @@ export function Revisao() {
         summary: `${plural(blIds.length, 'B/L', 'B/Ls')} · ${input.name} · ${formatCnpj(selectedCnpj)}`,
         items: blIds.map((id) => `B/L ${id}`),
       },
-      consequence: `Salva o cliente e o contato ${input.email}.${input.sendPortalInvite ? ` Envia também o convite do Portal para ${input.email}.` : ''} B/Ls liberados por essa correção poderão ter a fatura emitida automaticamente.`,
+      consequence: `Salva o cliente e o contato ${input.email}.${input.profile?.address ? ' Cliente novo leva o endereço da Receita.' : ''}${input.sendPortalInvite ? ` Envia também o convite do Portal para ${input.email}.` : ''} B/Ls liberados por essa correção poderão ter a fatura emitida automaticamente.`,
       reversibility: 'Cadastro e contato podem ser corrigidos; um convite pode ser revogado. Faturas emitidas não podem ser apagadas e só podem ser canceladas pelo perfil Administrativo quando não houver pagamento.',
     })
     if (!confirmed) return
@@ -556,6 +556,7 @@ export function Revisao() {
         email: input.email,
         changedBy: user.id,
         sendPortalInvite: input.sendPortalInvite,
+        profile: input.profile ?? null,
       })
       let invoiceCount = 0
       for (const bl of result.onboarding.bls) {

@@ -6,6 +6,26 @@
 
 ## 2026-11
 
+- **Razão social da Receita no cadastro pela Revisão (2026-11-05, ADR 0127; pedido do dono):** no grupo da Revisão e
+  em **Completar cadastro** da ficha do B/L, com o CNPJ aceito e Cliente novo, o Vela consulta a Receita. Razão social
+  vazia recebe a da Receita; diferente da do manifesto, aparece "Na Receita: …" com **Usar a razão social da Receita**,
+  sem troca automática. O Cliente criado pela Revisão leva o nome fantasia, o endereço, a cidade, a UF e o CEP da
+  Receita (migration `596`, `p_profile` de `complete_review_customer_group`); o Cliente já cadastrado não muda.
+- **CNPJ já cadastrado avisado no Novo cliente (2026-11-05; pedido do dono):** o CNPJ de um Cliente existente,
+  ativo ou desativado, vira erro sob o campo assim que fica válido, com o nome dele e **Abrir a ficha de …**; a
+  Receita não é consultada e o cadastro é recusado antes da confirmação. A trava continua no banco
+  (`customers_cnpj_cpf_key`); a recusa dele, quando outra pessoa grava o mesmo CNPJ no intervalo, também volta ao
+  campo do CNPJ em vez de "Já existe um registro com o valor …" ([Clientes](modules/clientes.md)).
+- **Dados da Receita pelo CNPJ no Novo cliente (2026-11-05, ADR 0127; pedido do dono):** com o CNPJ completo, a
+  Edge Function nova `cnpj-lookup` consulta a BrasilAPI e a tela preenche só os campos vazios (razão social, nome
+  fantasia, CEP, endereço, cidade e UF), com aviso de situação diferente de ATIVA. Só equipe interna; resposta por
+  lista positiva (sem sócios, telefone ou e-mail); BrasilAPI fora do ar vira aviso e o cadastro segue à mão. A
+  função sai no próximo merge em `main` ([Clientes](modules/clientes.md)).
+- **Novo cliente com convite do Portal (2026-11-05; pedido do dono):** Documentação e Administrativo marcam
+  **Enviar o convite do Portal agora** no **Novo cliente** e o convite sai, depois do cadastro, para o e-mail do
+  contato principal (botão **Cadastrar e convidar**). Recusa do convite não desfaz o Cliente: o aviso diz o motivo e
+  aponta Clientes › Portal. O cadastro deixa de pedir **Notas** (ficam na ficha), e Endereço, Cidade e UF dividem uma
+  linha ([Clientes](modules/clientes.md)).
 - **Sino avisa solicitação de Desbloqueio de CE e pagamento; Revisão conta clientes (2026-11-05, migration `595`,
   ADR 0126; decisão do dono):** o número do item **Revisão** do menu passa a contar Clientes (os grupos da tela), não
   B/Ls; o item **Desbloqueio de CE** ganha o número de solicitações aguardando análise, relido a cada minuto. O sino

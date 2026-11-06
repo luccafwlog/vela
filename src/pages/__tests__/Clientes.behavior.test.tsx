@@ -27,6 +27,9 @@ const mocks = vi.hoisted(() => ({
   supabaseOr: vi.fn(),
   exportCustomerBaseWorkbook: vi.fn(),
   fetchCustomerRows: vi.fn(),
+  sendPortalInvite: vi.fn(),
+  useCnpjLookup: vi.fn(),
+  useExistingCustomerByCnpj: vi.fn(),
 }))
 
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -45,10 +48,15 @@ vi.mock('../../hooks/useCustomers', () => ({
   useCustomers: mocks.useCustomers,
   useCustomerSummary: mocks.useCustomerSummary,
   fetchCustomerRows: mocks.fetchCustomerRows,
+  useExistingCustomerByCnpj: (cnpj: string | null) => mocks.useExistingCustomerByCnpj(cnpj),
   filterCustomerRowsByClientSideFilters: (rows: unknown[]) => rows,
+}))
+vi.mock('../../hooks/useCnpjLookup', () => ({
+  useCnpjLookup: (cnpj: string | null) => mocks.useCnpjLookup(cnpj),
 }))
 vi.mock('../../hooks/usePortalProvisioning', () => ({
   usePortalProvisioning: () => mocks.portalQuery,
+  useSendPortalInvite: () => ({ mutateAsync: mocks.sendPortalInvite }),
 }))
 vi.mock('../../components/ui/Toast', () => ({
   useToast: () => ({ showToast: mocks.showToast }),
@@ -57,7 +65,9 @@ vi.mock('../../components/ui/ConfirmDialog', () => ({
   useConfirm: () => mocks.confirm,
   useConfirmWithReason: () => mocks.confirmWithReason,
 }))
-vi.mock('../../services/customers', () => ({
+vi.mock('../../services/customers', async (importOriginal) => ({
+  // A classificação da recusa é a real: o teste da corrida passa pelo mesmo código.
+  isDuplicateCustomerCnpjError: (await importOriginal<typeof import('../../services/customers')>()).isDuplicateCustomerCnpjError,
   createCustomer: mocks.createCustomer,
   checkCustomerDependencies: mocks.checkCustomerDependencies,
   deleteCustomers: mocks.deleteCustomers,
@@ -129,6 +139,10 @@ describe('Clientes page behaviours', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.can.mockImplementation(() => true)
+    mocks.useCnpjLookup.mockReturnValue({ data: undefined, isFetching: false })
+    mocks.useExistingCustomerByCnpj.mockImplementation((cnpj: string | null) => (cnpj
+      ? { data: null, isSuccess: true, isError: false, isPending: false, fetchStatus: 'idle' }
+      : { data: undefined, isSuccess: false, isError: false, isPending: true, fetchStatus: 'idle' }))
     mocks.useCustomers.mockImplementation(() => ({
       data: { rows: [customer], totalCount: 101 },
       isLoading: false,
@@ -139,7 +153,7 @@ describe('Clientes page behaviours', () => {
     mocks.useCustomerSummary.mockReturnValue({
       data: { pendingBalance: 150, totalCustomers: 1, totalBls: 1, chargePending: 1, chargeReady: 0, customersWithoutEmail: 0 },
     })
-    mocks.createCustomer.mockResolvedValue({ cnpj_cpf: '12345678000195' })
+    mocks.createCustomer.mockResolvedValue({ id: 99, cnpj_cpf: '12345678000195' })
     mocks.parseCustomerBaseFile.mockResolvedValue(parsedBase)
     mocks.compareCustomerBaseWithExisting.mockResolvedValue(parsedBase)
     mocks.importCustomerBaseRows.mockResolvedValue({ ok: true, imported: 1, updated: 0, contactsCreated: 1, blsLinked: 1, errors: [] })
@@ -537,5 +551,183 @@ describe('Clientes page behaviours', () => {
     expect((within(dialog).getByRole('button', { name: 'Voltar' }) as HTMLButtonElement).disabled).toBe(true)
     await user.keyboard('{Escape}')
     expect(screen.getByRole('dialog', { name: 'Novo cliente' })).toBeTruthy()
+  })
+
+  // Pedido do dono de 2026-11-05: o cadastro pode já mandar o convite do Portal.
+  async function fillNewCustomer(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
+    await user.type(screen.getByLabelText(/^Razão social/), 'Cliente Novo')
+    await user.type(within(screen.getByRole('dialog')).getByLabelText(/^E-mail/), 'Novo@Example.com')
+  }
+
+  it('o cadastro não pede Notas; Notas ficam na ficha', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    expect(within(screen.getByRole('dialog')).queryByLabelText('Notas')).toBeNull()
+  })
+
+  it('cadastra e envia o convite do Portal ao e-mail do contato principal', async () => {
+    const user = userEvent.setup()
+    mocks.confirm.mockResolvedValue(true)
+    mocks.sendPortalInvite.mockResolvedValue(undefined)
+    renderPage()
+
+    await fillNewCustomer(user)
+    await user.click(screen.getByRole('checkbox', { name: /Enviar o convite do Portal agora/ }))
+    expect(screen.getByText(/O convite vai para novo@example.com/)).toBeTruthy()
+    await user.click(screen.getByRole('button', { name: 'Cadastrar e convidar' }))
+
+    await waitFor(() => expect(mocks.sendPortalInvite).toHaveBeenCalledWith({ customerId: 99, recoveryEmail: 'novo@example.com', source: 'informado_manualmente' }))
+    expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ confirmLabel: 'Cadastrar e convidar' }))
+    expect(mocks.showToast).toHaveBeenCalledWith('Cliente cadastrado e convite do Portal enviado para novo@example.com.', 'success')
+    expect(mocks.navigate).toHaveBeenCalledWith('/clientes/12345678000195')
+  })
+
+  it('convite recusado não desfaz o cadastro: avisa o motivo e leva à ficha', async () => {
+    const user = userEvent.setup()
+    mocks.confirm.mockResolvedValue(true)
+    mocks.sendPortalInvite.mockRejectedValue(new Error('Endereço suprimido.'))
+    renderPage()
+
+    await fillNewCustomer(user)
+    await user.click(screen.getByRole('checkbox', { name: /Enviar o convite do Portal agora/ }))
+    await user.click(screen.getByRole('button', { name: 'Cadastrar e convidar' }))
+
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Cliente cadastrado, mas o convite do Portal não saiu (Endereço suprimido). Envie de novo em Clientes › Portal.', 'error'))
+    expect(mocks.createCustomer).toHaveBeenCalledTimes(1)
+    expect(mocks.navigate).toHaveBeenCalledWith('/clientes/12345678000195')
+  })
+
+  it('sem marcar o convite, nenhum convite sai', async () => {
+    const user = userEvent.setup()
+    mocks.confirm.mockResolvedValue(true)
+    renderPage()
+
+    await fillNewCustomer(user)
+    await user.click(screen.getByRole('button', { name: 'Cadastrar cliente' }))
+
+    await waitFor(() => expect(mocks.navigate).toHaveBeenCalled())
+    expect(mocks.sendPortalInvite).not.toHaveBeenCalled()
+  })
+
+  it('quem edita contatos sem provisionar o Portal (Equipamentos) não vê a opção de convite', async () => {
+    const user = userEvent.setup()
+    mocks.can.mockImplementation((permission: string) => permission !== 'portal_provisioning')
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    expect(within(screen.getByRole('dialog')).queryByRole('checkbox', { name: /convite do Portal/ })).toBeNull()
+  })
+
+  // ADR 0127: com o CNPJ válido, os dados da Receita entram nos campos vazios.
+  it('CNPJ válido busca na Receita e preenche só os campos vazios', async () => {
+    const user = userEvent.setup()
+    mocks.useCnpjLookup.mockImplementation((cnpj: string | null) => cnpj === '12345678000195'
+      ? { isFetching: false, data: { status: 'encontrado', data: { cnpj, razao_social: 'EMPRESA DA RECEITA LTDA', nome_fantasia: 'EMPRESA', cep: '29010000', endereco: 'RUA A, 10 - CENTRO', cidade: 'VITORIA', uf: 'ES', situacao: 'BAIXADA' } } }
+      : { isFetching: false, data: undefined })
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    const dialog = screen.getByRole('dialog', { name: 'Novo cliente' })
+    await user.type(within(dialog).getByLabelText(/^Cidade/), 'Vitória')
+    await user.type(within(dialog).getByLabelText(/^CNPJ/), '12345678000195')
+
+    expect(mocks.useCnpjLookup).toHaveBeenLastCalledWith('12345678000195')
+    expect((within(dialog).getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('EMPRESA DA RECEITA LTDA')
+    expect((within(dialog).getByLabelText(/^Endereço/) as HTMLInputElement).value).toBe('RUA A, 10 - CENTRO')
+    expect((within(dialog).getByLabelText(/^UF/) as HTMLInputElement).value).toBe('ES')
+    expect((within(dialog).getByLabelText(/^Cidade/) as HTMLInputElement).value).toBe('Vitória')
+    expect(within(dialog).getAllByText(/Situação na Receita: BAIXADA/).length).toBeGreaterThan(0)
+  })
+
+  it('consulta indisponível avisa e deixa o cadastro à mão', async () => {
+    const user = userEvent.setup()
+    mocks.useCnpjLookup.mockImplementation((cnpj: string | null) => ({ isFetching: false, data: cnpj ? { status: 'indisponivel' } : undefined }))
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
+    expect(screen.getAllByText('Consulta à Receita indisponível agora. Preencha os dados à mão.').length).toBeGreaterThan(0)
+    expect((screen.getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('')
+  })
+
+  // Revisão da PR #1235: trocar de CNPJ não deixa o endereço do anterior enquanto a nova consulta corre.
+  it('trocar o CNPJ limpa na hora o que a consulta anterior preencheu, e mantém o que foi digitado', async () => {
+    const user = userEvent.setup()
+    mocks.useCnpjLookup.mockImplementation((cnpj: string | null) => cnpj === '12345678000195'
+      ? { isFetching: false, data: { status: 'encontrado', data: { cnpj, razao_social: 'EMPRESA A LTDA', nome_fantasia: '', cep: '29010000', endereco: 'RUA A, 10', cidade: 'VITORIA', uf: 'ES', situacao: 'ATIVA' } } }
+      : { isFetching: Boolean(cnpj), data: undefined })
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    const dialog = screen.getByRole('dialog', { name: 'Novo cliente' })
+    const cnpjInput = within(dialog).getByLabelText(/^CNPJ/)
+    await user.type(cnpjInput, '12345678000195')
+    expect((within(dialog).getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('EMPRESA A LTDA')
+    await user.clear(within(dialog).getByLabelText(/^Cidade/))
+    await user.type(within(dialog).getByLabelText(/^Cidade/), 'Serra')
+
+    await user.clear(cnpjInput)
+    await user.type(cnpjInput, '11222333000181')
+
+    expect(mocks.useCnpjLookup).toHaveBeenLastCalledWith('11222333000181')
+    expect((within(dialog).getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('')
+    expect((within(dialog).getByLabelText(/^Endereço/) as HTMLInputElement).value).toBe('')
+    expect((within(dialog).getByLabelText(/^Cidade/) as HTMLInputElement).value).toBe('Serra')
+    expect(within(dialog).getByText('Buscando os dados na Receita…')).toBeTruthy()
+
+    await user.clear(cnpjInput)
+    await user.type(cnpjInput, '12345678000195')
+    expect((within(dialog).getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('EMPRESA A LTDA')
+  })
+
+  // Um Cliente por CNPJ (customers_cnpj_cpf_key): o Novo cliente avisa antes de gravar.
+  it('CNPJ já cadastrado vira erro sob o campo, com a ficha, sem consultar a Receita nem gravar', async () => {
+    const user = userEvent.setup()
+    mocks.useExistingCustomerByCnpj.mockImplementation((cnpj: string | null) => (cnpj === '12345678000195'
+      ? { data: { id: 42, cnpj_cpf: '12345678000195', name: 'Cliente Teste', deactivated_at: null }, isSuccess: true, isError: false, isPending: false, fetchStatus: 'idle' }
+      : { data: undefined, isSuccess: false, isError: false, isPending: true, fetchStatus: 'idle' }))
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    const dialog = screen.getByRole('dialog', { name: 'Novo cliente' })
+    await user.type(within(dialog).getByLabelText(/^CNPJ/), '12345678000195')
+
+    expect(within(dialog).getByRole('alert').textContent).toBe('Já existe um Cliente com este CNPJ: Cliente Teste.')
+    expect(within(dialog).getByRole('link', { name: 'Abrir a ficha de Cliente Teste' }).getAttribute('href')).toBe('/clientes/12345678000195')
+    expect(mocks.useCnpjLookup).toHaveBeenLastCalledWith(null)
+
+    await user.type(within(dialog).getByLabelText(/^Razão social/), 'Cliente Novo')
+    await user.type(within(dialog).getByLabelText(/^E-mail/), 'novo@example.com')
+    await user.click(within(dialog).getByRole('button', { name: 'Cadastrar cliente' }))
+    expect(mocks.confirm).not.toHaveBeenCalled()
+    expect(mocks.createCustomer).not.toHaveBeenCalled()
+  })
+
+  it('CNPJ de Cliente desativado avisa que a saída é reativar', async () => {
+    const user = userEvent.setup()
+    mocks.useExistingCustomerByCnpj.mockImplementation((cnpj: string | null) => (cnpj
+      ? { data: { id: 42, cnpj_cpf: cnpj, name: 'Cliente Antigo', deactivated_at: '2026-10-01T00:00:00Z' }, isSuccess: true, isError: false, isPending: false, fetchStatus: 'idle' }
+      : { data: undefined, isSuccess: false, isError: false, isPending: true, fetchStatus: 'idle' }))
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
+    expect(within(screen.getByRole('dialog')).getByRole('alert').textContent).toBe('Já existe um Cliente desativado com este CNPJ: Cliente Antigo. O Administrativo o reativa na ficha.')
+  })
+
+  it('cadastro do mesmo CNPJ por outra pessoa no intervalo: a recusa do banco vira erro no CNPJ', async () => {
+    const user = userEvent.setup()
+    mocks.createCustomer.mockRejectedValue({ code: '23505', message: 'duplicate key value violates unique constraint "customers_cnpj_cpf_key"', details: 'Key (cnpj_cpf)=(12345678000195) already exists.' })
+    renderPage()
+
+    await fillNewCustomer(user)
+    await user.click(screen.getByRole('button', { name: 'Cadastrar cliente' }))
+
+    const dialog = await screen.findByRole('dialog', { name: 'Novo cliente' })
+    await waitFor(() => expect(within(dialog).getByText('Já existe um Cliente com o CNPJ 12.345.678/0001-95. Abra a ficha dele em vez de cadastrar de novo.')).toBeTruthy())
+    expect(mocks.navigate).not.toHaveBeenCalled()
   })
 })
