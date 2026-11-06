@@ -328,6 +328,36 @@ describeLocal('cobranças Itaú Pix (migrations 151–154) — PostgreSQL local'
       SET session_replication_role = origin;`)
   })
 
+  // 611: o horário do retorno é lido como na consulta (`itauTimeToUtc`). Antes, o Z
+  // do Itaú (Brasília) era lido como UTC e o Pix em análise ficava 3 h antes do real.
+  it('Pix gravado pela fila de falhas fica com o horário do Itaú lido como na consulta', () => {
+    // UTC verdadeiro de 1 minuto atrás: lido como Brasília cairia no futuro.
+    const recentUtc = new Date(Date.now() - 60_000).toISOString().slice(0, 19) + 'Z'
+    const cases: Record<string, string> = {
+      E611BRT: '2026-11-06T17:32:00Z',
+      E611OFF: '2026-11-06T17:32:00-03:00',
+      E611SEMFUSO: '2026-11-06T17:32:00',
+      E611UTC: recentUtc,
+    }
+    for (const [e2e, horario] of Object.entries(cases)) {
+      expect(psql(`SET request.jwt.claim.role = 'service_role'; SELECT public.itau_pix_receipt_failed('${e2e}',
+        'VELA6110000000000000000000', '{"valor":"1.00","horario":"${horario}"}'::jsonb, 'formato simulado', true)`)).toBe('review')
+    }
+    const keys = Object.keys(cases).map((e2e) => `'${e2e}'`).join(', ')
+    expect(psql(`SELECT string_agg(end_to_end_id || '=' || to_char(paid_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS'), ','
+      ORDER BY end_to_end_id) FROM public.itau_pix_receipts WHERE end_to_end_id IN (${keys})`)).toBe([
+      'E611BRT=2026-11-06T20:32:00',
+      'E611OFF=2026-11-06T20:32:00',
+      'E611SEMFUSO=2026-11-06T20:32:00',
+      `E611UTC=${recentUtc.slice(0, 19)}`,
+    ].join(','))
+    psql(`SET session_replication_role = replica;
+      DELETE FROM public.alert_items WHERE metadata->>'end_to_end_id' IN (${keys});
+      DELETE FROM public.itau_pix_receipts WHERE end_to_end_id IN (${keys});
+      DELETE FROM public.itau_pix_receipt_failures WHERE failure_key IN (${keys});
+      SET session_replication_role = origin;`)
+  })
+
   it('F-09: checkpoint parado há mais de 15 minutos abre o Alerta; quando anda, fecha', () => {
     const before = psql(`SELECT coalesce(itau_pix_polled_until::text, '') FROM public.app_settings WHERE id = 1`)
     const active = () => psql(`SELECT count(*) FROM public.alert_items WHERE item_type = 'itau_pix_consulta_parada' AND status = 'active'`)

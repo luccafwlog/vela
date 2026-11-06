@@ -6,6 +6,24 @@
 
 ## 2026-11
 
+- **Pix Itaú: o horário do Pix nunca mais para a consulta de recebimentos (incidente e decisão do
+  dono de 2026-11-06):** a partir das 17:33 de Brasília, a `itau-pix` respondeu 500 a cada minuto
+  ("Horário do Itaú diverge do endToEndId") e abriu **Consulta de Pix do Itaú parada** e **Rotina
+  agendada com resposta de erro**. Causa: 18 faturas de um mesmo cliente pagas juntas, com o
+  `endToEndId` da iniciação do lote mais de 1 h antes do crédito, eram a maioria dos Pix do Vela da
+  janela, e a trava de fuso parava tudo quando a maioria divergia. O Itaú não mudou o fuso. Agora
+  vale sempre o horário do crédito no Itaú: o Pix com horário longe do `endToEndId` é baixado (antes
+  ia para análise, auditoria run-3 P4); o horário que cairia no futuro é lido como UTC, corrigindo
+  sozinho uma mudança de fuso no Itaú, em vez de parar a consulta e a cobrança; e o desvio de 3 h em
+  Pix de dois bancos pagadores ou mais só avisa o log e o Sentry (`receipts_zone`), com a rodada
+  em 200. Pix de outros sistemas também gravam o horário do Itaú. Quando a correção chega à
+  produção, a consulta retoma do ponto parado e dá baixa automática nos Pix represados, inclusive os
+  18. Migration `611`: o Pix gravado pela fila de falhas (formato inesperado, três falhas de gravação)
+  lê o horário do Itaú como a consulta; antes, o `Z` era lido como UTC e esse Pix ficava 3 h antes do
+  real (nenhum em produção até então). Prova: `itauPix.test.ts` (o lote de 18 do incidente, o lote
+  baixado dias depois, Pix agendados de 5 h, fuso trocado recente e antigo), `itau-pix/index.test.ts`
+  (aviso de fuso responde 200) e `itauPixCharges.local-pg.test.ts` (os quatro formatos de horário na
+  fila de falhas).
 - **Embarque de vazios: porto de descarga, Nº do manifesto da rota, preço por tamanho e free time congelado
   (decisões do dono de 2026-11-06, migration `606`, ADR 0130):** a revisão do Embarque de vazios
   ([relatório](archive/audits/2026-11-06-revisao-embarque-de-vazios.md)) levou a estas mudanças:
