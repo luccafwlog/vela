@@ -1197,4 +1197,22 @@ describeLocal('M02/M14 — reimportação de B/L de container', () => {
     expect(localPsql(`SELECT count(*) FROM public.audit_logs WHERE entity_type = 'bl' AND entity_id = '${blId}'
       AND field_name = 'consignee_block' AND justification LIKE 'Correção da ficha substituída:%'`)).toBe('1')
   })
+
+  // Achado da revisão da PR #1240: a troca aceita para consignatário ainda não
+  // cadastrado deixa o B/L sem Cliente; o documento novo tem de entrar.
+  it('601: a Troca de Consignatário aceita para consignatário não cadastrado também solta as correções do consignatário', async () => {
+    const blId = 'A202-MAN4'
+    const naoCadastrado = { name: 'A202 CONSIGNATARIO NOVO LTDA', cnpj: syntheticCnpj(202009) }
+    expect((await importBls([blDocument(blId, { containers: ['AZCU2020204'] })], 'a202-man4.xlsx')).error).toBeNull()
+    expect(saveFicha(blId, { consignee_block: 'A202 ALFA CORRIGIDO\nAV. CENTRAL 1, NATAL - RN' }).error).toBeNull()
+    // B/L ainda sem recebível de Taxas Locais (como o de POD sem tabela de
+    // cobrança): só assim a troca para consignatário não cadastrado é aceita.
+    localPsql(`SET session_replication_role = replica; DELETE FROM public.bl_receivables WHERE bl_id = '${blId}'; SET session_replication_role = origin;`)
+
+    const swap = await importBls([blDocument(blId, { containers: ['AZCU2020204'], consignee: naoCadastrado })], 'a202-man4-troca.xlsx', { confirmCustomerChange: true })
+    expect(swap.error).toBeNull()
+    expect(swap.result?.refusedCustomerRelinks).toEqual([])
+    expect(manifestOf(blId)).toMatchObject({ customer_id: null, consignee_block: `${naoCadastrado.name}\nCNPJ: ${naoCadastrado.cnpj}` })
+    expect(correctedFields(blId)).toBe('')
+  })
 })

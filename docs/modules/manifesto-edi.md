@@ -1248,8 +1248,9 @@ ao Mercante continua fora do Vela. **Código:**
     do B/L registra "Correção da ficha mantida: … trazia "…"", e a prévia do
     arquivo de B/L avisa "<campo> corrigido na ficha: o arquivo traz outro
     valor e fica a correção da ficha.".
-  - O B/L que passa a outro Cliente cujo CNPJ não é o corrigido (Troca de
-    Consignatário aceita, vínculo pela Revisão) perde as correções do bloco e
+  - O B/L que perde o Cliente ou passa a outro Cliente cujo CNPJ não é o
+    corrigido (Troca de Consignatário aceita, inclusive para consignatário
+    ainda não cadastrado; vínculo pela Revisão) perde as correções do bloco e
     do CNPJ do consignatário ("Correção da ficha substituída", no Histórico).
   - Para voltar ao valor do arquivo, corrija o campo de novo na ficha.
 - **Consignatário estrangeiro** (ADR 0129, item 3). Sem CNPJ/CPF e sem sinal

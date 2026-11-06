@@ -52,8 +52,9 @@ decisões em aberto, levadas para a #1238:
      corrigido. O Histórico do B/L registra "Correção da ficha mantida" com o
      valor que chegou, e a prévia da reimportação do arquivo de B/L avisa o
      campo.
-   - **Exceção.** O B/L que passa a outro Cliente cujo CNPJ não é o corrigido
-     (Troca de Consignatário aceita, vínculo pela Revisão) perde as correções
+   - **Exceção.** O B/L que perde o Cliente ou passa a outro Cliente cujo
+     CNPJ não é o corrigido (Troca de Consignatário aceita, inclusive para
+     consignatário ainda não cadastrado; vínculo pela Revisão) perde as correções
      do consignatário (bloco e CNPJ). O Histórico registra "Correção da ficha
      substituída". Sem isso, o B/L ficaria com um Cliente e o manifesto com
      outro consignatário.

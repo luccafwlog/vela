@@ -24,8 +24,9 @@
 --      fora da ficha (reimportação de B/L, Manifesto BB, qualquer gravação
 --      automática), o campo corrigido mantém o valor e o Histórico do B/L
 --      ganha a linha "Correção da ficha mantida", com o valor que chegou.
---      Exceção: o B/L que passa a outro Cliente cujo CNPJ não é o corrigido
---      (Troca de Consignatário aceita, vínculo pela Revisão) perde as
+--      Exceção: o B/L que perde o Cliente ou passa a outro Cliente cujo CNPJ
+--      não é o corrigido (Troca de Consignatário aceita, também para quem
+--      ainda não é Cliente; vínculo pela Revisão) perde as
 --      correções do consignatário (bloco e CNPJ), também com linha no
 --      Histórico, para o B/L não ficar com um Cliente e o manifesto com outro.
 --      ponytail: a regra compara só o CNPJ do Cliente novo com o corrigido;
@@ -81,13 +82,17 @@ BEGIN
   END IF;
   v_origin := COALESCE(v_context, 'gravação automática');
 
-  -- Outro Cliente com outro CNPJ: as correções do consignatário deixam de valer.
-  IF NEW.customer_id IS NOT NULL AND NEW.customer_id IS DISTINCT FROM OLD.customer_id THEN
+  -- O B/L que perde o Cliente (Troca de Consignatário aceita para quem ainda
+  -- não é Cliente) ou passa a outro Cliente com outro CNPJ: as correções do
+  -- consignatário deixam de valer. Achado da revisão da PR #1240.
+  IF NEW.customer_id IS DISTINCT FROM OLD.customer_id
+     AND (NEW.customer_id IS NOT NULL OR OLD.customer_id IS NOT NULL) THEN
     SELECT COALESCE(
       (SELECT mc.value FROM public.bl_manifest_corrections AS mc
        WHERE mc.bl_id = OLD.id AND mc.field_name = 'manifest_customer_cnpj_cpf'),
       OLD.manifest_customer_cnpj_cpf)
       INTO v_doc;
+    -- Sem Cliente novo, v_customer_doc fica nulo e as correções saem.
     SELECT public.normalize_document_text(c.cnpj_cpf) INTO v_customer_doc
     FROM public.customers AS c WHERE c.id = NEW.customer_id;
     IF v_customer_doc IS NULL OR v_customer_doc IS DISTINCT FROM public.normalize_document_text(v_doc) THEN
@@ -98,7 +103,9 @@ BEGIN
       )
       INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, changed_by, justification)
       SELECT 'bl', OLD.id, d.field_name, d.value, NULL, auth.uid(),
-             'Correção da ficha substituída: o B/L passou a outro Cliente (' || v_origin || ').'
+             CASE WHEN NEW.customer_id IS NULL
+                  THEN 'Correção da ficha substituída: o B/L ficou sem Cliente (' || v_origin || ').'
+                  ELSE 'Correção da ficha substituída: o B/L passou a outro Cliente (' || v_origin || ').' END
       FROM dropped AS d;
     END IF;
   END IF;
