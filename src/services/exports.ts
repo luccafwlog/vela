@@ -275,7 +275,6 @@ function filtersSheet(filters: ReportFilterLine[]): SheetSpec {
 
 const filterLines = (filters: ReportFilterLine[]) => filters.map((line) => `${line.Filtro} = ${line.Valor}`)
 
-/** Colunas da planilha do relatório com os mesmos rótulos da tela, sem código cru. */
 /** Histórico de ações (Administração): uma linha por campo, montada na tela com os nomes. */
 export async function exportActionHistoryWorkbook(rows: Record<string, unknown>[], filters: ReportFilterLine[] = []) {
   await writeWorkbook(vela('Histórico de ações', 'historico-de-acoes', [
@@ -292,6 +291,7 @@ export async function exportAdrDeadlineWorkbook(rows: Record<string, unknown>[],
   ], filterLines(filters)))
 }
 
+/** Colunas da planilha do relatório com os mesmos rótulos da tela, sem código cru. */
 export async function exportOperationalReportWorkbook(rows: OperationalReportRow[], filters: ReportFilterLine[] = []) {
   const exportRows = rows.map((row) => ({
     // Rótulos da tela (ACE-D08).

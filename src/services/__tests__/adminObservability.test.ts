@@ -147,6 +147,22 @@ it('Histórico: as linhas de uma ação pela chave, e a planilha lê em páginas
   expect(rpcMock).toHaveBeenLastCalledWith('admin_action_history', expect.objectContaining({ p_limit: 1000, p_offset: 1000 }))
 })
 
+it('Histórico: a planilha de exatamente 10.000 linhas sai inteira, sem o aviso de limite; acima disso, avisa', async () => {
+  const fullPages = (total: number) => {
+    for (let page = 0; page < 10; page += 1) {
+      rpcMock.mockResolvedValueOnce({ data: Array.from({ length: 1000 }, (_, id) => ({ id: page * 1000 + id, total_count: total })), error: null })
+    }
+  }
+  fullPages(10000)
+  const exact = await fetchActionHistoryForExport({ entityTypes: [], changedBy: '', action: '', dateFrom: '', dateTo: '' })
+  expect(exact.rows).toHaveLength(10000)
+  expect(exact.capped).toBe(false)
+  fullPages(10001)
+  const over = await fetchActionHistoryForExport({ entityTypes: [], changedBy: '', action: '', dateFrom: '', dateTo: '' })
+  expect(over.rows).toHaveLength(10000)
+  expect(over.capped).toBe(true)
+})
+
 it('Sistema (605): a leitura da conta Dev chega com números e listas, e a recusa do banco passa adiante', async () => {
   rpcMock.mockResolvedValueOnce({ data: { alert_failures_30d: '2', teams_without_active: ['equipamentos'], routines_failing: [], suppressed_emails: '0', communications_enabled: true }, error: null })
   const health = await fetchSystemHealth()

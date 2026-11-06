@@ -39,6 +39,7 @@ import { exportActionHistoryWorkbook } from '../../services/exports'
 import { queryKeys } from '../../services/queryKeys'
 import { departmentLabel } from '../../lib/departmentLabel'
 import { userFacingErrorMessage } from '../../lib/errors'
+import { useDebouncedValue } from '../../hooks/useDebouncedValue'
 
 type Period = 'hoje' | '7' | '30' | 'tudo' | 'datas'
 
@@ -104,7 +105,9 @@ export function AdminHistoryTab() {
   const [openKey, setOpenKey] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
-  const queryFilters = toQueryFilters(filters)
+  // A busca espera a pausa de quem digita: cada letra seria uma leitura do histórico.
+  const debouncedSearch = useDebouncedValue(filters.search)
+  const queryFilters = toQueryFilters({ ...filters, search: debouncedSearch })
   const query = useQuery({
     queryKey: queryKeys.admin.auditLogs(queryFilters),
     queryFn: () => fetchActionHistoryActions(queryFilters),
@@ -127,7 +130,7 @@ export function AdminHistoryTab() {
       const { page: _page, ...rest } = queryFilters
       void _page
       const result = await fetchActionHistoryForExport(rest)
-      await exportActionHistoryWorkbook(result.rows.map(exportRow), exportFilterLines(filters, rest, result.capped))
+      await exportActionHistoryWorkbook(result.rows.map(exportRow), exportFilterLines(filters, rest, result.capped, people))
     } catch (error) {
       setExportError(userFacingErrorMessage(error, 'Não foi possível exportar o histórico. Tente novamente.'))
     } finally {
@@ -467,15 +470,29 @@ function exportRow(row: ActionHistoryRow): Record<string, unknown> {
   }
 }
 
-function exportFilterLines(filters: HistoryFilters, query: Omit<ActionHistoryFilters, 'page'>, capped: boolean) {
+function exportFilterLines(
+  filters: HistoryFilters,
+  query: Omit<ActionHistoryFilters, 'page'>,
+  capped: boolean,
+  people: ReadonlyArray<{ id: string; full_name: string }>,
+) {
   const subject = AUDIT_SUBJECTS.find((entry) => entry.id === filters.subject)?.label ?? ''
   const action = ACTION_OPTIONS.find((option) => option.value === filters.action)?.label ?? ''
   const lines = [
-    { Filtro: 'Busca', Valor: filters.search.trim() },
+    { Filtro: 'Busca', Valor: query.search ?? '' },
     { Filtro: 'Assunto', Valor: subject },
+    { Filtro: 'Por', Valor: authorFilterLabel(query.changedBy, people) },
     { Filtro: 'Ação', Valor: action },
     { Filtro: 'De', Valor: query.dateFrom ? query.dateFrom.split('-').reverse().join('/') : '' },
     { Filtro: 'Até', Valor: query.dateTo ? query.dateTo.split('-').reverse().join('/') : '' },
   ].filter((line) => line.Valor)
   return capped ? [...lines, { Filtro: 'Limite', Valor: 'Só as 10.000 linhas mais recentes do recorte' }] : lines
+}
+
+/** O filtro "Por" na planilha: Sistema, Cliente pelo Portal ou o nome da pessoa. */
+function authorFilterLabel(changedBy: string, people: ReadonlyArray<{ id: string; full_name: string }>): string {
+  if (!changedBy) return ''
+  if (changedBy === SYSTEM_AUTHOR) return 'Sistema'
+  if (changedBy === PORTAL_AUTHOR) return 'Cliente pelo Portal'
+  return people.find((person) => person.id === changedBy)?.full_name ?? 'Uma pessoa da equipe'
 }

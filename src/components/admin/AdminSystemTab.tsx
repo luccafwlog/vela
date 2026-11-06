@@ -199,7 +199,9 @@ function Settings({ health }: { health: SystemHealth }) {
       const to = await sendAdminTestEmail()
       showToast(to ? `E-mail de teste enviado para ${to}.` : 'E-mail de teste enviado.', 'success')
     } catch (error) {
-      setTestError(userFacingErrorMessage(error, 'Não foi possível enviar o e-mail de teste. Tente novamente.'))
+      // `sendAdminTestEmail` já devolve o texto da Edge Function (e-mail bloqueado,
+      // conta sem e-mail, só a conta Dev) ou o texto padrão: mostrar como veio.
+      setTestError(error instanceof Error && error.message ? error.message : 'Não foi possível enviar o e-mail de teste. Tente novamente.')
     } finally {
       setTesting(false)
     }

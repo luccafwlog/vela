@@ -65,10 +65,12 @@ export function AdminUsersTab() {
   const [editando, setEditando] = useState<AdminUserRow | null>(null)
 
   const usersQuery = useQuery({ queryKey: queryKeys.admin.users(), queryFn: listAllUserProfiles })
-  // Toda mudança de usuário grava no Histórico de ações: a aba relê os dois.
+  // Toda mudança de usuário grava no Histórico de ações e pode mudar o ponto de
+  // atenção "equipe sem pessoa ativa" da aba Sistema: as abas releem.
   const invalidateUsers = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.admin.users() })
     void queryClient.invalidateQueries({ queryKey: [queryKeys.admin.auditLogs(null)[0]] })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.admin.systemHealth() })
   }
 
   const reactivateMutation = useMutation({

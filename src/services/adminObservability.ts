@@ -167,12 +167,16 @@ export const ACTION_HISTORY_EXPORT_CAP = 10_000
 /** Todas as linhas do recorte, até o teto, em páginas de 1.000. */
 export async function fetchActionHistoryForExport(filters: Omit<ActionHistoryFilters, 'page'>): Promise<{ rows: ActionHistoryRow[]; capped: boolean }> {
   const rows: ActionHistoryRow[] = []
+  // A contagem da primeira página (até 10.001) diz se o recorte passa do teto:
+  // um recorte de exatamente 10.000 linhas sai inteiro, sem o aviso de limite.
+  let capped = false
   for (let page = 0; rows.length < ACTION_HISTORY_EXPORT_CAP; page += 1) {
     const result = await fetchActionHistory({ ...filters, page }, { pageSize: 1000 })
+    if (page === 0) capped = result.capped
     rows.push(...result.rows)
     if (result.rows.length < 1000) return { rows, capped: false }
   }
-  return { rows: rows.slice(0, ACTION_HISTORY_EXPORT_CAP), capped: true }
+  return { rows: rows.slice(0, ACTION_HISTORY_EXPORT_CAP), capped }
 }
 
 export type RoutingFailureRow = {

@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   confirm: vi.fn(),
   errorByKey: {} as Record<string, unknown>,
   dataByKey: {} as Record<string, unknown>,
+  queryKeys: [] as unknown[][],
 }))
 
 const users = [
@@ -37,6 +38,7 @@ const users = [
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
+    mocks.queryKeys.push(queryKey)
     const key = queryKey[0] as string
     const error = mocks.errorByKey[key] ?? null
     if (key === 'admin-users') return { data: error ? undefined : users, isLoading: false, error }
@@ -107,6 +109,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.errorByKey = {}
   mocks.dataByKey = {}
+  mocks.queryKeys = []
   mocks.updateUserProfile.mockResolvedValue(undefined)
   mocks.restoreUserRole.mockResolvedValue(true)
   mocks.authUserId = 'u-admin'
@@ -541,6 +544,17 @@ it('Histórico de ações: pessoa pelo nome, "Sistema" sem autor, assunto e fras
   expect(screen.getByLabelText('Até')).toBeTruthy()
 })
 
+it('Histórico de ações: a busca lê o histórico depois da pausa de quem digita, não a cada letra', async () => {
+  mocks.dataByKey = { 'admin-audit-logs': { count: 0, rows: [] } }
+  renderAdmin('historico')
+  const searched = () => mocks.queryKeys
+    .filter((key) => key[0] === 'admin-audit-logs')
+    .map((key) => (key[1] as { search?: string } | null)?.search)
+  fireEvent.change(screen.getByLabelText('Busca'), { target: { value: 'MSCU1234567' } })
+  expect(searched()).not.toContain('MSCU1234567')
+  await waitFor(() => expect(searched()).toContain('MSCU1234567'))
+})
+
 it('Histórico de ações: ADR reaberto em português, com a Viagem pelo nome', () => {
   mocks.dataByKey = {
     'admin-audit-logs': {
@@ -752,6 +766,15 @@ it('Sistema: o Envio real troca com confirmação, e o e-mail de teste vai para 
   await waitFor(() => expect(mocks.setCommunicationsEnabled).toHaveBeenCalledWith(false))
   fireEvent.click(screen.getByRole('button', { name: 'Enviar teste para mim' }))
   await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('E-mail de teste enviado para dono@fwlog.com.br.', 'success'))
+})
+
+it('Sistema: a recusa do e-mail de teste mostra o motivo que a Edge Function deu', async () => {
+  mocks.isDev = true
+  mocks.sendAdminTestEmail.mockRejectedValue(new Error('O seu e-mail está bloqueado por devolução ou spam: o teste não saiu.'))
+  mocks.dataByKey = { 'admin-system-health': health(), 'admin-system-routines': [], 'admin-routing-failures': { rows: [], count: 0 } }
+  renderAdmin('sistema')
+  fireEvent.click(screen.getByRole('button', { name: 'Enviar teste para mim' }))
+  expect(await screen.findByText('O seu e-mail está bloqueado por devolução ou spam: o teste não saiu.')).toBeTruthy()
 })
 
 it('Sistema: erro de consulta tem mensagem própria', () => {
