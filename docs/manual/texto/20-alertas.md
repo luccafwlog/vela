@@ -54,7 +54,7 @@ Se a causa volta depois de o alerta fechar, ele reabre e as pessoas são avisada
 
 **Quem faz:** {{Todas as equipes}}
 
-O sino é pessoal: traz as **Notificações internas**, o aviso de que abriu um alerta para a sua equipe. Cada pessoa ativa recebe os alertas do seu setor; o {{Financeiro}} recebe também a Fatura desatualizada e a Taxa alterada à mão mudou, e o {{Administrativo}}, os críticos de contato e de fatura do Cliente. O "Quem recebe" de cada assunto diz quais.
+O sino é pessoal: traz as **Notificações internas**, o aviso de que abriu um alerta para a sua equipe, e os avisos de acontecimento listados abaixo. Cada pessoa ativa recebe os alertas do seu setor; o {{Financeiro}} recebe também a Fatura desatualizada e a Taxa alterada à mão mudou, e o {{Administrativo}}, os críticos de contato e de fatura do Cliente. O "Quem recebe" de cada assunto diz quais.
 
 ::: passos
 1. Clique no sino, na barra do alto. Com o menu na lateral, ele fica no pé do menu, como **Notificações**.
@@ -63,6 +63,14 @@ O sino é pessoal: traz as **Notificações internas**, o aviso de que abriu um 
 :::
 
 A notificação é uma fotografia do momento em que o alerta abriu: ela não muda depois. Quando o alerta fecha, ela sai sozinha do sino, mesmo sem ter sido lida.
+
+O sino traz também alguns avisos que não são alerta, só um fato que a sua equipe precisa saber. Eles não aparecem na fila **Alertas** e ficam no sino até você ler:
+
+| Aviso | Quem recebe | Quando | O clique abre |
+| --- | --- | --- | --- |
+| **Nova solicitação de desbloqueio de CE** | {{Documentação}} | O Cliente envia uma solicitação pelo Portal. Se ele reenviar depois de uma recusa, o aviso diz **Solicitação de desbloqueio de CE reenviada**. A solicitação VIP não avisa. | A solicitação, em **Desbloqueio de CE** ([12.3](12-desbloqueio-de-ce.md#123-analisar-os-documentos-de-uma-solicitação)) |
+| **Novo pagamento** | {{Financeiro}} e {{Administrativo}} | Entra um pagamento de fatura de Taxas Locais ou avulsa: baixa automática do Pix, conciliação pelo extrato ou registro no detalhe da fatura. A mensagem traz a fatura, o Cliente, o valor e o meio. | A fatura, em **Taxas Locais** |
+| **Novo pagamento de Demurrage** | {{Financeiro}} e {{Administrativo}} | Uma Invoice de Demurrage é paga. A quitação pelo desconto integral não avisa. | A Invoice, em **Demurrage** |
 
 Quando um alerta **Crítico** não acha ninguém ativo nos setores que recebem, a notificação vai ao {{Administrativo}} com o selo **Entrega alternativa**; o alerta continua do setor original. Se nem assim há quem receba, ou se o alerta é Normal, a falha aparece em **Admin** › **Falhas de entrega de alertas**: para resolver, ative alguém do setor na aba **Usuários**.
 

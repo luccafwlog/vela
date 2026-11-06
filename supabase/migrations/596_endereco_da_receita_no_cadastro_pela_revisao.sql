@@ -1,5 +1,5 @@
--- 595: endereço da Receita no cadastro do Cliente pela Revisão (pedido do dono
--- de 2026-11-05, ADR 0126).
+-- 596: endereço da Receita no cadastro do Cliente pela Revisão (pedido do dono
+-- de 2026-11-05, ADR 0127).
 --
 -- `complete_review_customer_group` ganha `p_profile jsonb DEFAULT NULL` com
 -- `trade_name`, `address`, `city`, `state` e `zip`, que a tela preenche com os
@@ -11,7 +11,7 @@
 --
 -- Assinatura nova: o parâmetro a mais exige DROP e CREATE (CREATE OR REPLACE
 -- criaria uma sobrecarga ao lado da antiga). O corpo é o vigente (474; o
--- pg_get_functiondef no Postgres local com a cadeia até a 594 confere com
+-- pg_get_functiondef no Postgres local com a cadeia até a 595 confere com
 -- ela) com só as linhas do perfil a mais. Grants refeitos como os da antiga
 -- (002): nada para PUBLIC e anon, EXECUTE para authenticated. A chamada sem
 -- `p_profile` (tela anterior ao deploy) continua igual: o parâmetro é
@@ -47,7 +47,7 @@ DECLARE
   v_bl_name_identity TEXT;
   -- 474 (D10): só quem edita contatos inclui o e-mail; os demais cadastram o Cliente.
   v_can_contacts BOOLEAN := public._can_edit_customer_contacts();
-  -- 595 (ADR 0126): dados da Receita para o Cliente criado aqui. Normalizados
+  -- 596 (ADR 0127): dados da Receita para o Cliente criado aqui. Normalizados
   -- como no Novo cliente: UF com 2 letras e CEP com 8 dígitos, senão nulos.
   v_trade_name TEXT := NULLIF(btrim(p_profile->>'trade_name'), '');
   v_address TEXT := NULLIF(btrim(p_profile->>'address'), '');

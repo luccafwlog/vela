@@ -1,4 +1,4 @@
-// Contrato da consulta de CNPJ (ADR 0126) contra uma BrasilAPI falsa: sem
+// Contrato da consulta de CNPJ (ADR 0127) contra uma BrasilAPI falsa: sem
 // rede. Roda no passo Deno do CI (`deno test --config supabase/functions/deno.json`).
 import { BRASILAPI_CNPJ_URL, handleCnpjLookup, normalizeLookupCnpj, type CnpjLookupDeps } from './cnpjLookup.ts'
 

@@ -15,7 +15,7 @@ export type ReviewCustomerOnboardingInput = {
   name: string
   email: string
   sendPortalInvite: boolean
-  /** Dados da Receita para o Cliente criado (migration 595); null ao vincular ou sem consulta. */
+  /** Dados da Receita para o Cliente criado (migration 596); null ao vincular ou sem consulta. */
   profile?: ReviewCustomerProfile | null
 }
 
@@ -86,7 +86,7 @@ export function ReviewCustomerOnboarding({
   const validEmail = !canEditContacts || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
   const expectedCnpjs = group.candidateCnpjs.length ? group.candidateCnpjs : group.cnpj ? [group.cnpj] : []
   const selectedCustomerCnpjMismatch = Boolean(validCnpj && expectedCnpjs.length > 0 && !expectedCnpjs.includes(validCnpj))
-  // Só Cliente novo consulta a Receita; o perfil vai junto no cadastro (migration 595).
+  // Só Cliente novo consulta a Receita; o perfil vai junto no cadastro (migration 596).
   const receitaCnpj = selectedId || selectedCustomerCnpjMismatch ? null : validCnpj
   const receita = useCnpjLookup(receitaCnpj)
   const count = group.items.filter((item) => item.source === 'bl').length

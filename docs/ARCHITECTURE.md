@@ -744,7 +744,7 @@ padrões.
   (Administrativo ou Documentação), Disparo manual de Comunicados
   (`send-customer-communication`), download e exportação do Desbloqueio de CE e
   consulta de CNPJ na BrasilAPI (`cnpj-lookup`, qualquer perfil interno;
-  [ADR 0126](adr/0126-consulta-de-cnpj-na-brasilapi.md)).
+  [ADR 0127](adr/0127-consulta-de-cnpj-na-brasilapi.md)).
 - **Webhook assinado:** `portal-email-webhook` só valida a assinatura e grava o
   evento ([E-mail transacional e Comunicados](#e-mail-transacional-e-comunicados)).
 - **Segredo de job:** as rotinas disparadas pelo `pg_cron`, em geral por

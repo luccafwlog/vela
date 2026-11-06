@@ -15,7 +15,7 @@ export type CompleteReviewCustomerGroupInput = {
   email: string
   changedBy: string
   sendPortalInvite?: boolean
-  /** Dados da Receita para o Cliente criado aqui (migration 595); o já cadastrado não muda. */
+  /** Dados da Receita para o Cliente criado aqui (migration 596); o já cadastrado não muda. */
   profile?: ReviewCustomerProfile | null
 }
 
@@ -44,7 +44,7 @@ export async function completeReviewCustomerGroup(input: CompleteReviewCustomerG
     p_name: input.name.trim(),
     p_email: email || null,
     p_changed_by: input.changedBy,
-    // Sem perfil, a chamada é a de antes da 595 (parâmetro omitido).
+    // Sem perfil, a chamada é a de antes da 596 (parâmetro omitido).
     ...(input.profile ? { p_profile: input.profile } : {}),
   })
   if (error) {

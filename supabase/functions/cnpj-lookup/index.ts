@@ -1,4 +1,4 @@
-// Consulta de CNPJ na BrasilAPI para o Novo cliente (ADR 0126). Só sessão
+// Consulta de CNPJ na BrasilAPI para o Novo cliente (ADR 0127). Só sessão
 // interna; regras e resposta por lista positiva em ../_shared/cnpjLookup.ts.
 import { createClient } from '@supabase/supabase-js'
 import { handleCnpjLookup } from '../_shared/cnpjLookup.ts'

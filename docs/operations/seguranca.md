@@ -490,7 +490,7 @@ sem decompor no navegador o fator comercial da cotação.
   `portal-email-webhook` recusa sem `svix-id`, `svix-timestamp` ou
   `svix-signature` antes de ler e lê até 256 KiB. A leitora multipart
   (`boundedMultipart.ts`) usa a mesma contagem.
-- **`cnpj-lookup`** ([ADR 0126](../adr/0126-consulta-de-cnpj-na-brasilapi.md))
+- **`cnpj-lookup`** ([ADR 0127](../adr/0127-consulta-de-cnpj-na-brasilapi.md))
   — `verify_jwt = false`; exige sessão interna com perfil ativo
   (`portal_current_role`) antes de ler o corpo (até 16 KiB) e de chamar a
   BrasilAPI; conta do Portal e sessão anônima recebem 403. Devolve por lista

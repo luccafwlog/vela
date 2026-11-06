@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { supabase } from './supabase'
 
-// Consulta de CNPJ na BrasilAPI pela Edge Function `cnpj-lookup` (ADR 0126).
+// Consulta de CNPJ na BrasilAPI pela Edge Function `cnpj-lookup` (ADR 0127).
 // O navegador não fala com a BrasilAPI: a CSP do Vela não libera o host.
 
 const lookupDataSchema = z.object({
@@ -39,7 +39,7 @@ export async function lookupCnpj(cnpj: string): Promise<CnpjLookupResult> {
   }
 }
 
-/** Perfil do Cliente criado pela Revisão (`p_profile` da migration 595). */
+/** Perfil do Cliente criado pela Revisão (`p_profile` da migration 596). */
 export type ReviewCustomerProfile = {
   trade_name: string
   address: string

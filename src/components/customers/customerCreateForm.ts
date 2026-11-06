@@ -65,7 +65,7 @@ export const emptyCreateCustomerForm: CreateCustomerForm = {
   contacts: [newCustomerContact(true)],
 }
 
-/** Campos do cadastro que a consulta de CNPJ preenche (ADR 0126). */
+/** Campos do cadastro que a consulta de CNPJ preenche (ADR 0127). */
 export type CnpjFillField = 'name' | 'tradeName' | 'zip' | 'address' | 'city' | 'state'
 /** Valor que a consulta pôs em cada campo, para saber se o operador mexeu depois. */
 export type CnpjAutofill = Partial<Record<CnpjFillField, string>>

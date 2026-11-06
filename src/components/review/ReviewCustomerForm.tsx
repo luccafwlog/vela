@@ -17,7 +17,7 @@ export type ReviewCustomerOnboardingInput = {
   name: string
   email: string
   sendPortalInvite: boolean
-  /** Dados da Receita para o Cliente criado (migration 595); null ao vincular ou sem consulta. */
+  /** Dados da Receita para o Cliente criado (migration 596); null ao vincular ou sem consulta. */
   profile?: ReviewCustomerProfile | null
 }
 
@@ -192,7 +192,7 @@ export function ReviewCustomerForm({
               </Field>
             ) : null}
           </div>
-          {/* ADR 0126: razão social da Receita para o CNPJ aceito (um dos lidos no B/L). */}
+          {/* ADR 0127: razão social da Receita para o CNPJ aceito (um dos lidos no B/L). */}
           <ReceitaNameNote cnpj={receitaCnpj} name={name} onUseName={setName} />
           {canInvitePortal ? (
           <ChoiceCards

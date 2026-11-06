@@ -21,7 +21,8 @@ Documentos fiscais, faturas e recibos mantêm a identidade e titularidade da Tra
 | `vela-mark-dark.svg` | Símbolo sobre fundo escuro (topbar, tela de TV). |
 | `vela-icon.svg` | Ícone com plaquinha, para 32px e acima. |
 | `vela-icon-16.svg` | Ícone com plaquinha, geometria própria de 16px. |
-| `vela-icon-{16,32,180,192,512}.png` | Rasterizações do ícone, para favicon e ícone de app. |
+| `vela-icon-{16,32,192,512}.png` | Rasterizações do ícone, para favicon e ícone de app (manifesto). |
+| `vela-apple-touch-icon.svg` / `.png` | Ícone da tela de início do iPhone (180×180): o mesmo desenho, quadrado e opaco. |
 
 ## Arquivos Fwlog
 
@@ -46,6 +47,14 @@ Assim ele herda tema, tamanho e acessibilidade, e não depende de um arquivo. Um
 lockup em arquivo único só seria necessário para uso externo ou impressão — e
 nesse caso a palavra precisa ser convertida em contorno antes, senão o arquivo
 depende da fonte estar instalada em quem abrir.
+
+**O ícone do iPhone não tem canto arredondado nem transparência.** O iOS
+recorta o atalho com a própria máscara e pede um PNG quadrado e opaco; canto
+transparente vira preto ou faz o atalho cair na letra inicial do título. Por
+isso `vela-apple-touch-icon.png` é RGB sem canal alfa, rasterizado de
+`vela-apple-touch-icon.svg` (o `vela-icon.svg` sem o `rx`). O iOS guarda o
+ícone no momento em que o atalho é criado: quem já adicionou o Vela precisa
+remover o atalho e adicioná-lo de novo para ver o ícone novo.
 
 ## Paleta
 

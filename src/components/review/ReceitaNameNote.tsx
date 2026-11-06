@@ -9,11 +9,11 @@ function sameCompanyName(a: string, b: string) {
 }
 
 /**
- * Dados da Receita no cadastro do Cliente pela Revisão (ADR 0126). A razão
+ * Dados da Receita no cadastro do Cliente pela Revisão (ADR 0127). A razão
  * social já chega preenchida com o nome do manifesto: vazia, recebe a da
  * Receita (uma vez por CNPJ); preenchida e diferente, a troca fica num botão,
  * como "Usar este CNPJ". O endereço não tem campo na Revisão: aparece aqui e
- * vai para o Cliente criado (`reviewProfileFromLookup`, migration 595).
+ * vai para o Cliente criado (`reviewProfileFromLookup`, migration 596).
  * `cnpj` é o CNPJ válido e aceito pelo formulário, ou `null`.
  */
 export function ReceitaNameNote({ cnpj, name, onUseName }: {

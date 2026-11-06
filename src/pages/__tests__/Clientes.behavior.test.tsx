@@ -621,7 +621,7 @@ describe('Clientes page behaviours', () => {
     expect(within(screen.getByRole('dialog')).queryByRole('checkbox', { name: /convite do Portal/ })).toBeNull()
   })
 
-  // ADR 0126: com o CNPJ válido, os dados da Receita entram nos campos vazios.
+  // ADR 0127: com o CNPJ válido, os dados da Receita entram nos campos vazios.
   it('CNPJ válido busca na Receita e preenche só os campos vazios', async () => {
     const user = userEvent.setup()
     mocks.useCnpjLookup.mockImplementation((cnpj: string | null) => cnpj === '12345678000195'

@@ -1,5 +1,5 @@
-// Endereço da Receita no cadastro do Cliente pela Revisão (migration 595,
-// ADR 0126): `complete_review_customer_group` grava o perfil (`p_profile`)
+// Endereço da Receita no cadastro do Cliente pela Revisão (migration 596,
+// ADR 0127): `complete_review_customer_group` grava o perfil (`p_profile`)
 // só no Cliente que ela cria; o já cadastrado não muda; UF e CEP fora do
 // formato viram nulos; a chamada sem perfil continua igual; anon não executa.
 //
@@ -70,7 +70,7 @@ function cleanup() {
   `)
 }
 
-describeLocal('Endereço da Receita no cadastro pela Revisão (migration 595)', () => {
+describeLocal('Endereço da Receita no cadastro pela Revisão (migration 596)', () => {
   beforeAll(() => {
     cleanup()
     psql(`

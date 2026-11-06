@@ -142,7 +142,7 @@ export function Clientes() {
   const [importOpen, setImportOpen] = useState(false)
   const [createForm, setCreateForm] = useState<CreateCustomerForm>(emptyCreateCustomerForm)
   const [createErrors, setCreateErrors] = useState<CustomerCreateErrors>({})
-  // Consulta de CNPJ (ADR 0126): com o CNPJ válido, os dados da Receita entram
+  // Consulta de CNPJ (ADR 0127): com o CNPJ válido, os dados da Receita entram
   // nos campos vazios, uma vez por CNPJ (padrão "ajustar estado no render").
   // Mudou o CNPJ, o que a consulta anterior pôs e ninguém editou sai na hora,
   // sem esperar a nova resposta: cadastrar nesse intervalo gravaria o CNPJ

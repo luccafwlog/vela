@@ -351,7 +351,7 @@ e `public-container-lookup` (ADR 0114, migration `542`); antes da publicação
 os secrets da linha "Widgets públicos do fwlog.com.br" abaixo precisam existir,
 senão as duas respondem 503 ou 403 a todo pedido (fail-closed). Também está só
 no repositório `cnpj-lookup` (consulta de CNPJ na BrasilAPI,
-[ADR 0126](../adr/0126-consulta-de-cnpj-na-brasilapi.md), 2026-11-05): não
+[ADR 0127](../adr/0127-consulta-de-cnpj-na-brasilapi.md), 2026-11-05): não
 pede secret além dos padrões do Supabase e sai no próximo merge em `main`;
 antes disso, o Novo cliente mostra "Consulta à Receita indisponível agora" e o
 cadastro segue à mão. A Edge Function
@@ -1142,7 +1142,7 @@ para eles vale o backup do próprio Supabase.
 - **BrasilAPI (consulta de CNPJ):** `https://brasilapi.com.br/api/cnpj/v1/{cnpj}`,
   chamada só pela Edge Function `cnpj-lookup`, no **Novo cliente** e no
   cadastro do Cliente pela Revisão
-  ([ADR 0126](../adr/0126-consulta-de-cnpj-na-brasilapi.md)). Sem conta, chave
+  ([ADR 0127](../adr/0127-consulta-de-cnpj-na-brasilapi.md)). Sem conta, chave
   nem secret; o limite de uso não é publicado. Fora do ar, o cadastro segue à
   mão. Trocar de fornecedor muda só `supabase/functions/_shared/cnpjLookup.ts`.
 - **Google Fonts:** `fonts.googleapis.com`, `fonts.gstatic.com`.

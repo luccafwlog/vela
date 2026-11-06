@@ -10,7 +10,7 @@ const receita = {
   uf: 'SP',
 }
 
-describe('applyCnpjLookup (ADR 0126)', () => {
+describe('applyCnpjLookup (ADR 0127)', () => {
   it('preenche os campos vazios e guarda o que pôs', () => {
     const { form, filled } = applyCnpjLookup({ ...emptyCreateCustomerForm, cnpjCpf: '19131243000197' }, receita, {})
     expect(form).toMatchObject({ name: 'OPEN KNOWLEDGE BRASIL', tradeName: 'REDE PELO CONHECIMENTO LIVRE', zip: '01311902', address: 'AVENIDA PAULISTA, 37 - BELA VISTA', city: 'SAO PAULO', state: 'SP' })

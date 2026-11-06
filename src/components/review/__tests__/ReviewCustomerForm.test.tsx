@@ -59,7 +59,7 @@ describe('ReviewCustomerForm — convite do Portal', () => {
   })
 })
 
-// ADR 0126: a Revisão grava só a razão social; a da Receita vem por sugestão.
+// ADR 0127: a Revisão grava só a razão social; a da Receita vem por sugestão.
 describe('ReviewCustomerForm — razão social da Receita', () => {
   const receita = (razao: string, situacao = 'ATIVA', endereco = { nome_fantasia: '', cep: '', endereco: '', cidade: '', uf: '' }) => ({
     isFetching: false,
@@ -86,7 +86,7 @@ describe('ReviewCustomerForm — razão social da Receita', () => {
     expect(onOnboard).toHaveBeenCalledWith(expect.objectContaining({ name: 'ALFA COMERCIO E SERVICOS LTDA', profile: null }))
   })
 
-  // Migration 595: o endereço da Receita vai para o Cliente criado.
+  // Migration 596: o endereço da Receita vai para o Cliente criado.
   it('mostra o endereço da Receita e o manda no cadastro', async () => {
     const user = userEvent.setup()
     const address = { nome_fantasia: 'ALFA', cep: '29010000', endereco: 'RUA A, 10 - CENTRO', cidade: 'VITORIA', uf: 'ES' }

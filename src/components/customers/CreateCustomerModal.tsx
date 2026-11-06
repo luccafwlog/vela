@@ -38,7 +38,7 @@ export function CreateCustomerModal({
   saving: boolean
   /** Documentação e Administrativo: a Edge Function `portal-invite-send` recusa os demais. */
   canInvitePortal: boolean
-  /** Consulta do CNPJ na Receita (ADR 0126); null antes de o CNPJ ficar válido. */
+  /** Consulta do CNPJ na Receita (ADR 0127); null antes de o CNPJ ficar válido. */
   cnpjLookup: CnpjLookupState | null
   /** Cliente já cadastrado com o CNPJ digitado: um Cliente por CNPJ. */
   existingCustomer: { name: string; cnpj: string; message: string } | null

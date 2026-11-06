@@ -1,4 +1,4 @@
-# 0126 — Consulta de CNPJ na BrasilAPI no Novo cliente
+# 0127 — Consulta de CNPJ na BrasilAPI no Novo cliente
 
 Status: aceito — 2026-11-05 (pedido do dono). Implementada na Edge Function
 `cnpj-lookup`.
@@ -51,5 +51,5 @@ pública da Receita e o CNPJ alfanumérico aceito no endereço da consulta.
   (`src/components/review/ReceitaNameNote.tsx`). O formulário da Revisão
   não tem campos de endereço: o nome fantasia, o endereço, a cidade, a UF e
   o CEP da Receita aparecem no mesmo aviso e vão em `p_profile` de
-  `complete_review_customer_group` (migration 595, mesmo dia), que os grava
+  `complete_review_customer_group` (migration 596, mesmo dia), que os grava
   só no Cliente que ela cria; o já cadastrado não muda.

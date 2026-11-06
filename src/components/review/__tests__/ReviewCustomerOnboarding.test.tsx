@@ -11,7 +11,7 @@ const reviewOnboardingMocks = vi.hoisted(() => ({
     ? { isFetching: false, data: { status: 'encontrado', data: { cnpj, razao_social: 'ALFA COMERCIO LTDA', nome_fantasia: '', cep: '29010000', endereco: 'RUA A, 10', cidade: 'VITORIA', uf: 'ES', situacao: 'ATIVA' } } }
     : { data: undefined, isFetching: false })),
 }))
-// Consulta de CNPJ (ADR 0126) com resposta fixa: sem QueryClient nem rede.
+// Consulta de CNPJ (ADR 0127) com resposta fixa: sem QueryClient nem rede.
 vi.mock('../../../hooks/useCnpjLookup', () => ({ useCnpjLookup: (cnpj: string | null) => reviewOnboardingMocks.cnpjLookup(cnpj) }))
 vi.mock('../../../hooks/useCustomers', () => ({ useCustomerLookup: () => ({ data: [reviewOnboardingMocks.lookupCustomer] }) }))
 

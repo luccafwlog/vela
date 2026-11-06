@@ -1,4 +1,4 @@
-// Consulta de CNPJ na BrasilAPI para o Novo cliente (ADR 0126). A função
+// Consulta de CNPJ na BrasilAPI para o Novo cliente (ADR 0127). A função
 // `cnpj-lookup` é fina: lê o ambiente, confere a sessão interna e chama o
 // handler daqui, que recebe tudo por `deps` para o teste rodar sem rede.
 //

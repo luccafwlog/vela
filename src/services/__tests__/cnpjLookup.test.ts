@@ -7,7 +7,7 @@ import { lookupCnpj } from '../cnpjLookup'
 
 const data = { cnpj: '19131243000197', razao_social: 'OPEN KNOWLEDGE BRASIL', nome_fantasia: '', cep: '01311902', endereco: 'AVENIDA PAULISTA, 37', cidade: 'SAO PAULO', uf: 'SP', situacao: 'ATIVA' }
 
-describe('lookupCnpj (ADR 0126)', () => {
+describe('lookupCnpj (ADR 0127)', () => {
   beforeEach(() => invoke.mockReset())
 
   it('chama a Edge Function cnpj-lookup e devolve os dados da Receita', async () => {

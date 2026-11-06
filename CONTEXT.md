@@ -1207,7 +1207,17 @@ não apaga nem altera as Notificações Internas já entregues.
 
 **Evento Notificável**
 Acontecimento do sistema que origina Notificações Internas: a abertura ou a
-nova ocorrência de um item de Alerta.
+nova ocorrência de um item de Alerta e, desde a migration `595`, os
+acontecimentos da lista fechada do Aviso de acontecimento.
+→ Regra: [Operação e Suporte § Notificação Interna e Regra de Destinatários](docs/modules/operacao-suporte.md#notificação-interna-e-regra-de-destinatários)
+
+**Aviso de acontecimento**
+Notificação Interna sem Alerta, sobre um fato que o setor precisa saber mas
+que não é pendência: hoje, a solicitação de Desbloqueio de CE enviada pelo
+Cliente (Documentação) e cada novo pagamento (Financeiro e Administrativo).
+Fica no sino até a pessoa ler ([ADR 0126](docs/adr/0126-sino-avisa-solicitacao-de-desbloqueio-e-pagamento.md)).
+- **Distinto de:** a notificação de Alerta, que sai do sino quando o item
+  fecha.
 → Regra: [Operação e Suporte § Notificação Interna e Regra de Destinatários](docs/modules/operacao-suporte.md#notificação-interna-e-regra-de-destinatários)
 
 **Regra de Destinatários**

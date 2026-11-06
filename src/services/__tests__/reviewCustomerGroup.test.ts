@@ -16,7 +16,7 @@ describe('reviewCustomerGroup service', () => {
     expect(mockRpc).toHaveBeenCalledWith('complete_review_customer_group', { p_bl_ids: ['BL1', 'BL2'], p_customer_id: null, p_cnpj_cpf: '11222333000181', p_name: 'Cliente Teste', p_email: 'financeiro@example.com', p_changed_by: 'actor-1' })
   })
 
-  // Migration 595: o perfil da Receita só vai quando existe; sem ele, a chamada é a de antes.
+  // Migration 596: o perfil da Receita só vai quando existe; sem ele, a chamada é a de antes.
   it('manda o perfil da Receita em p_profile só quando ele existe', async () => {
     mockRpc.mockResolvedValue({ data: { customer: { id: 8, cnpj_cpf: '11222333000181', name: 'Cliente Teste' }, bls: [] }, error: null })
     const profile = { trade_name: 'TESTE', address: 'RUA A, 1', city: 'VITORIA', state: 'ES', zip: '29010000' }
