@@ -44,6 +44,8 @@ Em **Importação** › **Desbloqueio de CE**, a página tem duas abas.
 
 **Solicitações** traz o bloco **Solicitações aguardando análise**: os pedidos enviados que ainda têm termo de devolução ou procuração por aprovar, o envio mais antigo primeiro. É a fila de trabalho da análise. As solicitações VIP nem passam por ela ([12.8](#128-atender-o-cliente-vip)).
 
+O número ao lado de **Desbloqueio de CE**, no menu, é a quantidade dessas solicitações aguardando análise; ele se atualiza sozinho a cada minuto. Quando um Cliente envia (ou reenvia) uma solicitação, a {{Documentação}} recebe também o aviso **Nova solicitação de desbloqueio de CE** no sino, que abre a solicitação ([20.3](20-alertas.md#203-acompanhar-o-sino)).
+
 **Andamento dos B/Ls** mostra todo B/L com CE, com ou sem solicitação. Os cartões filtram a lista: **Aptos, não exportados**, **Exportados, aguardando a ZPT**, **Divergentes na ZPT**, **Desbloqueados** e **B/Ls com CE**. Em cada linha, um ícone verde por requisito atendido, o **Prazo** ([12.5](#125-o-prazo-do-desbloqueio)) e a coluna **Na ZPT**, que diz em que pé o B/L está: **Apto, não exportado**, **Exportado** com a data, o que a ZPT disse na última conciliação (**Desbloqueado** ou **Divergente**, [12.7](#127-conciliar-com-a-zpt)) ou, em âmbar, um impedimento ([12.10](#1210-quando-algo-muda-depois-do-pedido)).
 
 **Buscar** aceita vários números de B/L ou CE colados de uma vez, separados por espaço, vírgula, ponto e vírgula, "&" ou quebra de linha ("CSC45300C04Q00 & CSC45300C04Q01"). Um B/L colado com espaço nas pontas ou no meio também é achado. Em **Mais filtros**, além de **Requisito pendente**, há **Requisito atendido** (o inverso) e **VIP** (Clientes VIP, Solicitações VIP ou Clientes sem VIP).

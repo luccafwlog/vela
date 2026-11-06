@@ -5,6 +5,8 @@ export const queryKeys = {
     request: (scope: unknown, id: string | null) => ['ce-unlock', 'request', scope, id] as const,
     blHistory: (blId: string | null) => ['ce-unlock', 'bl-history', blId] as const,
     vip: (scope: unknown) => ['ce-unlock', 'vip', scope] as const,
+    /** Número do item Desbloqueio de CE no menu: solicitações à espera da análise. */
+    reviewQueueCount: () => ['ce-unlock', 'review-queue-count'] as const,
   },
   portalInformation: {
     all: () => ['portal-information'] as const,

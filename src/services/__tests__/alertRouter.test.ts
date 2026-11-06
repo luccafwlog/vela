@@ -163,6 +163,23 @@ describe('alertEntityLink & alertEntityLinkLabel — roteador de destino compart
     expect(formatAlertEntity('portal_email_event', '180')).toBe('Evento de e-mail 180')
   })
 
+  it('avisos de acontecimento (595) abrem a solicitação, a fatura e a Invoice, e a solicitação aparece pelo protocolo', async () => {
+    const request = {
+      type: 'desbloqueio_ce_solicitacao',
+      entity_type: 'ce_unlock_request',
+      entity_id: 'c0ffee00-0000-4000-8000-000000000001',
+      destination: '/desbloqueio-ce?pedido=c0ffee00-0000-4000-8000-000000000001',
+    }
+    expect(alertEntityLink(request)).toBe('/desbloqueio-ce?pedido=c0ffee00-0000-4000-8000-000000000001')
+    const labels = await fetchAlertEntityLabels([{ ...request, metadata: { protocol: 'CE-ABC123' } }])
+    expect(formatAlertEntity('ce_unlock_request', request.entity_id, labels)).toBe('Solicitação CE-ABC123')
+
+    expect(alertEntityLink({ type: 'pagamento_recebido', entity_type: 'invoice', entity_id: '42', destination: '/taxas-locais?invoice=42' }))
+      .toBe('/taxas-locais?invoice=42')
+    expect(alertEntityLink({ type: 'pagamento_recebido', entity_type: 'demurrage_invoice', entity_id: '7', destination: '/demurrage?fatura=7' }))
+      .toBe('/demurrage?fatura=7')
+  })
+
   it('rebaixa destination a fallback quando o roteador não deriva rota', () => {
     const fallbackLink = alertEntityLink({
       type: 'unknown_type',

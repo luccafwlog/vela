@@ -3,6 +3,7 @@ import { buildFinancialNavItemsForCounts, buildNavGroups, financialNavItems, get
 
 const COUNTS = {
   pendingReview: 0,
+  pendingCeUnlockRequests: 0,
   chargeReviewRequired: 3,
   readyForBilling: 12,
   openAlerts: 0,

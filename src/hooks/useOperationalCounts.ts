@@ -2,10 +2,16 @@ import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '../services/supabase'
 import { countAlertQueue } from '../services/alerts'
+import { listCeUnlockReviewQueue } from '../services/ceUnlockService'
 import { queryKeys } from '../services/queryKeys'
+import { groupReviewItems } from '../pages/revisaoHelpers'
+import { fetchAllReviewPages, type ReviewQueueItem } from './useReview'
 
 export type OperationalCounts = {
+  /** Clientes (grupos da tela Revisão) com B/L em revisão, não B/Ls (decisão do dono de 2026-11-05). */
   pendingReview: number
+  /** Solicitações de Desbloqueio de CE à espera da análise dos documentos (aba Solicitações). */
+  pendingCeUnlockRequests: number
   chargeReviewRequired: number
   readyForBilling: number
   openAlerts: number
@@ -31,20 +37,45 @@ export function useOperationalCounts(): OperationalCounts {
   // seguem pelo staleTime. Realtime só depois de `alerts` entrar em
   // supabase_realtime.
 
+  // Decisão do dono de 2026-11-05: o número da Revisão conta clientes, não
+  // B/Ls — resolver o cliente resolve os B/Ls dele. Agrupa pela mesma regra da
+  // tela (`groupReviewItems`: CNPJ válido; sem ele, o nome), lendo só as
+  // colunas que o agrupamento usa.
   const pendingReview = useQuery({
     queryKey: ['op-count', 'pending-review'],
     queryFn: async () => {
-      const { count, error } = await supabase
-        .from('bls')
-        .select('*', { count: 'exact', head: true })
-        .eq('review_status', 'pending_review')
-        // BLR-D01 (lote 10): o número da Revisão não conta B/L cancelado.
-        .is('cancelled_at', null)
-      if (error) return 0
-      return count ?? 0
+      try {
+        const rows = await fetchAllReviewPages((from, to) => supabase
+          .from('bls')
+          .select('id, consignee, shipper, manifest_customer_cnpj_cpf, consignee_block, cargo_description, customer:customers!bls_customer_id_fkey(id, cnpj_cpf, name)')
+          .eq('review_status', 'pending_review')
+          // BLR-D01 (lote 10): o número da Revisão não conta B/L cancelado.
+          .is('cancelled_at', null)
+          .order('id')
+          .range(from, to))
+        return countReviewCustomers(rows as unknown as ReviewCountRow[])
+      } catch {
+        return 0
+      }
     },
     enabled,
     staleTime: 60_000,
+  })
+
+  const pendingCeUnlockRequests = useQuery({
+    queryKey: queryKeys.ceUnlock.reviewQueueCount(),
+    queryFn: async () => {
+      try {
+        return (await listCeUnlockReviewQueue(1))?.total ?? 0
+      } catch {
+        return 0
+      }
+    },
+    enabled,
+    staleTime: 60_000,
+    // A solicitação nasce no Portal: o número sobe sem recarregar, no mesmo
+    // passo do sino.
+    refetchInterval: 60_000,
   })
 
   const chargeReviewRequired = useQuery({
@@ -101,9 +132,17 @@ export function useOperationalCounts(): OperationalCounts {
 
   return {
     pendingReview: pendingReview.data ?? 0,
+    pendingCeUnlockRequests: pendingCeUnlockRequests.data ?? 0,
     chargeReviewRequired: chargeReviewRequired.data ?? 0,
     readyForBilling: readyForBilling.data ?? 0,
     openAlerts: openAlerts.data ?? 0,
     blsWithoutCustomer: blsWithoutCustomer.data ?? 0,
   }
+}
+
+type ReviewCountRow = Pick<ReviewQueueItem, 'id' | 'consignee' | 'shipper' | 'manifest_customer_cnpj_cpf' | 'consignee_block' | 'cargo_description' | 'customer'>
+
+/** Quantos grupos (clientes) a tela Revisão mostra para estes B/Ls. */
+export function countReviewCustomers(rows: ReviewCountRow[]): number {
+  return groupReviewItems(rows.map((row) => ({ ...row, source: 'bl' }) as ReviewQueueItem)).length
 }

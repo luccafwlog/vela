@@ -1,5 +1,7 @@
 # 0034 — Notificação Interna é conceito separado do Alerta: o sino entrega, `/alertas` trata
 
+> **Situação atual (2026-11-05).** A lista fechada do item 6 foi definida pela [ADR 0126](./0126-sino-avisa-solicitacao-de-desbloqueio-e-pagamento.md) (migration `595`): o **Aviso de acontecimento**, Notificação Interna sem Alerta que fica no sino até ser lida, para a solicitação de Desbloqueio de CE enviada (Documentação) e cada novo pagamento (Financeiro e Administrativo).
+>
 > **Situação atual (2026-10-27).** Lote 8: Pela [ADR 0107](./0107-sino-so-do-setor-responsavel.md) (migration `476`), o sino entrega só ao setor responsável do item, com o Financeiro também nos quatro tipos do dinheiro, e a notificação sai do sino e do número quando o alerta é resolvido. Pela [ADR 0108](./0108-fim-da-dispensa-de-alertas.md), a dispensa temporária e o Eco de Tratamento dela saíram; a ação manual da fila é "Resolver com justificativa" nos tipos listados.
 >
 > **Situação atual (2026-10-14).** Permanecem Alerta e Notificação Interna como conceitos separados, a cópia congelada, a audiência declarada por tipo, a leitura pessoal que não altera o Alerta e `/alertas` como central.

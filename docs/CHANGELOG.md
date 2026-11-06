@@ -6,6 +6,13 @@
 
 ## 2026-11
 
+- **Sino avisa solicitação de Desbloqueio de CE e pagamento; Revisão conta clientes (2026-11-05, migration `595`,
+  ADR 0126; decisão do dono):** o número do item **Revisão** do menu passa a contar Clientes (os grupos da tela), não
+  B/Ls; o item **Desbloqueio de CE** ganha o número de solicitações aguardando análise, relido a cada minuto. O sino
+  ganha o Aviso de acontecimento, Notificação Interna sem Alerta que fica até ser lida: "Nova solicitação de
+  desbloqueio de CE" para a Documentação (o clique abre a solicitação) e "Novo pagamento" / "Novo pagamento de
+  Demurrage" para Financeiro e Administrativo (o clique abre a fatura ou a Invoice). Prova:
+  `sinoAvisosDeAcontecimento.local-pg.test.ts` ([Operação e Suporte](modules/operacao-suporte.md#notificação-interna-e-regra-de-destinatários)).
 - **THD mínimo da carga solta de Vitória (2026-11-05, migration `594`, ADR 0125; decisão do dono):** o THD por
   tonelada em R$ da tabela de carga solta de Vitória (BRVIX) cobra por B/L o maior entre toneladas × unitário e
   R$ 380,00, também com Condição do Cliente e no B/L misto (2 t × R$ 62,50 = R$ 125,00 → R$ 380,00). Quantidade e

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { activeNavItem, buildNavGroups, exportNavItems, financialNavItems, importNavItems, voyagesNavItems } from '../appLayoutNav'
+import { activeNavItem, buildNavGroups, exportNavItems, getNavIndicator, financialNavItems, importNavItems, voyagesNavItems } from '../appLayoutNav'
 
-const COUNTS = { pendingReview: 0, chargeReviewRequired: 0, readyForBilling: 0, openAlerts: 0, blsWithoutCustomer: 0 }
+const COUNTS = { pendingReview: 0, pendingCeUnlockRequests: 0, chargeReviewRequired: 0, readyForBilling: 0, openAlerts: 0, blsWithoutCustomer: 0 }
 
 describe('appLayoutNav - rota canonica B/Ls', () => {
   it('contém item B/Ls apontando para /bls na secao de importacao', () => {
@@ -33,6 +33,16 @@ describe('telas que só abriam por botão entram no grupo do seu assunto (2026-1
   it('Desbloqueio de CE fica logo acima de Revisão (2026-11-04)', () => {
     const importacao = importNavItems.map((item) => item.to)
     expect(importacao.indexOf('/desbloqueio-ce')).toBe(importacao.indexOf('/revisao') - 1)
+  })
+
+  it('Revisão mostra o número de clientes e Desbloqueio de CE o de solicitações à espera; o grupo soma os dois (2026-11-05)', () => {
+    const importacao = buildNavGroups({ ...COUNTS, pendingReview: 17, pendingCeUnlockRequests: 3 }).find((group) => group.id === 'importacao')?.items ?? []
+    expect(importacao.find((item) => item.to === '/revisao')?.badge).toBe(17)
+    expect(importacao.find((item) => item.to === '/desbloqueio-ce')?.badge).toBe(3)
+    expect(getNavIndicator(importacao)).toEqual({ type: 'badge', count: 20 })
+    // Sem solicitação à espera, o item fica sem número.
+    const vazio = buildNavGroups(COUNTS).find((group) => group.id === 'importacao')?.items ?? []
+    expect(vazio.find((item) => item.to === '/desbloqueio-ce')?.badge).toBeUndefined()
   })
 
   it('a tela de contas do Portal se chama só Portal no menu (2026-11-03)', () => {

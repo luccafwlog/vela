@@ -167,6 +167,8 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   user_profile: 'Usuário interno',
   cron_http: 'Rotinas agendadas',
   portal_email_event: 'E-mail',
+  // Aviso de acontecimento da nova solicitação de Desbloqueio de CE (595).
+  ce_unlock_request: 'Solicitação',
 }
 
 export type AlertAudience = 'documentacao' | 'equipamentos' | 'operacoes' | 'financeiro' | 'administrativo'
@@ -1020,6 +1022,13 @@ function emailEventLabelFromMetadata(metadata: Record<string, unknown> | null | 
   return typeof recipient === 'string' && recipient.trim().length > 0 ? recipient.trim() : null
 }
 
+// O aviso da solicitação de Desbloqueio de CE (595) grava o protocolo no
+// payload: o id da solicitação é um UUID que não diz nada à equipe.
+function ceUnlockProtocolFromMetadata(metadata: Record<string, unknown> | null | undefined): string | null {
+  const protocol = metadata?.protocol
+  return typeof protocol === 'string' && protocol.trim().length > 0 ? protocol.trim() : null
+}
+
 /**
  * Busca em lote os rótulos humanos das entidades citadas na página de alertas.
  * ponytail: uma consulta por tabela envolvida, no máximo uma página de 100
@@ -1034,6 +1043,7 @@ export async function fetchAlertEntityLabels(rows: AlertEntityRef[]): Promise<Al
     if (!row.entity_id) continue
     const label = row.entity_type === 'pix_transaction' ? pixLabelFromMetadata(row.metadata)
       : row.entity_type === 'portal_email_event' ? emailEventLabelFromMetadata(row.metadata)
+      : row.entity_type === 'ce_unlock_request' ? ceUnlockProtocolFromMetadata(row.metadata)
       : null
     if (label) labels[`${row.entity_type}:${row.entity_id}`] = label
   }
@@ -1128,8 +1138,8 @@ export async function getAlertDepartmentSummary(): Promise<AlertDepartmentSummar
 
 export type InternalNotification = {
   id: number
-  alert_id?: number
-  alert_item_id?: number
+  alert_id?: number | null
+  alert_item_id?: number | null
   item_id?: number
   type?: string
   item_type?: string | null
