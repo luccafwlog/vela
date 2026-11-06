@@ -1,6 +1,6 @@
 import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { syntheticCnpj } from './localTestData'
+import { syntheticCnpj, vehicleAnswerSql } from './localTestData'
 
 // Migration 083 (ADR 0070): o Portal trava toda emissão, inclusive a
 // automática pelo CE. A saída é ativar o Portal ou o Administrativo conceder a
@@ -164,7 +164,7 @@ describeLocal('Portal como trava universal e Liberação de faturamento sem Port
       INSERT INTO public.customers (id, cnpj_cpf, name) VALUES (${customerId}, '${customerCnpj}', 'Cliente Portal 083');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier 083');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel 083', ${carrierId});
-      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'PORTAL-083', 'active');
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'PORTAL-083', 'active'); ${vehicleAnswerSql(voyageId)}
       INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
       VALUES (${chargeTableId}, 'Tabela 083', 'PTL083', CURRENT_DATE, true, 'container');
       INSERT INTO public.charge_table_items (

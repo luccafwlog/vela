@@ -268,6 +268,21 @@ describe('timeline operacional de transbordo', () => {
     expect(titles).not.toContain('Dados da viagem alterados')
   })
 
+  // Migration 595: a resposta "com veículos" e a troca para "sem", com motivo.
+  it('mostra a viagem declarada com veículos, a trava do CE e a troca de resposta com o motivo', () => {
+    const at = (day: number) => `2026-11-0${day}T12:00:00Z`
+    const events = buildVoyageTimeline({ auditEvents: [
+      { entity_type: 'voyage', entity_id: '2', field_name: 'com_veiculos', old_value: null, new_value: 'declarada', justification: null, changed_at: at(1) },
+      { entity_type: 'voyage', entity_id: '2', field_name: 'com_veiculos', old_value: 'declarada', new_value: 'desfeita', justification: 'Armador confirmou que não vem veículo', changed_at: at(2) },
+      { entity_type: 'voyage', entity_id: '2', field_name: 'sem_veiculos', old_value: null, new_value: 'declarada', justification: 'Armador confirmou que não vem veículo', changed_at: at(3) },
+    ] })
+
+    const byTitle = (title: string) => events.find((event) => event.title === title)
+    expect(byTitle('Viagem declarada com veículos')?.detail).toContain('CE Mercante de container travado até a planilha de Veículos')
+    expect(byTitle('Declaração "com veículos" desfeita')?.detail).toContain('Motivo: Armador confirmou que não vem veículo')
+    expect(byTitle('Viagem declarada sem veículos')?.detail).toContain('Planilha de Veículos dispensada · Motivo: Armador confirmou que não vem veículo')
+  })
+
   it('mostra complementação do registro global', () => {
     const events = buildVoyageTimeline({ auditEvents: [{
       entity_type: 'voyage', entity_id: '2', field_name: 'transshipment_info',

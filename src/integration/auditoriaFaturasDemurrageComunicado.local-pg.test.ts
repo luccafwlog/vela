@@ -57,7 +57,7 @@
 import { randomUUID } from 'node:crypto'
 import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { syntheticCeBeforeCancelSql, syntheticCnpj } from './localTestData'
+import { syntheticCeBeforeCancelSql, syntheticCnpj, vehicleAnswerSql } from './localTestData'
 
 // Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
 // teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
@@ -475,7 +475,7 @@ describeLocal('M18, M19 e M10 — notificação de fatura, B/L cancelado no Comu
         (${voyage.canceladoRaiz}, ${vesselId}, 'A207I', 'active'),
         (${voyage.legado}, ${vesselId}, 'A207J', 'active'),
         (${voyage.regua}, ${vesselId}, 'A207K', 'active'),
-        (${voyage.descarga}, ${vesselId}, 'A207L', 'active');
+        (${voyage.descarga}, ${vesselId}, 'A207L', 'active'); ${vehicleAnswerSql(...Object.values(voyage))}
       INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
       VALUES (${chargeTableId}, 'Tabela A207 container', '${pod}', CURRENT_DATE - 30, true, 'container');
       INSERT INTO public.charge_table_items (

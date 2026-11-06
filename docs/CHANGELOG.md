@@ -33,6 +33,16 @@
   desbloqueio de CE" para a Documentação (o clique abre a solicitação) e "Novo pagamento" / "Novo pagamento de
   Demurrage" para Financeiro e Administrativo (o clique abre a fatura ou a Invoice). Prova:
   `sinoAvisosDeAcontecimento.local-pg.test.ts` ([Operação e Suporte](modules/operacao-suporte.md#notificação-interna-e-regra-de-destinatários)).
+- **CE Mercante de container travado até Equipamentos responder sobre veículos (2026-11-06, migration `595`, ADR
+  0126; decisão do dono com Documentação e Equipamentos):** em D-7 do primeiro ETA brasileiro abre para Equipamentos o
+  alerta Normal **Declaração de veículos pendente**; na tela Veículos, Equipamentos responde **Esta viagem terá
+  veículos** ou **Esta viagem não terá veículos** (trocar ou desfazer pede motivo). Sem resposta, ou com "terá" e
+  nenhum veículo importado, a planilha de CE Mercante recusa o primeiro CE de B/L de container ou misto da viagem
+  ativa; um veículo importado libera. Em D-5, sem veículo e sem "não terá", abre o crítico **Planilha de Veículos
+  ausente** (antes "pendente"). Carga solta, viagem concluída e correção de CE ficam fora. Excluir viagem passa a
+  levar a resposta junto (desde a `468`, a viagem declarada sem veículos não se excluía). A trava vale no dia para
+  toda viagem ativa sem resposta. Prova: `travaCeMercanteVeiculos.local-pg.test.ts`
+  ([Manifestos & EDI § CE Mercante](modules/manifesto-edi.md#ce-mercante)).
 - **THD mínimo da carga solta de Vitória (2026-11-05, migration `594`, ADR 0125; decisão do dono):** o THD por
   tonelada em R$ da tabela de carga solta de Vitória (BRVIX) cobra por B/L o maior entre toneladas × unitário e
   R$ 380,00, também com Condição do Cliente e no B/L misto (2 t × R$ 62,50 = R$ 125,00 → R$ 380,00). Quantidade e

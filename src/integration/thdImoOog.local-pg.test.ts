@@ -1,6 +1,6 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { syntheticCnpj, describeWithProbe } from './localTestData'
+import { syntheticCnpj, describeWithProbe, vehicleAnswerSql } from './localTestData'
 
 // Migration 129 (ADR 0077, decisão de 2026-10-02): container IMO e OOG ao mesmo
 // tempo paga o THD normal com 150% de majoração (× 2,5), sem revisão manual.
@@ -126,7 +126,7 @@ describeLocal('129 — THD de container IMO e OOG ao mesmo tempo', () => {
         VALUES (${customerId}, 'Fixture: gate aberto', '${actorId}', now() + interval '1 day');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier 129');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel 129', ${carrierId});
-      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'R129', 'active');
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'R129', 'active'); ${vehicleAnswerSql(voyageId)}
       INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
         VALUES (${chargeTableId}, 'Tabela 129', 'R129POD', CURRENT_DATE - 30, true, 'container');
       -- Como na tabela de Vitória: standard 1.420, IMO +50%, OOG +100%.

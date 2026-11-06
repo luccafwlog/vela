@@ -1,6 +1,6 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { syntheticCnpj, describeWithProbe } from './localTestData'
+import { syntheticCnpj, describeWithProbe, vehicleAnswerSql } from './localTestData'
 
 // Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
 // teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
@@ -159,7 +159,7 @@ describeLocal('126 — reimportação com impacto reemite individual e consolida
         VALUES (${customerId}, 'Fixture: gate aberto', '${actorId}', now() + interval '1 day');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier 126');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel 126', ${carrierId});
-      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'R126', 'active');
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'R126', 'active'); ${vehicleAnswerSql(voyageId)}
       INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
         VALUES (${chargeTableId}, 'Tabela 126', 'R126POD', CURRENT_DATE - 30, true, 'container');
       -- R$ 500 por container: um container a mais muda o valor faturado.

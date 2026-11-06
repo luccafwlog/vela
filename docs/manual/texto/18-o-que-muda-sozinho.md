@@ -41,7 +41,7 @@ O ETA, a chegada prevista, é a data que mais mexe no Vela, porque os prazos da 
 |---|---|---|
 | Muda o ETA | Reordena a **Próxima escala**, a lista de Viagens e o Line-Up. | Viagens; Line-Up |
 | | Leva a data nova à programação. | **Chegadas e Saídas**; Portal e site fwlog.com.br, se a Viagem está publicada e Ativa |
-| | Refaz os prazos da documentação. Sete dias antes do primeiro ETA no Brasil abrem **B/L esperado pendente** e **Baplie ausente**; cinco dias antes, **CE Mercante pendente** e, para {{Equipamentos}}, **Planilha de Veículos pendente**. O alerta de B/L sem Cliente conta do ETA de cada porto, cinco dias antes. | **Alertas** da {{Documentação}} |
+| | Refaz os prazos da documentação. Sete dias antes do primeiro ETA no Brasil abrem **B/L esperado pendente**, **Baplie ausente** e, para {{Equipamentos}}, **Declaração de veículos pendente**; cinco dias antes, **CE Mercante pendente** e, para {{Equipamentos}}, **Planilha de Veículos ausente**. O alerta de B/L sem Cliente conta do ETA de cada porto, cinco dias antes. | **Alertas** da {{Documentação}} |
 | | Move a janela do aviso de chegada (NOA), que sai aos Clientes a partir de cinco dias antes do ETA. | E-mail ao Cliente |
 | Deixa o ETA chegar sem o ATA | No próprio dia do ETA, abre **Data da escala pendente**. | **Alertas** |
 

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { describeWithProbe } from './localTestData'
+import { describeWithProbe, vehicleAnswerSql } from './localTestData'
 import { financeWorld } from './frenteFinanceira'
 
 // Lote 4 do plano docs/plans/2026-10-21-frente-das-importacoes.md (migration
@@ -115,7 +115,7 @@ describeLocal('394 — exclusão e efeitos de importação', () => {
   })
 
   it('excluir a Viagem descarta os efeitos dela e dos B/Ls, apaga os vazios de importação e o diálogo conta os vazios', () => {
-    w.psql(`INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${otherVoyage}, ${99_000_000 + 9394 * 100 + 4}, 'FF9394V', 'active');
+    w.psql(`INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${otherVoyage}, ${99_000_000 + 9394 * 100 + 4}, 'FF9394V', 'active'); ${vehicleAnswerSql(otherVoyage)}
       INSERT INTO public.bls (id, voyage_id, pod, cargo_mode, financial_status, charge_status, customer_reconciliation_status)
         VALUES ('${w.prefix}VBL', ${otherVoyage}, '${w.pod}', 'container', 'pending', 'not_calculated', 'missing_customer');
       WITH m AS (INSERT INTO public.vazios_importacao_manifests (description, voyage_id, total_containers)

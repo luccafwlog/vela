@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { describeWithProbe } from './localTestData'
+import { describeWithProbe, vehicleAnswerSql } from './localTestData'
 import { financeWorld } from './frenteFinanceira'
 
 // Lote 4 do plano da frente financeira (migration 376): número da fatura em
@@ -51,7 +51,7 @@ describeLocal('376 — Lote 4 da frente financeira', () => {
 
   it('F-45: a lista do Portal mostra a Viagem da emissão, não a de hoje', () => {
     const b = issued('F45')
-    w.psql(`INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${w.voyageId + 50}, ${w.voyageId - 1}, 'FF9313-NOVA', 'active') ON CONFLICT (id) DO NOTHING;
+    w.psql(`INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${w.voyageId + 50}, ${w.voyageId - 1}, 'FF9313-NOVA', 'active') ON CONFLICT (id) DO NOTHING; ${vehicleAnswerSql(w.voyageId + 50)}
       UPDATE public.bls SET voyage_id = ${w.voyageId + 50} WHERE id = '${b.id}'`)
     expect(w.psql(`SELECT array_to_string(voyages, ',') FROM public._portal_list_invoices_core(${w.customerId}) WHERE id = ${b.invoice}`)).toBe('FF9313')
   })

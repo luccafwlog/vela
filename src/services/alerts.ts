@@ -68,6 +68,7 @@ export type ActiveAlertType =
   | 'voyage_baplie_missing'
   | 'voyage_baplie_documentary_coverage'
   | 'voyage_ce_mercante_missing'
+  | 'voyage_vehicle_declaration_pending'
   | 'voyage_vehicle_sheet_pending'
   | 'voyage_schedule_date_pending'
   | 'voyage_terminal_date_pending'
@@ -136,7 +137,8 @@ export const TYPE_LABELS: Record<string, string> = {
   voyage_baplie_missing: 'Baplie ausente',
   voyage_baplie_documentary_coverage: 'Cobertura Baplie / B/L',
   voyage_ce_mercante_missing: 'CE Mercante pendente',
-  voyage_vehicle_sheet_pending: 'Planilha de Veículos pendente',
+  voyage_vehicle_declaration_pending: 'Declaração de veículos pendente',
+  voyage_vehicle_sheet_pending: 'Planilha de Veículos ausente',
   voyage_schedule_date_pending: 'Data da escala pendente',
   voyage_terminal_date_pending: 'Data de terminal pendente',
   voyage_escala_terminal_missing: 'Escala sem terminal',
@@ -546,9 +548,9 @@ function alertEntityLinkRaw(alert: {
     if (effectiveType.startsWith('voyage_baplie_')) {
       return `/baplie?voyage=${encodeURIComponent(alert.entity_id)}`
     }
-    // Planilha de Veículos pendente (migration 468): a tela Veículos da viagem tem
-    // as duas saídas, importar a planilha ou declarar a viagem sem veículos.
-    if (effectiveType === 'voyage_vehicle_sheet_pending') {
+    // Alertas de veículos (migrations 468 e 595): a tela Veículos da viagem tem
+    // as saídas, importar a planilha ou responder se a viagem terá veículos.
+    if (effectiveType === 'voyage_vehicle_sheet_pending' || effectiveType === 'voyage_vehicle_declaration_pending') {
       return /^\d+$/.test(alert.entity_id) ? `/veiculos?voyage=${alert.entity_id}` : '/veiculos'
     }
     if (/^\d+$/.test(alert.entity_id)) return `/viagens/${encodeURIComponent(alert.entity_id)}`
@@ -611,7 +613,7 @@ export function alertEntityLinkLabel(alert: {
   ) return 'Abrir Comunicados'
   if (CUSTOMER_CONTACT_ALERT_TYPES.has(effectiveType)) return 'Abrir Cliente'
   if (effectiveType.startsWith('voyage_baplie_')) return 'Abrir Baplie'
-  if (effectiveType === 'voyage_vehicle_sheet_pending') return 'Abrir Veículos'
+  if (effectiveType === 'voyage_vehicle_sheet_pending' || effectiveType === 'voyage_vehicle_declaration_pending') return 'Abrir Veículos'
   if (effectiveType === 'demurrage_travado') return 'Abrir Demurrage'
   if (effectiveType === 'demurrage_disputa_prazo') return 'Abrir Disputa'
   if (alert.entity_type === 'bl' && (effectiveType === 'billing_calculation_blocked' || effectiveType === 'billing_auto_issue_failed')) {

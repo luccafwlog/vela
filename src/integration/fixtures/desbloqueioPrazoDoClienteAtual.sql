@@ -29,6 +29,8 @@ INSERT INTO public.customer_portal_accounts (customer_id, active, auth_user_id, 
 INSERT INTO public.carriers (id, name) VALUES (99110003,'V11 Carrier');
 INSERT INTO public.vessels (id, name, carrier_id) VALUES (99110004,'V11 Vessel',99110003);
 INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (99110005,99110004,'V11','active');
+-- 595: a viagem respondeu "não terá veículos", para o CE de container entrar.
+INSERT INTO public.voyage_vehicle_declarations (voyage_id, declared_by) VALUES (99110005, '00000000-0000-4000-8000-000000000595') ON CONFLICT (voyage_id) DO NOTHING;
 INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode) VALUES (99110010,'V11 Tabela','V11POD',CURRENT_DATE-30,true,'container');
 INSERT INTO public.charge_table_items (id, charge_table_id, name, applies_to, value_brl, unit_value_brl, application_basis, category, cargo_profile, currency, applies_to_soc) VALUES
  (99110040,99110010,'V11 Taxa container','container',500,500,'container_distinct_voyage','base','any','BRL',true),

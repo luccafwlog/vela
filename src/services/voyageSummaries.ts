@@ -690,8 +690,9 @@ export const TIMELINE_VOYAGE_FIELD_LABELS: Record<string, string> = {
   show_on_portal: 'Aparece em Chegadas e Saídas',
   indicated_first_brazilian_port: '1º porto brasileiro indicado',
   indicated_first_brazilian_eta: 'ETA indicado do 1º porto',
-  // A Linha do Tempo trata `sem_veiculos` antes deste mapa; o rótulo serve à Auditoria (migration 468).
+  // A Linha do Tempo trata `sem_veiculos` e `com_veiculos` antes deste mapa; o rótulo serve à Auditoria (migrations 468 e 595).
   sem_veiculos: 'Viagem sem veículos',
+  com_veiculos: 'Viagem com veículos',
 }
 
 /**
@@ -1365,17 +1366,26 @@ function buildAuditTimeline(
       continue
     }
 
-    // Planilha de Veículos (migration 468): a declaração "sem veículos" e o desfazer,
-    // com o motivo digitado ou "Veículos importados na viagem", quando a planilha chega.
-    if (row.field_name === 'sem_veiculos') {
+    // Resposta de veículos (migrations 468 e 595): "sem" ou "com veículos" e o
+    // desfazer, com o motivo digitado ou "Veículos importados na viagem".
+    if (row.field_name === 'sem_veiculos' || row.field_name === 'com_veiculos') {
       const reason = String(row.justification ?? '').trim()
       const undone = value === 'desfeita'
+      const withVehicles = row.field_name === 'com_veiculos'
+      const answer = withVehicles ? 'com veículos' : 'sem veículos'
       events.push({
         id: `audit-vehicles-declaration-${index}`,
         kind: 'voyage-data',
         at,
-        title: undone ? 'Declaração "sem veículos" desfeita' : 'Viagem declarada sem veículos',
-        detail: appendActor(undone ? (reason ? `Motivo: ${reason}` : 'Declaração desfeita') : 'Planilha de Veículos dispensada', row),
+        title: undone ? `Declaração "${answer}" desfeita` : `Viagem declarada ${answer}`,
+        detail: appendActor(
+          undone
+            ? (reason ? `Motivo: ${reason}` : 'Declaração desfeita')
+            : withVehicles
+              ? (reason ? `CE Mercante de container travado até a planilha de Veículos · Motivo: ${reason}` : 'CE Mercante de container travado até a planilha de Veículos')
+              : (reason ? `Planilha de Veículos dispensada · Motivo: ${reason}` : 'Planilha de Veículos dispensada'),
+          row,
+        ),
       })
       continue
     }

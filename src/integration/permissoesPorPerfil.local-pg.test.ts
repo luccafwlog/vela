@@ -1,6 +1,6 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { describeWithProbe, syntheticCnpj } from './localTestData'
+import { describeWithProbe, syntheticCnpj, vehicleAnswerSql } from './localTestData'
 import { ALERT_TYPE_COUNTS, PERMISSION_MATRIX, allowedWithoutDevMark, isSharedByAll } from '../services/permissionMatrix'
 
 // Bateria por perfil do modelo de permissões (ADR 0085; matriz em
@@ -149,7 +149,7 @@ function seed() {
     SET session_replication_role = replica;
     INSERT INTO public.carriers (id, name) VALUES (${CARRIER_ID}, 'Armador P85');
     INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL_ID}, 'Navio P85', ${CARRIER_ID});
-    INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${VOYAGE_ID}, ${VESSEL_ID}, 'P85V', 'active');
+    INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${VOYAGE_ID}, ${VESSEL_ID}, 'P85V', 'active'); ${vehicleAnswerSql(VOYAGE_ID)}
     INSERT INTO public.baplie_containers (voyage_id, container_number) VALUES (${VOYAGE_ID}, 'PCCU8500001');
     INSERT INTO public.voyage_export_schedules (voyage_id, pol) VALUES (${VOYAGE_ID}, '${POD}'), (${VOYAGE_ID}, 'P85XX');
     INSERT INTO public.customers (id, name, cnpj_cpf) VALUES (${CUSTOMER_ID}, 'CLIENTE P85 LTDA', '${syntheticCnpj(85021)}');

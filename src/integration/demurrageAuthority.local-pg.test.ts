@@ -1,4 +1,5 @@
 import { execPsql } from './localPsql'
+import { vehicleAnswerSql } from './localTestData'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
@@ -61,7 +62,7 @@ describeLocal('S08-B — cálculo server-side e snapshots de Demurrage', () => {
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier S08 Authority');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel S08 Authority', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status)
-      VALUES (${voyageId}, ${vesselId}, 'S08-AUTH', 'active');
+      VALUES (${voyageId}, ${vesselId}, 'S08-AUTH', 'active'); ${vehicleAnswerSql(voyageId)}
       -- 469: a Demurrage só sai com CE Mercante e o gate do Portal aberto.
       SET vela.ce_mercante_port = 'on';
       INSERT INTO public.bls (

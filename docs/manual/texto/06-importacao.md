@@ -142,6 +142,8 @@ O CE Mercante é o número de 15 algarismos do conhecimento eletrônico de cada 
 
 Cada planilha corresponde a um Manifesto Mercante, que é de uma rota (porto de embarque → porto de descarga). Os B/Ls precisam estar importados antes: o CE nunca cria B/L.
 
+O CE de B/L de container também espera a resposta de {{Equipamentos}} sobre veículos ([10.1](10-veiculos-vazios-granito.md#101-importar-os-veículos)). Enquanto a Viagem não foi declarada sem veículos nem tem veículo importado, a prévia recusa a planilha com **CE Mercante travado na viagem…** e diz o que falta. A carga solta não espera.
+
 No lugar da planilha, você pode usar o **arquivo de Retorno Mercante** (o `.TXT` que o Mercante devolve depois do manifesto, por exemplo `RETFWL0023006.TXT`). Ele já traz o Nº do Manifesto e o CE de cada B/L: escolha o arquivo: o campo do número some e um aviso mostra o manifesto lido, sem precisar digitar. O resto é igual ao da planilha. O retorno do manifesto de vazios não tem CE e é recusado.
 
 ::: lado

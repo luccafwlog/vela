@@ -33,7 +33,7 @@ import { usePageFilters } from '../hooks/usePageFilters'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
 import { STALE_PAGE_CLASS } from '../lib/pagination'
 import { UNPACKING_LOCATION_NONE, cacheUnpackingLocation, useVehicleOptions, useVehicles, useVoyageVehicleDeclaration, useVoyageVehicleStats, type VehiclePageFilters } from '../hooks/useVehicles'
-import { declareVoyageWithoutVehicles, deleteVehicles, undoVoyageVehicleDeclaration, vehicleChargeImpactChanges } from '../services/vehicles'
+import { declareVoyageVehicles, deleteVehicles, undoVoyageVehicleDeclaration, vehicleChargeImpactChanges } from '../services/vehicles'
 import { MoveVehiclesModal } from '../components/vehicles/MoveVehiclesModal'
 import { formatDeleteOutcome } from '../services/deleteDependencies'
 import { userFacingErrorMessage } from '../lib/errors'
@@ -122,7 +122,8 @@ export function Veiculos() {
   const debouncedSeal = useDebouncedValue(filters.seal)
   const queryFilters = useMemo(() => ({ ...filters, search: debouncedSearch, seal: debouncedSeal }), [filters, debouncedSearch, debouncedSeal])
   const { data, isLoading, isPlaceholderData, error } = useVehicles(voyageId, queryFilters)
-  // "Esta viagem não terá veículos" (migration 468): fecha o alerta Planilha de Veículos pendente.
+  // Resposta de Equipamentos sobre veículos (migrations 468 e 595): sem ela, ou
+  // com "terá veículos" e nenhum veículo, o CE Mercante de container fica travado.
   const declarationQuery = useVoyageVehicleDeclaration(voyageId)
   const declaration = declarationQuery.data ?? null
   const [declaring, setDeclaring] = useState(false)
@@ -273,25 +274,45 @@ export function Veiculos() {
   const selectedVoyage = voyageRows.find((voyage) => voyage.id === voyageId)
   const selectedVoyageLabel = voyageLabel(selectedVoyage?.vessel?.name, selectedVoyage?.voyage_number, voyageId)
   // Viagem cancelada não recebe a declaração (o banco recusa): o botão não aparece.
-  const canDeclareWithoutVehicles = declarationQuery.isSuccess && selectedVoyage?.status !== 'cancelled'
+  const canDeclare = declarationQuery.isSuccess && selectedVoyage?.status !== 'cancelled'
 
-  async function declareWithoutVehicles() {
+  async function declareVehicles(hasVehicles: boolean) {
     if (!voyageId) return
-    const proceed = await confirm({
-      title: 'Viagem sem veículos',
-      message: `Declarar que a viagem ${selectedVoyageLabel} não terá veículos?`,
-      consequence: 'O alerta Planilha de Veículos pendente fecha para esta viagem, e a declaração fica na Linha do Tempo da Viagem com o seu nome.',
-      reversibility: 'Dá para desfazer aqui, com motivo. Se a planilha chegar depois, importar os veículos desfaz a declaração sozinho.',
-      confirmLabel: 'Declarar sem veículos',
-    })
-    if (!proceed) return
+    const answer = hasVehicles ? 'terá veículos' : 'não terá veículos'
+    const consequence = hasVehicles
+      ? 'O alerta Declaração de veículos pendente fecha. O CE Mercante dos B/Ls de container desta viagem fica travado até a planilha de Veículos ser importada; sem ela em D-5, abre o alerta Planilha de Veículos ausente.'
+      : 'Os alertas de veículos fecham para esta viagem e o CE Mercante dos B/Ls de container fica liberado para a Documentação.'
+    // Trocar uma resposta já dada pede motivo (o banco também recusa sem ele).
+    let reason: string | undefined
+    if (declaration) {
+      const typed = await confirmWithReason({
+        title: 'Trocar resposta',
+        message: `Trocar a resposta da viagem ${selectedVoyageLabel} para "${answer}"?`,
+        consequence,
+        reversibility: 'A troca fica na Linha do Tempo da Viagem com o motivo; dá para trocar de novo.',
+        confirmLabel: 'Trocar resposta',
+      })
+      if (typed === null) return
+      reason = typed
+    } else {
+      const proceed = await confirm({
+        title: hasVehicles ? 'Viagem com veículos' : 'Viagem sem veículos',
+        message: `Declarar que a viagem ${selectedVoyageLabel} ${answer}?`,
+        consequence,
+        reversibility: hasVehicles
+          ? 'Dá para trocar a resposta ou desfazê-la aqui, com motivo.'
+          : 'Dá para trocar a resposta ou desfazê-la aqui, com motivo. Se a planilha chegar depois, importar os veículos desfaz a declaração sozinho.',
+        confirmLabel: hasVehicles ? 'Declarar com veículos' : 'Declarar sem veículos',
+      })
+      if (!proceed) return
+    }
     setDeclaring(true)
     try {
-      await declareVoyageWithoutVehicles(voyageId)
+      await declareVoyageVehicles(voyageId, hasVehicles, reason)
       await afterDeclaracaoVeiculosAlterada(queryClient, { voyageId })
-      showToast('Viagem declarada sem veículos.', 'success')
+      showToast(hasVehicles ? 'Viagem declarada com veículos.' : 'Viagem declarada sem veículos.', 'success')
     } catch (err) {
-      showToast(`Falha ao declarar a viagem sem veículos: ${userFacingErrorMessage(err, 'tente novamente.')}`, 'error')
+      showToast(`Falha ao declarar a viagem ${hasVehicles ? 'com' : 'sem'} veículos: ${userFacingErrorMessage(err, 'tente novamente.')}`, 'error')
     } finally {
       setDeclaring(false)
     }
@@ -301,9 +322,9 @@ export function Veiculos() {
     if (!voyageId) return
     const reason = await confirmWithReason({
       title: 'Desfazer declaração',
-      message: `Desfazer a declaração de que a viagem ${selectedVoyageLabel} não terá veículos?`,
-      consequence: 'A viagem volta a esperar a planilha de Veículos; dentro do prazo de 5 dias antes do ETA, o alerta Planilha de Veículos pendente reabre para Equipamentos.',
-      reversibility: 'Dá para declarar de novo enquanto a viagem não tiver veículos.',
+      message: `Desfazer a declaração de que a viagem ${selectedVoyageLabel} ${declaration?.hasVehicles ? 'terá' : 'não terá'} veículos?`,
+      consequence: 'A viagem volta a esperar a resposta de Equipamentos: o CE Mercante dos B/Ls de container fica travado, e a partir de 7 dias antes do ETA o alerta de veículos reabre.',
+      reversibility: 'Dá para responder de novo aqui.',
       confirmLabel: 'Desfazer declaração',
     })
     if (reason === null) return
@@ -517,11 +538,18 @@ export function Veiculos() {
               ) : (
                 declaration ? (
                   <EmptyState
-                    title="Viagem sem veículos"
-                    description={`Declarado por ${declaration.declaredByName ?? 'usuário sem nome'} em ${formatDateTime(declaration.declaredAt)}. Se a planilha chegar, importe os veículos: a declaração é desfeita sozinha.`}
+                    title={declaration.hasVehicles ? 'Viagem com veículos a importar' : 'Viagem sem veículos'}
+                    description={declaration.hasVehicles
+                      ? `Declarado por ${declaration.declaredByName ?? 'usuário sem nome'} em ${formatDateTime(declaration.declaredAt)} que a viagem terá veículos. O CE Mercante dos B/Ls de container fica travado até a planilha de Veículos ser importada.`
+                      : `Declarado por ${declaration.declaredByName ?? 'usuário sem nome'} em ${formatDateTime(declaration.declaredAt)}. Se a planilha chegar, importe os veículos: a declaração é desfeita sozinha.`}
                     action={canEditVehicles ? (
                       <span className="inline-flex flex-wrap justify-center gap-2">
                         <Button variant="secondary" onClick={() => setImportOpen(true)}>Importar veículos</Button>
+                        {canDeclare ? (
+                          <Button variant="ghost" loading={declaring} onClick={() => void declareVehicles(!declaration.hasVehicles)}>
+                            {declaration.hasVehicles ? 'Trocar para sem veículos' : 'Trocar para com veículos'}
+                          </Button>
+                        ) : null}
                         <Button variant="ghost" loading={declaring} onClick={() => void undoDeclaration()}>Desfazer declaração</Button>
                       </span>
                     ) : undefined}
@@ -529,13 +557,16 @@ export function Veiculos() {
                 ) : (
                   <EmptyState
                     title="Nenhum veículo nesta viagem"
-                    description="Os veículos entram pela planilha do armador, ligados ao B/L e ao container da viagem. Se a viagem não trouxer veículos, declare: o alerta Planilha de Veículos pendente fecha."
+                    description="Os veículos entram pela planilha do armador, ligados ao B/L e ao container da viagem. Responda se a viagem terá veículos: sem a resposta, o CE Mercante dos B/Ls de container fica travado para a Documentação."
                     action={canEditVehicles ? (
                       <span className="inline-flex flex-wrap justify-center gap-2">
                         <Button variant="secondary" onClick={() => setImportOpen(true)}>Importar veículos</Button>
                         {/* Só depois de saber se já há declaração: a leitura que falha não oferece declarar de novo às cegas. */}
-                        {canDeclareWithoutVehicles ? (
-                          <Button variant="secondary" loading={declaring} onClick={() => void declareWithoutVehicles()}>Esta viagem não terá veículos</Button>
+                        {canDeclare ? (
+                          <>
+                            <Button variant="secondary" loading={declaring} onClick={() => void declareVehicles(true)}>Esta viagem terá veículos</Button>
+                            <Button variant="secondary" loading={declaring} onClick={() => void declareVehicles(false)}>Esta viagem não terá veículos</Button>
+                          </>
                         ) : null}
                       </span>
                     ) : undefined}

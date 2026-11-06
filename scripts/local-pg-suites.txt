@@ -240,3 +240,4 @@ src/integration/manifestoPorNatureza.local-pg.test.ts
 src/integration/veiculoLclDemurrage.local-pg.test.ts
 src/integration/sinoAvisosDeAcontecimento.local-pg.test.ts
 src/integration/enderecoReceitaRevisao.local-pg.test.ts
+src/integration/travaCeMercanteVeiculos.local-pg.test.ts
