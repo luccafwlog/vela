@@ -50,3 +50,20 @@ export function describeWithProbe(probe: () => boolean, requirement: string): ty
   })
   return failing as unknown as typeof describe
 }
+
+/**
+ * Migration 597: B/L de container (ou misto) só recebe o primeiro CE Mercante
+ * na viagem ativa em que Equipamentos respondeu "não terá veículos" ou que já
+ * tem veículo importado. A fixture que vincula CE sem medir essa trava
+ * responde "não terá veículos" pelas viagens dela; quem mede a trava fica em
+ * `travaCeMercanteVeiculos.local-pg.test.ts`. Devolve o SQL para o `psql` da
+ * suíte; viagem já respondida fica como está.
+ */
+export function vehicleAnswerSql(...voyageIds: number[]): string {
+  if (voyageIds.length === 0) return ''
+  const values = voyageIds.map((id) => {
+    if (!Number.isInteger(id)) throw new Error(`Viagem inválida para a resposta de veículos: ${id}`)
+    return `(${id}, '00000000-0000-4000-8000-000000000595'::uuid)`
+  }).join(', ')
+  return `INSERT INTO public.voyage_vehicle_declarations (voyage_id, declared_by) VALUES ${values} ON CONFLICT (voyage_id) DO NOTHING;`
+}

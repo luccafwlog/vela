@@ -203,6 +203,15 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   THD por tonelada da tabela de carga solta de Vitória cobra no mínimo R$ 380,00
   por B/L; a fatura emitida antes se refaz cancelando, recalculando e emitindo
   (TAX-107; capítulo 21, seção 21.2, e capítulo 22, seção 22.9).
+- **CE Mercante travado até Equipamentos responder sobre veículos** (decisão do
+  dono de 2026-11-06, [ADR 0128](../adr/0128-ce-mercante-travado-ate-resposta-de-veiculos.md),
+  migration `597`): **Esta viagem terá veículos** ao lado de **Esta viagem não
+  terá veículos**, troca e desfazer com motivo; o alerta **Declaração de
+  veículos pendente** em D-7 e o crítico **Planilha de Veículos ausente** (antes
+  "pendente") em D-5; o primeiro CE de B/L de container espera a resposta ou o
+  primeiro veículo; só Equipamentos e o Administrativo respondem (migration `598`; ACE-134, EQU-128, EQU-129, EQU-134, CEB-102; capítulos 6, 10, 18, 19
+  e 20, seções 6.5, 10.1 e 20.5; guia rápido, etapas 7, 11, 18 e 19; contagens de
+  ACE-119).
 - **Solicitar acesso no login do Portal** (decisão do dono de 2026-11-05): o
   botão abre o formulário da página do Portal no fwlog.com.br, em outra aba
   (POR-001; capítulo 15, seção 15.2).

@@ -15,7 +15,8 @@ describe('aplicação da identidade Vela', () => {
       'public/branding/vela-icon-16.svg',
       'public/branding/vela-icon-16.png',
       'public/branding/vela-icon-32.png',
-      'public/branding/vela-icon-180.png',
+      'public/branding/vela-apple-touch-icon.svg',
+      'public/branding/vela-apple-touch-icon.png',
       'public/branding/vela-icon-192.png',
       'public/branding/vela-icon-512.png',
       'public/branding/fwlog-logo.png',
@@ -24,6 +25,19 @@ describe('aplicação da identidade Vela', () => {
     ]) {
       expect(existsSync(path.join(repositoryRoot, relativePath)), relativePath).toBe(true)
     }
+  })
+
+  it('entrega ao iPhone um ícone de tela de início quadrado e opaco', () => {
+    // O iOS aplica a própria máscara arredondada; canto transparente no PNG
+    // contraria a especificação da Apple e pode levar o atalho a cair na letra.
+    expect(read('index.html')).toContain(
+      '<link rel="apple-touch-icon" sizes="180x180" href="/branding/vela-apple-touch-icon.png" />',
+    )
+    const png = readFileSync(path.join(repositoryRoot, 'public/branding/vela-apple-touch-icon.png'))
+    expect(png.readUInt32BE(16), 'largura').toBe(180)
+    expect(png.readUInt32BE(20), 'altura').toBe(180)
+    // Byte 25 do IHDR: tipo de cor 2 = RGB sem canal alfa.
+    expect(png[25], 'tipo de cor do PNG').toBe(2)
   })
 
   it('reponta apenas a superfície interna para os assets Vela', () => {

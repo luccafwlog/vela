@@ -163,7 +163,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
   `MATRIX_GLOBAL`.
 - **Matriz da tela:** "O que cada setor pode", em `/admin/usuarios`, e a lista
   "Com este setor, ... pode" das janelas de usuário vêm do catálogo único
-  `src/services/permissionMatrix.ts` (lote 5b da identidade visual): 46 linhas
+  `src/services/permissionMatrix.ts` (lote 5b da identidade visual): 47 linhas
   que resumem as ações desta matriz, cada uma citando os casos da bateria que a
   provam. `permissionMatrix.test.ts` falha se uma linha ficar sem caso ou citar
   caso inexistente; a bateria falha se o banco divergir do catálogo. Mudar uma
@@ -209,6 +209,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Chamar pela API as RPCs de importação e vínculo de Cliente antigas e as funções internas de cálculo | — | — | — | — | — | Só o servidor: a `366` revogou `import_bl_freight_transactional`, `import_bl_freight_with_metadata`, `apply_customer_base_row_atomic`, `apply_container_dates_atomic`, `approve_customer_reconciliation` e as de emissão por B/L; a `384` fechou `charge_table_in_use` e `bl_calculation_is_current` | ADR 0093; ADR 0094, B2 | vigente (**Teste** local: `faturamentoFechadoNaApi.local-pg.test.ts`; `scripts/security/verificar_guardas.py`) |
 | Reprocessar efeito de importação, com justificativa | ✔ | ✔ | ✔ | ✔ | ✔ | `retry_import_effect` | ADR 0085, D10 | migration `252` |
 | Excluir ou mover veículo, com motivo | ✔ | ✔ | ✔ | ✔ | ✔ | `delete_vehicles_with_reason` (migration `184`), `move_vehicles_to_bl` (migration `202`) | ADR 0078, item 23 | vigente |
+| Responder se a viagem terá veículos, trocar e desfazer a resposta (com motivo) | ✔ | — | — | — | ✔ | `declare_voyage_with_vehicles`, `declare_voyage_without_vehicles` e `undo_voyage_vehicle_declaration` (`_portal_actor_role()` em `equipamentos` ou `administrativo`, migration `598`); a resposta solta ou mantém a trava do CE Mercante de container | ADR 0128, item 9 | vigente desde a migration `598` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14, e `travaCeMercanteVeiculos.local-pg.test.ts`) |
 | Excluir unidade manual e linha de serviço de vazios antes do ADR de Saída fechado | ✔ | ✔ | ✔ | ✔ | ✔ | RPCs de Vazios e `delete_catalog_row` | ADR 0071, item 4 | migration `262` (B14): o banco recusa com o ADR de Saída fechado; Excluir unidade pede motivo |
 | Remover o CE Mercante do B/L sem fatura viva, com motivo | ✔ | ✔ | ✔ | ✔ | ✔ | `remove_bl_ce_mercante` | ADR 0078, item 5 | vigente |
 | Criar e editar navio, armador, porto, Local e serviço | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_user()` | ADR 0046 | vigente |
@@ -490,6 +491,12 @@ sem decompor no navegador o fator comercial da cotação.
   `portal-email-webhook` recusa sem `svix-id`, `svix-timestamp` ou
   `svix-signature` antes de ler e lê até 256 KiB. A leitora multipart
   (`boundedMultipart.ts`) usa a mesma contagem.
+- **`cnpj-lookup`** ([ADR 0127](../adr/0127-consulta-de-cnpj-na-brasilapi.md))
+  — `verify_jwt = false`; exige sessão interna com perfil ativo
+  (`portal_current_role`) antes de ler o corpo (até 16 KiB) e de chamar a
+  BrasilAPI; conta do Portal e sessão anônima recebem 403. Devolve por lista
+  positiva só os dados do cadastro (sem sócios, telefone ou e-mail da Receita)
+  e não registra o CNPJ no log.
 - **`public-ship-schedule` e `public-container-lookup`** ([ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md))
   — `verify_jwt = false`, sem sessão e sem chave do Supabase no navegador.
   Na ordem: origem em `PUBLIC_FWLOG_ALLOWED_ORIGINS` (CORS próprio, sem a

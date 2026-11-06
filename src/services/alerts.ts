@@ -68,6 +68,7 @@ export type ActiveAlertType =
   | 'voyage_baplie_missing'
   | 'voyage_baplie_documentary_coverage'
   | 'voyage_ce_mercante_missing'
+  | 'voyage_vehicle_declaration_pending'
   | 'voyage_vehicle_sheet_pending'
   | 'voyage_schedule_date_pending'
   | 'voyage_terminal_date_pending'
@@ -136,7 +137,8 @@ export const TYPE_LABELS: Record<string, string> = {
   voyage_baplie_missing: 'Baplie ausente',
   voyage_baplie_documentary_coverage: 'Cobertura Baplie / B/L',
   voyage_ce_mercante_missing: 'CE Mercante pendente',
-  voyage_vehicle_sheet_pending: 'Planilha de Veículos pendente',
+  voyage_vehicle_declaration_pending: 'Declaração de veículos pendente',
+  voyage_vehicle_sheet_pending: 'Planilha de Veículos ausente',
   voyage_schedule_date_pending: 'Data da escala pendente',
   voyage_terminal_date_pending: 'Data de terminal pendente',
   voyage_escala_terminal_missing: 'Escala sem terminal',
@@ -167,6 +169,8 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   user_profile: 'Usuário interno',
   cron_http: 'Rotinas agendadas',
   portal_email_event: 'E-mail',
+  // Aviso de acontecimento da nova solicitação de Desbloqueio de CE (595).
+  ce_unlock_request: 'Solicitação',
 }
 
 export type AlertAudience = 'documentacao' | 'equipamentos' | 'operacoes' | 'financeiro' | 'administrativo'
@@ -544,9 +548,9 @@ function alertEntityLinkRaw(alert: {
     if (effectiveType.startsWith('voyage_baplie_')) {
       return `/baplie?voyage=${encodeURIComponent(alert.entity_id)}`
     }
-    // Planilha de Veículos pendente (migration 468): a tela Veículos da viagem tem
-    // as duas saídas, importar a planilha ou declarar a viagem sem veículos.
-    if (effectiveType === 'voyage_vehicle_sheet_pending') {
+    // Alertas de veículos (migrations 468 e 597): a tela Veículos da viagem tem
+    // as saídas, importar a planilha ou responder se a viagem terá veículos.
+    if (effectiveType === 'voyage_vehicle_sheet_pending' || effectiveType === 'voyage_vehicle_declaration_pending') {
       return /^\d+$/.test(alert.entity_id) ? `/veiculos?voyage=${alert.entity_id}` : '/veiculos'
     }
     if (/^\d+$/.test(alert.entity_id)) return `/viagens/${encodeURIComponent(alert.entity_id)}`
@@ -609,7 +613,7 @@ export function alertEntityLinkLabel(alert: {
   ) return 'Abrir Comunicados'
   if (CUSTOMER_CONTACT_ALERT_TYPES.has(effectiveType)) return 'Abrir Cliente'
   if (effectiveType.startsWith('voyage_baplie_')) return 'Abrir Baplie'
-  if (effectiveType === 'voyage_vehicle_sheet_pending') return 'Abrir Veículos'
+  if (effectiveType === 'voyage_vehicle_sheet_pending' || effectiveType === 'voyage_vehicle_declaration_pending') return 'Abrir Veículos'
   if (effectiveType === 'demurrage_travado') return 'Abrir Demurrage'
   if (effectiveType === 'demurrage_disputa_prazo') return 'Abrir Disputa'
   if (alert.entity_type === 'bl' && (effectiveType === 'billing_calculation_blocked' || effectiveType === 'billing_auto_issue_failed')) {
@@ -1020,6 +1024,13 @@ function emailEventLabelFromMetadata(metadata: Record<string, unknown> | null | 
   return typeof recipient === 'string' && recipient.trim().length > 0 ? recipient.trim() : null
 }
 
+// O aviso da solicitação de Desbloqueio de CE (595) grava o protocolo no
+// payload: o id da solicitação é um UUID que não diz nada à equipe.
+function ceUnlockProtocolFromMetadata(metadata: Record<string, unknown> | null | undefined): string | null {
+  const protocol = metadata?.protocol
+  return typeof protocol === 'string' && protocol.trim().length > 0 ? protocol.trim() : null
+}
+
 /**
  * Busca em lote os rótulos humanos das entidades citadas na página de alertas.
  * ponytail: uma consulta por tabela envolvida, no máximo uma página de 100
@@ -1034,6 +1045,7 @@ export async function fetchAlertEntityLabels(rows: AlertEntityRef[]): Promise<Al
     if (!row.entity_id) continue
     const label = row.entity_type === 'pix_transaction' ? pixLabelFromMetadata(row.metadata)
       : row.entity_type === 'portal_email_event' ? emailEventLabelFromMetadata(row.metadata)
+      : row.entity_type === 'ce_unlock_request' ? ceUnlockProtocolFromMetadata(row.metadata)
       : null
     if (label) labels[`${row.entity_type}:${row.entity_id}`] = label
   }
@@ -1128,8 +1140,8 @@ export async function getAlertDepartmentSummary(): Promise<AlertDepartmentSummar
 
 export type InternalNotification = {
   id: number
-  alert_id?: number
-  alert_item_id?: number
+  alert_id?: number | null
+  alert_item_id?: number | null
   item_id?: number
   type?: string
   item_type?: string | null

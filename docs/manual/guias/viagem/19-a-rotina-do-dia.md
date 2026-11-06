@@ -8,7 +8,7 @@ No **Painel**, abra o cartão da sua equipe: cada alerta tem **Resolver**, que l
 |---|---|
 | {{Operações}} | **Line-Up**: o ATA, o ATB e o ATD do dia. Alertas **Data da escala pendente**, **Data de terminal pendente** e **Exportação pendente pós-ATD**. |
 | {{Documentação}} | **Chegadas e Saídas**: a programação nova do armador. **Revisão** sem grupo **Sem cliente vinculado**. **Desbloqueio de CE**: **Solicitações** e **Aptos, não exportados**. **Clientes** › **Portal**: **Ativação pendente** há dias. **Cobertura de viagens** sem âmbar. |
-| {{Equipamentos}} | **Demurrage**: o cartão **Correndo (US$)** e **Disputas aguardando resposta**, com 1 dia útil para responder. Alerta **Planilha de Veículos pendente**, 5 dias antes da chegada. |
+| {{Equipamentos}} | **Demurrage**: o cartão **Correndo (US$)** e **Disputas aguardando resposta**, com 1 dia útil para responder. Alertas **Declaração de veículos pendente**, 7 dias antes da chegada, e **Planilha de Veículos ausente**, 5 dias antes. |
 
 Às 8h, a Documentação recebe o **Resumo do Portal** por e-mail, com os convites que esperam ativação.
 

@@ -5,6 +5,8 @@ export const queryKeys = {
     request: (scope: unknown, id: string | null) => ['ce-unlock', 'request', scope, id] as const,
     blHistory: (blId: string | null) => ['ce-unlock', 'bl-history', blId] as const,
     vip: (scope: unknown) => ['ce-unlock', 'vip', scope] as const,
+    /** Número do item Desbloqueio de CE no menu: solicitações à espera da análise. */
+    reviewQueueCount: () => ['ce-unlock', 'review-queue-count'] as const,
   },
   portalInformation: {
     all: () => ['portal-information'] as const,
@@ -150,7 +152,11 @@ export const queryKeys = {
     detail: (cnpj?: string) =>
       (cnpj === undefined ? (['customer-detail'] as const) : (['customer-detail', cnpj] as const)),
     summary: () => ['customers-summary'] as const,
+    /** Cliente já cadastrado com o CNPJ (aviso do Novo cliente); cai junto com `customers.all()`. */
+    byCnpj: (cnpj: string) => ['customers', 'by-cnpj', cnpj] as const,
   },
+  /** Dados públicos da Receita pela BrasilAPI (ADR 0127); não dependem de nada gravado no Vela. */
+  cnpjLookup: (cnpj: string) => ['cnpj-lookup', cnpj] as const,
   customerFicha: {
     demurrageInvoices: (customerId: number) => ['customer-ficha', 'demurrage-invoices', customerId] as const,
     receivables: (customerId: number) => ['customer-ficha', 'receivables', customerId] as const,

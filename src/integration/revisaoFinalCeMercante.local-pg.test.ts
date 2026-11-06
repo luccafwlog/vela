@@ -8,7 +8,7 @@
 // manifestos 'R212*' (13 caracteres), CEs '992127…'.
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { syntheticCnpj } from './localTestData'
+import { syntheticCnpj, vehicleAnswerSql } from './localTestData'
 
 const enabled = process.env.LOCAL_PG_INTEGRATION === '1'
 const describeLocal = enabled ? describe : describe.skip
@@ -165,7 +165,7 @@ describeLocal('Revisão final da PR 929 — CE Mercante e Manifesto (migration 2
       VALUES (${customer.id}, 'Fixture R212', '${actorId}', now() + interval '1 day');
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'R212 Carrier');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'R212 NAVIO', ${carrierId});
-      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'R212A', 'active');
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'R212A', 'active'); ${vehicleAnswerSql(voyageId)}
     `)
     insertChargeTable(chargeTable, fee)
   })

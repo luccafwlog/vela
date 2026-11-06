@@ -1,6 +1,6 @@
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
-import { syntheticCnpj, describeWithProbe } from './localTestData'
+import { syntheticCnpj, describeWithProbe, vehicleAnswerSql } from './localTestData'
 
 // Migration 128 (ADR 0077, decisões de 2026-10-02): toda correção do B/L —
 // alteração direta, reimportação ou Baplie — é tratada no fim da transação.
@@ -173,7 +173,7 @@ describeLocal('128 — correção do B/L sempre automática', () => {
           VALUES (${id}, 'Fixture: gate aberto', '${actorId}', now() + interval '1 day');`).join('\n')}
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier 128');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel 128', ${carrierId});
-      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'R128', 'active');
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'R128', 'active'); ${vehicleAnswerSql(voyageId)}
       INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
         VALUES (${chargeTableId}, 'Tabela 128', 'R128POD', CURRENT_DATE - 30, true, 'container');
       -- COC: R$ 600 por container (500 + Drop Off 100). SOC: R$ 500.

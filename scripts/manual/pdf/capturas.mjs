@@ -472,6 +472,40 @@ export const CAPTURAS = [
     },
   },
   {
+    // Guia rápido (etapa 7): Veículos com a Viagem escolhida, antes da
+    // planilha. Fica antes do CE (ce-previa): depois da foto, responde "não
+    // terá veículos", porque o cenário não tem veículo e, sem a resposta, o CE
+    // dos B/Ls de container é recusado (migration 597).
+    id: 'veiculos-viagem',
+    capitulo: 10,
+    async fazer({ page, base, cenario }) {
+      await abrir(page, base, '/veiculos')
+      const viagem = page.getByRole('button', { name: new RegExp(`${cenario.novaViagem.navio} / ${cenario.novaViagem.numero}`) }).first()
+      await viagem.click()
+      await page.waitForLoadState('networkidle')
+      const vazio = page.getByText(/^(Nenhum veículo nesta viagem|Viagem sem veículos)$/).first()
+      await vazio.waitFor()
+      await page.waitForTimeout(600)
+      const semVeiculos = page.getByRole('button', { name: 'Esta viagem não terá veículos' })
+      const comVeiculos = page.getByRole('button', { name: 'Esta viagem terá veículos' })
+      const importar = page.getByRole('button', { name: 'Importar veículos' }).first()
+      const clip = await recorteDe(page, [page.getByRole('heading', { name: 'Veículos', level: 1 }), importar, viagem, vazio, comVeiculos, semVeiculos], 16)
+      return {
+        clip,
+        marks: [
+          await marca(1, viagem, clip, { posicao: 'direita' }),
+          await marca(2, importar, clip, { destaque: true }),
+          await marca(3, semVeiculos, clip, { posicao: 'direita' }),
+        ],
+        async depois() {
+          await semVeiculos.click()
+          await page.getByRole('dialog').getByRole('button', { name: 'Declarar sem veículos' }).click()
+          await page.getByText('Viagem sem veículos', { exact: true }).waitFor()
+        },
+      }
+    },
+  },
+  {
     id: 'ce-previa',
     capitulo: 6,
     async fazer({ page, base, cenario, arquivos }) {
@@ -1358,32 +1392,6 @@ export const CAPTURAS = [
           await marca(1, acoes.getByRole('button', { name: 'Novo embarque de vazios' }), clip, { destaque: true }),
           // À esquerda: à direita, a marca cobriria a do botão vizinho (passo 1).
           await marca(4, acoes.getByRole('button', { name: 'Manifesto Granito' }), clip, { posicao: 'esquerda' }),
-        ],
-      }
-    },
-  },
-  {
-    // Guia rápido da Documentação: Veículos com a Viagem escolhida, antes da
-    // planilha. Só olha: nada é importado nem declarado.
-    id: 'veiculos-viagem',
-    capitulo: 10,
-    async fazer({ page, base, cenario }) {
-      await abrir(page, base, '/veiculos')
-      const viagem = page.getByRole('button', { name: new RegExp(`${cenario.novaViagem.navio} / ${cenario.novaViagem.numero}`) }).first()
-      await viagem.click()
-      await page.waitForLoadState('networkidle')
-      const vazio = page.getByText(/^(Nenhum veículo nesta viagem|Viagem sem veículos)$/).first()
-      await vazio.waitFor()
-      await page.waitForTimeout(600)
-      const semVeiculos = page.getByRole('button', { name: 'Esta viagem não terá veículos' })
-      const importar = page.getByRole('button', { name: 'Importar veículos' }).first()
-      const clip = await recorteDe(page, [page.getByRole('heading', { name: 'Veículos', level: 1 }), importar, viagem, vazio, semVeiculos], 16)
-      return {
-        clip,
-        marks: [
-          await marca(1, viagem, clip, { posicao: 'direita' }),
-          await marca(2, importar, clip, { destaque: true }),
-          await marca(3, semVeiculos, clip, { posicao: 'direita' }),
         ],
       }
     },

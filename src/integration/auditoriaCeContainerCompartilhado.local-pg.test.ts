@@ -40,7 +40,7 @@
 import { randomUUID } from 'node:crypto'
 import { execPsql } from './localPsql'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { syntheticCeBeforeCancelSql, syntheticCnpj } from './localTestData'
+import { syntheticCeBeforeCancelSql, syntheticCnpj, vehicleAnswerSql } from './localTestData'
 
 // Migration 366: estas RPCs antigas saíram da API (só `service_role`); o
 // teste as chama como o servidor, com os claims do usuário (RESET ROLE), como
@@ -390,7 +390,7 @@ describeLocal('M03 — container compartilhado entre B/Ls no faturamento pelo CE
         (${voyage.mesmoCliente}, ${vesselId}, 'A203A', 'active'),
         (${voyage.clientesDiferentes}, ${vesselId}, 'A203B', 'active'),
         (${voyage.liberacao}, ${vesselId}, 'A203C', 'active'),
-        (${voyage.datas}, ${vesselId}, 'A203D', 'active');
+        (${voyage.datas}, ${vesselId}, 'A203D', 'active'); ${vehicleAnswerSql(...Object.values(voyage))}
       INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
       VALUES (${chargeTableId}, 'Tabela A203 container', '${pod}', CURRENT_DATE - 30, true, 'container');
       -- Item por container rateado entre os B/Ls que o dividem (1/share_count).

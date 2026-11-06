@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process'
 import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeEach, expect, it } from 'vitest'
-import { syntheticCeBeforeCancelSql, syntheticCnpj, describeWithProbe } from './localTestData'
+import { syntheticCeBeforeCancelSql, syntheticCnpj, describeWithProbe, vehicleAnswerSql } from './localTestData'
 
 // Migration 128 (ADR 0077, decisões de 2026-10-02): toda correção do B/L —
 // alteração direta, reimportação ou Baplie — é tratada no fim da transação.
@@ -231,7 +231,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
           VALUES (${id}, 'Fixture: gate aberto', '${actorId}', now() + interval '1 day');`).join('\n')}
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier 128');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel 128', ${carrierId});
-      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'R839', 'active');
+      INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'R839', 'active'); ${vehicleAnswerSql(voyageId)}
       INSERT INTO public.charge_tables (id, name, pod, valid_from, active, cargo_mode)
         VALUES (${chargeTableId}, 'Tabela 128', 'R839POD', CURRENT_DATE - 30, true, 'container');
       -- COC: R$ 600 por container (500 + Drop Off 100). SOC: R$ 500.
@@ -509,7 +509,7 @@ describeLocal('130 — segurança de correções, cobranças Pix e COD', () => {
 
 
   it('inclui os vizinhos da viagem de destino ao mover um B/L pago', () => {
-    psql(`INSERT INTO public.voyages(id,vessel_id,voyage_number,status) VALUES (${voyageId + 100},${vesselId},'R839-DEST','active');
+    psql(`INSERT INTO public.voyages(id,vessel_id,voyage_number,status) VALUES (${voyageId + 100},${vesselId},'R839-DEST','active'); ${vehicleAnswerSql(voyageId + 100)}
       UPDATE public.bls SET voyage_id=${voyageId + 100} WHERE id='${bl.moveB}';
       INSERT INTO public.bl_containers(bl_id,container_number,type)
         SELECT '${bl.moveB}',container_number,type FROM public.bl_containers WHERE bl_id='${bl.moveA}'`)

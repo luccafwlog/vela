@@ -12,3 +12,14 @@ describe('mapPendingBalancesByCustomer', () => {
     expect(result.get(20)).toMatchObject({ totalBrl: 75, invoicedOpenBrl: 0, toInvoiceBrl: 0 })
   })
 })
+
+describe('isDuplicateCustomerCnpjError', () => {
+  it('reconhece só a recusa da constraint de CNPJ único', async () => {
+    const { isDuplicateCustomerCnpjError } = await import('../customers')
+    expect(isDuplicateCustomerCnpjError({ code: '23505', message: 'duplicate key value violates unique constraint "customers_cnpj_cpf_key"' })).toBe(true)
+    expect(isDuplicateCustomerCnpjError({ code: '23505', message: 'duplicate key', details: 'Key (cnpj_cpf)=(12345678000195) already exists.' })).toBe(true)
+    expect(isDuplicateCustomerCnpjError({ code: '23505', message: 'duplicate key value violates unique constraint "customer_contacts_email_key"' })).toBe(false)
+    expect(isDuplicateCustomerCnpjError({ code: '22023', message: 'customers_cnpj_cpf_key' })).toBe(false)
+    expect(isDuplicateCustomerCnpjError(null)).toBe(false)
+  })
+})

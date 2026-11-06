@@ -64,6 +64,10 @@ import_map = "./functions/deno.json"
 verify_jwt = false
 import_map = "./functions/deno.json"
 
+[functions.cnpj-lookup]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
 [functions.portal-password-recovery]
 verify_jwt = false
 import_map = "./functions/deno.json"

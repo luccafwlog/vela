@@ -1,6 +1,6 @@
 # Manifestos & EDI
 
-> **Status:** ativo · **Atualizado:** 2026-11-05 · **Rotas:** `/bls`, `/bls/:blId`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios`, `/embarquevazios/depots`
+> **Status:** ativo · **Atualizado:** 2026-11-06 · **Rotas:** `/bls`, `/bls/:blId`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios`, `/embarquevazios/depots`
 
 ## Propósito e escopo
 
@@ -277,7 +277,7 @@ falha no próprio lugar. **Código:** `src/components/ui/CopyValue.tsx`;
 
 - `src/pages/Veiculos.tsx` exige viagem para visualizar lista, estatísticas e filtros; a viagem fica em `?voyage=` e a faixa de viagens usa o mesmo resumo de Viagens do Baplie, na ordem da próxima escala (`compareVoyageRailItems`), como em `/viagens` e `/baplie`. O modal de importação (`VehicleImportModal`) é o mesmo da ação rápida da Viagem, com seletor de viagem aqui e viagem fixa lá. Linha com erro na planilha recusa a planilha inteira; linha recusada na conferência com o que já está gravado (chassi repetido, B/L fora da viagem, container ausente, tipo ou lacre divergente, desova diferente no mesmo arquivo) também: nada é gravado e a tela lista todas as recusadas ([ADR 0092](../adr/0092-importacao-com-erro-e-recusada-inteira.md)). A gravação é uma chamada só a `import_vehicle_rows_transactional`, que recusa o lote inteiro se o banco achar outro problema.
 - Desde o lote 2 da identidade (2026-10-16), a lista tem **uma linha por veículo** (Chassi, Marca, Modelo, Container, B/L, Peso, Cubagem e Local de desova), ordenada por container, com cartões de total (Veículos na viagem, Containers, Peso total, Cubagem e Sem local de desova, que filtra) e Chassi, Marca, Modelo e Local sempre abertos, com **Limpar filtros** ao lado quando só eles filtram (Container, B/L, Lacre e Tipo em "Mais filtros"). O **Local de desova** é atributo do container (CONTEXT.md) e aparece como dado ("Sem local" em âmbar); **Definir local de desova** fica sempre à vista na faixa da tabela e abre a janela que pergunta a quem aplicar: os veículos marcados, todos do recorte ou só os sem local (o local vale para os containers deles, e cada escolha diz quantos containers e quantos veículos no total ela atinge, inclusive os que o filtro esconde; sem local digitado, o botão diz "Apagar o local de N containers"). Enquanto um filtro novo carrega, Exportar e a janela para o recorte esperam; depois de aplicar, a seleção é limpa. **Excluir** e **Mover para outro B/L** valem para qualquer usuário ativo, com motivo, mesmo com CE no B/L (ADR 0078, item 23; migration `184`). O filtro "Sem local informado" lista os containers ainda sem local, e o resumo "veículos sem local de desova" conta os veículos desses containers (veículo sem container não entra: não há local a informar). **Exportar** leva o recorte filtrado inteiro (todas as páginas), não só a página na tela (desde 2026-10-16).
-- **Viagem sem veículos (migration `468`, reunião de testes de 2026-10-26).** Na viagem sem veículo importado, o estado vazio "Nenhum veículo nesta viagem" tem **Importar veículos** e **Esta viagem não terá veículos**; a declaração pede confirmação, é aceita para qualquer usuário interno ativo (como importar veículos) e é recusada em viagem cancelada ou que já tem veículo (`declare_voyage_without_vehicles`); na viagem cancelada, o botão não aparece. A Auditoria mostra o campo como "Viagem sem veículos". Declarada, a tela mostra "Viagem sem veículos · Declarado por … em …" com **Importar veículos** e **Desfazer declaração**, que pede motivo (`undo_voyage_vehicle_declaration`). Veículo que entra na viagem (importado ou movido) desfaz a declaração sozinho, com o motivo "Veículos importados na viagem". A declaração e o desfazer aparecem na Linha do Tempo da Viagem e decidem o alerta **Planilha de Veículos pendente** de Equipamentos ([Operação e Suporte](operacao-suporte.md#alertas-e-notificações-internas)). **Teste:** `Veiculos.declaracaoSemVeiculos.test.tsx`; **Teste local-pg:** `alertaPlanilhaDeVeiculos.local-pg.test.ts`.
+- **Resposta de veículos da viagem (migrations `468` e `597`; decisões do dono de 2026-10-27 e 2026-11-06).** Equipamentos responde, na tela Veículos, se a viagem terá veículos; a resposta decide a trava do CE Mercante ([CE Mercante](#ce-mercante)) e os alertas de veículos de Equipamentos ([Operação e Suporte](operacao-suporte.md#alertas-e-notificações-internas)). Na viagem sem veículo importado e sem resposta, o estado vazio "Nenhum veículo nesta viagem" avisa que, sem a resposta, o CE Mercante dos B/Ls de container fica travado e oferece **Importar veículos**, **Esta viagem terá veículos** e **Esta viagem não terá veículos**; cada resposta pede confirmação, é aceita só de Equipamentos e do Administrativo (migration `598`; para os outros setores os botões não aparecem e o banco recusa com "Apenas Equipamentos ou Administrativo responde se a viagem terá veículos."; importar veículos segue aberto a todos) e é recusada em viagem cancelada (`declare_voyage_with_vehicles`, `declare_voyage_without_vehicles`); "não terá" também é recusada na viagem que já tem veículo. Na viagem cancelada, os botões não aparecem. Respondida, a tela mostra quem declarou e quando: "Viagem sem veículos" ou "Viagem com veículos a importar", esta com o aviso de que o CE Mercante dos B/Ls de container fica travado até a planilha ser importada; as ações são **Importar veículos**, **Trocar para com veículos** ou **Trocar para sem veículos** e **Desfazer declaração**, as duas últimas com motivo e só para Equipamentos e o Administrativo (`undo_voyage_vehicle_declaration`). Veículo que entra na viagem (importado ou movido) desfaz sozinho a resposta "não terá", com o motivo "Veículos importados na viagem"; a resposta "terá" continua. A Auditoria mostra os campos como "Viagem sem veículos" e "Viagem com veículos"; as respostas, as trocas e o desfazer aparecem na Linha do Tempo da Viagem. Excluir a viagem leva a resposta junto (antes da `597`, a viagem declarada "sem veículos" não se excluía). **Teste:** `Veiculos.declaracaoSemVeiculos.test.tsx`; **Teste local-pg:** `alertaPlanilhaDeVeiculos.local-pg.test.ts` e `travaCeMercanteVeiculos.local-pg.test.ts`.
 - O parser suporta modelo do sistema, COSCO Daily Report e cabeçalhos chineses.
 - A convenção numérica é escolhida pelos cabeçalhos da origem (pt-BR no modelo
   interno; en-US nos relatórios COSCO/terminais), sem aceitar expoente ou texto
@@ -959,7 +959,23 @@ e é corrigido ou removido só pela ficha do B/L; nenhuma outra importação o g
   O CE tem 15 dígitos; linha sem CE é erro com o número da linha e bloqueia a
   planilha; B/L cancelado é ignorado com aviso. A gravação é tudo ou nada:
   linha sem CE, CE repetido ou em outro B/L ativo, número de outra Viagem, rota
-  ou natureza, ou B/L inexistente recusam e nada é gravado.
+  ou natureza, B/L inexistente ou Viagem travada por veículos recusam e nada é
+  gravado.
+- **Trava de veículos** (migration `597`; decisão do dono de 2026-11-06, com
+  Documentação e Equipamentos; [ADR 0128](../adr/0128-ce-mercante-travado-ate-resposta-de-veiculos.md)).
+  Na Viagem ativa, B/L de container ou misto só recebe o primeiro CE Mercante
+  quando Equipamentos respondeu "Esta viagem não terá veículos" ou quando a
+  Viagem já tem pelo menos um veículo importado; sem resposta, ou com "Esta
+  viagem terá veículos" e nenhum veículo, a prévia recusa a planilha com
+  "CE Mercante travado na viagem …", dizendo o que falta, e nada é gravado. Um
+  veículo basta: o sistema não sabe quantos a Viagem terá. B/L de carga solta,
+  Viagem concluída ou cancelada e a correção ou remoção de CE já vinculado não
+  passam pela trava. Remover o CE e vincular outro depois é vinculação nova:
+  o B/L sem CE só recebe CE pela planilha, e a prévia trava. Na Viagem
+  travada, a troca de número é pelo **Corrigir CE** (o gatilho só confere B/L
+  que estava sem CE). A prévia (`_analyze_ce_mercante_rows`) mostra a recusa; o
+  gatilho `guard_bl_ce_mercante_vehicle_answer` em `bls` recusa qualquer outro
+  caminho. A resposta fica na tela Veículos ([`/veiculos`](#veiculos)).
 - **Prévia conferida no servidor** (`preview_ce_mercante_rows`): mostra CE e
   Manifesto antes → depois, faturas vivas (inclusive a consolidada ligada pelo
   recebível), Portal ("visível no Portal" ou "fora do Portal", por B/L),
@@ -1179,13 +1195,24 @@ ao Mercante continua fora do Vela. **Código:**
 (montagem), `src/services/mercanteEdiTables.ts` (códigos);
 **Teste:** `mercanteEdi.test.ts`, `MercanteEdiModal.test.tsx`.
 
-- **Layout.** Manual do EDI Mercante 3.6: arquivo em UTF-8 com BOM, linhas
+- **Layout.** Manual do EDI Mercante 3.6: arquivo em UTF-8 **sem BOM**, linhas
   terminadas em CRLF (inclusive a última), texto em maiúsculas sem acento,
   alfanuméricos alinhados à esquerda e numéricos com zeros à esquerda e
   decimais implícitos. Carga: um M5 (manifesto), um C5 por B/L de contêiner
   ativo da rota (ordem do número do B/L) e um I5 por contêiner do B/L. Vazios:
   um M5 e um V5 por contêiner vazio da rota (substitui a planilha de três
   colunas). Carga solta: arquivo parcial (abaixo).
+- **Sem BOM.** O leiaute "Definições dos leiautes esquemáticos EDI/Upload"
+  (v3.2/v3.6) não pede BOM: o arquivo começa direto pelo tipo do primeiro
+  registro (`M5`). Com os bytes `EF BB BF` antes do `M5`, o tipo de registro
+  pode não ser reconhecido (código `EE0` no retorno). O envio pela VAN Zaptrade
+  com BOM já tinha sido aceito (GG6, manifesto 1226502020077), e em 2026-11-05
+  o arquivo sem BOM foi aceito em produção pelo Upload web do Mercante (GS8,
+  manifesto 1226502047331, protocolo 1105112539061, 12 B/Ls conferidos): TXT
+  sem BOM → ZIP com o TXT na raiz → **Assinar arquivo** na página do Mercante →
+  **Enviar**. O BOM não é necessário, e sem ele o arquivo serve aos dois
+  canais. Vale para os três arquivos (carga, vazios e o parcial de carga
+  solta); o download continua como `text/plain;charset=utf-8`.
 - **Cabeçalho (M5).** Armador pelo SCAC do cadastro, IMO e número da Viagem,
   POL e POD da rota, **encerramento** = ATD do POL da rota e **operação** = ETA
   do POD, terminal = o da frente de operação de importação do POD na escala

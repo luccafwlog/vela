@@ -1,6 +1,6 @@
 import { expect } from 'vitest'
 import { execPsql, spawnPsql } from './localPsql'
-import { syntheticCeBeforeCancelSql, syntheticCnpj } from './localTestData'
+import { syntheticCeBeforeCancelSql, syntheticCnpj, vehicleAnswerSql } from './localTestData'
 
 /**
  * Fixtures das suítes da frente financeira (plano
@@ -82,6 +82,7 @@ export function financeWorld(ns: number, opts: { pod?: string } = {}) {
       INSERT INTO public.carriers (id, name) VALUES (${carrierId}, 'Carrier FF${ns}');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${vesselId}, 'Vessel FF${ns}', ${carrierId});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${voyageId}, ${vesselId}, 'FF${ns}', 'active');
+      ${vehicleAnswerSql(voyageId)}
     `)
   }
 
@@ -254,6 +255,7 @@ export function financeWorld(ns: number, opts: { pod?: string } = {}) {
       DELETE FROM public.customer_rate_overrides WHERE customer_id IN (${cust});
       DELETE FROM public.charge_table_items WHERE charge_table_id IN ${tables};
       DELETE FROM public.charge_tables WHERE id IN ${tables};
+      DELETE FROM public.voyage_vehicle_declarations WHERE voyage_id = ${voyageId};
       DELETE FROM public.voyages WHERE id = ${voyageId};
       DELETE FROM public.vessels WHERE id = ${vesselId};
       DELETE FROM public.carriers WHERE id = ${carrierId};

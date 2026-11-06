@@ -54,7 +54,7 @@ Se a causa volta depois de o alerta fechar, ele reabre e as pessoas são avisada
 
 **Quem faz:** {{Todas as equipes}}
 
-O sino é pessoal: traz as **Notificações internas**, o aviso de que abriu um alerta para a sua equipe. Cada pessoa ativa recebe os alertas do seu setor; o {{Financeiro}} recebe também a Fatura desatualizada e a Taxa alterada à mão mudou, e o {{Administrativo}}, os críticos de contato e de fatura do Cliente. O "Quem recebe" de cada assunto diz quais.
+O sino é pessoal: traz as **Notificações internas**, o aviso de que abriu um alerta para a sua equipe, e os avisos de acontecimento listados abaixo. Cada pessoa ativa recebe os alertas do seu setor; o {{Financeiro}} recebe também a Fatura desatualizada e a Taxa alterada à mão mudou, e o {{Administrativo}}, os críticos de contato e de fatura do Cliente. O "Quem recebe" de cada assunto diz quais.
 
 ::: passos
 1. Clique no sino, na barra do alto. Com o menu na lateral, ele fica no pé do menu, como **Notificações**.
@@ -63,6 +63,14 @@ O sino é pessoal: traz as **Notificações internas**, o aviso de que abriu um 
 :::
 
 A notificação é uma fotografia do momento em que o alerta abriu: ela não muda depois. Quando o alerta fecha, ela sai sozinha do sino, mesmo sem ter sido lida.
+
+O sino traz também alguns avisos que não são alerta, só um fato que a sua equipe precisa saber. Eles não aparecem na fila **Alertas** e ficam no sino até você ler:
+
+| Aviso | Quem recebe | Quando | O clique abre |
+| --- | --- | --- | --- |
+| **Nova solicitação de desbloqueio de CE** | {{Documentação}} | O Cliente envia uma solicitação pelo Portal. Se ele reenviar depois de uma recusa, o aviso diz **Solicitação de desbloqueio de CE reenviada**. A solicitação VIP não avisa. | A solicitação, em **Desbloqueio de CE** ([12.3](12-desbloqueio-de-ce.md#123-analisar-os-documentos-de-uma-solicitação)) |
+| **Novo pagamento** | {{Financeiro}} e {{Administrativo}} | Entra um pagamento de fatura de Taxas Locais ou avulsa: baixa automática do Pix, conciliação pelo extrato ou registro no detalhe da fatura. A mensagem traz a fatura, o Cliente, o valor e o meio. | A fatura, em **Taxas Locais** |
+| **Novo pagamento de Demurrage** | {{Financeiro}} e {{Administrativo}} | Uma Invoice de Demurrage é paga. A quitação pelo desconto integral não avisa. | A Invoice, em **Demurrage** |
 
 Quando um alerta **Crítico** não acha ninguém ativo nos setores que recebem, a notificação vai ao {{Administrativo}} com o selo **Entrega alternativa**; o alerta continua do setor original. Se nem assim há quem receba, ou se o alerta é Normal, a falha aparece em **Admin** › **Falhas de entrega de alertas**: para resolver, ative alguém do setor na aba **Usuários**.
 
@@ -89,9 +97,9 @@ A exportação é conferida pela Viagem, não pelo porto. Numa Viagem com export
 
 ## 20.5 Documentação e importação
 
-**Quem recebe:** {{Documentação}}; a Planilha de Veículos, {{Equipamentos}}
+**Quem recebe:** {{Documentação}}; os de veículos, {{Equipamentos}}
 
-Sete dias antes do primeiro ETA no Brasil (D−7), o Vela começa a cobrar a documentação da Viagem; cinco dias antes (D−5), o CE e os veículos. Fora o **Efeito de importação bloqueado**, que pede **Reprocessar**, todos fecham sozinhos quando o dado é corrigido, e B/L cancelado não conta em nenhum deles.
+Sete dias antes do primeiro ETA no Brasil (D−7), o Vela começa a cobrar a documentação da Viagem e a resposta sobre veículos; cinco dias antes (D−5), o CE e a planilha de veículos. Fora o **Efeito de importação bloqueado**, que pede **Reprocessar**, todos fecham sozinhos quando o dado é corrigido, e B/L cancelado não conta em nenhum deles.
 
 ### Os prazos da Viagem
 
@@ -101,7 +109,8 @@ Sete dias antes do primeiro ETA no Brasil (D−7), o Vela começa a cobrar a doc
 | **Baplie ausente** · crítico | No D−7, sem Baplie importado. | {{Documentação}} | Importe o Baplie ([6.7](06-importacao.md#67-importar-o-baplie)). |
 | **Cobertura Baplie / B/L** · crítico | Quando há container cheio no Baplie sem B/L, ou container de B/L que não está entre os cheios do Baplie. Antes do D−7, só conta nas rotas que já têm B/L. A mensagem diz quantos. | {{Documentação}} | Corrija o B/L ou o Baplie ([6.8](06-importacao.md#68-resolver-as-divergências-entre-baplie-e-bl)). |
 | **CE Mercante pendente** · crítico | No D−5, se há B/L ativo sem CE ou rota de vazios sem **Nº de Manifesto Mercante**. | {{Documentação}} | Importe a planilha de CE ([6.5](06-importacao.md#65-importar-o-ce-mercante-e-emitir-as-faturas)) e informe o número do manifesto das rotas de vazios em **Rotas e Manifestos** ([4.6](04-viagens-escalas.md#46-rotas-e-manifestos)). |
-| **Planilha de Veículos pendente** · crítico | No D−5, se a Viagem tem B/L de container e nenhum veículo importado, nem a declaração **Esta viagem não terá veículos**. | {{Equipamentos}} | Em **Veículos**, importe a planilha ou declare que a Viagem não terá veículos ([10.1](10-veiculos-vazios-granito.md#101-importar-os-veículos)). |
+| **Declaração de veículos pendente** | No D−7, se a Viagem tem B/L de container, nenhum veículo importado e ninguém respondeu se ela terá veículos. No D−5 sem resposta, dá lugar à **Planilha de Veículos ausente**. | {{Equipamentos}} | Em **Veículos**, clique em **Esta viagem terá veículos** ou **Esta viagem não terá veículos**, ou importe a planilha ([10.1](10-veiculos-vazios-granito.md#101-importar-os-veículos)). |
+| **Planilha de Veículos ausente** · crítico | No D−5, se a Viagem tem B/L de container, nenhum veículo importado e foi declarada com veículos ou não teve resposta. | {{Equipamentos}} | Em **Veículos**, importe a planilha; se a Viagem não trouxer veículos, declare ([10.1](10-veiculos-vazios-granito.md#101-importar-os-veículos)). |
 
 ### A importação e a Revisão
 
@@ -117,7 +126,7 @@ Sete dias antes do primeiro ETA no Brasil (D−7), o Vela começa a cobrar a doc
 Quando o B/L sem Cliente fica a 5 dias do ETA, a linha da **Revisão de B/L — cliente não vinculado** ganha na fila o selo **ETA próximo**.
 
 ::: atencao
-Sem a Planilha de Veículos, o CE emite a fatura cheia do B/L de veículo que seria isento. Não deixe o alerta de veículos para depois do CE.
+Sem a resposta sobre veículos, ou com **Esta viagem terá veículos** e a planilha ainda fora, o CE dos B/Ls de container fica travado para a {{Documentação}}. Responda no D−7 e importe a planilha assim que ela chegar.
 :::
 
 ## 20.6 Cliente e Portal

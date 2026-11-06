@@ -80,9 +80,9 @@
       "equipes": [
         "Equipamentos"
       ],
-      "quando": "Chega a planilha de veículos, depois dos B/Ls e antes do CE.",
+      "quando": "Até 7 dias antes do ETA, a resposta; a planilha de veículos, depois dos B/Ls e antes do CE.",
       "onde": "Importação › Veículos.",
-      "pronto": "Os veículos na Viagem, com o local de desova, ou a Viagem declarada sem veículos.",
+      "pronto": "Os veículos na Viagem, com o local de desova, ou a Viagem declarada sem veículos. Sem isso, o CE dos B/Ls de container não entra.",
       "arquivo": "07-subir-os-veiculos.md"
     },
     {

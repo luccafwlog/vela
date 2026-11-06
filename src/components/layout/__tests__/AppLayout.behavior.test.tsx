@@ -16,6 +16,7 @@ vi.mock('../../../hooks/useAuth', () => ({
 vi.mock('../../../hooks/useOperationalCounts', () => ({
   useOperationalCounts: () => ({
     pendingReview: 0,
+    pendingCeUnlockRequests: 0,
     chargeReviewRequired: 0,
     readyForBilling: 0,
     openAlerts: 4,

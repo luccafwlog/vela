@@ -6,6 +6,55 @@
 
 ## 2026-11
 
+- **Revisão da release de 2026-11-06 (PR `staging` → `main`):** "Consulta à Receita indisponível agora" deixa de
+  ficar guardada na sessão: voltar ao CNPJ ou reabrir o **Novo cliente** consulta de novo, e a resposta que chega
+  depois ainda preenche os campos vazios. Na Revisão, o aviso da Receita mostra também o nome fantasia que vai para o
+  Cliente novo, como a ADR 0127 já dizia. Convite do Portal recusado relê Clientes › Portal na hora (a conta já fica
+  em "falha no envio"). O manual e o módulo de Manifestos dizem que, na Viagem travada por veículos, a troca de CE é
+  pelo **Corrigir CE**: depois de **Remover CE**, o CE só volta pela planilha, que trava.
+- **Textos do sino e do alerta de veículos (2026-11-06, migration `599`; revisão da release):** os alertas
+  **Declaração de veículos pendente** e **Planilha de Veículos ausente** só dizem que o CE Mercante está travado
+  enquanto algum B/L de container ou misto da viagem ainda está sem CE. O aviso **Nova solicitação de desbloqueio de
+  CE** sai só quando quem envia é o Cliente (o envio por usuário interno não avisa a equipe). O **Novo pagamento de
+  Demurrage** diz o meio da baixa como na aba Pagas ("Pix Itaú", "Extrato" ou "Registro manual"), e não mais "(Pix)"
+  para qualquer TXID ([Operação e Suporte](modules/operacao-suporte.md)).
+- **Razão social da Receita no cadastro pela Revisão (2026-11-05, ADR 0127; pedido do dono):** no grupo da Revisão e
+  em **Completar cadastro** da ficha do B/L, com o CNPJ aceito e Cliente novo, o Vela consulta a Receita. Razão social
+  vazia recebe a da Receita; diferente da do manifesto, aparece "Na Receita: …" com **Usar a razão social da Receita**,
+  sem troca automática. O Cliente criado pela Revisão leva o nome fantasia, o endereço, a cidade, a UF e o CEP da
+  Receita (migration `596`, `p_profile` de `complete_review_customer_group`); o Cliente já cadastrado não muda.
+- **CNPJ já cadastrado avisado no Novo cliente (2026-11-05; pedido do dono):** o CNPJ de um Cliente existente,
+  ativo ou desativado, vira erro sob o campo assim que fica válido, com o nome dele e **Abrir a ficha de …**; a
+  Receita não é consultada e o cadastro é recusado antes da confirmação. A trava continua no banco
+  (`customers_cnpj_cpf_key`); a recusa dele, quando outra pessoa grava o mesmo CNPJ no intervalo, também volta ao
+  campo do CNPJ em vez de "Já existe um registro com o valor …" ([Clientes](modules/clientes.md)).
+- **Dados da Receita pelo CNPJ no Novo cliente (2026-11-05, ADR 0127; pedido do dono):** com o CNPJ completo, a
+  Edge Function nova `cnpj-lookup` consulta a BrasilAPI e a tela preenche só os campos vazios (razão social, nome
+  fantasia, CEP, endereço, cidade e UF), com aviso de situação diferente de ATIVA. Só equipe interna; resposta por
+  lista positiva (sem sócios, telefone ou e-mail); BrasilAPI fora do ar vira aviso e o cadastro segue à mão. A
+  função sai no próximo merge em `main` ([Clientes](modules/clientes.md)).
+- **Novo cliente com convite do Portal (2026-11-05; pedido do dono):** Documentação e Administrativo marcam
+  **Enviar o convite do Portal agora** no **Novo cliente** e o convite sai, depois do cadastro, para o e-mail do
+  contato principal (botão **Cadastrar e convidar**). Recusa do convite não desfaz o Cliente: o aviso diz o motivo e
+  aponta Clientes › Portal. O cadastro deixa de pedir **Notas** (ficam na ficha), e Endereço, Cidade e UF dividem uma
+  linha ([Clientes](modules/clientes.md)).
+- **Sino avisa solicitação de Desbloqueio de CE e pagamento; Revisão conta clientes (2026-11-05, migration `595`,
+  ADR 0126; decisão do dono):** o número do item **Revisão** do menu passa a contar Clientes (os grupos da tela), não
+  B/Ls; o item **Desbloqueio de CE** ganha o número de solicitações aguardando análise, relido a cada minuto. O sino
+  ganha o Aviso de acontecimento, Notificação Interna sem Alerta que fica até ser lida: "Nova solicitação de
+  desbloqueio de CE" para a Documentação (o clique abre a solicitação) e "Novo pagamento" / "Novo pagamento de
+  Demurrage" para Financeiro e Administrativo (o clique abre a fatura ou a Invoice). Prova:
+  `sinoAvisosDeAcontecimento.local-pg.test.ts` ([Operação e Suporte](modules/operacao-suporte.md#notificação-interna-e-regra-de-destinatários)).
+- **CE Mercante de container travado até Equipamentos responder sobre veículos (2026-11-06, migration `597`, ADR
+  0128; decisão do dono com Documentação e Equipamentos):** em D-7 do primeiro ETA brasileiro abre para Equipamentos o
+  alerta Normal **Declaração de veículos pendente**; na tela Veículos, Equipamentos responde **Esta viagem terá
+  veículos** ou **Esta viagem não terá veículos** (trocar ou desfazer pede motivo). Sem resposta, ou com "terá" e
+  nenhum veículo importado, a planilha de CE Mercante recusa o primeiro CE de B/L de container ou misto da viagem
+  ativa; um veículo importado libera. Só Equipamentos e o Administrativo respondem, trocam e desfazem (migration `598`). Em D-5, sem veículo e sem "não terá", abre o crítico **Planilha de Veículos
+  ausente** (antes "pendente"). Carga solta, viagem concluída e correção de CE ficam fora. Excluir viagem passa a
+  levar a resposta junto (desde a `468`, a viagem declarada sem veículos não se excluía). A trava vale no dia para
+  toda viagem ativa sem resposta. Prova: `travaCeMercanteVeiculos.local-pg.test.ts`
+  ([Manifestos & EDI § CE Mercante](modules/manifesto-edi.md#ce-mercante)).
 - **THD mínimo da carga solta de Vitória (2026-11-05, migration `594`, ADR 0125; decisão do dono):** o THD por
   tonelada em R$ da tabela de carga solta de Vitória (BRVIX) cobra por B/L o maior entre toneladas × unitário e
   R$ 380,00, também com Condição do Cliente e no B/L misto (2 t × R$ 62,50 = R$ 125,00 → R$ 380,00). Quantidade e

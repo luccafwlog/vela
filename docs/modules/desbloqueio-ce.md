@@ -508,6 +508,14 @@ confere tela e banco com os mesmos casos. O cumprimento é medido pela data da e
 
 ### Avisos ao cliente
 
+**Aviso à equipe (migration `595`, [ADR 0126](../adr/0126-sino-avisa-solicitacao-de-desbloqueio-e-pagamento.md)).**
+O envio da solicitação comum pelo Cliente (evento `submit`) avisa a Documentação no sino
+do Vela: "Nova solicitação de desbloqueio de CE" ou, no envio depois da correção,
+"Solicitação de desbloqueio de CE reenviada", com o clique na solicitação. A solicitação
+VIP não avisa. O item **Desbloqueio de CE** do menu mostra quantas solicitações estão em
+**Solicitações aguardando análise** (`review_queue`), relido a cada 60 s. A regra do
+aviso está em [Operação e Suporte](operacao-suporte.md#notificação-interna-e-regra-de-destinatários).
+
 Recusa de documento (com o motivo) e documentação validada (com o
 prazo; da solicitação ou, desde a migration `581`, do B/L VIP sem solicitação, com `bl_id` e sem
 `request_id`) geram um aviso no sino do Portal e uma linha na fila `ce_unlock_email_outbox`; a
