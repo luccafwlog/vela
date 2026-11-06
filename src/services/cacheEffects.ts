@@ -159,6 +159,18 @@ export async function afterDeclaracaoVeiculosAlterada(queryClient: QueryInvalida
   ])
 }
 
+/**
+ * Gravidade de um tipo de alerta trocada na tela Regras de alertas (migration
+ * 603, ADR 0130): a própria tela, a fila (ordem e cartão Críticos), os cartões
+ * por setor do Painel, o painel financeiro e o Histórico de ações.
+ */
+export async function afterGravidadeDoAlertaAlterada(queryClient: QueryInvalidator): Promise<void> {
+  await invalidate(queryClient, [
+    queryKeys.alerts.all(), queryKeys.alerts.departmentSummary(), queryKeys.alerts.financial(),
+    queryKeys.alerts.operationalCount(), queryKeys.dashboard(), [queryKeys.admin.auditLogs(undefined)[0]],
+  ])
+}
+
 /** Natureza (Cama, Cover plate) dos vazios de importação: a lista, os totais e o ADR, que a mostra. */
 export async function afterNaturezaVaziosAlterada(queryClient: QueryInvalidator): Promise<void> {
   await invalidate(queryClient, [['vazios-importacao-containers'], ['vazios-importacao-stats'], ['agency-report']])

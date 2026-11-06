@@ -2,12 +2,36 @@
 
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readSqlAlertCatalog } from '../../services/__tests__/alertCatalogSql'
 import { ALERT_RULES } from '../../services/alertRulesCatalog'
 import { AGENCY_REPORT_SECTIONS } from '../../services/agencyDepartureReport'
+import type { AlertTypeSetting } from '../../services/alertTypeSettings'
+
+const mocks = vi.hoisted(() => ({
+  settings: [] as AlertTypeSetting[],
+  canManage: false,
+  setSeverity: vi.fn(),
+  confirmWithReason: vi.fn(async () => 'Exportação parada atrasa o ADR do armador' as string | null),
+  showToast: vi.fn(),
+  afterChange: vi.fn(async () => undefined),
+}))
+
+vi.mock('../../services/alertTypeSettings', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/alertTypeSettings')>()),
+  fetchAlertTypeSettings: async () => mocks.settings,
+  setAlertTypeSeverity: mocks.setSeverity,
+}))
+vi.mock('../../hooks/useAuth', () => ({
+  useAuth: () => ({ can: (permission: string) => permission === 'manage_alert_rules' && mocks.canManage }),
+}))
+vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirmWithReason: () => mocks.confirmWithReason }))
+vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
+vi.mock('../../services/cacheEffects', () => ({ afterGravidadeDoAlertaAlterada: mocks.afterChange }))
+
 import { AlertasRegras } from '../AlertasRegras'
 
 const migration323 = readFileSync(resolve(process.cwd(), 'supabase/migrations/323_agency_report_alerts_foundation.sql'), 'utf8')
@@ -15,7 +39,33 @@ const migration325 = readFileSync(resolve(process.cwd(), 'supabase/migrations/32
 const migration338 = readFileSync(resolve(process.cwd(), 'supabase/migrations/338_alerts_review_hardening.sql'), 'utf8')
 const migration342 = readFileSync(resolve(process.cwd(), 'supabase/migrations/342_atracacao_alertas.sql'), 'utf8')
 
-afterEach(cleanup)
+function setting(type: string, severity: 'critical' | 'normal', extra: Partial<AlertTypeSetting> = {}): AlertTypeSetting {
+  return { type, severity, activeItems: 0, lastChange: null, ...extra }
+}
+
+function renderPage(url = '/alertas/regras') {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[url]}>
+        <AlertasRegras />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+beforeEach(() => {
+  mocks.settings = ALERT_RULES.map((rule) => setting(rule.type, rule.severity))
+  mocks.canManage = false
+  mocks.setSeverity.mockImplementation(async (type: string, severity: 'critical' | 'normal') => ({
+    type, previousSeverity: severity === 'critical' ? 'normal' : 'critical', severity, activeItems: 2,
+  }))
+})
+
+afterEach(() => {
+  cleanup()
+  vi.clearAllMocks()
+})
 
 describe('Regras de Alertas', () => {
   it('mantém um verbete educativo para cada tipo ATIVO do catálogo SQL, e só para eles', () => {
@@ -29,10 +79,25 @@ describe('Regras de Alertas', () => {
       expect(rule.trigger).toBeTruthy()
       expect(rule.timing).toBeTruthy()
       expect(rule.resolution).toBeTruthy()
+      expect(rule.impact, `${rule.type} sem "Se ninguém agir"`).toBeTruthy()
       expect(rule.destination.startsWith('/')).toBe(true)
       expect(rule.notifiedDepartments.length).toBeGreaterThan(0)
-      // A dispensa saiu na migration 476 (ADR 0108): a regra não fala dela.
-      expect(JSON.stringify(rule)).not.toMatch(/dispens/i)
+      // A dispensa do alerta saiu na migration 476 (ADR 0108): a regra não fala
+      // dela. "Dispensar cobrança" da Demurrage é outra coisa (ADR 0112).
+      expect(JSON.stringify(rule)).not.toMatch(/dispens\w*\s+(?:o\s+|do\s+|de\s+)?alerta|dispensa temporária|data de revisão/i)
+    }
+  })
+
+  it('fala a língua de quem opera: sem migration, rotina técnica, tabela, função ou endereço de tela (ADR 0130)', () => {
+    const jargon = /migration|pg_cron|pg_net|\bnet\.|cron\.|\bops\.|edge function|\bRPC\b|webhook|payload|\blease\b|\bworker\b|reconcilia[çc][ãa]o confirma|\bjob\b|ALE-D\d|\bADR \d{4}\b|`|\/[a-z]+[?/]|\b[a-z]+_[a-z_]+\b/i
+    for (const rule of ALERT_RULES) {
+      for (const [field, text] of Object.entries({
+        summary: rule.summary, trigger: rule.trigger, timing: rule.timing, resolution: rule.resolution,
+        afterResolution: rule.afterResolution, impact: rule.impact, routingNote: rule.routingNote ?? '',
+        destinationNote: rule.destinationNote ?? '',
+      })) {
+        expect(text, `${rule.type}.${field}`).not.toMatch(jargon)
+      }
     }
   })
 
@@ -45,7 +110,7 @@ describe('Regras de Alertas', () => {
     }
   })
 
-  it('espelha gravidade e audiência do alert_type_catalog em cada verbete', () => {
+  it('espelha a gravidade de fábrica e a audiência do alert_type_catalog em cada verbete', () => {
     for (const entry of readSqlAlertCatalog().filter((item) => item.active)) {
       const rule = ALERT_RULES.find((item) => item.type === entry.type)
       expect(rule, `Tipo ${entry.type} não tem verbete`).toBeDefined()
@@ -106,11 +171,7 @@ describe('Regras de Alertas', () => {
   })
 
   it('filtra o catálogo por setor notificado, não apenas pelo responsável', () => {
-    render(
-      <MemoryRouter initialEntries={['/alertas/regras']}>
-        <AlertasRegras />
-      </MemoryRouter>,
-    )
+    renderPage()
 
     expect(screen.getByText('57 regras')).toBeTruthy()
     fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'equipamentos' } })
@@ -142,29 +203,23 @@ describe('Regras de Alertas', () => {
   })
 
   it('ignora um deep-link para um tipo aposentado e cai na primeira regra viva', () => {
-    render(
-      <MemoryRouter initialEntries={['/alertas/regras?regra=invoice_cancel_blocked']}>
-        <AlertasRegras />
-      </MemoryRouter>,
-    )
+    renderPage('/alertas/regras?regra=invoice_cancel_blocked')
 
     expect(screen.queryByRole('heading', { name: 'Cancelamento bloqueado' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Cancelamento bloqueado/ })).toBeNull()
     expect(screen.getByText('57 regras')).toBeTruthy()
   })
 
-  it('combina filtros no topo e limpa a combinação sem perder a regra selecionada', () => {
-    render(
-      <MemoryRouter initialEntries={['/alertas/regras']}>
-        <AlertasRegras />
-      </MemoryRouter>,
-    )
+  it('agrupa pelos assuntos do capítulo 20 do manual e limpa a combinação de filtros sem perder a regra selecionada', () => {
+    renderPage()
 
-    fireEvent.change(screen.getByRole('combobox', { name: 'Assunto' }), { target: { value: 'Portal' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Assunto' }), { target: { value: 'Cliente e Portal' } })
     fireEvent.change(screen.getByRole('combobox', { name: 'Gravidade' }), { target: { value: 'critical' } })
 
-    expect(screen.getByText('7 regras')).toBeTruthy()
+    expect(screen.getByText('6 regras')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Portal do Cliente — convite expirado/ })).toBeNull()
+    // O provedor de e-mail sem retorno é rotina parada, não assunto do Cliente.
+    expect(screen.queryByRole('button', { name: /Provedor de e-mail sem retorno/ })).toBeNull()
 
     const clearButton = screen.getByRole('button', { name: 'Limpar filtros' })
     expect((clearButton as HTMLButtonElement).disabled).toBe(false)
@@ -176,12 +231,8 @@ describe('Regras de Alertas', () => {
     expect((screen.getByRole('button', { name: 'Limpar filtros' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
-  it('abre uma regra por deep-link e aponta para a tela de tratamento', () => {
-    render(
-      <MemoryRouter initialEntries={['/alertas/regras?regra=voyage_baplie_missing']}>
-        <AlertasRegras />
-      </MemoryRouter>,
-    )
+  it('abre uma regra por deep-link com o que é, o que acontece se ninguém agir e onde se resolve', () => {
+    renderPage('/alertas/regras?regra=voyage_baplie_missing')
 
     expect(screen.getByRole('heading', { name: 'Baplie ausente' })).toBeTruthy()
     expect(screen.getByRole('list', { name: 'Regras de alertas' })).toBeTruthy()
@@ -190,9 +241,11 @@ describe('Regras de Alertas', () => {
     // Lote 5a: sem o código interno da regra e o endereço da tela à mostra.
     expect(screen.queryByText('voyage_baplie_missing')).toBeNull()
     expect(screen.queryByText('/baplie')).toBeNull()
-    expect(screen.getByRole('heading', { name: 'Quando abre' })).toBeTruthy()
-    expect(screen.getByRole('heading', { name: 'Quem recebe' })).toBeTruthy()
-    expect(screen.getByRole('heading', { name: 'Como resolver' })).toBeTruthy()
+    for (const heading of ['O que é', 'Quando abre e quando fecha', 'Quem recebe', 'Como resolver', 'Gravidade']) {
+      expect(screen.getByRole('heading', { name: heading })).toBeTruthy()
+    }
+    expect(screen.getByText('Se ninguém agir')).toBeTruthy()
+    expect(screen.getByText(/os B\/Ls não recebem as marcas IMO e OOG/)).toBeTruthy()
   })
 
   it('mantém as entidades e as etapas de data alinhadas aos detectores vigentes', () => {
@@ -214,8 +267,74 @@ describe('Regras de Alertas', () => {
     expect(terminalRule.trigger).toContain('ETD')
     expect(terminalRule.trigger).toContain('ATD')
 
+    // O alerta abre a aba Faturamento do B/L (325); a tela diz isso sem o endereço.
     expect(reprocessRule.destination).toBe('/bls')
-    expect(reprocessRule.destinationNote).toContain('/bls/{id}?tab=faturamento')
+    expect(reprocessRule.destinationNote).toContain('aba Faturamento do B/L')
     expect(migration325).toContain("'/manifestos/' || v_bl.id || '?tab=faturamento'")
+  })
+})
+
+describe('Gravidade pela tela (migration 603, ADR 0130)', () => {
+  it('mostra a gravidade vigente do banco, não a de fábrica, na lista, no filtro e no detalhe', async () => {
+    mocks.settings = mocks.settings.map((item) => item.type === 'voyage_export_after_atd'
+      ? setting(item.type, 'critical', {
+          activeItems: 3,
+          lastChange: { at: '2026-11-06T13:00:00Z', byName: 'Ana Administrativo', previousSeverity: 'normal', reason: 'Exportação parada atrasa o ADR' },
+        })
+      : item)
+    renderPage('/alertas/regras?regra=voyage_export_after_atd&gravidade=critical')
+
+    const detail = await screen.findByRole('heading', { name: 'Gravidade' })
+    const block = detail.closest('section')!
+    await waitFor(() => expect(within(block).getByText('3 alertas')).toBeTruthy())
+    expect(within(block).getByText('Crítico')).toBeTruthy()
+    expect(within(block).getByText('Normal')).toBeTruthy() // de fábrica
+    expect(within(block).getByText('06/11/2026 às 10:00, por Ana Administrativo')).toBeTruthy()
+    expect(within(block).getByText('Motivo (era Normal): Exportação parada atrasa o ADR')).toBeTruthy()
+    // Com a gravidade vigente Crítica, a regra entra no filtro de críticos.
+    expect(screen.getByRole('button', { name: /Exportação pendente pós-ATD/ })).toBeTruthy()
+    // Crítico sem ninguém ativo no setor vai ao Administrativo.
+    expect(screen.getByText('Se ninguém de Operações estiver ativo, o aviso vai ao Administrativo.')).toBeTruthy()
+  })
+
+  it('quem não é do Administrativo vê a gravidade, mas não o botão de trocar', async () => {
+    renderPage('/alertas/regras?regra=voyage_baplie_missing')
+
+    await waitFor(() => expect(screen.getByText('0 alertas')).toBeTruthy())
+    expect(screen.queryByRole('button', { name: /Trocar para/ })).toBeNull()
+    expect(screen.getByText('Só o Administrativo troca a gravidade, com motivo.')).toBeTruthy()
+  })
+
+  it('o Administrativo troca Crítico para Normal com motivo, e a tela relê a fila e os cartões', async () => {
+    mocks.canManage = true
+    mocks.settings = mocks.settings.map((item) => item.type === 'voyage_baplie_missing' ? setting(item.type, 'critical', { activeItems: 2 }) : item)
+    renderPage('/alertas/regras?regra=voyage_baplie_missing')
+
+    const button = await screen.findByRole('button', { name: 'Trocar para Normal' })
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false))
+    fireEvent.click(button)
+
+    await waitFor(() => expect(mocks.setSeverity).toHaveBeenCalledWith('voyage_baplie_missing', 'normal', 'Exportação parada atrasa o ADR do armador'))
+    const options = (mocks.confirmWithReason.mock.calls as unknown as Array<[{ message: string; consequence: string; confirmLabel: string }]>)[0][0]
+    expect(options.message).toBe('Trocar a gravidade de "Baplie ausente" de Crítico para Normal?')
+    expect(options.consequence).toContain('2 alertas abertos deste tipo passam a Normal agora')
+    expect(options.consequence).toContain('o aviso deixa de ir ao Administrativo')
+    expect(options.confirmLabel).toBe('Trocar para Normal')
+    await waitFor(() => expect(mocks.afterChange).toHaveBeenCalled())
+    expect(mocks.showToast).toHaveBeenCalledWith('Baplie ausente agora é Normal. 2 alertas abertos mudaram junto.', 'success')
+  })
+
+  it('desistir na confirmação não troca nada', async () => {
+    mocks.canManage = true
+    mocks.confirmWithReason.mockResolvedValueOnce(null)
+    renderPage('/alertas/regras?regra=voyage_schedule_date_pending')
+
+    const button = await screen.findByRole('button', { name: 'Trocar para Crítico' })
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(false))
+    fireEvent.click(button)
+
+    await waitFor(() => expect(mocks.confirmWithReason).toHaveBeenCalled())
+    expect(mocks.setSeverity).not.toHaveBeenCalled()
+    expect(mocks.afterChange).not.toHaveBeenCalled()
   })
 })

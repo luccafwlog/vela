@@ -6,6 +6,15 @@
 
 ## 2026-11
 
+- **Regras de alertas didática e gravidade pela tela (pedido do dono de 2026-11-06, migration `603`, ADR 0130):** a
+  tela **Regras de alertas** fala a língua de quem opera: a lista se agrupa pelos assuntos do capítulo 20 do manual, e
+  cada regra diz o que é, **Se ninguém agir**, quando abre e fecha, quem recebe e quem age, como resolver e a
+  gravidade, sem migration, função, tabela ou rotina técnica no texto. O Administrativo troca a gravidade (Crítico ou
+  Normal) de um tipo, com motivo: vale para os alertas abertos e os próximos, não reavisa o sino e fica no Histórico de
+  ações (`set_alert_type_severity`, `list_alert_type_settings`). A mesma conversa gerou a
+  [revisão de cobertura dos alertas no fluxo de trabalho](archive/audits/2026-11-06-cobertura-dos-alertas-no-fluxo-de-trabalho.md).
+  Prova: `gravidadeDoAlertaPelaTela.local-pg.test.ts`, `permissoesPorPerfil.local-pg.test.ts` (P14) e
+  `AlertasRegrasCatalog.test.tsx`.
 - **Valor mínimo aplicado na fatura (pedido do dono de 2026-11-05, migration `602`, ADR 0125):** o item da fatura
   cobrado pelo mínimo do THD da carga solta de Vitória diz **Valor mínimo aplicado** no detalhe da fatura do Vela, no
   do Portal e no documento impresso. A emissão marca `minimum_value` no `snapshot_payload` do item; a migration marcou

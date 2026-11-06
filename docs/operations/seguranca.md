@@ -163,7 +163,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
   `MATRIX_GLOBAL`.
 - **Matriz da tela:** "O que cada setor pode", em `/admin/usuarios`, e a lista
   "Com este setor, ... pode" das janelas de usuário vêm do catálogo único
-  `src/services/permissionMatrix.ts` (lote 5b da identidade visual): 48 linhas
+  `src/services/permissionMatrix.ts` (lote 5b da identidade visual): 49 linhas
   que resumem as ações desta matriz, cada uma citando os casos da bateria que a
   provam. `permissionMatrix.test.ts` falha se uma linha ficar sem caso ou citar
   caso inexistente; a bateria falha se o banco divergir do catálogo. Mudar uma
@@ -181,6 +181,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Desativar ou rebaixar o último Administrativo ativo | — | — | — | — | — | Gatilho `guard_last_active_administrativo` (migration `239`; só pessoas contam desde a `440`) | ADR 0083, item 2 | vigente (**Teste** local) |
 | Excluir perfil interno | — | — | — | — | — | Sem DELETE em `user_profiles` para `authenticated` (migration `240`) | ADR 0083, item 3 | vigente (**Teste** local) |
 | Registrar escrita em nome de outro usuário | — | — | — | — | — | `_assert_actor_is_caller` sem exceção para o Administrativo, chamado no início de toda RPC `SECURITY DEFINER` com `p_actor` executável por `authenticated` (migration `241`); sem usuário na sessão (`service_role`), o autor informado vale | ADR 0085, regra base 2 | vigente (**Teste** local) |
+| Trocar a gravidade (Crítico ou Normal) de um tipo de alerta, com motivo | ✔ | — | — | — | — | `set_alert_type_severity` (`is_admin`, migration `603`): troca o catálogo e os alertas abertos do tipo e grava a troca em `audit_logs` (`alert_type`); a leitura `list_alert_type_settings` é de todos | [ADR 0130](../adr/0130-gravidade-do-alerta-pela-tela.md) | vigente desde a migration `603` (**Teste** local: `gravidadeDoAlertaPelaTela.local-pg.test.ts`; `permissoesPorPerfil.local-pg.test.ts`, P14) |
 
 ### Viagens e ADR de Saída
 

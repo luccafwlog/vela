@@ -223,6 +223,8 @@ export const queryKeys = {
     entityLabels: (filter: string, page: number, department: string) =>
       ['alerts', 'entity-labels', filter, page, department] as const,
     departmentSummary: () => ['alert-department-summary'] as const,
+    // Sob o prefixo 'alerts': alerta que abre ou fecha muda os abertos de cada tipo.
+    typeSettings: () => ['alerts', 'type-settings'] as const,
     financial: () => ['financial-alerts'] as const,
     operationalCount: () => ['op-count', 'open-alerts'] as const,
     internalNotifications: (cursor?: unknown) =>

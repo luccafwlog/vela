@@ -295,7 +295,7 @@ repositório.
 Lido no código e nas definições vigentes do banco local. O banco decide; a
 tela só esconde botões e telas.
 
-### 1. As 48 linhas da matriz "O que cada setor pode" contra o banco
+### 1. As 49 linhas da matriz "O que cada setor pode" contra o banco
 
 Colunas da tela: Adm, Fin, Ope, Doc, Equ (✓ pode, ○ não pode).
 
@@ -349,6 +349,7 @@ Colunas da tela: Adm, Fin, Ope, Doc, Equ (✓ pode, ○ não pode).
 | `permissao:ver-desbloqueio` | ✓ / ✓ / ✓ / ✓ / ✓ | `ce_unlock_private.actor()` (os cinco), `ce_unlock_document_access`, `ce_unlock_read` | Bate; a lista de planilhas enviadas à ZPT e a referência externa da confirmação ficam só com Adm e Doc (seção 2) |
 | `permissao:gerir-desbloqueio` | ✓ / ○ / ○ / ✓ / ○ | `ce_unlock_private.actor(true)` (Administrativo ou Documentação) nos comandos, envios de documento, exportação e conciliação | Bate |
 | `permissao:alertas-do-setor` | 16 tipos + críticos sem ninguém / 4 / 3 / 38 / 3 | Audiência dos tipos ativos do catálogo: 16 / 4 / 3 / 38 / 3, igual à tela (Equipamentos 3 desde a migration `468`); entrega soma o setor do item; crítico sem destinatário vai ao Administrativo | Bate no catálogo; Ope e Equ recebem também as pendências do ADR da própria seção (5 e 5 tipos na prática) |
+| `permissao:alertas-gravidade` | ✓ / ○ / ○ / ○ / ○ | `set_alert_type_severity` exige `is_admin()` (migration `603`, ADR 0130); a leitura `list_alert_type_settings` é de todos | Bate (**Teste** local: `gravidadeDoAlertaPelaTela.local-pg.test.ts`; `permissoesPorPerfil.local-pg.test.ts`, P14) |
 
 ### 2. Restrições por setor no banco que a matriz não lista
 

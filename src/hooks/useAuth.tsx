@@ -54,6 +54,8 @@ export type Permission =
   | 'declare_voyage_vehicles'
   | 'customer_communications'
   | 'edit_customer_contacts'
+  /** Trocar a gravidade de um alerta na tela Regras de alertas: só o Administrativo (migration 603, ADR 0130). */
+  | 'manage_alert_rules'
 
 export function roleHasPermission(role: UserProfileRole | undefined, permission: Permission, isDev = false): boolean {
   if (!role) return false
@@ -76,7 +78,7 @@ export function roleHasPermission(role: UserProfileRole | undefined, permission:
   if (permission === 'customer_communications') return ['administrativo', 'documentacao', 'financeiro', 'operacoes', 'equipamentos'].includes(effectiveRole)
 
   switch (effectiveRole) {
-    case 'administrativo': return permission === 'admin_panel' || permission === 'manage_users' || permission === 'portal_provisioning' || permission === 'settle_financial_adjustments' || permission === 'cancel_invoices' || permission === 'edit_customer_contacts'
+    case 'administrativo': return permission === 'admin_panel' || permission === 'manage_users' || permission === 'portal_provisioning' || permission === 'settle_financial_adjustments' || permission === 'cancel_invoices' || permission === 'edit_customer_contacts' || permission === 'manage_alert_rules'
     case 'documentacao': return permission === 'portal_provisioning' || permission === 'edit_customer_contacts'
     case 'financeiro': return permission === 'settle_financial_adjustments' || permission === 'manage_payments' || permission === 'cancel_invoices'
     case 'operacoes': return false

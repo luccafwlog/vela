@@ -26,7 +26,22 @@ A fila de Alertas, com os críticos no alto.
 
 Os críticos vêm primeiro e, dentro de cada gravidade, os mais recentes.
 
-**Regras de alertas**, no botão do alto da fila de **Alertas**, abre a lista de todos os alertas do Vela, com quando cada um abre, quem recebe e como se resolve.
+**Regras de alertas**, no botão do alto da fila de **Alertas**, abre a lista de todos os alertas do Vela, agrupada pelos mesmos assuntos deste capítulo. Cada regra diz o que o alerta quer dizer, o que acontece **Se ninguém agir**, quando abre e quando fecha, quem recebe e como se resolve, e mostra a gravidade que vale hoje.
+
+### Trocar a gravidade de um alerta
+
+**Quem faz:** {{Administrativo}}
+
+A gravidade de cada alerta nasce com o Vela (a **Gravidade de fábrica**, a que este capítulo marca com "· crítico"), mas o {{Administrativo}} pode trocá-la quando a operação pede outra prioridade.
+
+::: passos
+1. Em **Alertas**, clique em **Regras de alertas** e escolha o alerta na lista.
+2. No bloco **Gravidade**, clique em **Trocar para Normal** (ou **Trocar para Crítico**).
+3. Leia a consequência: quantos alertas abertos mudam junto e o que muda na fila e no aviso.
+4. Escreva o **Motivo da troca** (10 caracteres ou mais) e confirme.
+:::
+
+A troca vale na hora para os alertas abertos daquele tipo e para os próximos; os já resolvidos guardam a gravidade que tinham. O crítico vai para o alto da fila e conta no cartão **Críticos** e, se ninguém do setor responsável estiver ativo, o aviso vai ao {{Administrativo}}; o normal não tem esse desvio. A troca não avisa ninguém de novo no sino. O bloco mostra a gravidade de fábrica, quem trocou, quando e por quê; a troca fica também em **Admin** › **Histórico de ações**, assunto **Alerta**. Para desfazer, troque de volta, com motivo.
 
 ::: atencao
 - **Busca**, **Registro** e **Gravidade** filtram só a página carregada. Com mais de 100 alertas, filtre antes pelo cartão do setor, que vale para a fila inteira, ou troque de página.

@@ -48,6 +48,7 @@ Estas são as ações que o Vela reserva. Para as outras equipes, o botão não 
 | Gerir o Desbloqueio de CE | {{Documentação}} e {{Administrativo}} |
 | Editar contatos do Cliente; cadastrar Cliente pelo **Novo cliente** | {{Documentação}}, {{Equipamentos}} e {{Administrativo}} |
 | Remover uma atracação ou trocar o terminal dela | {{Operações}} e {{Administrativo}} |
+| Trocar a gravidade de um alerta (**Crítico** ou **Normal**), em **Regras de alertas** | {{Administrativo}} |
 
 A conta do {{Administrativo}} com a marca Dev, da equipe de desenvolvimento, pode tudo o que qualquer equipe pode, inclusive o que é só do {{Financeiro}}. Desde 2026-11-04 (decisão do dono), o {{Administrativo}} comum não registra nem cancela pagamento, não confirma restituição e não concilia o Pix; antes, registrar, confirmar e conciliar eram também dele, e cancelar pagamento, só dele.
 

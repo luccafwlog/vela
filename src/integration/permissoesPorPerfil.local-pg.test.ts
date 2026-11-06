@@ -885,6 +885,8 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     { row: 'Liberar e-mail bloqueado do Portal', allowed: ADM_DOC, call: `public.portal_release_suppressed_email(-1, 'novo-p14@example.test', 'motivo')` },
     { row: 'Reabrir análise do Portal', allowed: ADM_DOC, call: `public.portal_return_to_analysis(-1, 'motivo', NULL, NULL)` },
     { row: 'Gerir o Desbloqueio de CE', allowed: ADM_DOC, call: `public.ce_unlock_command('p14-inexistente', '{}'::jsonb)` },
+    // Migration 603 (ADR 0130): a guarda do Administrativo vem antes da busca do tipo.
+    { row: 'Trocar a gravidade de um alerta', allowed: ADM, call: `public.set_alert_type_severity('p14_tipo_inexistente', 'critical', 'motivo do teste P14')` },
   ]
 
   /**
