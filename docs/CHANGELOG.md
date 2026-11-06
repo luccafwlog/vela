@@ -18,8 +18,12 @@
   Pix de dois bancos pagadores ou mais só avisa o log e o Sentry (`receipts_zone`), com a rodada
   em 200. Pix de outros sistemas também gravam o horário do Itaú. Quando a correção chega à
   produção, a consulta retoma do ponto parado e dá baixa automática nos Pix represados, inclusive os
-  18. Prova: `itauPix.test.ts` (o lote de 18 do incidente, o lote baixado dias depois, Pix agendados
-  de 5 h, fuso trocado recente e antigo) e `itau-pix/index.test.ts` (aviso de fuso responde 200).
+  18. Migration `611`: o Pix gravado pela fila de falhas (formato inesperado, três falhas de gravação)
+  lê o horário do Itaú como a consulta; antes, o `Z` era lido como UTC e esse Pix ficava 3 h antes do
+  real (nenhum em produção até então). Prova: `itauPix.test.ts` (o lote de 18 do incidente, o lote
+  baixado dias depois, Pix agendados de 5 h, fuso trocado recente e antigo), `itau-pix/index.test.ts`
+  (aviso de fuso responde 200) e `itauPixCharges.local-pg.test.ts` (os quatro formatos de horário na
+  fila de falhas).
 - **Embarque de vazios: porto de descarga, Nº do manifesto da rota, preço por tamanho e free time congelado
   (decisões do dono de 2026-11-06, migration `606`, ADR 0130):** a revisão do Embarque de vazios
   ([relatório](archive/audits/2026-11-06-revisao-embarque-de-vazios.md)) levou a estas mudanças:

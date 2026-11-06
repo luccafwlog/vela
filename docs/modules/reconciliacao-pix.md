@@ -658,7 +658,10 @@ gravado em `itau_pix_receipts` com o valor e o horário do retorno do Itaú: o d
 cobrança do Vela em análise (motivo "Não foi gravado depois de N
 tentativa(s): …", Alerta `pix_unreconciled` do Pix em análise), o de fora do
 Vela como recebido, sem Alerta; e a consulta avança (10-recebimento:3;
-migration `471`). Retorno sem valor ou horário legível fica só na fila de
+migration `471`). O horário é lido como na consulta: o `Z` do Itaú é Brasília,
+salvo o que assim cairia no futuro (UTC de verdade); até a migration `611`, o
+`Z` era lido como UTC e o Pix gravado por este caminho ficava 3 h antes do real
+(em produção, nenhum tinha passado por ele com horário legível até 2026-11-06). Retorno sem valor ou horário legível fica só na fila de
 falhas (`itau_pix_receipt_failures`), com Alerta se for do Vela. Pix em formato inesperado vai para análise na primeira vez
 (migration `358`); `endToEndId` com data impossível (mês 13, minuto 99) conta como formato inesperado.
 O horário do Pix nunca para a consulta nem manda o Pix para análise
