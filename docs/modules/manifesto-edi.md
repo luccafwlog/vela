@@ -1248,10 +1248,19 @@ ao Mercante continua fora do Vela. **Código:**
     do B/L registra "Correção da ficha mantida: … trazia "…"", e a prévia do
     arquivo de B/L avisa "<campo> corrigido na ficha: o arquivo traz outro
     valor e fica a correção da ficha.".
+  - Com o CNPJ/CPF corrigido na ficha, o CNPJ do arquivo que não é de nenhum
+    Cliente cadastrado não vira **Troca de Consignatário** nem "CNPJ
+    faturado": a prévia manda ao servidor o CNPJ corrigido, e o Cliente e a
+    correção ficam (decisão do dono de 2026-11-06, revisão da release;
+    `buildBlFreightPreview`). Antes, o mesmo arquivo errado pedia a troca a
+    cada reimportação e, sob a confirmação única do arquivo, tirava o Cliente.
   - O B/L que perde o Cliente ou passa a outro Cliente cujo CNPJ não é o
-    corrigido (Troca de Consignatário aceita, inclusive para consignatário
-    ainda não cadastrado; vínculo pela Revisão) perde as correções do bloco e
-    do CNPJ do consignatário ("Correção da ficha substituída", no Histórico).
+    corrigido (Troca de Consignatário aceita para outro Cliente cadastrado ou,
+    sem CNPJ corrigido, para consignatário ainda não cadastrado; vínculo pela
+    Revisão ou pela importação) perde as correções do bloco e do CNPJ do
+    consignatário ("Correção da ficha substituída", no Histórico). Nesse caso
+    a prévia avisa "… o arquivo aponta outro Cliente. Se a troca de cliente for
+    confirmada, vale o do arquivo; sem ela, fica a correção da ficha.".
   - Para voltar ao valor do arquivo, corrija o campo de novo na ficha.
 - **Consignatário estrangeiro** (ADR 0129, item 3). Sem CNPJ/CPF e sem sinal
   de Brasil no bloco (BRASIL ou BRAZIL, CNPJ, CPF, CEP, LTDA, EIRELI, S/A ou CEP
