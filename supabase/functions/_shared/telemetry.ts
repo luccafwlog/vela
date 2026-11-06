@@ -98,6 +98,26 @@ export async function captureEdgeException(
   }
 }
 
+/**
+ * Aviso operacional que não é falha (ex.: disjuntor da consulta pública
+ * aberto): nível `warning`, mensagem fixa escolhida por quem chama, sem dado
+ * do pedido. Mesmo escopo e fingerprint `['edge', função, status]` das falhas,
+ * então cada aviso é um issue próprio.
+ */
+export async function captureEdgeWarning(message: string, context: EdgeTelemetryContext): Promise<void> {
+  try {
+    const Sentry = await initializeSentry()
+    if (!Sentry) return
+    Sentry.withScope((scope) => {
+      applyEdgeTelemetryScope(scope, context)
+      Sentry.captureMessage(message, 'warning')
+    })
+    await Sentry.flush(1000)
+  } catch {
+    // Sentry is optional observability: its failure must not affect the caller.
+  }
+}
+
 /** Captures thrown failures and 5xx responses without exposing request/response payloads. */
 export function instrumentEdgeHandler(
   functionName: string,
