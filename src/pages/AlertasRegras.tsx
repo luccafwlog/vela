@@ -6,7 +6,8 @@ import { EmptyState, PageHeader } from '../components/ui/Card'
 import { Block, Fact, FactList, LeadValue } from '../components/ui/Block'
 import { Button } from '../components/ui/Button'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
-import { Field, Input, Select } from '../components/ui/Input'
+import { Field, Input, Select, Textarea } from '../components/ui/Input'
+import { Modal } from '../components/ui/Modal'
 import { NoValue } from '../components/ui/NoValue'
 import { StatusText } from '../components/ui/StatusText'
 import { useToast } from '../components/ui/Toast'
@@ -28,7 +29,7 @@ import {
   type AlertRuleDomain,
   type AlertRuleSeverity,
 } from '../services/alertRulesCatalog'
-import { setAlertTypeSeverity, type AlertTypeSetting } from '../services/alertTypeSettings'
+import { setAlertTypeEscalation, setAlertTypeSeverity, type AlertTypeSetting } from '../services/alertTypeSettings'
 import { ENTITY_TYPE_LABELS } from '../services/alerts'
 import { afterGravidadeDoAlertaAlterada } from '../services/cacheEffects'
 
@@ -326,6 +327,7 @@ function RuleDetail({ rule, settings }: { rule: AlertRule; settings: SettingsSta
       </div>
 
       <SeverityBlock rule={rule} settings={settings} />
+      <EscalationBlock rule={rule} settings={settings} />
     </div>
   )
 }
@@ -423,6 +425,99 @@ function SeverityBlock({ rule, settings }: { rule: AlertRule; settings: Settings
         <p className="mt-3"><StatusText tone="warning">Não foi possível ler a gravidade vigente: a tela mostra a de fábrica.</StatusText></p>
       ) : null}
       {!canChange ? <p className="mt-3 text-[var(--app-muted)]">Só o Administrativo troca a gravidade, com motivo.</p> : null}
+    </Block>
+  )
+}
+
+/**
+ * Reforço por tempo (migration 604, ADR 0131, D8): o alerta Normal aberto há
+ * mais de N horas vira Crítico e avisa de novo no sino. Só o Administrativo
+ * liga, muda ou tira, com motivo.
+ */
+function EscalationBlock({ rule, settings }: { rule: AlertRule; settings: SettingsState }) {
+  const { can } = useAuth()
+  const { showToast } = useToast()
+  const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [hours, setHours] = useState('')
+  const [reason, setReason] = useState('')
+  const [saving, setSaving] = useState(false)
+  const setting = settings.byType.get(rule.type) ?? null
+  const severity = liveSeverity(rule, settings)
+  const current = setting?.escalateAfterHours ?? null
+  const canChange = can('manage_alert_rules')
+  const last = setting?.lastEscalationChange ?? null
+  const parsedHours = Number(hours)
+  const validHours = Number.isInteger(parsedHours) && parsedHours >= 1 && parsedHours <= 720
+  const validReason = reason.trim().length >= 10
+
+  function openDialog() {
+    setHours(current ? String(current) : '')
+    setReason('')
+    setOpen(true)
+  }
+
+  async function save(next: number | null) {
+    setSaving(true)
+    try {
+      await setAlertTypeEscalation(rule.type, next, reason)
+      await afterGravidadeDoAlertaAlterada(queryClient)
+      showToast(next ? `${rule.label} agora vira Crítico depois de ${plural(next, 'hora', 'horas')} aberto.` : `${rule.label} ficou sem reforço por tempo.`, 'success')
+      setOpen(false)
+    } catch (err) {
+      showToast(`Falha ao trocar o reforço: ${userFacingErrorMessage(err, 'tente novamente.')}`, 'error')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const lead = current
+    ? `Vira Crítico depois de ${plural(current, 'hora', 'horas')} aberto`
+    : 'Sem reforço por tempo'
+  const showButton = canChange && setting && (severity === 'normal' || current !== null)
+
+  return (
+    <Block
+      title="Reforço por tempo"
+      headingLevel={3}
+      aside={showButton ? (
+        <Button variant="secondary" className="app-btn--sm" onClick={openDialog}>
+          {current ? 'Mudar reforço' : 'Definir reforço'}
+        </Button>
+      ) : null}
+    >
+      <LeadValue tone={current ? 'warning' : 'muted'}>{lead}</LeadValue>
+      <p className="text-[var(--app-muted)]">
+        {severity === 'critical'
+          ? 'Este alerta já é Crítico: o reforço só vale para alerta Normal.'
+          : 'O alerta Normal que ficar aberto mais tempo que isso passa a Crítico, sobe na fila e avisa de novo no sino. Fechar e reabrir recomeça a contagem.'}
+      </p>
+      {last ? (
+        <p className="mt-2">
+          Última troca: {formatBrasiliaDateTime(new Date(last.at))}{last.byName ? `, por ${last.byName}` : ''}{last.reason ? `. Motivo: ${last.reason}` : ''}
+        </p>
+      ) : null}
+      {!canChange ? <p className="mt-2 text-[var(--app-muted)]">Só o Administrativo define o reforço, com motivo.</p> : null}
+
+      <Modal open={open} size="sm" title="Reforço por tempo" onClose={() => (saving ? undefined : setOpen(false))}>
+        <div className="grid gap-4">
+          <p>Depois de quantas horas aberto o alerta <b>{rule.label}</b> vira Crítico?</p>
+          <Field label="Horas (de 1 a 720)">
+            <Input id="reforco-horas" type="number" min={1} max={720} step={1} value={hours} onChange={(event) => setHours(event.target.value)} />
+          </Field>
+          <p className="text-[var(--app-muted)]">Vale para os alertas abertos agora e os próximos: os que já passaram desse tempo viram Críticos em até 5 minutos e avisam de novo no sino.</p>
+          <Field label="Motivo da troca (obrigatório, 10 caracteres ou mais)">
+            <Textarea id="reforco-motivo" value={reason} onChange={(event) => setReason(event.target.value)} rows={3} />
+          </Field>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={saving}>Voltar</Button>
+            {current ? (
+              <Button variant="secondary" onClick={() => void save(null)} disabled={!validReason} loading={saving}>Tirar reforço</Button>
+            ) : null}
+            <Button onClick={() => void save(parsedHours)} disabled={!validHours || !validReason || parsedHours === current} loading={saving}>Salvar reforço</Button>
+          </div>
+        </div>
+      </Modal>
     </Block>
   )
 }

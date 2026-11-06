@@ -887,6 +887,8 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     { row: 'Gerir o Desbloqueio de CE', allowed: ADM_DOC, call: `public.ce_unlock_command('p14-inexistente', '{}'::jsonb)` },
     // Migration 603 (ADR 0130): a guarda do Administrativo vem antes da busca do tipo.
     { row: 'Trocar a gravidade de um alerta', allowed: ADM, call: `public.set_alert_type_severity('p14_tipo_inexistente', 'critical', 'motivo do teste P14')` },
+    // Migration 604 (ADR 0131, D8): o reforço por tempo, também só do Administrativo.
+    { row: 'Definir o reforço por tempo de um alerta', allowed: ADM, call: `public.set_alert_type_escalation('p14_tipo_inexistente', 4, 'motivo do teste P14')` },
   ]
 
   /**

@@ -6,6 +6,12 @@
 
 ## 2026-11
 
+- **Reforço por tempo dos alertas (decisão D8 do dono de 2026-11-06, migration `604`, ADR 0131):** em **Regras de
+  alertas**, o Administrativo define "vira Crítico depois de N horas aberto" para um alerta Normal, com motivo. A rotina
+  `alerts-escalation` (5 min) escala o alerta esquecido e avisa de novo no sino. A gravidade passa a ser do alerta: o
+  marco crítico do produtor e o reforço valem acima do tipo, e a troca do tipo para Normal não rebaixa o escalado.
+  Prova: `reforcoPorTempoDosAlertas.local-pg.test.ts`, `permissoesPorPerfil.local-pg.test.ts` (P14) e
+  `AlertasRegrasCatalog.test.tsx`.
 - **Regras de alertas didática e gravidade pela tela (pedido do dono de 2026-11-06, migration `603`, ADR 0130):** a
   tela **Regras de alertas** fala a língua de quem opera: a lista se agrupa pelos assuntos do capítulo 20 do manual, e
   cada regra diz o que é, **Se ninguém agir**, quando abre e fecha, quem recebe e quem age, como resolver e a

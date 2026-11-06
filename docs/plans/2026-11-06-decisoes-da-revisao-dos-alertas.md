@@ -11,7 +11,7 @@ mudança. Ao terminar o último lote, este plano vai para
 
 | Lote | Decisão | Entrega | Brechas | Situação |
 |---|---|---|---|---|
-| 1 | D8 | Reforço por tempo: o item de alerta pode ficar Crítico acima da gravidade do tipo e reavisa o sino; "vira Crítico depois de N horas aberto" configurável na tela **Regras de alertas** pelo Administrativo | B23, B24 | a fazer |
+| 1 | D8 | Reforço por tempo: o item de alerta pode ficar Crítico acima da gravidade do tipo e reavisa o sino; "vira Crítico depois de N horas aberto" configurável na tela **Regras de alertas** pelo Administrativo | B23, B24 | feito: migration `604`, `reforcoPorTempoDosAlertas.local-pg.test.ts` |
 | 2 | D7, D5, D1 | Roteamento: PTAX a Equipamentos; feriados ao Administrativo com a marca Dev; Tabela de cobrança faltando, Cálculo bloqueado e Portal não provisionado avisam Documentação e Administrativo; Exportação pendente pós-ATD a Equipamentos; aviso de nova solicitação de desbloqueio também ao Administrativo | B19, B20, B21, B22 | a fazer |
 | 3 | D3 | ATA e ATD viram Críticos 16 horas depois do ETA e do ETD (o mesmo alerta, com novo aviso) | B08 | a fazer |
 | 4 | D2 | Alerta de descarga ausente por atracação: Normal no ATB, Crítico 24 horas depois, a Equipamentos | B05 | a fazer |

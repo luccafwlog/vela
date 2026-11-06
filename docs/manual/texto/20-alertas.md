@@ -43,6 +43,12 @@ A gravidade de cada alerta nasce com o Vela (a **Gravidade de fábrica**, a que 
 
 A troca vale na hora para os alertas abertos daquele tipo e para os próximos; os já resolvidos guardam a gravidade que tinham. O crítico vai para o alto da fila e conta no cartão **Críticos** e, se ninguém do setor responsável estiver ativo, o aviso vai ao {{Administrativo}}; o normal não tem esse desvio. A troca não avisa ninguém de novo no sino. O bloco mostra a gravidade de fábrica, quem trocou, quando e por quê; a troca fica também em **Admin** › **Histórico de ações**, assunto **Alerta**. Para desfazer, troque de volta, com motivo.
 
+### O reforço por tempo
+
+**Quem faz:** {{Administrativo}}
+
+Um alerta **Normal** pode ganhar um reforço por tempo: depois de N horas aberto, ele vira **Crítico**, sobe na fila e avisa de novo no sino. Em **Regras de alertas**, no bloco **Reforço por tempo**, clique em **Definir reforço** (ou **Mudar reforço**), informe as **Horas** e o motivo e clique em **Salvar reforço**; **Tirar reforço** desliga. O alerta que já passou do tempo vira Crítico em até 5 minutos. Fechar e reabrir o alerta recomeça a contagem, e trocar a gravidade da regra para Normal não rebaixa o alerta que já escalou.
+
 ::: atencao
 - **Busca**, **Registro** e **Gravidade** filtram só a página carregada. Com mais de 100 alertas, filtre antes pelo cartão do setor, que vale para a fila inteira, ou troque de página.
 - A fila não se atualiza sozinha: ela relê ao abrir e depois de cada resolução sua. Para ver o que outra pessoa ou o Vela mudou, abra a página de novo.

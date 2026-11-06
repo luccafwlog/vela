@@ -188,7 +188,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     proof: ['caso: Catálogo: cada setor recebe os tipos de alerta que a tela diz', 'caso: P5: Pix não conciliado, Consulta do Itaú parada e Restituição pendente são do Financeiro; Fatura desatualizada o avisa'],
   },
   // Migration 603 (ADR 0130): a gravidade de cada alerta, na tela Regras de alertas.
-  { id: 'alertas-gravidade', group: 'alertas', action: 'Trocar a gravidade de um alerta (Crítico ou Normal), com motivo', can: ADM, proof: ['exceção: Trocar a gravidade de um alerta'] },
+  { id: 'alertas-gravidade', group: 'alertas', action: 'Trocar a gravidade de um alerta (Crítico ou Normal) e o reforço por tempo, com motivo', can: ADM, proof: ['exceção: Trocar a gravidade de um alerta', 'exceção: Definir o reforço por tempo de um alerta'] },
 ]
 
 /** O setor pode a ação (✓ ou com condição). */

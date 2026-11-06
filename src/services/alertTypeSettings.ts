@@ -18,6 +18,9 @@ export type AlertTypeSetting = {
     previousSeverity: AlertRuleSeverity | null
     reason: string | null
   } | null
+  /** Reforço por tempo (migration 604): vira Crítico depois de N horas aberto; `null` sem reforço. */
+  escalateAfterHours: number | null
+  lastEscalationChange: { at: string; byName: string | null; reason: string | null } | null
 }
 
 function isSeverity(value: unknown): value is AlertRuleSeverity {
@@ -35,6 +38,8 @@ export function parseAlertTypeSettings(rows: unknown): AlertTypeSetting[] {
     const type = text(row?.type)
     if (!row || !type || !isSeverity(row.severity)) throw new Error('Resposta inesperada da gravidade dos alertas.')
     const changedAt = text(row.changed_at)
+    const escalationAt = text(row.escalation_changed_at)
+    const hours = Number(row.escalate_after_hours)
     return {
       type,
       severity: row.severity,
@@ -46,6 +51,10 @@ export function parseAlertTypeSettings(rows: unknown): AlertTypeSetting[] {
             previousSeverity: isSeverity(row.previous_severity) ? row.previous_severity : null,
             reason: text(row.change_reason),
           }
+        : null,
+      escalateAfterHours: row.escalate_after_hours === null || row.escalate_after_hours === undefined || !Number.isInteger(hours) ? null : hours,
+      lastEscalationChange: escalationAt
+        ? { at: escalationAt, byName: text(row.escalation_changed_by_name), reason: text(row.escalation_reason) }
         : null,
     }
   })
@@ -88,4 +97,22 @@ export async function setAlertTypeSeverity(type: string, severity: AlertRuleSeve
     severity: row.severity,
     activeItems: Number(row.active_items) || 0,
   }
+}
+
+/**
+ * Liga, muda ou tira (`null`) o reforço por tempo do tipo: o alerta Normal
+ * aberto há mais de `hours` horas vira Crítico e avisa de novo. Só o
+ * Administrativo; motivo de 10 caracteres ou mais (migration 604).
+ */
+export async function setAlertTypeEscalation(type: string, hours: number | null, reason: string): Promise<{ previousHours: number | null; hours: number | null }> {
+  const { data, error } = await supabase.rpc('set_alert_type_escalation' as never, {
+    p_type: type,
+    p_hours: hours,
+    p_reason: reason.trim(),
+  } as never)
+  if (error) throw error
+  const row = data && typeof data === 'object' ? data as Record<string, unknown> : null
+  if (!row) throw new Error('Resposta inesperada da troca do reforço por tempo.')
+  const asHours = (value: unknown) => (value === null || value === undefined ? null : Number(value))
+  return { previousHours: asHours(row.previous_hours), hours: asHours(row.hours) }
 }

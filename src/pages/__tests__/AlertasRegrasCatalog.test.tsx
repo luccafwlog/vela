@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   settings: [] as AlertTypeSetting[],
   canManage: false,
   setSeverity: vi.fn(),
+  setEscalation: vi.fn(async () => ({ previousHours: null, hours: 8 })),
   confirmWithReason: vi.fn(async () => 'Exportação parada atrasa o ADR do armador' as string | null),
   showToast: vi.fn(),
   afterChange: vi.fn(async () => undefined),
@@ -24,6 +25,7 @@ vi.mock('../../services/alertTypeSettings', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/alertTypeSettings')>()),
   fetchAlertTypeSettings: async () => mocks.settings,
   setAlertTypeSeverity: mocks.setSeverity,
+  setAlertTypeEscalation: mocks.setEscalation,
 }))
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({ can: (permission: string) => permission === 'manage_alert_rules' && mocks.canManage }),
@@ -40,7 +42,7 @@ const migration338 = readFileSync(resolve(process.cwd(), 'supabase/migrations/33
 const migration342 = readFileSync(resolve(process.cwd(), 'supabase/migrations/342_atracacao_alertas.sql'), 'utf8')
 
 function setting(type: string, severity: 'critical' | 'normal', extra: Partial<AlertTypeSetting> = {}): AlertTypeSetting {
-  return { type, severity, activeItems: 0, lastChange: null, ...extra }
+  return { type, severity, activeItems: 0, lastChange: null, escalateAfterHours: null, lastEscalationChange: null, ...extra }
 }
 
 function renderPage(url = '/alertas/regras') {
@@ -241,7 +243,7 @@ describe('Regras de Alertas', () => {
     // Lote 5a: sem o código interno da regra e o endereço da tela à mostra.
     expect(screen.queryByText('voyage_baplie_missing')).toBeNull()
     expect(screen.queryByText('/baplie')).toBeNull()
-    for (const heading of ['O que é', 'Quando abre e quando fecha', 'Quem recebe', 'Como resolver', 'Gravidade']) {
+    for (const heading of ['O que é', 'Quando abre e quando fecha', 'Quem recebe', 'Como resolver', 'Gravidade', 'Reforço por tempo']) {
       expect(screen.getByRole('heading', { name: heading })).toBeTruthy()
     }
     expect(screen.getByText('Se ninguém agir')).toBeTruthy()
@@ -336,5 +338,32 @@ describe('Gravidade pela tela (migration 603, ADR 0130)', () => {
     await waitFor(() => expect(mocks.confirmWithReason).toHaveBeenCalled())
     expect(mocks.setSeverity).not.toHaveBeenCalled()
     expect(mocks.afterChange).not.toHaveBeenCalled()
+  })
+
+  it('o Administrativo define o reforço por tempo de um alerta Normal, com motivo (migration 604)', async () => {
+    mocks.canManage = true
+    renderPage('/alertas/regras?regra=voyage_schedule_date_pending')
+
+    const open = await screen.findByRole('button', { name: 'Definir reforço' })
+    expect(screen.getByText('Sem reforço por tempo')).toBeTruthy()
+    fireEvent.click(open)
+    const save = screen.getByRole('button', { name: 'Salvar reforço' }) as HTMLButtonElement
+    expect(save.disabled).toBe(true)
+    fireEvent.change(screen.getByLabelText('Horas (de 1 a 720)'), { target: { value: '8' } })
+    fireEvent.change(screen.getByLabelText(/Motivo da troca/), { target: { value: 'Data esquecida atrasa o NOR' } })
+    expect(save.disabled).toBe(false)
+    fireEvent.click(save)
+
+    await waitFor(() => expect(mocks.setEscalation).toHaveBeenCalledWith('voyage_schedule_date_pending', 8, 'Data esquecida atrasa o NOR'))
+    await waitFor(() => expect(mocks.afterChange).toHaveBeenCalled())
+  })
+
+  it('mostra o reforço vigente e não oferece a troca a quem não é do Administrativo', async () => {
+    mocks.settings = mocks.settings.map((item) => item.type === 'voyage_schedule_date_pending' ? setting(item.type, 'normal', { escalateAfterHours: 16 }) : item)
+    renderPage('/alertas/regras?regra=voyage_schedule_date_pending')
+
+    expect(await screen.findByText('Vira Crítico depois de 16 horas aberto')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /reforço/ })).toBeNull()
+    expect(screen.getByText('Só o Administrativo define o reforço, com motivo.')).toBeTruthy()
   })
 })
