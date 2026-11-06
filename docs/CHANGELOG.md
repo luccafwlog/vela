@@ -12,6 +12,12 @@
   Cliente novo, como a ADR 0127 já dizia. Convite do Portal recusado relê Clientes › Portal na hora (a conta já fica
   em "falha no envio"). O manual e o módulo de Manifestos dizem que, na Viagem travada por veículos, a troca de CE é
   pelo **Corrigir CE**: depois de **Remover CE**, o CE só volta pela planilha, que trava.
+- **Textos do sino e do alerta de veículos (2026-11-06, migration `599`; revisão da release):** os alertas
+  **Declaração de veículos pendente** e **Planilha de Veículos ausente** só dizem que o CE Mercante está travado
+  enquanto algum B/L de container ou misto da viagem ainda está sem CE. O aviso **Nova solicitação de desbloqueio de
+  CE** sai só quando quem envia é o Cliente (o envio por usuário interno não avisa a equipe). O **Novo pagamento de
+  Demurrage** diz o meio da baixa como na aba Pagas ("Pix Itaú", "Extrato" ou "Registro manual"), e não mais "(Pix)"
+  para qualquer TXID ([Operação e Suporte](modules/operacao-suporte.md)).
 - **Razão social da Receita no cadastro pela Revisão (2026-11-05, ADR 0127; pedido do dono):** no grupo da Revisão e
   em **Completar cadastro** da ficha do B/L, com o CNPJ aceito e Cliente novo, o Vela consulta a Receita. Razão social
   vazia recebe a da Receita; diferente da do manifesto, aparece "Na Receita: …" com **Usar a razão social da Receita**,

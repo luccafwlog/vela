@@ -16,13 +16,16 @@ const FIN = '59500000-0000-4000-8000-000000000002'
 const ADM = '59500000-0000-4000-8000-000000000003'
 const OPE = '59500000-0000-4000-8000-000000000004'
 const INT = '59500000-0000-4000-8000-000000000005'
+// Conta do Portal: usuário do Auth sem linha em `user_profiles`.
+const PORTAL = '59500000-0000-4000-8000-000000000006'
 const CUSTOMER = 595001
 const REQUEST = '59500000-0000-4000-8000-0000000000a1'
 const VIP_REQUEST = '59500000-0000-4000-8000-0000000000a2'
 
 const FIXTURES = `
   INSERT INTO auth.users (id, email) VALUES ('${DOC}', 'r595-doc@example.test'), ('${FIN}', 'r595-fin@example.test'),
-    ('${ADM}', 'r595-adm@example.test'), ('${OPE}', 'r595-ope@example.test'), ('${INT}', 'r595-int@example.test');
+    ('${ADM}', 'r595-adm@example.test'), ('${OPE}', 'r595-ope@example.test'), ('${INT}', 'r595-int@example.test'),
+    ('${PORTAL}', 'r595-portal@example.test');
   INSERT INTO public.user_profiles (id, full_name, role, active, account_kind) VALUES
     ('${DOC}', 'R595 Documentação', 'documentacao', true, 'pessoa'),
     ('${FIN}', 'R595 Financeiro', 'financeiro', true, 'pessoa'),
@@ -71,10 +74,29 @@ describeLocal('595 — sino avisa solicitação de Desbloqueio de CE e pagamento
       SET LOCAL session_replication_role = origin;
       UPDATE public.demurrage_invoices SET status = 'paid', pix_txid = 'R595TXID' WHERE id = 595001;
       UPDATE public.demurrage_invoices SET status = 'paid' WHERE id = 595002;
+      SELECT '>meio|' || payment_method FROM public.demurrage_invoices WHERE id = 595001;
+      ${notices('demurrage_payment:')}`)
+    // 599: o meio vem de `payment_method` (519). TXID que o Itaú não conhece é
+    // conciliação pelo extrato; antes o texto dizia "(Pix)" para qualquer TXID.
+    expect(lines).toEqual([
+      '>meio|extrato',
+      '>administrativo|Novo pagamento de Demurrage|Invoice DEM-595-1 — R595 Cliente: R$ 550,00 (Extrato).|/demurrage?fatura=595001',
+      '>financeiro|Novo pagamento de Demurrage|Invoice DEM-595-1 — R595 Cliente: R$ 550,00 (Extrato).|/demurrage?fatura=595001',
+    ])
+  })
+
+  it('baixa manual da Invoice de Demurrage diz "Registro manual"', () => {
+    const lines = scenario(`
+      SET LOCAL session_replication_role = replica;
+      INSERT INTO public.bls (id, voyage_id) VALUES ('R595BL1', 595001);
+      INSERT INTO public.demurrage_invoices (id, doc_number, bl_id, customer_id, total_usd, current_total_brl, status) VALUES
+        (595001, 'DEM-595-1', 'R595BL1', ${CUSTOMER}, 100, 550, 'issued');
+      SET LOCAL session_replication_role = origin;
+      UPDATE public.demurrage_invoices SET status = 'paid' WHERE id = 595001;
       ${notices('demurrage_payment:')}`)
     expect(lines).toEqual([
-      '>administrativo|Novo pagamento de Demurrage|Invoice DEM-595-1 — R595 Cliente: R$ 550,00 (Pix).|/demurrage?fatura=595001',
-      '>financeiro|Novo pagamento de Demurrage|Invoice DEM-595-1 — R595 Cliente: R$ 550,00 (Pix).|/demurrage?fatura=595001',
+      '>administrativo|Novo pagamento de Demurrage|Invoice DEM-595-1 — R595 Cliente: R$ 550,00 (Registro manual).|/demurrage?fatura=595001',
+      '>financeiro|Novo pagamento de Demurrage|Invoice DEM-595-1 — R595 Cliente: R$ 550,00 (Registro manual).|/demurrage?fatura=595001',
     ])
   })
 
@@ -88,16 +110,30 @@ describeLocal('595 — sino avisa solicitação de Desbloqueio de CE e pagamento
         ('${REQUEST}', 'R595BL1', 'CE1'), ('${REQUEST}', 'R595BL2', 'CE2');
       SET LOCAL session_replication_role = origin;
       INSERT INTO public.ce_unlock_events (customer_id, request_id, action, actor_id) VALUES
-        (${CUSTOMER}, '${REQUEST}', 'draft', '${DOC}'),
-        (${CUSTOMER}, '${REQUEST}', 'submit', '${DOC}'),
-        (${CUSTOMER}, '${VIP_REQUEST}', 'submit', '${DOC}');
+        (${CUSTOMER}, '${REQUEST}', 'draft', '${PORTAL}'),
+        (${CUSTOMER}, '${REQUEST}', 'submit', '${PORTAL}'),
+        (${CUSTOMER}, '${VIP_REQUEST}', 'submit', '${PORTAL}');
       INSERT INTO public.ce_unlock_events (customer_id, request_id, action, actor_id) VALUES
-        (${CUSTOMER}, '${REQUEST}', 'submit', '${DOC}');
+        (${CUSTOMER}, '${REQUEST}', 'submit', '${PORTAL}');
       ${notices('ce_unlock_submit:')}`)
     expect(lines).toEqual([
       '>documentacao|Nova solicitação de desbloqueio de CE|R595 Cliente enviou a solicitação CE-R595 (2 B/Ls).|/desbloqueio-ce?pedido=' + REQUEST,
       '>documentacao|Solicitação de desbloqueio de CE reenviada|R595 Cliente enviou a solicitação CE-R595 (2 B/Ls).|/desbloqueio-ce?pedido=' + REQUEST,
     ])
+  })
+
+  // 599: o aviso diz que o Cliente enviou; o envio pela equipe interna não avisa.
+  it('solicitação enviada por usuário interno não avisa a Documentação', () => {
+    const lines = scenario(`
+      SET LOCAL session_replication_role = replica;
+      INSERT INTO public.ce_unlock_requests (id, customer_id, protocol, state, source, created_by) VALUES
+        ('${REQUEST}', ${CUSTOMER}, 'CE-R595', 'submitted', 'request', '${DOC}');
+      SET LOCAL session_replication_role = origin;
+      INSERT INTO public.ce_unlock_events (customer_id, request_id, action, actor_id) VALUES
+        (${CUSTOMER}, '${REQUEST}', 'submit', '${DOC}');
+      SELECT '>eventos|' || count(*) FROM public.ce_unlock_events WHERE request_id = '${REQUEST}';
+      ${notices('ce_unlock_submit:')}`)
+    expect(lines).toEqual(['>eventos|1'])
   })
 
   it('o aviso aparece no sino e no número até ser lido; ler tira dos dois', () => {

@@ -310,4 +310,22 @@ describeLocal('597 — resposta de veículos em D-7 e CE Mercante travado', () =
       BEGIN; SET LOCAL ROLE authenticated; SELECT public.declare_voyage_with_vehicles(${V_MAIN}); COMMIT;`], { encoding: 'utf8' })
     expect(anonymous.stderr).toContain('Somente usuário interno ativo responde se a viagem terá veículos.')
   })
+
+  // 599: com todo B/L de container já com CE, nada está travado: o alerta
+  // continua cobrando a planilha, sem a frase da trava, e não avisa de novo.
+  it('com todos os CEs de container vinculados, o crítico de D-5 não diz "travado"', () => {
+    expect(item(SHEET, V_MAIN)).toBe('active|critical|equipamentos')
+    expect(message(SHEET, V_MAIN)).toMatch(/travado até a importação\.$/)
+    const notified = () => psql(`SELECT count(*) FROM public.internal_notifications n
+      JOIN public.alert_items i ON i.id = n.alert_item_id JOIN public.alerts a ON a.id = i.alert_id
+      WHERE i.item_type = '${SHEET}' AND a.entity_id = '${V_MAIN}';`)
+    const before = notified()
+    // Manutenção (superusuário sem usuário na sessão) passa pela trava, como na 597.
+    psql(`UPDATE public.bls SET ce_mercante = CASE id WHEN '${BL_CNTR}' THEN '152659500000011' ELSE '152659500000012' END
+      WHERE id IN ('${BL_CNTR}', '${BL_CNTR2}');`)
+    as(ADMIN_ID, `SELECT public.reconcile_voyage_vehicle_sheet_alerts(${V_MAIN});`)
+    expect(item(SHEET, V_MAIN)).toBe('active|critical|equipamentos')
+    expect(message(SHEET, V_MAIN)).toMatch(/^Planilha de Veículos ausente: a viagem foi declarada com veículos e nenhum veículo foi importado; ETA em \d{2}\/\d{2}\/\d{4}, prazo D-5 atingido\.$/)
+    expect(notified()).toBe(before)
+  })
 })
