@@ -8,6 +8,8 @@ import { AGENCY_REPORT_SECTION_LABELS } from '../../services/agencyReportLabels'
 import { ceActionLabel } from '../../lib/ceUnlockLabels'
 import { accountSituationLabel, provisioningDecisionLabel } from '../../lib/portalProvisioningViewModel'
 import { customerCommunicationKindLabel, customerCommunicationStatusLabel } from '../../services/customerCommunications'
+import { getVoyagePodCeStatusLabel } from '../../services/voyageRouteSchedules'
+import { INVOICE_STATUS_LABELS } from '../../lib/statusLabels'
 
 // Histórico de ações legível (lote 5b, Administração): cada linha de
 // `audit_logs` vira assunto, frase e "de → para" em português. Entidade sem
@@ -117,6 +119,19 @@ const NOUN_BY_ENTITY: Record<string, Noun> = {
   vazios_export_service_lines: { noun: 'Linha de serviço', feminine: true },
   granite_bls: { noun: 'B/L de Granito', feminine: false },
   customer_communication_saved_templates: { noun: 'Modelo de Comunicado', feminine: false },
+  // Sem nome próprio, a frase usava o assunto no masculino ("Fatura alterado").
+  voyage_pol_schedule: { noun: 'Escala', feminine: true },
+  bl_receivables: { noun: 'Recebível', feminine: false },
+  invoice_receivable_links: { noun: 'Vínculo com a fatura', feminine: false },
+  invoice_bls: { noun: 'B/L da fatura', feminine: false },
+  bl_freight_lines: { noun: 'Linha de frete', feminine: true },
+  charge_calculation: { noun: 'Taxa', feminine: true },
+  manifestos_mercante: { noun: 'Manifesto', feminine: false },
+  voyage_route_ce_master: { noun: 'CE Master', feminine: false },
+  vazios_importacao_containers: { noun: 'Container de vazio', feminine: false },
+  vazios_importacao_manifests: { noun: 'Manifesto de vazios', feminine: false },
+  exchange_rate_reference: { noun: 'Câmbio', feminine: false },
+  app_settings: { noun: 'Configuração', feminine: true },
 }
 
 /** Rótulos de campo comuns às tabelas sem rótulo próprio. */
@@ -194,12 +209,110 @@ const GENERIC_FIELD_LABELS: Record<string, string> = {
   body: 'Texto',
   cargo_mode: 'Modalidade',
   bl_number: 'Nº do B/L',
+  // Campos que apareciam como "B/L alterado" (diagnóstico de 2026-11-06).
+  updated_at: 'Data de atualização',
+  calculated_at: 'Data do cálculo',
+  charges_calculated_at: 'Data do cálculo das taxas',
+  batch_id: 'Importação',
+  ownership_source: 'Origem do SOC/COC',
+  profile_source: 'Origem do perfil',
+  billing_hold_reason: 'Retenção do faturamento',
+  charge_exemption_reason: 'Motivo da isenção',
+  customer_reconciliation_status: 'Conciliação do Cliente',
+  customer_reconciliation_notes: 'Observação da conciliação do Cliente',
+  table_total_value_brl: 'Total pela tabela',
+  table_unit_value_brl: 'Valor unitário pela tabela',
+  original_amount_brl: 'Valor original',
+  settled_amount_brl: 'Valor baixado',
+  total_paid_brl: 'Total pago',
+  cancel_reason: 'Motivo do cancelamento',
+  cancelled_at: 'Data do cancelamento',
+  cancelled_by: 'Autor do cancelamento',
+  covered_by_invoice_id: 'Fatura consolidada',
+  conciliated_by_extract: 'Conciliada pelo extrato',
+  pix_payload: 'Código Pix',
+  pix_txid: 'TXID do Pix',
+  bank_reference: 'Referência bancária',
+  source: 'Origem',
+  phone: 'Telefone',
+  is_primary: 'Contato principal',
+  deactivated_at: 'Data da desativação',
+  email_normalized: 'E-mail padronizado',
+  container_type: 'Tipo de container',
+  ptax: 'PTAX',
+  roe: 'ROE',
+  quote_date: 'Data da cotação',
+  effective_date: 'Vigência',
+  natureza: 'Natureza',
+  imo: 'IMO',
+  charge_calculation_id: 'Taxa',
+  pod_schedule_snapshot: 'Retrato das escalas de POD',
+  pol_schedule_snapshot: 'Retrato das escalas de POL',
+  escala_number: 'Número da escala',
+  linked: 'Manifestos vinculados',
+  tem_importacao: 'Tem importação',
+  ce_master: 'CE Master',
+  ces: 'CE da escala',
+}
+
+/** Valor gravado em código, por campo ("itau_pix" vira "Pix Itaú"). */
+const VALUE_LABELS_BY_FIELD: Record<string, Record<string, string>> = {
+  ownership_source: { bl: 'Documento do B/L', baplie: 'Baplie', manual: 'Manual' },
+  profile_source: { bl: 'Documento do B/L', baplie: 'Baplie', manual: 'Manual' },
+  source: { manual: 'Manual', itau_pix: 'Pix Itaú', pix_extract: 'Extrato Pix', backfill: 'Carga inicial' },
+  customer_reconciliation_status: {
+    matched_document: 'Achado pelo CNPJ',
+    matched_name: 'Achado pelo nome',
+    missing_customer: 'Sem Cliente',
+    reconciled: 'Conciliado',
+    rejected: 'Recusado',
+  },
+  cargo_mode: { container: 'Container', carga_solta: 'Carga solta' },
+  natureza: { cama: 'Cama', cover_plate: 'Cover plate' },
+}
+
+/**
+ * Campo cujo valor é um código do sistema: sem tradução conhecida, a frase diz
+ * só que o campo mudou, para o código não chegar à tela.
+ */
+function isCodeField(field: string): boolean {
+  return field === 'status' || field === 'source' || field.endsWith('_status') || field.endsWith('_source')
+}
+const CODE_VALUE = /^[a-z]+(_[a-z]+)*$/
+
+/**
+ * Linhas que registram um acontecimento, não um campo: a frase vale pela linha
+ * inteira (os valores ficam no De e no Para).
+ */
+const EVENT_SUMMARY: Record<string, string> = {
+  'invoice/create_invoice': 'Fatura emitida',
+  'invoice/create_consolidated': 'Fatura consolidada emitida',
+  'invoice/cancel_invoice': 'Fatura cancelada',
+  'invoice/ledger_payment': 'Baixa registrada na fatura',
+  'customer/held_billing_reprocessed': 'Faturamento retido reprocessado',
+  'charge_calculation/manual_insert': 'Cobrança manual lançada',
+  'voyage/baplie_import': 'Baplie importado',
+  'voyage/baplie_physical_flags': 'Marcas físicas do Baplie aplicadas',
+  'voyage/manifesto_mercante_created': 'Manifesto Mercante criado',
+  'voyage_pod_schedule/adr_created': 'ADR terminalizado criado',
+  'voyage_pod_schedule/front_created': 'Operação da escala registrada',
+  'voyage_pod_schedule/terminal_assignment': 'Terminal da operação alterado',
+  'voyage_pod_schedule/export_expectation': 'Exportação da escala atualizada',
 }
 
 /** Situação gravada em código, por entidade ("open" do ADR vira "Aberto"). */
+const CHARGE_STATUS_LABELS = { calculated: 'Calculada', review_required: 'Revisão pendente', reviewed: 'Revisada', ready_for_billing: 'Pronta para faturar', exempt: 'Isenta', excluded: 'Excluída' }
+
 const STATUS_LABELS_BY_ENTITY: Record<string, Record<string, string>> = {
   agency_departure_report: { open: 'Aberto', closed: 'Fechado' },
   agency_departure_reports: { open: 'Aberto', closed: 'Fechado' },
+  charge_calculation: CHARGE_STATUS_LABELS,
+  charge_calculations: CHARGE_STATUS_LABELS,
+  bl_receivables: { open: 'Em aberto', partially_settled: 'Baixado em parte', settled: 'Baixado', void: 'Anulado' },
+  invoice_receivable_links: { active: 'Ativo', settled_by_this_invoice: 'Baixado por esta fatura', settled_elsewhere: 'Baixado por outra fatura', obsolete: 'Obsoleto' },
+  invoice: INVOICE_STATUS_LABELS,
+  invoices: INVOICE_STATUS_LABELS,
+  import_batches: { processing: 'Em processamento', completed: 'Concluída', partial: 'Parcial', failed: 'Falhou' },
 }
 
 /** Frase da troca de situação, quando a entidade tem uma ("ADR de Saída reaberto"). */
@@ -262,7 +375,12 @@ function nounOf(entityType: string): Noun {
 }
 
 /** Rótulos femininos e plurais de campo, para a frase "<campo> alterada(s)". */
-const FEMININE_FIELD_LABELS = new Set(['Viagem', 'Fatura', 'Tabela', 'Situação', 'Moeda', 'Cobrança', 'Descrição', 'Senha', 'Justificativa', 'Observação do tratamento', 'Vigência desde', 'Vigência até'])
+const FEMININE_FIELD_LABELS = new Set([
+  'Viagem', 'Fatura', 'Tabela', 'Situação', 'Moeda', 'Cobrança', 'Descrição', 'Senha', 'Justificativa', 'Observação do tratamento', 'Vigência desde', 'Vigência até',
+  'Data de atualização', 'Data do cálculo', 'Data do cálculo das taxas', 'Importação', 'Origem do SOC/COC', 'Origem do perfil', 'Retenção do faturamento',
+  'Conciliação do Cliente', 'Observação da conciliação do Cliente', 'Data do cancelamento', 'Fatura consolidada', 'Conciliada pelo extrato', 'Referência bancária',
+  'Origem', 'Data da desativação', 'Data da cotação', 'Vigência', 'Natureza', 'Taxa', 'Modalidade',
+])
 const PLURAL_FIELD_LABELS = new Set(['Observações', 'Notas da disputa'])
 
 /** "Navio alterado", "Viagem alterada", "Observações alteradas". */
@@ -313,6 +431,25 @@ function recordName(value: string | null): string | null {
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 const ISO_DATE_TIME = /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}/
 
+const BRASILIA_WITH_SECONDS = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+  hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+})
+
+/**
+ * Data e hora de Brasília com os segundos ("19/10/2026 21:04:37"), para a
+ * coluna Quando do Histórico de ações separar uma ação da outra no mesmo
+ * minuto. Valor sem fuso cai em `formatBrasiliaDateTime`.
+ */
+export function formatBrasiliaDateTimeWithSeconds(value: string): string {
+  const trimmed = value.trim()
+  if (!/(Z|[+-]\d{2}(:?\d{2})?)$/.test(trimmed)) return formatBrasiliaDateTime(value)
+  const instant = new Date(trimmed.replace(' ', 'T').replace(/([+-]\d{2})$/, '$1:00'))
+  if (Number.isNaN(instant.getTime())) return formatBrasiliaDateTime(value)
+  const parts = Object.fromEntries(BRASILIA_WITH_SECONDS.formatToParts(instant).map((part) => [part.type, part.value]))
+  return `${parts.day}/${parts.month}/${parts.year} ${parts.hour}:${parts.minute}:${parts.second}`
+}
+
 /** Data e hora de Brasília ("19/10/2026 21:04"). */
 export function formatBrasiliaDateTime(value: string): string {
   const { date, time } = splitIsoDateTime(value)
@@ -333,6 +470,9 @@ export function formatAuditValue(fieldName: string | null, value: string | null,
     const status = STATUS_LABELS_BY_ENTITY[entityType]?.[trimmed]
     if (status) return status
   }
+  const coded = VALUE_LABELS_BY_FIELD[field]?.[trimmed]
+  if (coded) return coded
+  if (field === 'ces') return getVoyagePodCeStatusLabel(trimmed as Parameters<typeof getVoyagePodCeStatusLabel>[0])
   if (entityType === 'user_profile' && CREATED_FIELDS.has(field)) {
     const person = nameWithRole(trimmed)
     if (person) return person
@@ -482,6 +622,13 @@ export function describeAuditLog(row: AuditLogLike): string {
   // Dispensa da Demurrage: a mesma frase do Histórico do B/L (dispensou, desfez
   // ou acompanhou a troca de Cliente).
   if (row.entity_type === 'bl' && field === 'demurrage_dispensa') return describeDemurrageWaiver(row.old_value, row.new_value)
+  const event = EVENT_SUMMARY[`${row.entity_type}/${field}`]
+  if (event) return event
+  // B/L excluído da Viagem: o número do B/L vem no De.
+  if (row.entity_type === 'voyages' && field === 'bl_deleted') {
+    const bl = row.old_value?.trim()
+    return bl ? `B/L ${bl} excluído da Viagem` : 'B/L excluído da Viagem'
+  }
   const label = auditFieldLabel(row.entity_type, row.field_name)
   if (!label) return participle(noun, 'alterado')
   if (isReferenceField(row.field_name) && !row.new_label) return fieldChanged(label)
@@ -489,5 +636,87 @@ export function describeAuditLog(row: AuditLogLike): string {
   if (row.new_label && /\bexcluíd[oa]$/.test(row.new_label)) return `${label}: cadastro excluído`
   const value = displayAuditValue(row.field_name, row.new_value, row.entity_type, row.new_label)
   if (parseJsonObject(row.new_value) || value.length > 60) return fieldChanged(label)
+  // Código sem tradução ("settled_elsewhere"): diz só que mudou.
+  if (isCodeField(field) && value === (row.new_value ?? '').trim() && CODE_VALUE.test(value)) return fieldChanged(label)
   return `${label}: ${value}`
+}
+
+// ---------- Uma linha por ação (migration 603) ----------
+
+/** Áreas do filtro Assunto, na ordem da lista (`optgroup`). */
+export const AUDIT_SUBJECT_AREAS: ReadonlyArray<{ label: string; subjects: readonly string[] }> = [
+  { label: 'Operação', subjects: ['viagem', 'escala', 'adr', 'manifesto', 'bl', 'container', 'veiculo', 'importacao', 'vazios', 'granito', 'desbloqueio-ce'] },
+  { label: 'Financeiro', subjects: ['fatura', 'taxas-bl', 'taxas-locais', 'condicao-cliente', 'liberacao', 'restituicao', 'cod', 'pix', 'tarifa-granito'] },
+  { label: 'Demurrage', subjects: ['demurrage', 'tarifa-demurrage', 'tipo-container', 'acordo-demurrage', 'disputa-demurrage', 'cambio'] },
+  { label: 'Clientes e Portal', subjects: ['cliente', 'comunicado', 'conta-portal', 'central'] },
+  { label: 'Cadastros', subjects: ['cadastros', 'locais'] },
+  { label: 'Usuários e sistema', subjects: ['usuario', 'alerta', 'sistema'] },
+]
+
+/** Plural do nome ("B/L" → "B/Ls", "Item da fatura" → "Itens da fatura", "Recebível" → "Recebíveis"). */
+// Palavras emprestadas que não seguem a regra do português.
+const PLURAL_EXCEPTIONS: Readonly<Record<string, string>> = { Container: 'Containers', Pix: 'Pix' }
+
+export function pluralNoun(noun: string): string {
+  const [first, ...rest] = noun.split(' ')
+  const tail = rest.length ? ` ${rest.join(' ')}` : ''
+  if (PLURAL_EXCEPTIONS[first]) return `${PLURAL_EXCEPTIONS[first]}${tail}`
+  if (/^[A-Z/]+$/.test(first)) return `${first}s${tail}`
+  if (/ível$/.test(first)) return `${first.slice(0, -4)}íveis${tail}`
+  if (/el$/.test(first)) return `${first.slice(0, -2)}éis${tail}`
+  if (/al$/.test(first)) return `${first.slice(0, -1)}is${tail}`
+  if (/m$/.test(first)) return `${first.slice(0, -1)}ns${tail}`
+  if (/ão$/.test(first)) return `${first.slice(0, -2)}ões${tail}`
+  if (/[rz]$/.test(first)) return `${first}es${tail}`
+  return `${first}s${tail}`
+}
+
+const KIND_PARTICIPLE: Record<AuditActionKind, string> = { criou: 'criado', alterou: 'alterado', excluiu: 'excluído' }
+type AuditActionKind = 'criou' | 'alterou' | 'excluiu'
+
+export type AuditActionGroupLike = { entity_type: string; kind: AuditActionKind; entities: number; fields: readonly string[] }
+
+/** "B/L criado", "17 B/Ls criados", "3 Taxas excluídas". */
+export function describeActionGroup(group: AuditActionGroupLike): string {
+  const noun = nounOf(group.entity_type)
+  const masculine = KIND_PARTICIPLE[group.kind]
+  if (group.entities <= 1) return participle(noun, masculine)
+  const plural = noun.feminine ? `${masculine.slice(0, -1)}as` : `${masculine}s`
+  return `${group.entities.toLocaleString('pt-BR')} ${pluralNoun(noun.noun)} ${plural}`
+}
+
+export type AuditActionLike = AuditLogLike & {
+  source: string
+  line_count: number
+  groups: readonly AuditActionGroupLike[]
+}
+
+/**
+ * Frase da coluna "O que fez" de uma ação: a da linha quando a ação é uma
+ * linha só; "<registro> alterado: campo, campo" quando muda vários campos de um
+ * registro; e a contagem por tipo de registro quando mexe em vários
+ * ("17 B/Ls criados, 781 Containers criados e mais 2").
+ */
+export function describeAuditAction(action: AuditActionLike): string {
+  if (action.source !== 'audit' || action.line_count <= 1 || action.groups.length === 0) return describeAuditLog(action)
+  const [first] = action.groups
+  if (action.groups.length === 1 && first.entities <= 1) {
+    if (first.kind !== 'alterou') return describeAuditLog(action)
+    const labels = [...new Set(first.fields.map((field) => auditFieldLabel(first.entity_type, field)).filter((label): label is string => Boolean(label)))]
+    if (!labels.length) return participle(nounOf(first.entity_type), 'alterado')
+    const shown = labels.slice(0, 3).join(', ')
+    const more = labels.length > 3 || first.fields.length >= 8 ? ' e outros' : ''
+    return `${participle(nounOf(first.entity_type), 'alterado')}: ${shown}${more}`
+  }
+  const parts = action.groups.slice(0, 3).map(describeActionGroup)
+  const rest = action.groups.length - parts.length
+  return rest > 0 ? `${parts.join(', ')} e mais ${rest}` : parts.join(', ')
+}
+
+/** Dia de Brasília (YYYY-MM-DD) de hoje menos `days`. */
+export function brasiliaDay(daysAgo = 0, now: Date = new Date()): string {
+  const shifted = new Date(now.getTime() - daysAgo * 86_400_000)
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(shifted).map((part) => [part.type, part.value]))
+  return `${parts.year}-${parts.month}-${parts.day}`
 }

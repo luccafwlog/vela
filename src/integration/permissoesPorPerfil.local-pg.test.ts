@@ -997,6 +997,19 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     }
   })
 
+  it('Dev: só a conta Dev lê a aba Sistema da Administração', () => {
+    // Migration 605 (decisão do dono de 2026-11-06): pontos de atenção, rotinas e
+    // configurações; o Administrativo sem a marca também é recusado.
+    for (const profile of ALL_PROFILES) {
+      expect(sqlstateAs(profile, `public.admin_system_health()`), profile).toBe('42501')
+      expect(sqlstateAs(profile, `public.admin_system_routines()`), profile).toBe('42501')
+    }
+    const health = runAsUser(DEV_USER, `SELECT public.admin_system_health() ? 'teams_without_active'`)
+    expect(health.error).toBe('')
+    expect(health.output).toBe('t')
+    expect(runAsUser(DEV_USER, `SELECT count(*) >= 0 FROM public.admin_system_routines()`).error).toBe('')
+  })
+
   it.each(ALL_PROFILES)('Dev: todos os setores leem a chave de envio (%s)', (profile) => {
     const result = runAs(profile, `SELECT count(*) FROM public.app_settings WHERE id = 1`)
     expect(result.error, profile).toBe('')

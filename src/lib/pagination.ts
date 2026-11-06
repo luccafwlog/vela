@@ -22,6 +22,31 @@ export function describePageRange({
 }
 
 /**
+ * Intervalo quando a busca parou de contar num teto (`floor`) e o total real é
+ * maior: "Exibindo 10.001–10.050 de mais de 10.000". O fim vem das linhas que a
+ * página trouxe, porque o total não é conhecido.
+ */
+export function describeOpenPageRange({
+  page,
+  pageSize,
+  rowsOnPage,
+  floor,
+  pageBase = 1,
+}: {
+  page: number
+  pageSize: number
+  rowsOnPage: number
+  floor: number
+  pageBase?: 0 | 1
+}) {
+  if (rowsOnPage <= 0) return 'Nenhum registro'
+  const displayPage = pageBase === 0 ? page + 1 : page
+  const start = (displayPage - 1) * pageSize + 1
+  const end = start + rowsOnPage - 1
+  return `Exibindo ${start.toLocaleString('pt-BR')}–${end.toLocaleString('pt-BR')} de mais de ${floor.toLocaleString('pt-BR')}`
+}
+
+/**
  * Lista paginada com o filtro já trocado e a resposta a caminho: as linhas
  * ainda são do recorte anterior. Esmaece só depois de 150 ms, para a página
  * pré-carregada não piscar, e volta na hora quando as linhas novas chegam

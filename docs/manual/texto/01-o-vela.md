@@ -123,7 +123,7 @@ Toda planilha exportada sai no mesmo padrão (desde 2026-11-03): no alto, a faix
 
 ### Relatórios
 
-**Relatórios**, no menu, reúne os números da operação em quatro abas: **Operacional** (B/Ls, containers, peso), **Financeiro** (faturas emitidas e pagas), **Por Cliente** e **Demurrage** (a **Exposição** do que corre sem Invoice, as **Invoices** e os **Itens por container**). O período, a Viagem e o Cliente valem para todas as abas; a **Exposição** é o retrato de hoje e não usa o período.
+**Relatórios**, no menu, reúne os números da operação em quatro abas: **Operacional** (B/Ls, containers, peso), **Financeiro** (faturas emitidas e pagas), **Por Cliente** e **Demurrage** (a **Exposição** do que corre sem Invoice, as **Invoices** e os **Itens por container**). O {{Administrativo}} vê também a aba **Prazo do ADR** ([25.9](25-administracao.md#259-acompanhar-o-prazo-do-adr)). O período, a Viagem e o Cliente valem para todas as abas; a **Exposição** é o retrato de hoje e não usa o período.
 
 ::: tela relatorios
 Relatórios, na aba Operacional.

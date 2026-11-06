@@ -1,5 +1,7 @@
 # 0039 — Prazo de Conclusão do ADR: contagem a partir do ATD real, medida por departamento
 
+> **Situação atual (2026-11-06).** O agregado **Prazo do ADR** saiu da Administração e é a visão `/relatorios?visao=prazo-do-adr` de Relatórios, só para o Administrativo e com Exportar planilha; `/admin/prazo-do-adr` redireciona para ela. A medição não mudou: por departamento, nunca por pessoa. Regra vigente em [Viagens § Prazo de Conclusão do ADR](../modules/viagens.md#prazo-de-conclusão-do-adr).
+
 > **Situação atual (2026-10-15).** O prazo passou a ser de **72 horas corridas a partir da hora do ATD** (decisão do responsável; migration `290`), no lugar dos três dias úteis contados do dia do ATD. ADRs abertos passam à regra nova; os fechados mantêm o prazo congelado. O restante da nota de 2026-10-13 abaixo segue valendo.
 
 > **Situação atual (2026-10-13).** Permanecem três dias úteis a partir da data real do ATD, um prazo por departamento cumprido pela assinatura vigente e o impresso sem veredito.

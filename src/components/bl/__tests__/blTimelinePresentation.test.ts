@@ -95,6 +95,8 @@ describe('Histórico do B/L: motivo e autor', () => {
     expect(timelineEventDetail({ justification: 'Revisão manual' })).toBeNull()
     expect(timelineEventDetail({ justification: 'Correção pedida pelo Cliente' })).toBe('Motivo: Correção pedida pelo Cliente')
     expect(timelineEventDetail({ justification: 'Importação de B/L · Viagem NAVIO 001N' })).toBe('Origem: Importação de B/L · Viagem NAVIO 001N')
+    // Texto técnico que o banco grava (2026-11-06): origem, em português.
+    expect(timelineEventDetail({ justification: 'Gate canonico aplicado apos importacao' })).toBe('Origem: B/L enviado para a Revisão depois da importação')
   })
   it('Por: nome de quem fez, Sistema no rastro automático, nada quando o registro não guarda', async () => {
     const { timelineEventActor } = await import('../blTimelinePresentation')

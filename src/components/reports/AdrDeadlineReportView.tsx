@@ -1,12 +1,16 @@
 import { useState } from 'react'
+import { FileDown } from 'lucide-react'
 import { Block } from '../ui/Block'
 import { Button } from '../ui/Button'
 import { Field, Input } from '../ui/Input'
 import { MetricCard } from '../ui/MetricCard'
 import { NoValue } from '../ui/NoValue'
 import { StatusText } from '../ui/StatusText'
+import { InlineError } from '../ui/Card'
 import { QueryStateGate } from '../shared/QueryStateGate'
-import { formatBrasiliaDateTime } from './auditLogPresentation'
+import { formatBrasiliaDateTime } from '../admin/auditLogPresentation'
+import { userFacingErrorMessage } from '../../lib/errors'
+import { exportAdrDeadlineWorkbook } from '../../services/exports'
 import { formatDate } from '../../lib/utils'
 import { useAgencyReportSla } from '../../hooks/useAgencyReport'
 import { AGENCY_REPORT_DEPARTMENT_LABELS } from '../../services/agencyDepartureReport'
@@ -19,30 +23,60 @@ import {
 const DEPARTMENTS = ['operacoes', 'documentacao', 'equipamentos'] as const
 
 /**
- * Prazo do ADR (lote 5b): cumprimento do prazo de assinatura por
- * departamento, nunca por pessoa (ADR 0039). A regra do prazo está em
- * docs/modules/viagens.md § Prazo de Conclusão do ADR.
+ * Prazo do ADR (Relatórios, desde 2026-11-06; antes, aba da Administração):
+ * cumprimento do prazo de assinatura por departamento, nunca por pessoa
+ * (ADR 0039), só para o Administrativo. A regra do prazo está em
+ * docs/modules/viagens.md § Prazo de Conclusão do ADR. As datas vivem no
+ * endereço (`de`, `ate`), como nas outras visões de Relatórios.
  */
-export function AdminAdrDeadlineTab() {
-  const [range, setRange] = useState<{ from: string; to: string }>({ from: '', to: '' })
-  const query = useAgencyReportSla({ from: range.from || undefined, to: range.to || undefined }, true)
+export function AdrDeadlineReportView({ dateFrom, dateTo, onDate, onClear }: {
+  dateFrom: string
+  dateTo: string
+  onDate: (key: 'de' | 'ate', value: string) => void
+  onClear: () => void
+}) {
+  const query = useAgencyReportSla({ from: dateFrom || undefined, to: dateTo || undefined }, true)
   const rows = query.data ?? []
   const summary = summarizeAgencyReportSlaByDepartment(rows)
-  const hasFilters = Boolean(range.from || range.to)
+  const hasFilters = Boolean(dateFrom || dateTo)
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  async function exportWorkbook() {
+    setExporting(true)
+    setExportError(null)
+    try {
+      await exportAdrDeadlineWorkbook(rows.map(adrDeadlineSheetRow), [
+        { Filtro: 'Fechado de', Valor: dateFrom ? formatDate(dateFrom) : '' },
+        { Filtro: 'Fechado até', Valor: dateTo ? formatDate(dateTo) : '' },
+      ].filter((line) => line.Valor))
+    } catch (error) {
+      setExportError(userFacingErrorMessage(error, 'Não foi possível exportar o Prazo do ADR. Tente novamente.'))
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <>
       <div className="app-filter-grid mb-4">
         <Field label="Fechado de">
-          <Input type="date" value={range.from} onChange={(e) => setRange((current) => ({ ...current, from: e.target.value }))} />
+          <Input type="date" value={dateFrom} onChange={(e) => onDate('de', e.target.value)} />
         </Field>
         <Field label="Fechado até">
-          <Input type="date" value={range.to} onChange={(e) => setRange((current) => ({ ...current, to: e.target.value }))} />
+          <Input type="date" value={dateTo} onChange={(e) => onDate('ate', e.target.value)} />
         </Field>
+        <div className="flex items-end">
+          <Button variant="secondary" onClick={() => void exportWorkbook()} loading={exporting} loadingLabel="Exportando…" disabled={!rows.length}>
+            <FileDown size={16} aria-hidden="true" />
+            Exportar planilha
+          </Button>
+        </div>
         {hasFilters ? (
-          <div className="flex items-end"><Button variant="ghost" onClick={() => setRange({ from: '', to: '' })}>Limpar filtros</Button></div>
+          <div className="flex items-end"><Button variant="ghost" onClick={onClear}>Limpar filtros</Button></div>
         ) : null}
       </div>
+      {exportError ? <div className="mb-4"><InlineError message={exportError} /></div> : null}
 
       {query.data ? (
         <div className="app-metric-row" role="group" aria-label="Cumprimento do prazo por departamento">
@@ -127,4 +161,23 @@ function DepartmentOutcome({ entry }: { entry: AgencyReportSlaDepartmentRow | un
     return <span title={signed}><StatusText tone="warning">{entry.hoursLate ? `Atrasou ${entry.hoursLate} h` : 'Atrasou'}</StatusText></span>
   }
   return <span title={signed}>No prazo</span>
+}
+
+/** Uma linha da planilha: as colunas da tela, a situação de cada equipe em texto. */
+function adrDeadlineSheetRow(row: AgencyReportSlaRow): Record<string, unknown> {
+  const outcome = (department: (typeof DEPARTMENTS)[number]) => {
+    const entry = row.departments.find((item) => item.department === department)
+    if (!entry || entry.outcome === 'unsigned') return 'Não assinou'
+    if (entry.outcome === 'late') return entry.hoursLate ? `Atrasou ${entry.hoursLate} h` : 'Atrasou'
+    return 'No prazo'
+  }
+  return {
+    'Navio / Viagem': vesselVoyage(row),
+    Porto: row.port,
+    Terminal: row.terminal ?? '',
+    ATD: row.atd ? formatDate(row.atd) : '',
+    Prazo: row.deadlineAt ? formatBrasiliaDateTime(row.deadlineAt) : formatDate(row.deadlineDate),
+    ...Object.fromEntries(DEPARTMENTS.map((department) => [AGENCY_REPORT_DEPARTMENT_LABELS[department], outcome(department)])),
+    'Dias corridos do ATD ao Fechamento': row.elapsedCalendarDaysToClosure ?? '',
+  }
 }

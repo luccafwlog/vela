@@ -4,8 +4,9 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 
-const { queryState } = vi.hoisted(() => ({
+const { queryState, auth } = vi.hoisted(() => ({
   queryState: {} as Record<string, { data?: unknown; error?: unknown }>,
+  auth: { isAdmin: false },
 }))
 
 vi.mock('@tanstack/react-query', () => ({
@@ -21,6 +22,8 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../services/supabase', () => ({ supabase: { from: vi.fn() } }))
+// O Prazo do ADR (2026-11-06) é a visão só do Administrativo.
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ isAdmin: auth.isAdmin }) }))
 
 import { Relatorios } from '../Relatorios'
 
@@ -58,6 +61,7 @@ function renderPage(path = '/relatorios') {
 afterEach(cleanup)
 beforeEach(() => {
   vi.clearAllMocks()
+  auth.isAdmin = false
   for (const key of Object.keys(queryState)) delete queryState[key]
   queryState['report-operational'] = { data: operationalData() }
   queryState['demurrage-report'] = {
@@ -277,4 +281,46 @@ it('Por Cliente: Cliente abre a ficha e topos vazios aparecem como ausência', (
   expect(screen.getByRole('link', { name: 'Cliente Vol' }).getAttribute('href')).toBe('/clientes/12345678000195')
   expect(screen.getByText('Clientes com fatura no período')).toBeTruthy()
   expect(screen.getByText('Sem fatura no período')).toBeTruthy()
+})
+
+const SLA_ROW = {
+  voyageId: 1, port: 'BRSSZ', terminal: 'BTP', voyageNumber: '012S', vesselName: 'XIN PU DONG',
+  atd: '2026-09-08', deadlineDate: '2026-09-11', deadlineAt: '2026-09-11T12:00:00Z',
+  closedAt: '2026-09-11T15:00:00Z', closedBy: null, elapsedCalendarDaysToClosure: 3,
+  departments: [
+    { department: 'operacoes', label: 'Operações', signedAt: '2026-09-10T10:00:00Z', hoursElapsed: 40, state: 'on-time', outcome: 'on-time', hoursLate: null },
+    { department: 'documentacao', label: 'Documentação', signedAt: '2026-09-11T18:00:00Z', hoursElapsed: 80, state: 'overdue', outcome: 'late', hoursLate: 6 },
+    { department: 'equipamentos', label: 'Equipamentos', signedAt: null, hoursElapsed: null, state: 'no-deadline', outcome: 'unsigned', hoursLate: null },
+  ],
+}
+
+it('Prazo do ADR: só o Administrativo vê a visão; o endereço dela, aberto por outro setor, cai na Operacional', () => {
+  renderPage('/relatorios?visao=prazo-do-adr')
+  expect(screen.queryByRole('tab', { name: 'Prazo do ADR' })).toBeNull()
+  expect(screen.getByRole('tab', { name: 'Operacional' }).getAttribute('aria-selected')).toBe('true')
+})
+
+it('Prazo do ADR: cartões "x de y no prazo", células em texto e as datas no endereço (A6; desde 2026-11-06 em Relatórios)', () => {
+  auth.isAdmin = true
+  queryState['agency-report-sla'] = { data: [SLA_ROW] }
+  renderPage('/relatorios?visao=prazo-do-adr&de=2026-09-01')
+  expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Operacional', 'Financeiro', 'Por Cliente', 'Demurrage', 'Prazo do ADR'])
+  const row = screen.getByText('XIN PU DONG / 012S').closest('tr') as HTMLElement
+  expect(within(row).getByText('No prazo').getAttribute('title')).toMatch(/^Assinou em 10\/09\/2026/)
+  expect(within(row).getByText('Atrasou 6 h')).toBeTruthy()
+  expect(within(row).getByText('Não assinou')).toBeTruthy()
+  expect(within(row).getByText('3 dias').getAttribute('title')).toBe('Fechado em 11/09/2026 12:00')
+  expect(screen.getAllByText('1 de 1')).toHaveLength(1)
+  expect((screen.getByLabelText('Fechado de') as HTMLInputElement).value).toBe('2026-09-01')
+  expect(screen.getByRole('button', { name: /Exportar planilha/ })).toBeTruthy()
+  fireEvent.change(screen.getByLabelText('Fechado até'), { target: { value: '2026-09-30' } })
+  expect(screen.getByTestId('location').textContent).toContain('ate=2026-09-30')
+})
+
+it('Prazo do ADR vazio não fala em "snapshots"', () => {
+  auth.isAdmin = true
+  queryState['agency-report-sla'] = { data: [] }
+  renderPage('/relatorios?visao=prazo-do-adr')
+  expect(screen.getByText('Nenhum ADR fechado no período.')).toBeTruthy()
+  expect(document.body.textContent).not.toMatch(/snapshot/i)
 })
