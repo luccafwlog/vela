@@ -167,7 +167,8 @@ describe('Regras de Alertas', () => {
       .toEqual(['itau_pix_consulta_parada', 'pix_unreconciled', 'restituicao_pendente'])
     expect(schedule.notifiedDepartments).toEqual(['operacoes'])
     expect(terminal.notifiedDepartments).toEqual(['operacoes'])
-    expect(portal.notifiedDepartments).toEqual(['documentacao'])
+    // 605: o Administrativo também é avisado (concede a Liberação).
+    expect(portal.notifiedDepartments).toEqual(['documentacao', 'administrativo'])
     expect(ALERT_RULES.filter((rule) => rule.notifiedDepartments.includes('financeiro')).map((rule) => rule.type).sort())
       .toEqual(['fatura_desatualizada', 'itau_pix_consulta_parada', 'pix_unreconciled', 'restituicao_pendente', 'taxa_alterada_mudou'])
   })
@@ -178,7 +179,10 @@ describe('Regras de Alertas', () => {
     expect(screen.getByText('57 regras')).toBeTruthy()
     fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'equipamentos' } })
 
-    expect(screen.getByText('6 regras')).toBeTruthy()
+    // 605: a PTAX e a exportação pós-ATD passaram a Equipamentos.
+    expect(screen.getByText('8 regras')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Falha na atualização da PTAX Demurrage/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Exportação pendente pós-ATD/ })).toBeTruthy()
     // Planilha de Veículos ausente (migration 468), o prazo da Disputa de
     // Demurrage (migration 520) e a Declaração de veículos pendente (597) são
     // de Equipamentos.
@@ -296,7 +300,7 @@ describe('Gravidade pela tela (migration 603, ADR 0130)', () => {
     // Com a gravidade vigente Crítica, a regra entra no filtro de críticos.
     expect(screen.getByRole('button', { name: /Exportação pendente pós-ATD/ })).toBeTruthy()
     // Crítico sem ninguém ativo no setor vai ao Administrativo.
-    expect(screen.getByText('Se ninguém de Operações estiver ativo, o aviso vai ao Administrativo.')).toBeTruthy()
+    expect(screen.getByText('Se ninguém de Equipamentos estiver ativo, o aviso vai ao Administrativo.')).toBeTruthy()
   })
 
   it('quem não é do Administrativo vê a gravidade, mas não o botão de trocar', async () => {

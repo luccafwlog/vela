@@ -6,6 +6,12 @@
 
 ## 2026-11
 
+- **Quem recebe cada alerta (decisões D5 e D7 do dono de 2026-11-06, migration `605`, ADR 0131):** a Falha na
+  atualização da PTAX e a Exportação pendente pós-ATD passam a Equipamentos; o Calendário de feriados, ao
+  Administrativo, só na conta Dev; Tabela de cobrança faltando, Cálculo bloqueado e Portal não provisionado avisam
+  também o Administrativo; o aviso de nova solicitação de desbloqueio de CE vai também ao Administrativo. Alertas
+  abertos mudam de setor com o anterior no histórico. Prova: `sinoAvisosDeAcontecimento`, `alertasESinoLote8`,
+  `alertasDeViagemEscala` e `portalBillingRelease` (local-pg) e `AlertasRegrasCatalog.test.tsx`.
 - **Reforço por tempo dos alertas (decisão D8 do dono de 2026-11-06, migration `604`, ADR 0131):** em **Regras de
   alertas**, o Administrativo define "vira Crítico depois de N horas aberto" para um alerta Normal, com motivo. A rotina
   `alerts-escalation` (5 min) escala o alerta esquecido e avisa de novo no sino. A gravidade passa a ser do alerta: o

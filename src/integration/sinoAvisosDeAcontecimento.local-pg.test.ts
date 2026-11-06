@@ -100,7 +100,8 @@ describeLocal('595 — sino avisa solicitação de Desbloqueio de CE e pagamento
     ])
   })
 
-  it('solicitação enviada avisa só a Documentação (sem a conta de integração); reenvio diz "reenviada"; VIP não avisa', () => {
+  // 605 (ADR 0131, D1): o aviso vai também ao Administrativo.
+  it('solicitação enviada avisa a Documentação e o Administrativo (sem a conta de integração); reenvio diz "reenviada"; VIP não avisa', () => {
     const lines = scenario(`
       SET LOCAL session_replication_role = replica;
       INSERT INTO public.ce_unlock_requests (id, customer_id, protocol, state, source, created_by) VALUES
@@ -116,10 +117,10 @@ describeLocal('595 — sino avisa solicitação de Desbloqueio de CE e pagamento
       INSERT INTO public.ce_unlock_events (customer_id, request_id, action, actor_id) VALUES
         (${CUSTOMER}, '${REQUEST}', 'submit', '${PORTAL}');
       ${notices('ce_unlock_submit:')}`)
-    expect(lines).toEqual([
-      '>documentacao|Nova solicitação de desbloqueio de CE|R595 Cliente enviou a solicitação CE-R595 (2 B/Ls).|/desbloqueio-ce?pedido=' + REQUEST,
-      '>documentacao|Solicitação de desbloqueio de CE reenviada|R595 Cliente enviou a solicitação CE-R595 (2 B/Ls).|/desbloqueio-ce?pedido=' + REQUEST,
-    ])
+    expect(lines).toEqual(['administrativo', 'documentacao'].flatMap((department) => [
+      `>${department}|Nova solicitação de desbloqueio de CE|R595 Cliente enviou a solicitação CE-R595 (2 B/Ls).|/desbloqueio-ce?pedido=` + REQUEST,
+      `>${department}|Solicitação de desbloqueio de CE reenviada|R595 Cliente enviou a solicitação CE-R595 (2 B/Ls).|/desbloqueio-ce?pedido=` + REQUEST,
+    ]))
   })
 
   // 599: o aviso diz que o Cliente enviou; o envio pela equipe interna não avisa.

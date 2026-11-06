@@ -65,11 +65,11 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
  * A bateria confere estes números no banco.
  */
 export const ALERT_TYPE_COUNTS: Readonly<Record<Department, number>> = {
-  administrativo: 15,
+  administrativo: 19,
   financeiro: 5,
-  operacoes: 6,
-  documentacao: 36,
-  equipamentos: 6,
+  operacoes: 5,
+  documentacao: 34,
+  equipamentos: 8,
 }
 
 /**
@@ -179,7 +179,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   {
     id: 'alertas-do-setor', group: 'alertas', action: 'Recebe os alertas do próprio setor',
     can: {
-      administrativo: `${alertTypes(ALERT_TYPE_COUNTS.administrativo)} (inclusive os quatro críticos de contato e Portal da Documentação); também os críticos de setor sem ninguém ativo`,
+      administrativo: `${alertTypes(ALERT_TYPE_COUNTS.administrativo)} (inclusive os quatro críticos de contato e Portal e, desde 2026-11-06, Tabela de cobrança faltando, Cálculo bloqueado e Portal não provisionado da Documentação, e o Calendário de feriados, só na conta Dev); também os críticos de setor sem ninguém ativo`,
       financeiro: `${alertTypes(ALERT_TYPE_COUNTS.financeiro)} (do próprio setor: Pix não conciliado, Consulta de Pix do Itaú parada e Restituição pendente; avisado em Fatura desatualizada e Taxa alterada à mão mudou)`,
       operacoes: alertTypes(ALERT_TYPE_COUNTS.operacoes),
       documentacao: alertTypes(ALERT_TYPE_COUNTS.documentacao),

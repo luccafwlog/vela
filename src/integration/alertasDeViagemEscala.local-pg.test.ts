@@ -35,6 +35,8 @@ const describeLocal = describeWithProbe(migrationApplied, 'migration 346 (reconc
 
 const ADMIN_ID = '34600000-0000-4000-8000-0000000000a1'
 const OPS_ID = '34600000-0000-4000-8000-0000000000b1'
+// 605: a exportação pós-ATD é de Equipamentos.
+const EQU_ID = '34600000-0000-4000-8000-0000000000b2'
 const T1 = '34600000-0000-4000-8000-0000000000d1'
 const T2 = '34600000-0000-4000-8000-0000000000d2'
 const CARRIER_ID = 3460001
@@ -97,9 +99,9 @@ function cleanup() {
     DELETE FROM public.vessels WHERE id = ${VESSEL_ID};
     DELETE FROM public.carriers WHERE id = ${CARRIER_ID};
     DELETE FROM public.depots WHERE id IN ('${T1}', '${T2}');
-    DELETE FROM public.internal_notifications WHERE recipient_id IN ('${ADMIN_ID}', '${OPS_ID}');
-    DELETE FROM public.user_profiles WHERE id IN ('${ADMIN_ID}', '${OPS_ID}');
-    DELETE FROM auth.users WHERE id IN ('${ADMIN_ID}', '${OPS_ID}');
+    DELETE FROM public.internal_notifications WHERE recipient_id IN ('${ADMIN_ID}', '${OPS_ID}', '${EQU_ID}');
+    DELETE FROM public.user_profiles WHERE id IN ('${ADMIN_ID}', '${OPS_ID}', '${EQU_ID}');
+    DELETE FROM auth.users WHERE id IN ('${ADMIN_ID}', '${OPS_ID}', '${EQU_ID}');
     SET session_replication_role = origin;
   `)
 }
@@ -110,10 +112,12 @@ describeLocal('346 — alertas de viagem acompanham escala, B/L, manifestos e st
     psql(`
       INSERT INTO auth.users (id, email, aud, role) VALUES
         ('${ADMIN_ID}', 'adm346@test.local', 'authenticated', 'authenticated'),
-        ('${OPS_ID}', 'ops346@test.local', 'authenticated', 'authenticated');
+        ('${OPS_ID}', 'ops346@test.local', 'authenticated', 'authenticated'),
+        ('${EQU_ID}', 'equ346@test.local', 'authenticated', 'authenticated');
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
         ('${ADMIN_ID}', 'Administrativo 346', 'administrativo', true),
-        ('${OPS_ID}', 'Operações 346', 'operacoes', true);
+        ('${OPS_ID}', 'Operações 346', 'operacoes', true),
+        ('${EQU_ID}', 'Equipamentos 346', 'equipamentos', true);
       SET session_replication_role = replica;
       INSERT INTO public.depots (id, code, name, tipo, port_id)
       SELECT x.id::uuid, x.code, x.name, 'terminal_portuario', p.id
@@ -152,8 +156,9 @@ describeLocal('346 — alertas de viagem acompanham escala, B/L, manifestos e st
     expect(item('voyage_export_after_atd', 'voyage_pod_schedule', scale)).toBe('active')
     // Antes: "opened,resolved,opened,resolved" e uma Notificação Interna por rodada.
     expect(events('voyage_export_after_atd', scale)).toBe('opened')
+    // Uma Notificação Interna só (desde a 605 o alerta é de Equipamentos).
     expect(psql(`SELECT count(*) FROM public.internal_notifications n JOIN public.alert_items i ON i.id = n.alert_item_id
-      WHERE n.recipient_id = '${OPS_ID}' AND i.item_type = 'voyage_export_after_atd';`)).toBe('1')
+      WHERE n.recipient_id = '${EQU_ID}' AND i.item_type = 'voyage_export_after_atd';`)).toBe('1')
     expect(psql(`SELECT i.metadata->>'terminal_code' FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
       WHERE i.item_type = 'voyage_export_after_atd' AND a.entity_id = '${scale}';`)).toBe('T346A')
   })

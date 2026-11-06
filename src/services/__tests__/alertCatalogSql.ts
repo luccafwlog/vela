@@ -82,7 +82,9 @@ const AUDIENCE_EXCEPTION_MIGRATIONS = ['485_alertas_ajustes_da_revisao.sql']
 // (`UPDATE ... SET ... WHERE type = '...'`), aplicadas depois do reset e das
 // exceções, na ordem da cadeia. 587: Pix, Consulta do Itaú e Restituição
 // passam para o setor Financeiro.
-const POST_RESET_CATALOG_UPDATE_MIGRATIONS = ['587_alertas_de_dinheiro_no_setor_financeiro.sql']
+// 605: PTAX e exportação a Equipamentos, feriados ao Administrativo, e o
+// Administrativo avisado em tabela de cobrança, cálculo e Portal.
+const POST_RESET_CATALOG_UPDATE_MIGRATIONS = ['587_alertas_de_dinheiro_no_setor_financeiro.sql', '605_quem_recebe_cada_alerta.sql']
 const AUDIENCE_IN_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+audience_departments\s*=\s*ARRAY\[([^\]]*)\]\s+WHERE\s+type\s+IN\s*\(([^)]*)\)/gi
 
 const CATALOG_UPDATE_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+([\s\S]*?)\s+WHERE\s+type\s*=\s*'([a-z0-9_]+)'/gi
