@@ -41,7 +41,9 @@ export const LOOKUP_MISS_IP_WINDOW_SECONDS = 3600
  * disso a busca fica indisponível para todos até a hora virar; protege contra
  * varredura distribuída por muitos IPs. Aberto, responde 429 `indisponivel`
  * (recusa esperada, fora do 5xx que vai ao Sentry) e só depois dos limites
- * por IP, que continuam valendo.
+ * por IP, que continuam valendo. O pedido que abre o disjuntor manda um aviso
+ * ao Sentry (`breaker_open`), um por hora: quem derruba a busca não passa
+ * despercebido.
  * ponytail: valor fixo pensado para dezenas de transportadoras; se o uso real
  * passar disso, subir por constante com base no log de volume.
  */
@@ -73,7 +75,15 @@ export type PublicFwlogDeps = {
   now: () => number
   sleep: (ms: number) => Promise<void>
   log: (event: string, details: Record<string, unknown>) => void
+  /**
+   * Aviso operacional fora da resposta (Sentry, em segundo plano). Não pode
+   * atrasar nem mudar a resposta: quem chama não espera.
+   */
+  alert: (status: PublicFwlogAlert) => void
 }
+
+/** Avisos que a Edge manda ao Sentry. `breaker_open`: o disjuntor global da busca acabou de abrir. */
+export type PublicFwlogAlert = 'breaker_open'
 
 export function defaultLog(event: string, details: Record<string, unknown>) {
   console.info(JSON.stringify({ event, ...details }))
@@ -536,10 +546,18 @@ export async function handlePublicContainerLookup(req: Request, deps: PublicFwlo
     if (!container) {
       // Número inválido, inexistente, fora da janela, cancelado, porto não
       // atendido ou SOC: a mesma resposta, o mesmo status e o mesmo tempo.
-      await upstash(config, deps, [
+      const [, global] = await upstash(config, deps, [
         ['EVAL', INCREMENT_SCRIPT, '1', await ipKey(config, 'public_lookup_miss', ip), String(LOOKUP_MISS_IP_WINDOW_SECONDS)],
         ['EVAL', INCREMENT_SCRIPT, '1', globalMissKey(config.scope, now), '3600'],
       ])
+      // Quem leva o contador da hora exatamente ao teto abre o disjuntor: o
+      // INCR é atômico, então só um pedido por hora vê esse valor e o aviso
+      // sai uma vez, sem comando a mais no Upstash. Contador ilegível não
+      // derruba o "não encontrado" (antes o valor nem era lido).
+      if (Array.isArray(global) && Number(global[0]) === LOOKUP_MISS_GLOBAL_HOURLY_LIMIT) {
+        deps.log(event, { outcome: 'breaker_tripped' })
+        deps.alert('breaker_open')
+      }
       await padResponseTime(deps, now)
       deps.log(event, { outcome: 'not_found', ip: await ipTag(config, ip) })
       return json(200, { found: false } satisfies PublicLookupResponse, cors)
@@ -561,8 +579,11 @@ async function padResponseTime(deps: PublicFwlogDeps, startedAt: number) {
 
 // --- Execução no Deno ------------------------------------------------------
 
-/** Dependências reais; o `index.ts` de cada função só entrega a RPC do cliente `service_role`. */
-export function runtimeDeps(rpc: PublicFwlogDeps['rpc']): PublicFwlogDeps {
+/**
+ * Dependências reais; o `index.ts` de cada função entrega a RPC do cliente
+ * `service_role` e, na busca, o envio do aviso ao Sentry.
+ */
+export function runtimeDeps(rpc: PublicFwlogDeps['rpc'], alert: PublicFwlogDeps['alert'] = () => {}): PublicFwlogDeps {
   const deno = (globalThis as typeof globalThis & { Deno?: { env: { get(name: string): string | undefined } } }).Deno
   return {
     env: (name) => deno?.env.get(name),
@@ -571,5 +592,6 @@ export function runtimeDeps(rpc: PublicFwlogDeps['rpc']): PublicFwlogDeps {
     now: Date.now,
     sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
     log: defaultLog,
+    alert,
   }
 }

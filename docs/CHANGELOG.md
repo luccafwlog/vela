@@ -6,6 +6,12 @@
 
 ## 2026-11
 
+- **Revisão de segurança dos widgets públicos do fwlog.com.br (2026-11-06):** a abertura do disjuntor global da
+  Consulta de container (300 "não encontrado" na hora) manda um aviso ao Sentry, um por hora, sem número de container
+  nem IP; antes, a busca podia ficar fora do ar sem ninguém saber. O manual de serviços externos passa a dizer que o
+  Turnstile e os secrets dos widgets estão em produção. Registro e conferências em produção:
+  [revisão de 2026-11-06](archive/audits/2026-11-06-revisao-seguranca-widgets-publicos-fwlog.md). Prova: Deno
+  `publicFwlog.test.ts`.
 - **Valor mínimo aplicado na fatura (pedido do dono de 2026-11-05, migration `602`, ADR 0125):** o item da fatura
   cobrado pelo mínimo do THD da carga solta de Vitória diz **Valor mínimo aplicado** no detalhe da fatura do Vela, no
   do Portal e no documento impresso. A emissão marca `minimum_value` no `snapshot_payload` do item; a migration marcou
