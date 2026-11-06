@@ -151,7 +151,7 @@ if (typeof Deno !== "undefined")
             if (error) throw new Error("Falha ao salvar o checkpoint Itaú.");
           },
         }).catch((error) => {
-          // A parada por fuso leva os TXIDs que divergiram: ficam no log e na resposta.
+          // A parada por fuso leva TXID, endToEndId e horário do Itaú dos que divergiram: ficam no log e na resposta.
           const detail = error instanceof ItauPixError ? error.body : null;
           failedSteps.push("receipts");
           logFailure("receipts", error, detail);

@@ -661,10 +661,16 @@ Vela como recebido, sem Alerta; e a consulta avança (10-recebimento:3;
 migration `471`). Retorno sem valor ou horário legível fica só na fila de
 falhas (`itau_pix_receipt_failures`), com Alerta se for do Vela. Pix em formato inesperado vai para análise na primeira vez
 (migration `358`); `endToEndId` com data impossível (mês 13, minuto 99) conta como formato inesperado.
-Horário a mais de 1 h do minuto UTC do `endToEndId` só para a consulta quando é a
-maioria dos Pix do Vela na janela (desvio de fuso, com os TXIDs no log da `itau-pix`);
-um comprovante isolado que diverge vai para análise e os demais são baixados
-(auditoria de segurança run-3, P4). O mesmo Pix não é baixado duas vezes: o Pix de avulsa cujo
+Pix do Vela com horário a mais de 1 h do minuto UTC do `endToEndId` vai para
+análise, um a um, e os demais são baixados (auditoria de segurança run-3, P4).
+A consulta só para (desvio de fuso, com TXID, `endToEndId` e horário do Itaú
+no log da `itau-pix`) quando os Pix do Vela com o desvio que a troca do `Z`
+produziria (de 3 h − 5 min a 4 h depois do `endToEndId`) vêm de duas
+instituições pagadoras ou mais (ISPB do `endToEndId`) e elas são a maioria das
+instituições da janela. O lote de um mesmo pagador conta uma vez, e o Pix
+agendado ou pago em lote tem `endToEndId` da iniciação, horas antes do crédito:
+em 2026-11-06, 18 Pix de um cliente, pagos juntos, eram a maioria dos Pix da
+janela e pararam a consulta inteira por mais de uma hora, sem mudança de fuso. O mesmo Pix não é baixado duas vezes: o Pix de avulsa cujo
 `endToEndId` já é referência de uma baixa, ou cujo TXID já conciliou a avulsa
 pelo extrato, vai para análise; o extrato que baixa avulsa cobrada pelo QR Itaú
 marca a cobrança como concluída (migration `357`). O Pix do QR de uma

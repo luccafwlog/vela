@@ -500,6 +500,25 @@ function receiptDeviates(p: ItauPix): boolean {
   return Math.abs(Date.parse(p.horario) - endToEndTime(p.endToEndId)!) > END_TO_END_TOLERANCE_MS
 }
 
+// A única leitura errada que o Vela pode fazer é trocar o Z de um horário já em UTC
+// por -03:00 (offset explícito é preservado): o horário lido fica 3 h depois do
+// crédito, e o crédito segue a iniciação gravada no endToEndId. Pix agendado ou
+// pago em lote pelo pagador tem endToEndId horas antes do crédito, com qualquer
+// desvio (5 h num Pix real de 06/11/2026), e não é fuso.
+const ZONE_SHIFT_MS = 3 * 60 * 60 * 1000
+const CLOCK_SKEW_MS = 5 * 60 * 1000
+
+function looksLikeZoneShift(p: ItauPix): boolean {
+  const gap = Date.parse(p.horario) - endToEndTime(p.endToEndId)!
+  return gap >= ZONE_SHIFT_MS - CLOCK_SKEW_MS && gap <= ZONE_SHIFT_MS + END_TO_END_TOLERANCE_MS
+}
+
+// Instituição do pagador (ISPB): o endToEndId nasce no relógio dela. O lote de um
+// mesmo pagador é uma evidência só, por mais Pix que tenha.
+function payerInstitution(p: ItauPix): string {
+  return p.endToEndId.slice(1, 9)
+}
+
 // Horário do Pix que não é do Vela: o do Itaú convertido de Brasília, ou o
 // minuto UTC do endToEndId quando o do banco não se lê ou se afasta dele (fuso
 // trocado). Não para a consulta: as travas de fuso ficam com os Pix do Vela.
@@ -533,16 +552,26 @@ export async function pollItauPixReceipts(client: ItauPixClient, sink: ReceiptSi
       end = start + Math.max(MIN_WINDOW_MS, Math.floor((end - start) / 2))
     }
   }
-  // Desvio de fuso atinge todos os recebimentos: se a maioria dos Pix do Vela
-  // diverge do endToEndId, para sem avançar e o Alerta de consulta parada
-  // (migration 358) avisa. Um comprovante isolado que destoa vai para análise e
-  // não segura a baixa dos demais (auditoria run-3, pendência P4).
-  // ponytail: maioria simples da janela; com um único Pix, ele decide sozinho.
+  // Desvio de fuso atinge todos os recebimentos, de todos os bancos pagadores: se
+  // os Pix do Vela com o desvio de 3 h vêm de duas instituições ou mais, e elas são
+  // a maioria das instituições da janela, para sem avançar e o Alerta de consulta
+  // parada (migration 358) avisa. O resto que diverge vai para análise um a um e
+  // não segura a baixa dos demais (auditoria run-3, pendência P4). Contar Pix, e
+  // não instituições, deixou um lote de 18 Pix de um cliente parar a consulta
+  // inteira em 06/11/2026. Com o Pix recente, a trava do horário no futuro
+  // (itauTimeToUtc) pega o fuso antes desta; esta cobre a recuperação de atraso.
+  // ponytail: maioria simples das instituições; com uma só, ela não decide a parada.
+  // Upgrade: votar também com os Pix de fora do Vela da mesma janela.
   const checked = pix.filter((p) => isVelaTxid(p.txid) && !isVelaTestTxid(p.txid) && receiptFormatOk(p))
-  const deviating = checked.filter(receiptDeviates)
-  if (deviating.length > 0 && deviating.length * 2 > checked.length) {
-    throw new ItauPixError('Horário do Itaú diverge do endToEndId; conferir se o banco mudou o fuso.', 502,
-      { txids: deviating.map((p) => p.txid) })
+  const shifted = checked.filter(looksLikeZoneShift)
+  const institutions = (list: ItauPix[]) => new Set(list.map(payerInstitution)).size
+  const shiftedInstitutions = institutions(shifted)
+  if (shiftedInstitutions >= 2 && shiftedInstitutions * 2 > institutions(checked)) {
+    throw new ItauPixError('Horário do Itaú diverge do endToEndId; conferir se o banco mudou o fuso.', 502, {
+      txids: shifted.map((p) => p.txid),
+      // Horário como o Itaú mandou: é o que mostra se o banco mudou o fuso.
+      pix: shifted.map((p) => ({ txid: p.txid, endToEndId: p.endToEndId, horario: p.raw?.horario ?? p.horario })),
+    })
   }
   const summary = { seen: pix.length, vela: 0, test: 0, settled: 0, review: 0, received: 0, skipped: 0, until: new Date(end).toISOString() }
   for (const p of pix) {

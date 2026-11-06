@@ -1406,11 +1406,19 @@ com sufixo `Z` indevido. Correção local envia consultas com `-03:00` e
 normaliza as datas recebidas para UTC, preservando offsets explícitos;
 publicada na v7 com autorização. Se o Itaú passar a mandar UTC verdadeiro, a
 leitura soma 3 h: o cliente recusa horário mais de 5 min à frente do relógio
-(erro "Horário do Itaú no futuro") e, na baixa, horário a mais de 1 h do minuto
-UTC gravado no `endToEndId` na maioria dos Pix da janela (erro "Horário do Itaú diverge do endToEndId",
-com os TXIDs no log; desde 2026-10-22 um caso isolado vai para análise),
+(erro "Horário do Itaú no futuro") e, na baixa, o desvio de 3 h sobre o minuto
+UTC gravado no `endToEndId` em Pix de duas instituições pagadoras ou mais, maioria
+das da janela (erro "Horário do Itaú diverge do endToEndId", com TXID,
+`endToEndId` e horário como o Itaú mandou no log; desde 2026-10-22 um caso
+isolado vai para análise e, desde 2026-11-06, o lote de um só pagador também),
 sem baixa nem avanço do checkpoint, inclusive na recuperação de atraso; nesse
-caso, remover a troca de `Z` em `_shared/itauPix.ts`.
+caso, confirme no log que o horário cru veio em UTC verdadeiro e só então
+remova a troca de `Z` em `_shared/itauPix.ts`. Em 2026-11-06 a regra anterior
+(maioria dos Pix, não dos pagadores) parou a consulta a partir de 20:33 UTC
+sem mudança de fuso: 18 faturas de um cliente pagas juntas, com o `endToEndId`
+da iniciação do lote mais de 1 h antes do crédito; o Itaú seguia mandando
+Brasília com `Z` (Pix de terceiros da mesma tarde e a trava do horário no
+futuro, que não disparou, confirmam).
 GET autenticado confirmou o horário UTC
 correto; recuperação por `itau_pix_settle` deixou INV-2026-0004 paga, saldo
 zero, com um único pagamento da conta API ITAÚ. Cron seguinte respondeu
