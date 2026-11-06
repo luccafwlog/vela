@@ -506,6 +506,19 @@ anteriores. Calculado na tela (`ceUnlockSla.ts`), no banco (`ce_unlock_private.s
 usado no texto do aviso) e escrito no bloco "O que o desbloqueio pede" do Portal; o teste SQL
 confere tela e banco com os mesmos casos. O cumprimento é medido pela data da exportação.
 
+**Alertas do prazo e da análise** (desde 2026-11-06, migration `608`,
+[ADR 0131](../adr/0131-decisoes-da-revisao-dos-alertas.md), D1). Da Documentação, com o
+Administrativo também avisado; a rotina `ce-unlock-alerts` (5 minutos) abre e fecha:
+- `desbloqueio_solicitacao_sem_analise` (Crítico, por solicitação): solicitação do Cliente em
+  `submitted` ou `in_review` com B/L ativo de Termo ou Procuração sem aprovar, 2 horas úteis depois do
+  último `submit` (`_add_business_hours`: 8h às 17h de Brasília, dia útil de
+  `itau_pix_business_day`). **Resolver** abre `/desbloqueio-ce?pedido=<id>`.
+- `desbloqueio_prazo_vencendo` (por B/L): com `sla_started_at` do item e sem exportação, Normal 2
+  horas depois do início; Crítico (marco `prazo_critico`) a partir de 2 horas antes de
+  `sla_deadline`. Fecha na exportação ou quando o prazo deixa de correr. **Resolver** abre a aba
+  Controle.
+**Teste:** `alertasDoDesbloqueioDeCe.local-pg.test.ts`.
+
 ### Avisos ao cliente
 
 **Aviso à equipe (migration `595`, [ADR 0126](../adr/0126-sino-avisa-solicitacao-de-desbloqueio-e-pagamento.md)).**

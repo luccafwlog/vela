@@ -6,6 +6,10 @@
 
 ## 2026-11
 
+- **Alertas do Desbloqueio de CE (decisão D1 do dono de 2026-11-06, migration `608`, ADR 0131):** solicitação do
+  Cliente sem análise 2 horas úteis (8h às 17h) depois do envio abre alerta Crítico; prazo de liberação correndo há 2
+  horas sem exportação abre Normal, que vira Crítico 2 horas antes do vencimento. Documentação e Administrativo
+  recebem. Prova: `alertasDoDesbloqueioDeCe.local-pg.test.ts`.
 - **Container sem descarga (decisão D2 do dono de 2026-11-06, migration `607`, ADR 0131):** no ATB de cada terminal,
   container dos B/Ls daquele terminal sem data de descarga abre alerta Normal para Equipamentos, que vira Crítico 24
   horas depois; **Resolver** abre Containers na escala. Prova: `containerSemDescarga.local-pg.test.ts`.

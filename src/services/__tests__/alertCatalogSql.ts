@@ -50,6 +50,7 @@ const CATALOG_MIGRATIONS = [
   '584_terminal_da_escala_cobrado.sql',
   '597_ce_mercante_travado_ate_resposta_de_veiculos.sql',
   '607_alerta_container_sem_descarga.sql',
+  '608_alertas_do_desbloqueio_de_ce.sql',
 ]
 
 // Migrations que aposentam tipos. Aceitam tanto `type IN (...)` quanto
@@ -101,11 +102,14 @@ function readMigration(fileName: string): string {
 
 export function readSqlAlertCatalog(): SqlAlertCatalogEntry[] {
   const entries = new Map<string, SqlAlertCatalogEntry>()
+  // Migration de origem de cada tipo: o reset da 476 só alcança os anteriores.
+  const bornIn = new Map<string, number>()
 
   for (const fileName of CATALOG_MIGRATIONS) {
     const migration = readMigration(fileName)
     for (const match of migration.matchAll(ENTRY_PATTERN)) {
       const [, type, severity, responsibleDepartment, audience, defaultDestination] = match
+      bornIn.set(type, Number.parseInt(fileName, 10))
       entries.set(type, {
         type,
         severity: severity as 'critical' | 'normal',
@@ -151,7 +155,9 @@ export function readSqlAlertCatalog(): SqlAlertCatalogEntry[] {
   // Migration 476 (ADR 0107): a audiência passa a ser o setor responsável e,
   // nos tipos que já avisavam o Financeiro, também o Financeiro.
   if (readMigration(AUDIENCE_RESET_MIGRATION).includes('SET audience_departments = ARRAY[responsible_department]')) {
+    const resetNumber = Number.parseInt(AUDIENCE_RESET_MIGRATION, 10)
     for (const entry of entries.values()) {
+      if ((bornIn.get(entry.type) ?? 0) > resetNumber) continue
       const keepsFinanceiro = entry.audienceDepartments.includes('financeiro') && entry.responsibleDepartment !== 'financeiro'
       entry.audienceDepartments = [entry.responsibleDepartment, ...(keepsFinanceiro ? ['financeiro'] : [])]
     }

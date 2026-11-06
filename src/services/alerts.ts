@@ -75,6 +75,8 @@ export type ActiveAlertType =
   | 'voyage_escala_terminal_missing'
   | 'voyage_export_after_atd'
   | 'container_sem_descarga'
+  | 'desbloqueio_solicitacao_sem_analise'
+  | 'desbloqueio_prazo_vencendo'
 
 export const TYPE_LABELS: Record<string, string> = {
   fatura_desatualizada: 'Fatura desatualizada',
@@ -145,6 +147,8 @@ export const TYPE_LABELS: Record<string, string> = {
   voyage_escala_terminal_missing: 'Escala sem terminal',
   voyage_export_after_atd: 'Exportação pendente pós-ATD',
   container_sem_descarga: 'Container sem descarga',
+  desbloqueio_solicitacao_sem_analise: 'Solicitação de desbloqueio sem análise',
+  desbloqueio_prazo_vencendo: 'Prazo do desbloqueio vencendo',
 }
 
 export const ENTITY_TYPE_LABELS: Record<string, string> = {
@@ -573,6 +577,11 @@ function alertEntityLinkRaw(alert: {
     if (port) params.set('pod', port)
     return `/containers?${params.toString()}`
   }
+  // 608 (ADR 0131, D1): a solicitação abre o pedido; o prazo, o Controle.
+  if (effectiveType === 'desbloqueio_solicitacao_sem_analise' && alert.entity_type === 'ce_unlock_request') {
+    return `/desbloqueio-ce?${new URLSearchParams({ pedido: alert.entity_id }).toString()}`
+  }
+  if (effectiveType === 'desbloqueio_prazo_vencendo') return '/desbloqueio-ce?aba=controle'
   // ALE-D05: registros sem ficha própria levam à tela que a Regra cita.
   const screen = SCREEN_BY_ENTITY_TYPE[alert.entity_type ?? '']
   if (screen) return screen
@@ -626,6 +635,8 @@ export function alertEntityLinkLabel(alert: {
   if (effectiveType === 'voyage_vehicle_sheet_pending' || effectiveType === 'voyage_vehicle_declaration_pending') return 'Abrir Veículos'
   if (effectiveType === 'demurrage_travado') return 'Abrir Demurrage'
   if (effectiveType === 'container_sem_descarga') return 'Abrir Containers'
+  if (effectiveType === 'desbloqueio_solicitacao_sem_analise') return 'Abrir Solicitação'
+  if (effectiveType === 'desbloqueio_prazo_vencendo') return 'Abrir Desbloqueio de CE'
   if (effectiveType === 'demurrage_disputa_prazo') return 'Abrir Disputa'
   if (alert.entity_type === 'bl' && (effectiveType === 'billing_calculation_blocked' || effectiveType === 'billing_auto_issue_failed')) {
     return 'Taxas Locais'

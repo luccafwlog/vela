@@ -65,10 +65,10 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
  * A bateria confere estes números no banco.
  */
 export const ALERT_TYPE_COUNTS: Readonly<Record<Department, number>> = {
-  administrativo: 19,
+  administrativo: 21,
   financeiro: 5,
   operacoes: 5,
-  documentacao: 34,
+  documentacao: 36,
   equipamentos: 9,
 }
 

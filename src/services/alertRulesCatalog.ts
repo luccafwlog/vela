@@ -1054,6 +1054,41 @@ const ALERT_RULES_BASE = [
     afterResolution: 'Sozinho, quando o próximo aviso ao mesmo Cliente sai; ou com justificativa.',
     impact: 'O Cliente pode não saber que um documento foi recusado ou que a documentação foi validada, e o desbloqueio atrasa.',
   },
+  {
+    // Migration 608 (ADR 0131, D1): 2 horas úteis sem análise.
+    type: 'desbloqueio_solicitacao_sem_analise',
+    domain: 'Desbloqueio de CE',
+    responsible: 'documentacao',
+    catalogAudience: ['documentacao', 'administrativo'],
+    entityType: 'ce_unlock_request',
+    severity: 'critical',
+    summary: 'O Cliente enviou a solicitação de desbloqueio e ninguém terminou de analisar o Termo e a Procuração.',
+    trigger: 'Passaram 2 horas úteis desde o último envio do Cliente e algum B/L da solicitação ainda tem Termo ou Procuração sem aprovar. Hora útil: das 8h às 17h, em dia útil. Um alerta por solicitação.',
+    timing: 'A cada conferência de 5 minutos. O aviso de nova solicitação já chega no sino na hora do envio.',
+    resolution: 'Em Desbloqueio de CE, abra a solicitação e aprove ou recuse cada documento.',
+    destination: '/desbloqueio-ce',
+    destinationLabel: 'Abrir Solicitação',
+    destinationNote: 'O alerta abre a solicitação na aba Solicitações.',
+    afterResolution: 'Sozinho, quando todos os documentos estão aprovados, a solicitação volta ao Cliente com correção pedida, é cancelada ou concluída.',
+    impact: 'Sem a análise, o prazo de liberação não começa e a carga do Cliente continua retida.',
+  },
+  {
+    // Migration 608 (ADR 0131, D1): Normal 2 horas depois do início, Crítico 2 horas antes do vencimento.
+    type: 'desbloqueio_prazo_vencendo',
+    domain: 'Desbloqueio de CE',
+    responsible: 'documentacao',
+    catalogAudience: ['documentacao', 'administrativo'],
+    entityType: 'bl',
+    severity: 'normal',
+    summary: 'O prazo de liberação do B/L está correndo e o B/L ainda não foi exportado para a ZPT.',
+    trigger: 'O B/L cumpriu os requisitos e o prazo começou há mais de 2 horas sem a exportação. Um alerta por B/L.',
+    timing: 'A cada conferência de 5 minutos. Faltando 2 horas para o vencimento, o alerta vira Crítico e avisa de novo.',
+    resolution: 'Em Desbloqueio de CE, aba Controle, gere a planilha dos B/Ls aptos e importe-a na ZPT.',
+    destination: '/desbloqueio-ce?aba=controle',
+    destinationLabel: 'Abrir Desbloqueio de CE',
+    afterResolution: 'Sozinho, quando o B/L é exportado ou o prazo deixa de correr.',
+    impact: 'Passado o prazo, o Cliente fica sem a liberação prometida e a carga continua retida no terminal.',
+  },
 
   // 20.12 ADR de Saída -------------------------------------------------------
   {
