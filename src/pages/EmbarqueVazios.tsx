@@ -675,16 +675,31 @@ function EmbarqueDetalhe({
   const activeDepots = depotRows.filter((item) => item.active !== false);
   const depotCode = (id: string | null | undefined) => depotRows.find((depot) => depot.id === id)?.code ?? null;
   const unitRows = units.data?.rows ?? [];
-  const serviceRows = (Array.isArray(services.data) ? services.data : []).filter((item) => item.active !== false);
+  const operationLines = operation.data?.linhas ?? [];
+  // Linha em edição: o local e o serviço dela continuam na janela mesmo depois
+  // de desativados, porque o banco aceita corrigir a linha sem trocar nenhum
+  // dos dois (migrations 326 e 331). Sem isso, a janela abria sem local e
+  // "Salvar linha" não fazia nada.
+  const editingLine = line.id ? operationLines.find((item) => item.id === line.id) : undefined;
+  const editingLocal = editingLine ? depotRows.find((item) => item.id === editingLine.local_id) : undefined;
+  const lineLocalOptions = editingLocal && !activeDepots.some((item) => item.id === editingLocal.id)
+    ? [...activeDepots, editingLocal]
+    : activeDepots;
+  const editingService = editingLine && editingLine.local_id === line.localId
+    ? (editingLine.service as DepotService | null) ?? null
+    : null;
+  const activeServiceRows = (Array.isArray(services.data) ? services.data : []).filter((item) => item.active !== false);
+  const serviceRows = editingService && !activeServiceRows.some((item) => item.id === editingService.id)
+    ? [...activeServiceRows, editingService]
+    : activeServiceRows;
   const armazenagemServiceRows = Array.isArray(armazenagemServices.data) ? armazenagemServices.data : [];
   // Transporte para destino inativo não entra em lançamento novo (o banco
   // também recusa, migration 331).
   const offeredServices = serviceRows.filter((item) =>
     (!serviceNature || item.natureza === serviceNature)
-    && (item.natureza !== "transporte" || activeDepots.some((depot) => depot.id === item.route_destino_id)));
-  const local = activeDepots.find((item) => item.id === line.localId);
+    && (item.id === editingService?.id || item.natureza !== "transporte" || activeDepots.some((depot) => depot.id === item.route_destino_id)));
+  const local = lineLocalOptions.find((item) => item.id === line.localId);
   const selectedService = serviceRows.find((item) => item.id === line.serviceId);
-  const operationLines = operation.data?.linhas ?? [];
   const costLines = operationLines.map((item: VaziosExportServiceLine & { service: unknown; free_time_days?: number | null }) => ({
     ...item,
     natureza: (item.service as { natureza?: string } | null)?.natureza ?? "geral",
@@ -706,9 +721,16 @@ function EmbarqueDetalhe({
     : selectedOperation.servicos;
   const unitCount = units.data ? unitRows.length : selectedOperation.unidades;
 
-  async function refreshOperationData(options: { operation?: boolean } = {}) {
+  async function refreshOperationData(options: { operation?: boolean; routes?: boolean } = {}) {
     const refreshes: Array<Promise<unknown>> = [units.refetch()];
     if (options.operation !== false) refreshes.push(operation.refetch());
+    // 603: a gravação de unidades tira o Nº do Manifesto Mercante da rota que
+    // ficou sem unidade (`_vazios_importacao_prune`); o bloco por porto de
+    // descarga, Rotas e Manifestos e Vazios de importação releem o cadastro.
+    if (options.routes) {
+      refreshes.push(queryClient.invalidateQueries({ queryKey: queryKeys.manifestosMercante.all() }));
+      refreshes.push(afterRotaAlterada(queryClient, { voyageId: ref.voyage_id }));
+    }
     refreshes.push(invalidateAgencyReportForVoyage(queryClient, ref.voyage_id));
     refreshes.push(onChanged());
     await Promise.all(refreshes);
@@ -777,7 +799,7 @@ function EmbarqueDetalhe({
         fileHash: await importFilesSha256([file]).catch(() => null),
       });
       setFile(null);
-      await refreshOperationData();
+      await refreshOperationData({ routes: true });
       setImportOpen(false);
     }, "Lista de unidades substituída.", (error) => importErrorMessage(error, "Não foi possível importar a lista de unidades."));
   }
@@ -826,7 +848,7 @@ function EmbarqueDetalhe({
           });
         setUnitOpen(false);
         setUnit(EMPTY_UNIT);
-        await refreshOperationData();
+        await refreshOperationData({ routes: true });
       },
       unit.id ? "Unidade atualizada." : "Unidade incluída.",
     );
@@ -867,7 +889,7 @@ function EmbarqueDetalhe({
     if (reason === null) return;
     await notify(async () => {
       await deleteManualVaziosBooking(item.id, reason);
-      await refreshOperationData();
+      await refreshOperationData({ routes: true });
     }, "Unidade excluída.");
   }
   async function saveRouteManifesto() {
@@ -1565,13 +1587,15 @@ function EmbarqueDetalhe({
                 value={line.localId}
                 onChange={(event) => {
                   setServiceNature("");
-                  setLine({ ...EMPTY_LINE, localId: event.target.value });
+                  // Trocar o local na edição continua editando a mesma linha,
+                  // em vez de lançar outra ao lado dela.
+                  setLine((current) => ({ ...EMPTY_LINE, id: current.id, localId: event.target.value }));
                 }}
               >
                 <option value="">Selecione</option>
-                {activeDepots.map((item) => (
+                {lineLocalOptions.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.code} · {item.tipo === "terminal_portuario" ? "Terminal portuário" : "Depot"}
+                    {item.code} · {item.tipo === "terminal_portuario" ? "Terminal portuário" : "Depot"}{item.active === false ? " (inativo)" : ""}
                   </option>
                 ))}
               </Select>
@@ -1596,7 +1620,7 @@ function EmbarqueDetalhe({
                 <option value="">Selecione</option>
                 {offeredServices.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.name} · {naturezaServicoLabel(item.natureza)}{sizeOf(item.container_type) ? ` · ${tamanhoLabel(item.container_type)}` : ""}
+                    {item.name} · {naturezaServicoLabel(item.natureza)}{sizeOf(item.container_type) ? ` · ${tamanhoLabel(item.container_type)}` : ""}{item.active === false ? " (inativo)" : ""}
                   </option>
                 ))}
               </Select>

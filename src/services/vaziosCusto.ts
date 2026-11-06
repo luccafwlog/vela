@@ -283,17 +283,26 @@ export function totalEmbarque(embarque: CostShipment): number {
 }
 
 /**
- * Totais de armazenagem do embarque para o ADR: unidades com dia cobrável e a
- * soma dos dias cobráveis. A unidade de Depot que ficou dentro do free time não
- * gerou armazenagem e não conta (revisão de 2026-11-06, C2).
+ * Totais de armazenagem do embarque para o ADR (revisão de 2026-11-06, C2 e C4):
+ * - `containers`: unidades com dia cobrável. A unidade de Depot que ficou
+ *   dentro do free time não gerou armazenagem e não conta;
+ * - `days`: dias cobráveis, a soma das quantidades efetivas das linhas de
+ *   armazenagem lançadas (a quantidade informada à mão vale) mais os dias
+ *   calculados das combinações ainda sem linha. Bate com o total das linhas;
+ * - `calculatedDays`: os mesmos dias pela lista de unidades, sem a quantidade
+ *   à mão. Igual a `days` quando nenhuma linha tem quantidade à mão.
  */
 export function totaisDeArmazenagem(
   unidades: readonly EmptyUnit[],
   depots: readonly StorageDepot[] = [],
   linhas: ReadonlyArray<CostServiceLine> = [],
-): { containers: number; days: number } {
+): { containers: number; days: number; calculatedDays: number } {
   const rows = armazenagemPorUnidade(unidades, depots, linhas).filter((row) => row.chargeableDays > 0)
-  return { containers: rows.length, days: rows.reduce((sum, row) => sum + row.chargeableDays, 0) }
+  const calculatedDays = rows.reduce((sum, row) => sum + row.chargeableDays, 0)
+  const launchedDays = linhas.filter(isStorageLine)
+    .reduce((sum, line) => sum + quantidadeEfetiva(line, unidades, depots, linhas), 0)
+  const pendingDays = rows.filter((row) => !row.launched).reduce((sum, row) => sum + row.chargeableDays, 0)
+  return { containers: rows.length, days: launchedDays + pendingDays, calculatedDays }
 }
 
 /**

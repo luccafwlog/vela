@@ -178,10 +178,11 @@ export async function listVaziosBookingsForOperation(operationId: string) {
 }
 
 /**
- * Storage do ADR: unidades com dia cobrável e a soma dos dias cobráveis, com o
- * free time congelado nas linhas de armazenagem (603). A unidade de Depot que
- * ficou dentro do free time não gerou armazenagem e não conta (C2 da revisão
- * de 2026-11-06).
+ * Storage do ADR: unidades com dia cobrável e os dias cobráveis, com o free
+ * time congelado nas linhas de armazenagem (603). A unidade de Depot que ficou
+ * dentro do free time não gerou armazenagem e não conta (C2), e a quantidade
+ * informada à mão na linha vale, com o calculado pela lista ao lado (C4;
+ * revisão de 2026-11-06). Regra em `totaisDeArmazenagem`.
  */
 export function computeStorageTotals(
   rows: Array<
@@ -192,7 +193,7 @@ export function computeStorageTotals(
   >,
   depots: StorageDepot[] = [],
   lines: CostServiceLine[] = [],
-): { containers: number; days: number } {
+): { containers: number; days: number; calculatedDays: number } {
   return totaisDeArmazenagem(rows, depots, lines);
 }
 

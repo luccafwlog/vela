@@ -825,10 +825,29 @@ it("imprime POD, manifesto por rota, tamanho da linha e o anexo só com quem cob
   expect(linhas.textContent).toContain("ZIRAN → TVV");
   expect(linhas.textContent).toContain("40'");
   expect(screen.getByRole("table", { name: "Storage" }).textContent).toContain("Unidades com armazenagem");
+  // Sem quantidade à mão (e no retrato sem o campo), o calculado não se repete.
+  expect(screen.getByRole("table", { name: "Storage" }).textContent).not.toContain("Dias pela lista de unidades");
 
   const anexo = screen.getByRole("table", { name: "Unidades que geraram armazenagem" });
   expect(anexo.textContent).toContain("ABCD1234567");
   expect(anexo.textContent).not.toContain("ABCD1234568");
   expect(anexo.textContent).toContain("Dias cobráveis");
   expect(anexo.closest("section")!.textContent).toContain("6 dias cobráveis");
+});
+
+// C4 da revisão de 2026-11-06: com quantidade à mão numa linha de armazenagem,
+// Dias cobráveis é o que as linhas cobram, e o calculado pela lista fica ao lado.
+it("Storage mostra os dias cobrados pelas linhas e, com quantidade à mão, os dias pela lista de unidades", () => {
+  render(
+    <AgencyReportDocument
+      snapshot={{
+        header: { carrierName: "Armador teste", voyageLabel: "NAVIO TESTE / 01E", port: "BRVIX", schedule: {} },
+        sections: { storage: { containers: 20, days: 110, calculatedDays: 120 } },
+      }}
+    />,
+  );
+
+  const storage = screen.getByRole("table", { name: "Storage" }).textContent;
+  expect(storage).toContain("Dias cobráveis110");
+  expect(storage).toContain("Dias pela lista de unidades120");
 });

@@ -279,6 +279,10 @@ describe("EmbarqueVazios", () => {
     })));
     await waitFor(() => expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["agency-report", 179] }));
     expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["vazios-export-operations"] });
+    // 603: gravar unidade pode tirar o Nº do Manifesto Mercante da rota que
+    // ficou sem unidade; o bloco por porto de descarga e Rotas e Manifestos releem.
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["manifestos-mercante"] });
+    expect(mocks.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["voyage-route-ce-masters"] });
   });
 
   it("603: registra o Nº do Manifesto Mercante da rota de exportação pela gravação de Rotas e Manifestos", async () => {
@@ -438,6 +442,43 @@ describe("EmbarqueVazios", () => {
       id: "line-9",
       service_id: "general-1",
       quantidade: 5,
+    })));
+  });
+
+  it("trocar o local na edição continua editando a mesma linha, sem lançar outra", async () => {
+    mocks.operationData = {
+      linhas: [{ id: "line-9", service_id: "general-1", local_id: "depot-1", destino_id: null, condition: null, container_type: null,
+        quantidade: "2", valor_unitario: "10", valor_sugerido: "10", quantidade_manual: true, observation: null,
+        service: { id: "general-1", name: "Handling", natureza: "geral" } }],
+    };
+    renderPage("/embarquevazios?embarque=operation-1&aba=servicos");
+    fireEvent.click(screen.getByRole("button", { name: "Editar linha Handling" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.change(within(dialog).getByLabelText(/Local/), { target: { value: "terminal-1" } });
+    fireEvent.change(within(dialog).getByLabelText(/Natureza/), { target: { value: "geral" } });
+    fireEvent.change(within(dialog).getByLabelText(/Serviço/), { target: { value: "general-1" } });
+    expect(within(dialog).getByRole("heading", { name: "Editar linha" })).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Salvar linha" }));
+
+    await waitFor(() => expect(mocks.upsertServiceLine).toHaveBeenCalledWith(expect.objectContaining({ id: "line-9", local_id: "terminal-1" })));
+  });
+
+  it("edita a linha de um local e de um serviço depois desativados, sem trocar nenhum dos dois", async () => {
+    mocks.operationData = {
+      linhas: [{ id: "line-old", service_id: "general-old", local_id: "depot-old", destino_id: null, condition: null, container_type: null,
+        quantidade: "1", valor_unitario: "10", valor_sugerido: "10", quantidade_manual: true, observation: null,
+        service: { id: "general-old", name: "Handling antigo", natureza: "geral", route_destino_id: null, active: false } }],
+    };
+    renderPage("/embarquevazios?embarque=operation-1&aba=servicos");
+    fireEvent.click(screen.getByRole("button", { name: "Editar linha Handling antigo" }));
+    const dialog = screen.getByRole("dialog");
+    expect((within(dialog).getByLabelText(/Local/) as HTMLSelectElement).value).toBe("depot-old");
+    expect((within(dialog).getByLabelText(/Serviço/) as HTMLSelectElement).value).toBe("general-old");
+    fireEvent.change(within(dialog).getByLabelText(/Valor unitário/), { target: { value: "12" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Salvar linha" }));
+
+    await waitFor(() => expect(mocks.upsertServiceLine).toHaveBeenCalledWith(expect.objectContaining({
+      id: "line-old", local_id: "depot-old", service_id: "general-old", valor_unitario: 12,
     })));
   });
 

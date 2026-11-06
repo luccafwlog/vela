@@ -955,6 +955,10 @@ export function AgencyReportDocument({
           metrics={[
             ["Unidades com armazenagem", count(storage.containers)],
             ["Dias cobráveis", count(storage.days)],
+            // C4: só com quantidade à mão numa linha; retrato antigo não traz o campo.
+            ...(storage.calculatedDays !== undefined && number(storage.calculatedDays) !== number(storage.days)
+              ? [["Dias pela lista de unidades", count(storage.calculatedDays)] satisfies Metric]
+              : []),
           ]}
         />
       </Section>

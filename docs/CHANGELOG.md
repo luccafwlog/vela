@@ -19,7 +19,9 @@
   - **Linha de serviço.** Agora se edita, e a quantidade de handling e transporte é sugerida pelas unidades do
     local (**Usar N**).
   - **ADR de Saída.** Mostra POD, TEU e manifesto por rota e rótulos que dizem o que contam. O anexo impresso
-    lista só as unidades que geraram armazenagem, com os dias.
+    lista só as unidades que geraram armazenagem, com os dias. Os dias cobráveis de storage são os das linhas
+    de armazenagem, com a quantidade informada à mão valendo; quando ela difere, o calculado pela lista aparece
+    ao lado (C4).
 
   Prova: `embarqueVaziosPodTamanho.local-pg.test.ts`, `vaziosCusto.test.ts`, `vaziosImportAdrColumns.test.ts`,
   `EmbarqueVazios.flow.test.tsx` e `AgencyReportDocument.test.tsx`.

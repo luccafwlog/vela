@@ -1027,6 +1027,8 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
                 <Subsection title="Operação de pátio">
                   {hasPatioOperation ? <>
                     <LeadValue>{data?.storage.days ?? 0} dias cobráveis de storage</LeadValue>
+                    {/* C4: com quantidade informada à mão, o calculado pela lista fica ao lado. */}
+                    {data?.storage && data.storage.calculatedDays !== data.storage.days ? <p className="text-sm text-[var(--app-muted)]">Pela lista de unidades: {data.storage.calculatedDays} dias; a diferença vem da quantidade informada à mão na linha de armazenagem.</p> : null}
                     <FactList columns={4}>
                       {/* C2/C3/C4 da revisão de 2026-11-06: cada rótulo diz o que conta. */}
                       <Fact label="Unidades com armazenagem">{data?.storage.containers ?? 0}</Fact>

@@ -146,9 +146,20 @@ describe('armazenagem por tamanho e free time congelado (603)', () => {
 
   it('Storage do ADR conta só a unidade com dia cobrável e mostra os dias por unidade', () => {
     const dentro = { ...unit('ZRCN0000001', '22G1'), hand_in_date: '2026-10-20' }
-    expect(totaisDeArmazenagem([...unidades, dentro], ziran)).toEqual({ containers: 20, days: 120 })
+    expect(totaisDeArmazenagem([...unidades, dentro], ziran)).toEqual({ containers: 20, days: 120, calculatedDays: 120 })
     const [row] = armazenagemPorUnidade([dentro], ziran)
     expect(row).toMatchObject({ totalDays: 17, freeTime: 30, chargeableDays: 0, launched: false })
+  })
+
+  it('C4: Storage → Dias cobráveis usa a quantidade à mão da linha e guarda o calculado pela lista ao lado', () => {
+    const linhas = [
+      // 20' com quantidade à mão (a fatura do depot cobrou 50, a lista dá 60).
+      { natureza: 'armazenagem', local_id: 'z', condition: 'vazio', container_type: '20', free_time_days: 30, quantidade: 50, quantidade_manual: true, valor_unitario: 1.58 },
+      // 40' ainda sem linha: os 60 dias calculados continuam no total.
+    ]
+    expect(totaisDeArmazenagem(unidades, ziran, linhas)).toEqual({ containers: 20, days: 110, calculatedDays: 120 })
+    // Sem quantidade à mão, os dois totais são o mesmo número.
+    expect(totaisDeArmazenagem(unidades, ziran, [{ ...linhas[0], quantidade_manual: false }])).toEqual({ containers: 20, days: 120, calculatedDays: 120 })
   })
 
   it('sugere a quantidade de handling e transporte pelas unidades do local e do tamanho do serviço', () => {
