@@ -92,6 +92,10 @@ import_map = "./functions/deno.json"
 verify_jwt = false
 import_map = "./functions/deno.json"
 
+[functions.admin-test-email]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
 [api]
 enabled = true
 # Port to use for the API URL.

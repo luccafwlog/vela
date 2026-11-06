@@ -19,6 +19,10 @@ export function useSetCommunicationsEnabled() {
     // mostrando o estado anterior.
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.appSettings() })
+      // A aba Sistema da Administração mostra o mesmo estado (migration 605), e a
+      // troca entra no Histórico de ações.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.systemHealth() })
+      void queryClient.invalidateQueries({ queryKey: [queryKeys.admin.auditLogs(null)[0]] })
     },
   })
 }
@@ -30,6 +34,8 @@ export function useSetDemurrageDunningIntervalDays() {
     mutationFn: (days: number) => setDemurrageDunningIntervalDays(days),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.appSettings() })
+      // O intervalo aparece também em Administração › Sistema › Configurações.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.systemHealth() })
     },
   })
 }

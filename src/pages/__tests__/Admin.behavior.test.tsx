@@ -10,6 +10,11 @@ const mocks = vi.hoisted(() => ({
   updateUserProfile: vi.fn(),
   restoreUserRole: vi.fn(),
   authUserId: 'u-admin' as string | null,
+  isDev: false,
+  setCommunicationsEnabled: vi.fn(),
+  sendAdminTestEmail: vi.fn(),
+  fetchActionHistoryForExport: vi.fn(),
+  exportActionHistoryWorkbook: vi.fn(),
   signOut: vi.fn(),
   createUser: vi.fn(),
   updateUserCredentials: vi.fn(),
@@ -19,6 +24,7 @@ const mocks = vi.hoisted(() => ({
   confirm: vi.fn(),
   errorByKey: {} as Record<string, unknown>,
   dataByKey: {} as Record<string, unknown>,
+  queryKeys: [] as unknown[][],
 }))
 
 const users = [
@@ -34,6 +40,7 @@ const users = [
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
+    mocks.queryKeys.push(queryKey)
     const key = queryKey[0] as string
     const error = mocks.errorByKey[key] ?? null
     if (key === 'admin-users') return { data: error ? undefined : users, isLoading: false, error }
@@ -48,13 +55,27 @@ vi.mock('@tanstack/react-query', () => ({
         .then(() => opts.mutationFn(vars))
         .then((data) => opts.onSuccess?.(data, vars), (err) => opts.onError?.(err, vars))
     },
+    mutateAsync: (vars: unknown) => {
+      mocks.mutate(vars)
+      return Promise.resolve().then(() => opts.mutationFn(vars))
+    },
     isPending: false,
   }),
 }))
+vi.mock('../../services/appSettings', async (importActual) => ({
+  ...(await importActual<typeof import('../../services/appSettings')>()),
+  setCommunicationsEnabled: mocks.setCommunicationsEnabled,
+}))
+vi.mock('../../services/adminObservability', async (importActual) => ({
+  ...(await importActual<typeof import('../../services/adminObservability')>()),
+  sendAdminTestEmail: mocks.sendAdminTestEmail,
+  fetchActionHistoryForExport: mocks.fetchActionHistoryForExport,
+}))
+vi.mock('../../services/exports', () => ({ exportActionHistoryWorkbook: mocks.exportActionHistoryWorkbook }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm, useConfirmWithReason: () => async (options: unknown) => ((await mocks.confirm(options)) ? 'motivo' : null) }))
 vi.mock('../../services/supabase', () => ({ supabase: { from: vi.fn() } }))
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: mocks.authUserId ? { id: mocks.authUserId } : null, signOut: mocks.signOut }) }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: mocks.authUserId ? { id: mocks.authUserId } : null, signOut: mocks.signOut, isDev: mocks.isDev }) }))
 vi.mock('../../services/deleteRecords', () => ({ reactivateCatalogRow: mocks.reactivateCatalogRow }))
 vi.mock('../../services/adminUsers', async (importActual) => {
   const actual = await importActual<typeof import('../../services/adminUsers')>()
@@ -92,18 +113,31 @@ beforeEach(() => {
   vi.clearAllMocks()
   mocks.errorByKey = {}
   mocks.dataByKey = {}
+  mocks.queryKeys = []
   mocks.updateUserProfile.mockResolvedValue(undefined)
   mocks.restoreUserRole.mockResolvedValue(true)
   mocks.authUserId = 'u-admin'
+  mocks.isDev = false
   mocks.confirm.mockResolvedValue(true)
 })
 afterEach(cleanup)
 
-it('mostra as cinco abas com os nomes aprovados', () => {
+it('a conta Dev vê Usuários, Histórico de ações e Sistema (decisões de 2026-11-06)', () => {
+  mocks.isDev = true
   renderAdmin()
-  expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
-    'Usuários', 'Falhas de entrega de alertas', 'Histórico de ações', 'Sistema', 'Prazo do ADR',
-  ])
+  expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Usuários', 'Histórico de ações', 'Sistema'])
+})
+
+it('o Administrativo sem a marca Dev vê só Usuários e Histórico de ações', () => {
+  renderAdmin()
+  expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Usuários', 'Histórico de ações'])
+})
+
+it('o endereço /admin/sistema, sem a marca Dev, diz que a aba é da conta Dev e não lê os dados', () => {
+  renderAdmin('sistema')
+  expect(screen.getByRole('alert').textContent).toContain('Esta aba é exclusiva da conta Dev do Administrativo.')
+  expect(screen.getByRole('link', { name: 'Ir para Usuários' }).getAttribute('href')).toBe('/admin/usuarios')
+  expect(screen.queryByText('Pontos de atenção')).toBeNull()
 })
 
 it('lista os ativos por padrão, com e-mail em coluna própria, setor e situação em texto', () => {
@@ -190,6 +224,15 @@ it('desativa pela Edge Function depois de confirmar', async () => {
   fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Desativar Alice Operadora' }))
   await waitFor(() => expect(mocks.confirm).toHaveBeenCalled())
   await waitFor(() => expect(mocks.deactivateUser).toHaveBeenCalledWith('u-1'))
+})
+
+it('desativar a última pessoa ativa da equipe avisa que os alertas dela ficam sem destinatário (2026-11-06)', async () => {
+  mocks.deactivateUser.mockResolvedValue(undefined)
+  renderAdmin()
+  // Alice é a única pessoa ativa de Operações na lista.
+  fireEvent.click(within(userRow('Alice Operadora')).getByRole('button', { name: 'Desativar Alice Operadora' }))
+  await waitFor(() => expect(mocks.confirm).toHaveBeenCalled())
+  expect(mocks.confirm.mock.calls[0][0].message).toMatch(/Alice Operadora é a última pessoa ativa de Operações/)
 })
 
 it('cancelar a confirmação não desativa o usuário', async () => {
@@ -460,7 +503,9 @@ it('os endereços antigos das abas continuam abrindo a aba certa', () => {
   expect(screen.getByRole('tab', { name: 'Histórico de ações' }).getAttribute('aria-selected')).toBe('true')
 })
 
+// Uma ação de uma linha só (migration 603): a frase é a da linha.
 const historyRow = (patch: Record<string, unknown>) => ({
+  action_key: `audit|${String(patch.id ?? 1)}|${String(patch.source ?? 'audit')}`, line_count: 1, entity_count: 1, groups: [],
   source: 'audit', id: 1, changed_at: '2026-10-20T00:04:00Z', entity_type: 'voyages', field_name: 'status', old_value: null, new_value: null,
   justification: null, action: 'alterou', actor_kind: 'equipe', actor_name: 'Alice Operadora', actor_email: 'alice@example.test',
   actor_department: 'documentacao', entity_label: null, old_label: null, new_label: null, value_labels: null, ...patch,
@@ -479,11 +524,9 @@ it('Histórico de ações: pessoa pelo nome, "Sistema" sem autor, assunto e fras
   renderAdmin('historico')
   const created = screen.getByText('Tarifa criada: THC Granito').closest('tr') as HTMLElement
   expect(within(created).getByText('Sistema')).toBeTruthy()
-  expect(within(created).getByText('Tarifa do Granito')).toBeTruthy()
-  expect(within(created).getByText('19/10/2026 21:04')).toBeTruthy()
+  expect(within(created).getByText('19/10/2026 21:04:00')).toBeTruthy()
   const role = screen.getByText('Setor: Financeiro').closest('tr') as HTMLElement
   expect(within(role).getByText('Alice Operadora')).toBeTruthy()
-  expect(within(role).getByText('Usuário')).toBeTruthy()
   // O registro pelo nome que o banco devolve; a justificativa na própria linha.
   expect(within(role).getByText('Carla Nunca')).toBeTruthy()
   expect(within(role).getByText('Mudou de área')).toBeTruthy()
@@ -499,7 +542,36 @@ it('Histórico de ações: pessoa pelo nome, "Sistema" sem autor, assunto e fras
   expect(within(screen.getByLabelText('Por')).getByRole('option', { name: 'Sistema' })).toBeTruthy()
   expect(within(screen.getByLabelText('Por')).getByRole('option', { name: 'Cliente pelo Portal' })).toBeTruthy()
   expect(within(screen.getByLabelText('Ação')).getByRole('option', { name: 'Excluiu' })).toBeTruthy()
+  // As datas aparecem ao escolher o período; a busca fica sempre à vista.
+  expect(screen.getByLabelText('Busca')).toBeTruthy()
+  fireEvent.click(screen.getByRole('radio', { name: 'Escolher datas' }))
   expect(screen.getByLabelText('Até')).toBeTruthy()
+})
+
+it('Histórico de ações: a busca lê o histórico depois da pausa de quem digita, não a cada letra', async () => {
+  mocks.dataByKey = { 'admin-audit-logs': { count: 0, rows: [] } }
+  renderAdmin('historico')
+  const searched = () => mocks.queryKeys
+    .filter((key) => key[0] === 'admin-audit-logs')
+    .map((key) => (key[1] as { search?: string } | null)?.search)
+  fireEvent.change(screen.getByLabelText('Busca'), { target: { value: 'MSCU1234567' } })
+  expect(searched()).not.toContain('MSCU1234567')
+  await waitFor(() => expect(searched()).toContain('MSCU1234567'))
+})
+
+it('Histórico de ações: com Assunto, a aba Filtros da planilha diz que vêm só as linhas que batem', async () => {
+  mocks.dataByKey = { 'admin-audit-logs': { count: 1, rows: [] } }
+  mocks.fetchActionHistoryForExport.mockResolvedValue({ rows: [], capped: false })
+  mocks.exportActionHistoryWorkbook.mockResolvedValue(undefined)
+  renderAdmin('historico')
+  fireEvent.click(screen.getByRole('button', { name: 'Exportar planilha' }))
+  await waitFor(() => expect(mocks.exportActionHistoryWorkbook).toHaveBeenCalledTimes(1))
+  expect(mocks.exportActionHistoryWorkbook.mock.calls[0][1]).not.toContainEqual(expect.objectContaining({ Filtro: 'Linhas' }))
+  const subject = screen.getByLabelText('Assunto') as HTMLSelectElement
+  fireEvent.change(subject, { target: { value: subject.options[1].value } })
+  fireEvent.click(screen.getByRole('button', { name: 'Exportar planilha' }))
+  await waitFor(() => expect(mocks.exportActionHistoryWorkbook).toHaveBeenCalledTimes(2))
+  expect(mocks.exportActionHistoryWorkbook.mock.calls[1][1]).toContainEqual({ Filtro: 'Linhas', Valor: 'Só as que batem com Busca, Assunto ou Ação; a tela mostra a ação inteira' })
 })
 
 it('Histórico de ações: ADR reaberto em português, com a Viagem pelo nome', () => {
@@ -563,7 +635,6 @@ it('Histórico de ações: linhas das trilhas próprias com a mesma chave numér
   }
   renderAdmin('historico')
   const ce = screen.getByText('Desbloqueio de CE: Pedido enviado').closest('tr') as HTMLElement
-  expect(within(ce).getByText('Desbloqueio de CE')).toBeTruthy()
   expect(within(ce).getByText('Cliente precisa retirar hoje')).toBeTruthy()
   const notice = screen.getByText('NOA · Chegada Próxima: Enviado').closest('tr') as HTMLElement
   fireEvent.click(within(ce).getByRole('button', { name: /Abrir/ }))
@@ -573,10 +644,72 @@ it('Histórico de ações: linhas das trilhas próprias com a mesma chave numér
   expect(within(ce.nextElementSibling as HTMLElement).getByText('B/L COSU1')).toBeTruthy()
 })
 
-it('Histórico de ações: contagem acima do teto diz "Mais de 10.000 registros"', () => {
+it('Histórico de ações: contagem acima do teto diz "Mais de 10.000 ações"', () => {
   mocks.dataByKey = { 'admin-audit-logs': { count: 10_000, capped: true, rows: [historyRow({ id: 8, field_name: 'voyage_number', old_value: '011S', new_value: '012S', entity_label: 'Santos / 012S' })] } }
   renderAdmin('historico')
-  expect(screen.getByText('Mais de 10.000 registros')).toBeTruthy()
+  expect(screen.getByText('Mais de 10.000 ações')).toBeTruthy()
+})
+
+it('Histórico de ações: uma importação é uma linha, com o resumo por registro e o campo a campo sob demanda', () => {
+  mocks.dataByKey = {
+    'admin-audit-logs': {
+      count: 1,
+      rows: [historyRow({
+        id: 30, entity_type: 'bls', field_name: 'criado', new_value: '{"id": "GSPT1"}', action: 'criou', entity_label: 'B/L GSPT1',
+        changed_at: '2026-11-04T17:55:11.626336+00:00', justification: 'Importação de B/L · Viagem GREEN SEPETIBA 8',
+        line_count: 2539, entity_count: 798,
+        groups: [
+          { entity_type: 'bl_containers', kind: 'criou', entities: 781, fields: ['criado', 'ownership'] },
+          { entity_type: 'bls', kind: 'criou', entities: 17, fields: ['criado'] },
+        ],
+      })],
+    },
+  }
+  renderAdmin('historico')
+  const row = screen.getByText('781 Containers criados, 17 B/Ls criados').closest('tr') as HTMLElement
+  expect(within(row).getByText('04/11/2026 14:55:11')).toBeTruthy()
+  expect(within(row).getByText('B/L GSPT1 e mais 797')).toBeTruthy()
+  expect(within(row).getByText('Origem: Importação de B/L · Viagem GREEN SEPETIBA 8')).toBeTruthy()
+  fireEvent.click(within(row).getByRole('button', { name: /Abrir/ }))
+  const detail = row.nextElementSibling as HTMLElement
+  expect(within(detail).getByText('781 Containers criados')).toBeTruthy()
+  expect(within(detail).getByRole('button', { name: 'Ver campo a campo (2.539 linhas)' })).toBeTruthy()
+  expect(screen.getByText('1 ação')).toBeTruthy()
+})
+
+it('Histórico de ações: acima do teto, o rodapé diz "de mais de 10.000" e Próxima passa da página 200', () => {
+  const page = Array.from({ length: 50 }, (_, index) => historyRow({ id: 100 + index, field_name: 'voyage_number', old_value: '011S', new_value: '012S', entity_label: 'Santos / 012S' }))
+  mocks.dataByKey = { 'admin-audit-logs': { count: 10_000, capped: true, rows: page } }
+  renderAdmin('historico')
+  expect(screen.getByText('Exibindo 1–50 de mais de 10.000')).toBeTruthy()
+  // Sem o total, não há "Página 1 de 200": o teto não é o fim da lista.
+  expect(screen.queryByText(/Página \d+ de/)).toBeNull()
+  expect(screen.queryByText('Exibindo 1–50 de 10.000')).toBeNull()
+  expect((screen.getByRole('button', { name: 'Próxima' }) as HTMLButtonElement).disabled).toBe(false)
+})
+
+it('Histórico de ações: hora com segundos, motivo técnico em português e texto padrão do sistema fora da tela', () => {
+  mocks.dataByKey = {
+    'admin-audit-logs': {
+      count: 3,
+      rows: [
+        historyRow({ id: 21, entity_type: 'bl', field_name: 'review_status', old_value: 'reviewed', new_value: 'pending_review', changed_at: '2026-11-04T17:55:11.626336+00:00', justification: 'Gate canonico reaplicado apos e-mail importado', entity_label: 'B/L GSPT1' }),
+        historyRow({ id: 22, entity_type: 'voyage_pol_schedule', field_name: 'etd', old_value: '2026-11-02', new_value: '2026-11-03', changed_at: '2026-11-04T17:55:12Z', justification: 'Atualizacao manual de ETD por POL', entity_label: 'GREEN SEPETIBA / 8 · BRVIX' }),
+        historyRow({ id: 23, entity_type: 'customer', field_name: 'held_billing_reprocessed', new_value: '3', actor_kind: 'sistema', actor_name: null, actor_email: null, actor_department: null, justification: 'Reprocesso automático das faturas retidas (portal_activation) pela conta de sistema', entity_label: 'ATLÂNTICO LTDA' }),
+      ],
+    },
+  }
+  renderAdmin('historico')
+  const gate = screen.getByText('Status de revisão: Pendente').closest('tr') as HTMLElement
+  expect(within(gate).getByText('04/11/2026 14:55:11')).toBeTruthy()
+  expect(within(gate).getByText('Origem: B/L de volta à Revisão depois do e-mail importado')).toBeTruthy()
+  // O texto que a tela salva sem motivo não é motivo de ninguém.
+  const etd = screen.getByText('ETD: 03/11/2026').closest('tr') as HTMLElement
+  expect(within(etd).getByText('04/11/2026 14:55:12')).toBeTruthy()
+  expect(within(etd).getByText('Sem motivo')).toBeTruthy()
+  const held = screen.getByText('Faturamento retido reprocessado').closest('tr') as HTMLElement
+  expect(within(held).getByText('Origem: Faturas retidas emitidas: o Cliente ativou o Portal')).toBeTruthy()
+  expect(document.body.textContent).not.toMatch(/Gate canonico|Atualizacao manual|portal_activation/)
 })
 
 it('"O que cada setor pode": grupo e ação são cabeçalhos da linha', () => {
@@ -597,52 +730,78 @@ it('A5: Histórico em erro não diz "nenhuma ação"', () => {
   expect(screen.queryByText('Nenhuma ação registrada.')).toBeNull()
 })
 
-it('Sistema: versão, ambiente da configuração e as datas que dizem o que medem', () => {
-  mocks.dataByKey = { 'admin-metrics': { lastVoyageCreatedAt: '2026-10-20T00:03:00Z', lastInvoiceIssuedAt: null } }
+const health = (patch: Record<string, unknown> = {}) => ({
+  alert_failures_30d: 0, last_alert_failure_at: null, teams_without_active: [], routines_failing: [], routine_failures_7d: 0,
+  pix_provider: 'itau', pix_polled_until: new Date().toISOString(), pix_expiration_seconds: 2_592_000, pix_settlement_actor_name: 'API ITAÚ',
+  suppressed_emails: 0, holidays_last_day: '2027-12-25', holidays_next_year: 13, next_year: 2027,
+  communications_enabled: true, dunning_interval_days: 7, routine_actor_name: null, routine_actor_effective_name: 'Dono Dev', ...patch,
+})
+
+it('Sistema: tudo em dia, as rotinas pelo nome e as configurações com quem muda (2026-11-06)', () => {
+  mocks.isDev = true
+  mocks.dataByKey = {
+    'admin-system-health': health(),
+    'admin-system-routines': [{ jobname: 'itau-pix-queue', schedule: '* * * * *', active: true, last_run_at: '2026-11-06T10:14:00Z', last_status: 'succeeded', failures_7d: 0 }],
+    'admin-routing-failures': { rows: [], count: 0 },
+  }
   renderAdmin('sistema')
+  expect(screen.getByText('Nada pede atenção')).toBeTruthy()
+  const routine = screen.getByText('Leitura do Pix Itaú').closest('tr') as HTMLElement
+  expect(within(routine).getByText('a cada minuto')).toBeTruthy()
+  expect(within(routine).getByText('06/11/2026 07:14')).toBeTruthy()
+  expect(within(routine).getByText('Em dia')).toBeTruthy()
+  expect(screen.getByText('Envio real ligado')).toBeTruthy()
+  expect(screen.getByText(/Não escolhida: usa Dono Dev/)).toBeTruthy()
+  expect(screen.getByText('Cadastrados até 25/12/2027')).toBeTruthy()
+  // As falhas de entrega de alertas moram aqui; Versão e Ambiente no rodapé.
+  expect(screen.getByText('Nenhuma falha de entrega registrada.')).toBeTruthy()
   expect(screen.getByText('Versão')).toBeTruthy()
-  expect(screen.getByText('Ambiente')).toBeTruthy()
-  expect(screen.getByText('Última viagem criada')).toBeTruthy()
-  expect(screen.getByText('19/10/2026 21:03')).toBeTruthy()
-  expect(screen.getByText('Última fatura emitida')).toBeTruthy()
-  expect(screen.queryByText('Operacional')).toBeNull()
-  expect(screen.queryByText(/conciliação Pix/i)).toBeNull()
+  expect(screen.queryByText('Última viagem criada')).toBeNull()
+})
+
+it('Sistema: equipe sem pessoa ativa, rotina com falha e feriados faltando viram pontos de atenção', () => {
+  mocks.isDev = true
+  mocks.dataByKey = {
+    'admin-system-health': health({ teams_without_active: ['equipamentos'], routines_failing: ['demurrage-dunning'], holidays_next_year: 0, alert_failures_30d: 1 }),
+    'admin-system-routines': [],
+    'admin-routing-failures': { rows: [], count: 0 },
+  }
+  renderAdmin('sistema')
+  expect(screen.getByText('4 pontos pedem atenção')).toBeTruthy()
+  expect(screen.getByText(/Equipamentos sem nenhuma pessoa ativa/)).toBeTruthy()
+  expect(screen.getByRole('link', { name: 'Abrir Usuários' }).getAttribute('href')).toBe('/admin/usuarios')
+  expect(screen.getByText('A última execução falhou: Régua de cobrança da Demurrage.')).toBeTruthy()
+  expect(screen.getByText(/Faltam os feriados de 2027/)).toBeTruthy()
+})
+
+it('Sistema: o Envio real troca com confirmação, e o e-mail de teste vai para quem pediu', async () => {
+  mocks.isDev = true
+  mocks.setCommunicationsEnabled.mockResolvedValue(false)
+  mocks.sendAdminTestEmail.mockResolvedValue('dono@fwlog.com.br')
+  mocks.dataByKey = { 'admin-system-health': health(), 'admin-system-routines': [], 'admin-routing-failures': { rows: [], count: 0 } }
+  renderAdmin('sistema')
+  fireEvent.click(screen.getByRole('switch', { name: 'Envio real ligado' }))
+  await waitFor(() => expect(mocks.confirm).toHaveBeenCalledWith(expect.objectContaining({ title: 'Desativar envio real' })))
+  await waitFor(() => expect(mocks.setCommunicationsEnabled).toHaveBeenCalledWith(false))
+  fireEvent.click(screen.getByRole('button', { name: 'Enviar teste para mim' }))
+  await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('E-mail de teste enviado para dono@fwlog.com.br.', 'success'))
+})
+
+it('Sistema: a recusa do e-mail de teste mostra o motivo que a Edge Function deu', async () => {
+  mocks.isDev = true
+  mocks.sendAdminTestEmail.mockRejectedValue(new Error('O seu e-mail está bloqueado por devolução ou spam: o teste não saiu.'))
+  mocks.dataByKey = { 'admin-system-health': health(), 'admin-system-routines': [], 'admin-routing-failures': { rows: [], count: 0 } }
+  renderAdmin('sistema')
+  fireEvent.click(screen.getByRole('button', { name: 'Enviar teste para mim' }))
+  expect(await screen.findByText('O seu e-mail está bloqueado por devolução ou spam: o teste não saiu.')).toBeTruthy()
 })
 
 it('Sistema: erro de consulta tem mensagem própria', () => {
-  mocks.errorByKey = { 'admin-metrics': new Error('metrics down') }
+  mocks.isDev = true
+  mocks.errorByKey = { 'admin-system-health': new Error('health down'), 'admin-system-routines': new Error('routines down') }
+  mocks.dataByKey = { 'admin-routing-failures': { rows: [], count: 0 } }
   renderAdmin('sistema')
-  expect(screen.getByText('Não foi possível carregar as datas do sistema.')).toBeTruthy()
+  expect(screen.getByText('Não foi possível conferir o sistema.')).toBeTruthy()
+  expect(screen.getByText('Não foi possível carregar as rotinas.')).toBeTruthy()
 })
 
-it('Prazo do ADR: cartões "x de y no prazo" e células em texto (A6)', () => {
-  mocks.dataByKey = {
-    'agency-report-sla': [{
-      voyageId: 1, port: 'BRSSZ', terminal: 'BTP', voyageNumber: '012S', vesselName: 'XIN PU DONG',
-      atd: '2026-09-08', deadlineDate: '2026-09-11', deadlineAt: '2026-09-11T12:00:00Z',
-      closedAt: '2026-09-11T15:00:00Z', closedBy: null, elapsedCalendarDaysToClosure: 3,
-      departments: [
-        { department: 'operacoes', label: 'Operações', signedAt: '2026-09-10T10:00:00Z', hoursElapsed: 40, state: 'on-time', outcome: 'on-time', hoursLate: null },
-        { department: 'documentacao', label: 'Documentação', signedAt: '2026-09-11T18:00:00Z', hoursElapsed: 80, state: 'overdue', outcome: 'late', hoursLate: 6 },
-        { department: 'equipamentos', label: 'Equipamentos', signedAt: null, hoursElapsed: null, state: 'no-deadline', outcome: 'unsigned', hoursLate: null },
-      ],
-    }],
-  }
-  renderAdmin('prazo-do-adr')
-  const row = screen.getByText('XIN PU DONG / 012S').closest('tr') as HTMLElement
-  expect(within(row).getByText('No prazo').getAttribute('title')).toMatch(/^Assinou em 10\/09\/2026/)
-  expect(within(row).getByText('Atrasou 6 h')).toBeTruthy()
-  expect(within(row).getByText('Não assinou')).toBeTruthy()
-  expect(within(row).getByText('3 dias')).toBeTruthy()
-  expect(within(row).getByText('3 dias').getAttribute('title')).toBe('Fechado em 11/09/2026 12:00')
-  expect(screen.getByRole('columnheader', { name: 'Dias corridos do ATD ao Fechamento' })).toBeTruthy()
-  expect(screen.getAllByText('1 de 1')).toHaveLength(1)
-  expect(screen.queryByText('Sem prazo')).toBeNull()
-})
-
-it('Prazo do ADR vazio não fala em "snapshots"', () => {
-  mocks.dataByKey = { 'agency-report-sla': [] }
-  renderAdmin('prazo-do-adr')
-  expect(screen.getByText('Nenhum ADR fechado no período.')).toBeTruthy()
-  expect(document.body.textContent).not.toMatch(/snapshot/i)
-})

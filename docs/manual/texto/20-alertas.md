@@ -72,7 +72,7 @@ O sino traz também alguns avisos que não são alerta, só um fato que a sua eq
 | **Novo pagamento** | {{Financeiro}} e {{Administrativo}} | Entra um pagamento de fatura de Taxas Locais ou avulsa: baixa automática do Pix, conciliação pelo extrato ou registro no detalhe da fatura. A mensagem traz a fatura, o Cliente, o valor e o meio. | A fatura, em **Taxas Locais** |
 | **Novo pagamento de Demurrage** | {{Financeiro}} e {{Administrativo}} | Uma Invoice de Demurrage é paga. A quitação pelo desconto integral não avisa. | A Invoice, em **Demurrage** |
 
-Quando um alerta **Crítico** não acha ninguém ativo nos setores que recebem, a notificação vai ao {{Administrativo}} com o selo **Entrega alternativa**; o alerta continua do setor original. Se nem assim há quem receba, ou se o alerta é Normal, a falha aparece em **Admin** › **Falhas de entrega de alertas**: para resolver, ative alguém do setor na aba **Usuários**.
+Quando um alerta **Crítico** não acha ninguém ativo nos setores que recebem, a notificação vai ao {{Administrativo}} com o selo **Entrega alternativa**; o alerta continua do setor original. Se nem assim há quem receba, ou se o alerta é Normal, a falha aparece em **Admin** › **Sistema**, no bloco **Falhas de entrega de alertas**, que só a conta Dev vê: para resolver, ative alguém do setor na aba **Usuários** ([25.8](25-administracao.md#258-acompanhar-as-falhas-de-entrega-de-alertas)).
 
 ::: atencao
 A notificação lida sai do sino e não aparece em nenhuma outra tela. Para rever um alerta, use a fila.

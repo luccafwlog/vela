@@ -1,5 +1,6 @@
 import type { BlTimelineEvent, BlTimelineFamily } from '../../services/blTimeline'
 import { historyChangePhrase } from './blChargeAdjustmentPresentation'
+import { isImportContext, readRecordedReason } from '../../lib/auditReasons'
 
 const FAMILY_LABEL: Record<BlTimelineFamily, string> = {
   edicao: 'Edição',
@@ -362,38 +363,25 @@ export function describeTimelineEvent(event: BlTimelineEvent): string {
 
 // Contexto que a importação grava em cada linha do Histórico (migration 189,
 // `_set_import_context`): "Importação de <tipo> · Viagem … · Manifesto …".
-// É rastro do sistema, não justificativa deliberada — salvo quando traz o
-// motivo que a pessoa informou (troca de CE pela planilha, migration 195).
-// Rastros antigos da importação de frete escrevem "Importacao de …" sem acento
-// (migration 205): também são origem, não motivo (F-23).
-const IMPORT_CONTEXT_PREFIXES = ['Importação de ', 'Importacao de ']
-const REASON_MARK = ' · Motivo: '
-
-export function isImportContext(justification: string | null | undefined): boolean {
-  const text = justification?.trim() ?? ''
-  return IMPORT_CONTEXT_PREFIXES.some((prefix) => text.startsWith(prefix)) && !text.includes(REASON_MARK)
-}
+// É rastro do sistema, não justificativa deliberada. A regra mora em
+// `lib/auditReasons.ts`, junto com o Histórico de ações da Administração.
+export { isImportContext }
 
 // Auditoria = entrada com justificativa deliberada (ver CONTEXT.md).
 export function isAudited(event: BlTimelineEvent): boolean {
   return Boolean(event.justification && event.justification.trim()) && !isImportContext(event.justification)
 }
 
-// Motivo que o próprio banco escreve quando a pessoa não informa um
-// (`save_bl_review`, migration 271): não explica nada a quem lê.
-// "Revisão manual" é o padrão da tela da Revisão sem justificativa, que a
-// migration 502 leva a cada campo do Histórico.
-const SYSTEM_DEFAULT_REASONS = new Set(['Revisao manual', 'Revisão manual'])
-
 /**
  * Texto que acompanha o evento na coluna "O que aconteceu": "Motivo: …" para
- * a justificativa de quem fez, "Origem: …" para o rastro da importação, e
- * nada para o motivo padrão escrito pelo sistema.
+ * a justificativa de quem fez, "Origem: …" para o rastro da importação ou do
+ * sistema (em português, mesmo quando o banco gravou nome interno), e nada
+ * para o motivo padrão escrito pelo sistema.
  */
 export function timelineEventDetail(event: Pick<BlTimelineEvent, 'justification'>): string | null {
-  const text = event.justification?.trim()
-  if (!text || SYSTEM_DEFAULT_REASONS.has(text)) return null
-  return `${isImportContext(text) ? 'Origem' : 'Motivo'}: ${text}`
+  const reason = readRecordedReason(event.justification)
+  if (!reason) return null
+  return `${reason.origin ? 'Origem' : 'Motivo'}: ${reason.text}`
 }
 
 /** Coluna "Por": nome de quem fez, "Sistema" no rastro automático, ou nada. */
