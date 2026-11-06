@@ -6,6 +6,9 @@
 
 ## 2026-11
 
+- **ATA e ATD críticos em 16 horas (decisão D3 do dono de 2026-11-06, migration `606`, ADR 0131):** sem o ATA 16 horas
+  depois do ETA, ou sem o ATD 16 horas depois do ETD, a Data da escala ou a Data de terminal pendente vira Crítico e
+  avisa de novo no sino. Prova: `ataAtdCriticosEm16Horas.local-pg.test.ts`.
 - **Quem recebe cada alerta (decisões D5 e D7 do dono de 2026-11-06, migration `605`, ADR 0131):** a Falha na
   atualização da PTAX e a Exportação pendente pós-ATD passam a Equipamentos; o Calendário de feriados, ao
   Administrativo, só na conta Dev; Tabela de cobrança faltando, Cálculo bloqueado e Portal não provisionado avisam

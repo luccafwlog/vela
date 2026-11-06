@@ -154,7 +154,8 @@ const ALERT_RULES_BASE = [
     severity: 'normal',
     summary: 'Uma escala está sem a data que o navio já devia ter.',
     trigger: 'No dia do ETA (horário de Brasília), se a escala não tem ATA. Com o ATA, se a escala não tem terminal nenhum nem frente para atribuir. A frente sem terminal é cobrada em Escala sem terminal; com terminal, o ETB é cobrado em Data de terminal pendente.',
-    timing: `${detectorRound} no dia do ETA e no fim de cada gravação da escala.`,
+    // 606 (ADR 0131, D3): 16 horas depois do ETA sem ATA, Crítico pelo marco.
+    timing: `${detectorRound} no dia do ETA e no fim de cada gravação da escala. Se o ATA não entra até 16 horas depois do ETA, o alerta vira Crítico e avisa de novo.`,
     resolution: 'Abra a Viagem e registre o ATA da escala, ou escolha o terminal e o ETB em Editar escala.',
     destination: '/viagens',
     destinationLabel: 'Abrir Viagens',
@@ -171,7 +172,8 @@ const ALERT_RULES_BASE = [
     severity: 'normal',
     summary: 'Uma atracação está sem a data do terminal que já devia ter.',
     trigger: 'Para cada terminal: com o ATA da escala, enquanto falta o ETB; no dia do ETB, sem ATB; com o ATB, enquanto falta o ETD; no dia do ETD, sem ATD.',
-    timing: `${detectorRound} no dia da data prevista, ou logo depois de a data anterior ser gravada. Cada terminal da escala tem a própria sequência.`,
+    // 606 (ADR 0131, D3): 16 horas depois do ETD sem ATD, Crítico pelo marco.
+    timing: `${detectorRound} no dia da data prevista, ou logo depois de a data anterior ser gravada. Cada terminal da escala tem a própria sequência. Se o ATD não entra até 16 horas depois do ETD, o alerta vira Crítico e avisa de novo.`,
     resolution: 'Abra a Viagem e registre a data cobrada no cartão do terminal.',
     destination: '/viagens',
     destinationLabel: 'Abrir Viagens',

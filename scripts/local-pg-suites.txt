@@ -244,3 +244,4 @@ src/integration/travaCeMercanteVeiculos.local-pg.test.ts
 src/integration/ediMercanteRegistrado.local-pg.test.ts
 src/integration/gravidadeDoAlertaPelaTela.local-pg.test.ts
 src/integration/reforcoPorTempoDosAlertas.local-pg.test.ts
+src/integration/ataAtdCriticosEm16Horas.local-pg.test.ts
