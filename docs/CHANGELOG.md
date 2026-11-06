@@ -6,6 +6,12 @@
 
 ## 2026-11
 
+- **Revisão da release de 2026-11-06 (PR `staging` → `main`):** "Consulta à Receita indisponível agora" deixa de
+  ficar guardada na sessão: voltar ao CNPJ ou reabrir o **Novo cliente** consulta de novo, e a resposta que chega
+  depois ainda preenche os campos vazios. Na Revisão, o aviso da Receita mostra também o nome fantasia que vai para o
+  Cliente novo, como a ADR 0127 já dizia. Convite do Portal recusado relê Clientes › Portal na hora (a conta já fica
+  em "falha no envio"). O manual e o módulo de Manifestos dizem que, na Viagem travada por veículos, a troca de CE é
+  pelo **Corrigir CE**: depois de **Remover CE**, o CE só volta pela planilha, que trava.
 - **Razão social da Receita no cadastro pela Revisão (2026-11-05, ADR 0127; pedido do dono):** no grupo da Revisão e
   em **Completar cadastro** da ficha do B/L, com o CNPJ aceito e Cliente novo, o Vela consulta a Receita. Razão social
   vazia recebe a da Receita; diferente da do manifesto, aparece "Na Receita: …" com **Usar a razão social da Receita**,

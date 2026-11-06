@@ -265,6 +265,25 @@ describeLocal('597 — resposta de veículos em D-7 e CE Mercante travado', () =
     expect(linkCe(BL_CNTR2, '152659500000003').stderr).toBe('')
   })
 
+  // Revisão da release 2026-11-06: o manual manda trocar o CE da viagem
+  // travada pelo Corrigir CE, porque remover e vincular de novo é primeiro CE.
+  it('na viagem travada, Corrigir CE troca o número; Remover CE e vincular de novo é recusado', () => {
+    expect(psql(`SELECT public.voyage_ce_mercante_vehicle_lock(${V_MAIN});`)).toBe('aguardando_planilha')
+    const corrected = rpcAs(DOC_ID, `SELECT public.correct_bl_ce_mercante('${BL_CNTR2}', '152659500000006', 'Número digitado errado', '152659500000003');`)
+    expect(corrected.stderr).toBe('')
+    expect(psql(`SELECT ce_mercante FROM public.bls WHERE id = '${BL_CNTR2}';`)).toBe('152659500000006')
+
+    const removed = rpcAs(DOC_ID, `SELECT public.remove_bl_ce_mercante('${BL_CNTR2}', 'CE de outro B/L', '152659500000006');`)
+    expect(removed.stderr).toBe('')
+    expect(psql(`SELECT COALESCE(ce_mercante, '') FROM public.bls WHERE id = '${BL_CNTR2}';`)).toBe('')
+    // Sem CE, o Corrigir CE não vincula (573): o CE volta só pela planilha, e a prévia trava.
+    expect(rpcAs(DOC_ID, `SELECT public.correct_bl_ce_mercante('${BL_CNTR2}', '152659500000007', 'Vincular de novo', NULL);`).stderr)
+      .toContain('o CE entra pela planilha de CE Mercante')
+    expect(previewErrors(V_MAIN, BL_CNTR2, '152659500000007').map((e) => e.message)).toEqual([
+      'CE Mercante travado na viagem Vessel 597 V595M: Equipamentos declarou que a viagem terá veículos e a planilha de Veículos ainda não foi importada. O CE de B/L de container só é vinculado depois da importação.',
+    ])
+  })
+
   it('"não terá veículos" libera o CE e não abre alerta nenhum', () => {
     setEta(V_NO, 6)
     expect(item(DECL, V_NO)).toBe('active|normal|equipamentos')

@@ -12,8 +12,9 @@ function sameCompanyName(a: string, b: string) {
  * Dados da Receita no cadastro do Cliente pela Revisão (ADR 0127). A razão
  * social já chega preenchida com o nome do manifesto: vazia, recebe a da
  * Receita (uma vez por CNPJ); preenchida e diferente, a troca fica num botão,
- * como "Usar este CNPJ". O endereço não tem campo na Revisão: aparece aqui e
- * vai para o Cliente criado (`reviewProfileFromLookup`, migration 596).
+ * como "Usar este CNPJ". Nome fantasia e endereço não têm campo na Revisão:
+ * aparecem aqui e vão para o Cliente criado (`reviewProfileFromLookup`,
+ * migration 596).
  * `cnpj` é o CNPJ válido e aceito pelo formulário, ou `null`.
  */
 export function ReceitaNameNote({ cnpj, name, onUseName }: {
@@ -46,6 +47,9 @@ export function ReceitaNameNote({ cnpj, name, onUseName }: {
   }
   const situation = result.data.situacao && result.data.situacao !== 'ATIVA' ? ` Situação na Receita: ${result.data.situacao}.` : ''
   const differs = Boolean(name.trim()) && !sameCompanyName(name, result.data.razao_social)
+  // O que vai no `p_profile` aparece aqui: o formulário da Revisão não tem
+  // campo de nome fantasia nem de endereço (ADR 0127).
+  const tradeName = result.data.nome_fantasia.trim()
   const address = formatReceitaAddress(result.data)
   return (
     <div className="grid gap-1" role="status">
@@ -61,6 +65,7 @@ export function ReceitaNameNote({ cnpj, name, onUseName }: {
           </>
         ) : null}
       </p>
+      {tradeName ? <p className="m-0 text-[var(--app-muted)]">Nome fantasia da Receita, gravado no Cliente novo: {tradeName}.</p> : null}
       {address ? <p className="m-0 text-[var(--app-muted)]">Endereço da Receita, gravado no Cliente novo: {address}.</p> : null}
     </div>
   )

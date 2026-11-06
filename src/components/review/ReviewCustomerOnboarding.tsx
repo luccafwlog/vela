@@ -164,7 +164,7 @@ export function ReviewCustomerOnboarding({
         <Field label="Razão social" required><Input value={name} onChange={(event) => { clearSelectedCustomer(); setName(event.target.value) }} /></Field>
         <Field label="CNPJ" required hint={cnpjHint} error={cnpjError}><Input maxLength={CNPJ_INPUT_MAX_LENGTH} placeholder="00.000.000/0000-00" inputMode="numeric" value={cnpj.length === 14 ? formatCnpj(cnpj) : cnpj} onChange={(event) => { clearSelectedCustomer(); setCnpj(normalizeCnpj(event.target.value)) }} /></Field>
       </div>
-      {/* ADR 0126: só para Cliente novo; o cadastrado escolhido já tem a razão social dele. */}
+      {/* ADR 0127: só para Cliente novo; o cadastrado escolhido já tem a razão social dele. */}
       <ReceitaNameNote cnpj={receitaCnpj} name={name} onUseName={setName} />
       {canEditContacts ? (
       <>
