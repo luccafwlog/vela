@@ -1140,7 +1140,8 @@ para eles vale o backup do próprio Supabase.
 
 - **Banco Central (PTAX):** `olinda.bcb.gov.br`, cotação usada no faturamento.
 - **BrasilAPI (consulta de CNPJ):** `https://brasilapi.com.br/api/cnpj/v1/{cnpj}`,
-  chamada só pela Edge Function `cnpj-lookup` no **Novo cliente**
+  chamada só pela Edge Function `cnpj-lookup`, no **Novo cliente** e no
+  cadastro do Cliente pela Revisão
   ([ADR 0126](../adr/0126-consulta-de-cnpj-na-brasilapi.md)). Sem conta, chave
   nem secret; o limite de uso não é publicado. Fora do ar, o cadastro segue à
   mão. Trocar de fornecedor muda só `supabase/functions/_shared/cnpjLookup.ts`.

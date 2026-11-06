@@ -4,6 +4,7 @@ import { ChoiceCards } from '../ui/ChoiceCards'
 import { Field, Input } from '../ui/Input'
 import { SegmentedControl } from '../ui/SegmentedControl'
 import { InlineCustomerPicker } from '../shared/ReviewInlineEditors'
+import { ReceitaNameNote } from './ReceitaNameNote'
 import { useAuth } from '../../hooks/useAuth'
 import type { ReviewCustomer } from '../../hooks/useReview'
 import { CNPJ_INPUT_MAX_LENGTH, canonicalizeValidCnpj, formatCnpj, normalizeCnpj } from '../../lib/cnpj'
@@ -183,6 +184,8 @@ export function ReviewCustomerForm({
               </Field>
             ) : null}
           </div>
+          {/* ADR 0126: razão social da Receita para o CNPJ aceito (um dos lidos no B/L). */}
+          <ReceitaNameNote cnpj={cnpjMismatch ? null : validCnpj} name={name} onUseName={setName} />
           {canInvitePortal ? (
           <ChoiceCards
             label="Portal do Cliente"

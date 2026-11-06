@@ -42,5 +42,12 @@ pública da Receita e o CNPJ alfanumérico aceito no endereço da consulta.
   trocar por um fornecedor com plano pago, só em `_shared/cnpjLookup.ts`.
 - A base pública da Receita pode estar atrasada e vem em maiúsculas sem
   acento; o operador confere antes de cadastrar.
-- A Revisão (cadastro do Cliente a partir do B/L) não usa a consulta; pode
-  passar a usar o mesmo hook (`useCnpjLookup`).
+- Na Revisão (grupo da Revisão e **Completar cadastro** na ficha do B/L em
+  revisão, 2026-11-05, pedido do dono) a consulta vale para o CNPJ aceito
+  pelo formulário (um dos lidos no B/L) e só para Cliente novo. O cadastro
+  da Revisão grava só razão social, CNPJ e e-mail, e a razão social já vem
+  do manifesto: vazia, recebe a da Receita uma vez por CNPJ; diferente
+  (sem contar caixa, acento e pontuação), aparece "Na Receita: …" com
+  **Usar a razão social da Receita**, sem troca automática
+  (`src/components/review/ReceitaNameNote.tsx`). Endereço da Receita não é
+  gravado por esse caminho.

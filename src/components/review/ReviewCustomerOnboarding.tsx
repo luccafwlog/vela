@@ -4,6 +4,7 @@ import { Field, Input } from '../ui/Input'
 import { InlineCustomerPicker } from '../shared/ReviewInlineEditors'
 import type { ReviewCustomer } from '../../hooks/useReview'
 import { CNPJ_INPUT_MAX_LENGTH, canonicalizeValidCnpj, formatCnpj, normalizeCnpj } from '../../lib/cnpj'
+import { ReceitaNameNote } from './ReceitaNameNote'
 import type { ReviewGroup } from '../../pages/revisaoHelpers'
 
 export type ReviewCustomerOnboardingInput = {
@@ -156,6 +157,8 @@ export function ReviewCustomerOnboarding({
         <Field label="Razão social" required><Input value={name} onChange={(event) => { clearSelectedCustomer(); setName(event.target.value) }} /></Field>
         <Field label="CNPJ" required hint={cnpjHint} error={cnpjError}><Input maxLength={CNPJ_INPUT_MAX_LENGTH} placeholder="00.000.000/0000-00" inputMode="numeric" value={cnpj.length === 14 ? formatCnpj(cnpj) : cnpj} onChange={(event) => { clearSelectedCustomer(); setCnpj(normalizeCnpj(event.target.value)) }} /></Field>
       </div>
+      {/* ADR 0126: só para Cliente novo; o cadastrado escolhido já tem a razão social dele. */}
+      <ReceitaNameNote cnpj={selectedId || selectedCustomerCnpjMismatch ? null : validCnpj} name={name} onUseName={setName} />
       {canEditContacts ? (
       <>
       <Field label="E-mail principal do cliente" required hint={email.trim() ? 'Será salvo como contato do cliente. Nenhum e-mail é enviado por esta ação.' : 'O cliente precisa ter pelo menos um e-mail cadastrado.'}>

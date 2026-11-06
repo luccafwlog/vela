@@ -6,6 +6,10 @@
 
 ## 2026-11
 
+- **Razão social da Receita no cadastro pela Revisão (2026-11-05, ADR 0126; pedido do dono):** no grupo da Revisão e
+  em **Completar cadastro** da ficha do B/L, com o CNPJ aceito e Cliente novo, o Vela consulta a Receita. Razão social
+  vazia recebe a da Receita; diferente da do manifesto, aparece "Na Receita: …" com **Usar a razão social da Receita**,
+  sem troca automática. O endereço não entra por esse caminho, que grava só razão social, CNPJ e e-mail.
 - **CNPJ já cadastrado avisado no Novo cliente (2026-11-05; pedido do dono):** o CNPJ de um Cliente existente,
   ativo ou desativado, vira erro sob o campo assim que fica válido, com o nome dele e **Abrir a ficha de …**; a
   Receita não é consultada e o cadastro é recusado antes da confirmação. A trava continua no banco
