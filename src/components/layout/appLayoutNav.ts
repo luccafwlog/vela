@@ -109,7 +109,13 @@ export function buildNavGroups(counts: OperationalCounts): Array<Omit<NavGroup, 
     {
       id: 'importacao',
       label: 'Importação',
-      items: importNavItems.map((item) => (item.to === '/revisao' ? { ...item, badge: counts.pendingReview || undefined } : item)),
+      items: importNavItems.map((item) => {
+        // Revisão conta clientes; Desbloqueio de CE, solicitações à espera da
+        // análise (decisões do dono de 2026-11-05).
+        if (item.to === '/revisao') return { ...item, badge: counts.pendingReview || undefined }
+        if (item.to === '/desbloqueio-ce') return { ...item, badge: counts.pendingCeUnlockRequests || undefined }
+        return item
+      }),
     },
     { id: 'exportacao', label: 'Exportação', items: exportNavItems },
     { id: 'clientes', label: 'Clientes', items: customersNavItems },
