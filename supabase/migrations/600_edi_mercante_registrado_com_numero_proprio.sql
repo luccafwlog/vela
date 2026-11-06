@@ -24,9 +24,13 @@
 --      (`voyage_delete_children_spec`, corpo da 597, item 20): sem isso, o
 --      guarda `guard_voyage_hard_delete` (573) achava a linha em
 --      `mercante_edi_files` e recusava a exclusão que a prévia permitia.
+--   4. Como toda tabela de `public`: a trava contra TRUNCATE fora de banco
+--      descartável (585) e o nome em português na recusa de exclusão
+--      (`delete_record_block_reason`, corpo da 575 com a linha da 581).
 --
 -- Só cria objetos novos; não grava nem reescreve linhas existentes.
--- Rollback: voltar `voyage_delete_children_spec` ao corpo da 597;
+-- Rollback: voltar `voyage_delete_children_spec` ao corpo da 597 e
+-- `delete_record_block_reason` ao da 575 com a linha da 581;
 -- DROP FUNCTION public.register_mercante_edi_file(bigint, text, text, text,
 -- text, integer, integer); DROP TABLE public.mercante_edi_files.
 
@@ -149,3 +153,60 @@ AS $function$
     (20, 'mercante_edi_files', 'voyage_id', 'delete', 'registro(s) de EDI Mercante gerado');
 $function$;
 REVOKE ALL ON FUNCTION public.voyage_delete_children_spec() FROM PUBLIC, anon, authenticated;
+
+-- 4 -------------------------------------------------------------------------
+CREATE TRIGGER truncate_requires_confirmation BEFORE TRUNCATE ON public.mercante_edi_files
+  FOR EACH STATEMENT EXECUTE FUNCTION public.truncate_requires_disposable_confirmation();
+
+-- Corpo da 575 com a linha da 581 (validação do Desbloqueio de CE) e o nome
+-- do registro de EDI Mercante na recusa de exclusão.
+CREATE OR REPLACE FUNCTION public.delete_record_block_reason(p_state text, p_message text, p_constraint text)
+RETURNS text
+LANGUAGE sql
+STABLE
+SET search_path = public, pg_temp
+AS $function$
+  SELECT CASE
+    WHEN p_state = '23503' THEN
+      'vinculado a ' || COALESCE((
+        SELECT CASE c.conrelid::regclass::text
+          WHEN 'invoices' THEN 'fatura'
+          WHEN 'invoice_items' THEN 'item de fatura'
+          WHEN 'invoice_bls' THEN 'fatura consolidada'
+          WHEN 'invoice_receivable_links' THEN 'recebível de fatura'
+          WHEN 'invoice_customer_changes' THEN 'troca de Cliente da fatura'
+          WHEN 'bl_receivables' THEN 'recebível'
+          WHEN 'billing_batches' THEN 'lote de faturamento'
+          WHEN 'demurrage_invoices' THEN 'fatura de Demurrage'
+          WHEN 'demurrage_invoice_items' THEN 'item de fatura de Demurrage'
+          WHEN 'demurrage_disputes' THEN 'disputa de Demurrage'
+          WHEN 'demurrage_dispute_attachments' THEN 'anexo de disputa de Demurrage'
+          WHEN 'demurrage_box_waivers' THEN 'dispensa de cobrança de Demurrage'
+          WHEN 'cod_adjustments' THEN 'ajuste de COD'
+          WHEN 'customer_communications' THEN 'comunicado ao cliente'
+          WHEN 'customer_communication_bls' THEN 'comunicado ao cliente'
+          WHEN 'customer_communication_dunning_groups' THEN 'grupo de cobrança'
+          WHEN 'customer_communication_dunning_invoices' THEN 'cobrança ao cliente'
+          WHEN 'charge_calculations' THEN 'cálculo de taxa'
+          WHEN 'ce_unlock_requests' THEN 'pedido de Desbloqueio de CE'
+          WHEN 'ce_unlock_request_bls' THEN 'pedido de Desbloqueio de CE'
+          WHEN 'ce_unlock_bl_deliveries' THEN 'BL de Entrega do Desbloqueio de CE'
+          WHEN 'ce_unlock_direct_exports' THEN 'envio à ZPT do Desbloqueio de CE'
+          WHEN 'ce_unlock_direct_validations' THEN 'validação do Desbloqueio de CE'
+          WHEN 'ce_unlock_zpt_status' THEN 'conciliação com a ZPT do Desbloqueio de CE'
+          WHEN 'ce_unlock_documents' THEN 'documento de Desbloqueio de CE'
+          WHEN 'ce_unlock_email_outbox' THEN 'e-mail de Desbloqueio de CE'
+          WHEN 'ce_unlock_vip_customers' THEN 'condição VIP do Desbloqueio de CE'
+          WHEN 'portal_inspection_events' THEN 'registro do Modo Inspeção do Portal'
+          WHEN 'import_batches' THEN 'lote de importação'
+          WHEN 'mercante_edi_files' THEN 'registro de EDI Mercante gerado'
+          WHEN 'bls' THEN 'B/L'
+          ELSE c.conrelid::regclass::text
+        END
+        FROM pg_constraint c
+        WHERE c.conname = p_constraint AND c.contype = 'f'
+        LIMIT 1
+      ), 'outro registro')
+    ELSE p_message
+  END;
+$function$;

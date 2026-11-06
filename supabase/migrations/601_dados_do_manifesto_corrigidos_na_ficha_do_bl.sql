@@ -48,6 +48,9 @@ CREATE TABLE public.bl_manifest_corrections (
   PRIMARY KEY (bl_id, field_name)
 );
 CREATE INDEX bl_manifest_corrections_corrected_by ON public.bl_manifest_corrections (corrected_by);
+-- Trava contra TRUNCATE fora de banco descartável, como toda tabela de public (585).
+CREATE TRIGGER truncate_requires_confirmation BEFORE TRUNCATE ON public.bl_manifest_corrections
+  FOR EACH STATEMENT EXECUTE FUNCTION public.truncate_requires_disposable_confirmation();
 COMMENT ON TABLE public.bl_manifest_corrections IS
   'Campos do manifesto (EDI Mercante) corrigidos na ficha do B/L; a reimportação não os sobrescreve (migration 601, ADR 0129). Escrita só por save_bl_review e pelo gatilho zz_keep_bl_manifest_corrections.';
 
