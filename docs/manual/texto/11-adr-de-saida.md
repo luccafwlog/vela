@@ -93,7 +93,7 @@ A **Linha do tempo do ADR**, no pé da aba, conta a história: a saída do navio
 
 Depois do ATD, a equipe com seção pendente recebe um alerta, e outro quando o prazo vence sem assinatura (capítulo 20).
 
-O {{Administrativo}} acompanha o cumprimento em **Admin** › **Prazo do ADR**: os ADRs fechados no período escolhido em **Fechado de** e **Fechado até** e, por equipe, quantos foram assinados no prazo e quantas horas cada assinatura atrasou. A medida é da equipe, nunca da pessoa.
+O {{Administrativo}} acompanha o cumprimento em **Relatórios** › **Prazo do ADR**: os ADRs fechados no período escolhido em **Fechado de** e **Fechado até** e, por equipe, quantos foram assinados no prazo e quantas horas cada assinatura atrasou. A medida é da equipe, nunca da pessoa.
 
 ::: atencao
 - O ATD que vale é o da Atracação do terminal. A saída confirmada em **Chegadas e Saídas** é a do porto de origem e não começa o prazo ([18.3](18-o-que-muda-sozinho.md#183-registrar-a-chegada-a-atracação-e-a-saída)).

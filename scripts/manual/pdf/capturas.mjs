@@ -1502,7 +1502,7 @@ export const CAPTURAS = [
     id: 'prazo-do-adr',
     capitulo: 25,
     async fazer({ page, base }) {
-      await abrir(page, base, '/admin/prazo-do-adr')
+      await abrir(page, base, '/relatorios?visao=prazo-do-adr')
       const bloco = page.locator('.app-block').filter({ has: page.getByRole('heading', { name: 'ADRs fechados no período' }) }).first()
       await bloco.getByRole('table').waitFor()
       await page.waitForTimeout(600)

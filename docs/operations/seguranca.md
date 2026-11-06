@@ -73,12 +73,13 @@ igual a `auth.uid()` e perfil interno ativo (`is_active_read_user()`, migration
 Todo perfil interno ativo lê dado operacional e financeiro, inclusive de
 tarifação (`is_active_read_user()`;
 [ADR 0044](../adr/0044-leitura-interna-global-departamento-restringe-escrita.md)).
-A tela `/admin` — Usuários, Falhas de entrega de alertas, Histórico de ações,
-Sistema e Prazo do ADR — só abre para o Administrativo (rota `adminOnly`; o item
-Admin do menu só aparece para ele); Sistema e Falhas de entrega de alertas só
-aparecem para a conta Dev (decisão do dono de 2026-11-06, navegação em
-`src/pages/adminTabs.ts`; o que Sistema ganhar de leitura sensível passa por
-`is_dev_user()`). No banco, desde a migration `475`
+A tela `/admin` — Usuários, Histórico de ações e Sistema — só abre para o
+Administrativo (rota `adminOnly`; o item Admin do menu só aparece para ele). A
+aba Sistema (com as falhas de entrega de alertas) é só da conta Dev desde
+2026-11-06: as leituras dela (`admin_system_health`, `admin_system_routines`,
+migration `605`) exigem `is_dev_user()`, e a aba nem aparece aos demais. O
+Prazo do ADR passou a ser uma visão de Relatórios só para o Administrativo
+(navegação; a leitura do ADR de Saída segue global). No banco, desde a migration `475`
 ([ADR 0106](../adr/0106-nome-do-autor-no-historico-para-todos.md)), ficam só com
 o Administrativo a lista de usuários (`admin_list_users`), as falhas de entrega
 (`alert_notification_failures`) e as linhas de Usuário do Histórico de ações
@@ -178,7 +179,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Ação | Adm | Fin | Ope | Doc | Equ | Onde o banco aplica | Decisão | Hoje |
 |---|---|---|---|---|---|---|---|---|
 | Ler dado operacional e financeiro | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_read_user()` | ADR 0044 | vigente; leitura direta mais estreita em algumas tabelas ([Visualização global interna](#visualização-global-interna)) |
-| `/admin`: usuários, falhas de entrega de alertas, histórico de ações, sistema e Prazo do ADR | ✔ | — | — | — | — | Usuários: `admin_list_users` (`is_admin`). Histórico de ações: `admin_action_history` (`is_admin`, migrations `558` e `561`), que lê também trilhas sem leitura global (Desbloqueio de CE, contas do Portal, mensagens das disputas). As demais abas: só a navegação (rota `adminOnly`; Sistema e Falhas de entrega de alertas só aparecem para a conta Dev desde 2026-11-06); os dados por trás, como `audit_logs`, têm leitura global (ADR 0044) | ADR 0046; ADR 0104 (2026-11-06) | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14) |
+| `/admin`: usuários, histórico de ações e sistema; Relatórios › Prazo do ADR | ✔ | — | — | — | — | Usuários: `admin_list_users` (`is_admin`). Histórico de ações: `admin_action_history_actions` e `admin_action_history` (`is_admin`, migration `603`) e, antes, `admin_action_history` (`is_admin`, migrations `558` e `561`), que lê também trilhas sem leitura global (Desbloqueio de CE, contas do Portal, mensagens das disputas). Sistema (com as falhas de entrega): `admin_system_health` e `admin_system_routines` exigem `is_dev_user()` (migration `605`) e a Edge `admin-test-email` confere a mesma marca; Prazo do ADR em Relatórios: só a navegação; os dados por trás, como `audit_logs`, têm leitura global (ADR 0044) | ADR 0046; ADR 0104 (2026-11-06) | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14) |
 | Criar usuário, mudar setor, ativar e desativar, trocar e-mail e senha | ✔ | — | — | — | — | Edge `admin-users` (`is_admin`); policy de `user_profiles` e gatilho `prevent_user_profile_privilege_escalation` | ADR 0046 | vigente (**Teste** local da troca de setor e da situação: `permissoesPorPerfil.local-pg.test.ts`) |
 | Mudar o tipo de conta (`account_kind`, pessoa ou integração) | — | — | — | — | — | INSERT e UPDATE de `user_profiles` por coluna, sem `account_kind` (migration `440`); só migration ou `service_role` | [Conta de integração](../modules/operacao-suporte.md#conta-de-integração) | vigente (**Teste** local: `contaDeIntegracao.local-pg.test.ts`) |
 | Desativar ou rebaixar o último Administrativo ativo | — | — | — | — | — | Gatilho `guard_last_active_administrativo` (migration `239`; só pessoas contam desde a `440`) | ADR 0083, item 2 | vigente (**Teste** local) |
@@ -294,6 +295,7 @@ Regra vigente de quem faz o quê, ação por ação. Os módulos apontam para c�
 | Consultar o histórico de Comunicados (`/clientes/comunicacao?tab=historico`) | ✔ | ✔ | ✔ | ✔ | ✔ | Policies `is_active_read_user()` de `customer_communications` e `customer_communication_bls`; a rota abre a todos; a vista Disparo exige `customer_communications` (`canSend` em `src/pages/ClientesComunicacao.tsx`) | ADR 0044; ADR 0085, D19; ADR 0104 | vigente: a rota e a vista Disparo abrem a todos desde a ADR 0104 (**Teste:** `ClientesComunicacao.test.tsx`) |
 | Disparar Comunicado e salvar modelo; ler o estado da chave de envio | ✔ | ✔ | ✔ | ✔ | ✔ | Edge `send-customer-communication` (todo papel interno ativo); `save_customer_communication_saved_template` e política `app_settings_communications_read` (migration `469`) | ADR 0104 (ficha ACE-D01, opção A) | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, "Salvar modelo de Comunicado" e "Dev: todos os setores leem a chave de envio") |
 | Ligar e desligar a chave global de envio | só a conta Dev | — | — | — | — | `set_communications_enabled` exige `is_dev_user()`: conta ativa do Administrativo com `user_profiles.is_dev`, marca dada só por migration (coluna sem `INSERT`/`UPDATE` para `authenticated`, mudança no Histórico de ações); e-mail e senha da conta Dev só pela própria pessoa (`admin-users` recusa 403, `decideDevCredentialChange`) | ADR 0059; ADR 0104 | vigente desde a migration `469` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, "Dev: só a conta Dev…"; `marcaDevMigration.local-pg.test.ts`) |
+| Ver a aba Sistema da Administração (pontos de atenção, rotinas, configurações) e mandar o e-mail de teste a si mesma | só a conta Dev | — | — | — | — | `admin_system_health` e `admin_system_routines` exigem `is_dev_user()`; a Edge `admin-test-email` confere `is_dev_user` na sessão e só manda ao login de quem pediu | Decisão do dono de 2026-11-06; ADR 0104 | vigente desde a migration `605` (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, "Dev: só a conta Dev lê a aba Sistema da Administração") |
 | Provisionar o Portal: enviar e cancelar convite, conta, Email de Recuperação, endereço bloqueado, reabrir análise | ✔ | — | — | ✔ | — | Edges `portal-invite-send`, `portal-account-suspend` e `portal-recovery-email-change`; RPCs `portal_cancel_invite`, `portal_assisted_email_change`, `portal_release_suppressed_email`, `portal_return_to_analysis` (migration `002`) | ADR 0046 | vigente (**Teste** local: `permissoesPorPerfil.local-pg.test.ts`, P14) |
 | Trocar o CNPJ do Portal | ✔ | — | — | — | — | `portal_admin_change_cnpj` | Plano arquivado de 2026-08-13; ADR 0085 | vigente |
 | Conceder e revogar a Liberação de faturamento sem Portal | ✔ | — | — | — | — | `grant_`/`revoke_customer_billing_portal_release` | ADR 0070 | vigente |

@@ -6,15 +6,22 @@
 
 ## 2026-11
 
-- **Administração revisada, etapa 1 (decisões do dono de 2026-11-06, [plano](plans/2026-11-06-administracao-revisada.md)):**
-  as abas **Sistema** e **Falhas de entrega de alertas** passam a ser só da conta Dev; os demais do Administrativo
-  veem Usuários, Histórico de ações e Prazo do ADR, e o link de uma aba da conta Dev mostra "Acesso restrito". No
-  **Histórico de ações**, **Quando** traz os segundos; acima de 10.000 linhas o rodapé diz "de mais de 10.000" e
-  **Próxima** passa da página 200; o Motivo técnico gravado pelo banco ("Gate canonico…", "(portal_activation)")
-  aparece como **Origem** em português e o texto padrão salvo sem motivo some (`src/lib/auditReasons.ts`, também no
-  Histórico do B/L); campos que viravam "B/L alterado" ganham nome e a situação vem em português. Só tela, sem
-  migration. Diagnóstico com os números de produção em
-  [archive/audits/administracao-2026-11-06.md](archive/audits/administracao-2026-11-06.md).
+- **Administração revisada (decisões do dono de 2026-11-06, [plano arquivado](archive/plans/2026-11-06-administracao-revisada.md), migrations `603` a `605`):**
+  a Administração fica com **Usuários**, **Histórico de ações** e **Sistema**, esta só da conta Dev. O **Histórico de
+  ações** passa a mostrar uma linha por ação (uma importação de 2.539 linhas vira "781 Containers criados, 17 B/Ls
+  criados"), com os segundos, **Busca**, **Período** (abre em 30 dias), **Assunto** por área, **Ver campo a campo** e
+  **Exportar planilha**; o motivo técnico gravado pelo banco aparece em português como **Origem** e o texto padrão
+  salvo sem motivo some (também no Histórico do B/L); a linha repetida pelo gatilho sai da leitura, e o Vela deixa de
+  gravar as colunas técnicas (menos em Viagens, cujas linhas reconciliam os alertas). **Sistema** mostra os pontos de
+  atenção (equipe sem ninguém ativo, alerta sem destinatário, rotina com falha, Pix parado, e-mail bloqueado,
+  feriados faltando), as rotinas automáticas, as configurações — com a chave do **Envio real**, que sai de Clientes ›
+  Comunicação, e **Enviar teste para mim** (Edge Function nova `admin-test-email`, publicada no merge em `main`) — e as
+  falhas de entrega de alertas; as leituras exigem `is_dev_user()` no banco. O **Prazo do ADR** vira visão de
+  **Relatórios**, só do Administrativo, com **Exportar planilha**. Desativar a última pessoa ativa de uma equipe
+  avisa na confirmação. Os endereços antigos redirecionam. Diagnóstico com os números de produção em
+  [archive/audits/administracao-2026-11-06.md](archive/audits/administracao-2026-11-06.md). Prova:
+  `historicoPorAcao.local-pg.test.ts`, `permissoesPorPerfil.local-pg.test.ts`, `Admin.behavior.test.tsx`,
+  `Relatorios.behavior.test.tsx` e Deno `adminTestEmail.test.ts`.
 - **Revisão de segurança dos widgets públicos do fwlog.com.br (2026-11-06):** a abertura do disjuntor global da
   Consulta de container (300 "não encontrado" na hora) manda um aviso ao Sentry, um por hora, sem número de container
   nem IP; antes, a busca podia ficar fora do ar sem ninguém saber. O manual de serviços externos passa a dizer que o

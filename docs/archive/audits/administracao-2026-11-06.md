@@ -1,7 +1,7 @@
 # Diagnóstico: tela Administração — 2026-11-06
 
 Auditoria pontual, nascida histórica. O trabalho decidido a partir dela está no
-[plano da Administração revisada](../../plans/2026-11-06-administracao-revisada.md);
+[plano da Administração revisada](../plans/2026-11-06-administracao-revisada.md), executado e arquivado no mesmo dia;
 a regra vigente de cada aba fica em
 [Operação e suporte § `/admin`](../../modules/operacao-suporte.md#admin).
 

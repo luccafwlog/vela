@@ -1,19 +1,19 @@
-A página **Admin** é do {{Administrativo}}. É nela que nascem os usuários do Vela, que se escolhe a equipe de cada pessoa e que se cuida do acesso de quem chega e de quem sai. Ela guarda também as telas de acompanhamento: o histórico de tudo o que se gravou, os alertas que não acharam ninguém para avisar e o cumprimento do prazo do ADR de Saída por equipe.
+A página **Admin** é do {{Administrativo}}. É nela que nascem os usuários do Vela, que se escolhe a equipe de cada pessoa e que se cuida do acesso de quem chega e de quem sai. Ela guarda também o histórico de tudo o que se gravou e, para a conta com a marca Dev, a aba **Sistema**: o que pede atenção, as rotinas automáticas, as configurações e os alertas que não acharam ninguém para avisar. O cumprimento do prazo do ADR de Saída por equipe fica em **Relatórios**.
 
 ::: aprende
 - criar um usuário e escolher a equipe dele;
 - trocar a equipe, redefinir a senha ou corrigir o e-mail de um usuário;
 - desativar e reativar um usuário sem deixar uma equipe sem ninguém;
-- consultar o Histórico de ações e as falhas de entrega de alertas;
-- acompanhar o prazo do ADR de Saída por equipe;
-- saber quais configurações existem e quem as muda.
+- consultar o Histórico de ações, uma linha por ação;
+- acompanhar o prazo do ADR de Saída por equipe, em Relatórios;
+- usar a aba Sistema (só a conta Dev): pontos de atenção, rotinas, configurações e falhas de entrega de alertas.
 :::
 
 ## 25.1 Abrir a Administração
 
 **Quem faz:** {{Administrativo}}
 
-**Admin**, no menu, só aparece para o {{Administrativo}}; para as outras equipes, o endereço da página mostra **Acesso restrito** ([1.6](01-o-vela.md#16-quando-algo-dá-errado)). A página **Administração** tem cinco abas, **Usuários** (abre primeiro), **Falhas de entrega de alertas**, **Histórico de ações**, **Sistema** e **Prazo do ADR**, cada uma com endereço próprio: o link copiado abre a mesma aba. **Sistema** e **Falhas de entrega de alertas** só aparecem para a conta do {{Administrativo}} com a marca Dev; para os demais, a página mostra as outras três, e o link de uma aba da conta Dev abre **Acesso restrito**, com **Ir para Usuários**.
+**Admin**, no menu, só aparece para o {{Administrativo}}; para as outras equipes, o endereço da página mostra **Acesso restrito** ([1.6](01-o-vela.md#16-quando-algo-dá-errado)). A página **Administração** tem três abas, **Usuários** (abre primeiro), **Histórico de ações** e **Sistema**, cada uma com endereço próprio: o link copiado abre a mesma aba. **Sistema** só aparece para a conta do {{Administrativo}} com a marca Dev; para os demais, a página mostra as outras duas, e o link de **Sistema** abre **Acesso restrito**, com **Ir para Usuários**. Os links antigos das abas que mudaram de lugar continuam funcionando: **Falhas de entrega de alertas** abre **Sistema**, e **Prazo do ADR** abre **Relatórios** › **Prazo do ADR**.
 
 Na aba **Usuários**, a lista abre só com os **Ativos**; em **Situação**, escolha **Inativos** ou **Todos**. Duas marcas da lista pedem atenção:
 
@@ -100,7 +100,7 @@ Desativado, o usuário perde o acesso na hora: a sessão aberta cai e a próxima
 
 ::: atencao
 - Ninguém desativa o próprio acesso nem o último {{Administrativo}} ativo ([25.3](#253-trocar-a-equipe-de-um-usuário)).
-- Antes de desativar a última pessoa ativa de uma equipe, ative ou crie outra. Sem ninguém, os alertas dessa equipe não têm a quem avisar ([25.8](#258-acompanhar-as-falhas-de-entrega-de-alertas)).
+- Antes de desativar a última pessoa ativa de uma equipe, ative ou crie outra. Sem ninguém, os alertas dessa equipe não têm a quem avisar ([25.8](#258-acompanhar-as-falhas-de-entrega-de-alertas)); a confirmação de **Desativar** avisa quando a pessoa é a última da equipe.
 - Não desative a conta **Integração** nem a tire do {{Financeiro}}: é ela que dá a baixa automática dos Pix do Itaú, e desde 2026-11-04 só a conta do {{Financeiro}} dá baixa (antes, também a do {{Administrativo}}). Sem ela, os Pix das faturas de Taxas Locais e das avulsas deixam de baixar sozinhos e vão para análise (capítulo 24). Trocar o setor dela é recusado ("A conta da baixa automática do Pix Itaú precisa ser do Financeiro: …").
 :::
 
@@ -116,18 +116,19 @@ O quadro descreve o que o Vela confere a cada gravação, não só o que a tela 
 
 **Quem faz:** {{Administrativo}}
 
-O **Histórico de ações** junta numa lista só tudo o que se gravou no Vela: quem fez, quando, em qual registro, o que mudou e o motivo. Para a história de uma Viagem, de um B/L ou de um Cliente, a ficha de cada um é mais fácil de ler (capítulos 4, 7 e 13). Aqui ficam também as mudanças que não têm ficha (usuários, configurações, tabelas de cobrança e Condições de Cliente, tarifas, acordos e tipos de container de Demurrage, a Liberação de faturamento, os alertas resolvidos com justificativa, cada **Reprocessar** da importação, o Pix marcado como tratado e as exceções do extrato) e o que tem história em outra tela: os pedidos de **Desbloqueio de CE**, a **Conta do Portal**, os **Comunicados** enviados e as mensagens e anexos da **Disputa de Demurrage**.
+O **Histórico de ações** junta numa lista só tudo o que se gravou no Vela, uma linha por **ação**: o que uma pessoa, o Cliente pelo Portal ou o próprio Vela gravou de uma vez. Uma importação de B/L que cria 17 B/Ls e 781 containers é uma linha só, "781 Containers criados, 17 B/Ls criados". Para a história de uma Viagem, de um B/L ou de um Cliente, a ficha de cada um é mais fácil de ler (capítulos 4, 7 e 13). Aqui ficam também as mudanças que não têm ficha (usuários, configurações, tabelas de cobrança e Condições de Cliente, tarifas, acordos e tipos de container de Demurrage, a Liberação de faturamento, os alertas resolvidos com justificativa, cada **Reprocessar** da importação, o Pix marcado como tratado e as exceções do extrato) e o que tem história em outra tela: os pedidos de **Desbloqueio de CE**, a **Conta do Portal**, os **Comunicados** enviados e as mensagens e anexos da **Disputa de Demurrage**.
 
-1. Em **Admin**, abra **Histórico de ações**.
-2. Recorte por **Assunto** (Viagem, B/L, Fatura, Usuário, Alerta, Configuração do sistema e outros), por **Ação** (**Criou**, **Alterou** ou **Excluiu**), por **Por** (uma pessoa, **Sistema** ou **Cliente pelo Portal**) e pelos dias em **De** e **Até**.
-3. Leia a linha. **Quando** traz a hora com os segundos. O **Registro** vem pelo nome (a Viagem como navio e número, o B/L, o Cliente, a fatura), mesmo depois de excluído, e o **Motivo** é a justificativa de quem fez. Passe o mouse no nome, em **Por**, para ver o e-mail e a equipe.
-4. Clique na seta da linha para ver o **De** e o **Para**.
+1. Em **Admin**, abra **Histórico de ações**. Ela abre nos últimos **30 dias**; mude em **Período** (**Hoje**, **7 dias**, **30 dias**, **Tudo** ou **Escolher datas**).
+2. Para achar um registro, escreva em **Busca** o B/L, o CE, o container, o navio, a viagem ou o Cliente (nome ou CNPJ). Recorte também por **Assunto** (agrupado por área), por **Ação** (**Criou**, **Alterou** ou **Excluiu**) e por **Por** (uma pessoa, **Sistema** ou **Cliente pelo Portal**).
+3. Leia a linha. **Quando** traz a hora com os segundos. **O que fez** resume a ação; o **Registro** vem pelo nome (a Viagem como navio e número, o B/L, o Cliente, a fatura), mesmo depois de excluído, com "e mais N" quando a ação mexeu em vários; o **Motivo** é a justificativa de quem fez. Passe o mouse no nome, em **Por**, para ver o e-mail e a equipe.
+4. Clique na seta da linha. Uma ação de uma linha só mostra o **De** e o **Para**; a de várias mostra o resumo por tipo de registro e **Ver campo a campo**, com cada campo que mudou.
+5. Para levar o recorte para fora, use **Exportar planilha**: vem uma linha por campo, até 10.000.
 
-Na linha do **Sistema**, e quando a mudança veio de uma importação ou de um passo automático do Vela, o **Motivo** diz de onde ela veio ("Origem: …"). Quando ninguém escreveu motivo, a coluna fica com "—". Cada B/L criado por uma importação tem a sua linha **B/L criado**, com o nome de quem importou e a importação no **Motivo**. O que o Cliente fez no Portal aparece em **Por** como "Cliente pelo Portal", seguido do nome do Cliente.
+Na linha do **Sistema**, e quando a mudança veio de uma importação ou de um passo automático do Vela, o **Motivo** diz de onde ela veio ("Origem: …"). Quando ninguém escreveu motivo, a coluna fica com "—". O que o Cliente fez no Portal aparece em **Por** como "Cliente pelo Portal", seguido do nome do Cliente.
 
-Uma mesma ação, como uma importação, grava várias linhas no mesmo instante: uma para cada registro e cada campo que mudou. Acima de 10.000 linhas, o título diz **Mais de 10.000 registros** e o rodapé "Exibindo 1–50 de mais de 10.000"; **Próxima** continua enquanto houver linhas, e os filtros ajudam a chegar mais rápido.
+Acima de 10.000 ações, o título diz **Mais de 10.000 ações** e o rodapé "Exibindo 1–50 de mais de 10.000"; **Próxima** continua enquanto houver ações, e o período e a busca ajudam a chegar mais rápido.
 
-Ninguém altera nem apaga uma linha. O Vela guarda cinco anos: as linhas mais antigas saem sozinhas, menos o histórico das escalas, que fica para sempre.
+Ninguém altera nem apaga uma linha. O Vela guarda cinco anos: as linhas mais antigas saem sozinhas, menos o histórico das escalas, que fica para sempre. Desde 06/11/2026 o Vela não grava mais as colunas que só ele usa (data de atualização e afins), que antes apareciam como "B/L alterado".
 
 ::: atencao
 - Os passos que o Vela faz logo depois de uma importação, como a fatura que sai com o CE, aparecem com o nome de quem importou ([19.3](19-rotinas-por-horario.md#193-os-passos-depois-da-importação)). Se essa pessoa foi desativada, aparecem com a conta escolhida para as rotinas ou, sem ela, com a conta ativa mais antiga do {{Administrativo}}, que pode ser a **Integração**. Nem toda linha com nome foi feita à mão.
@@ -137,10 +138,10 @@ Ninguém altera nem apaga uma linha. O Vela guarda cinco anos: as linhas mais an
 
 **Quem faz:** a conta do {{Administrativo}} com a marca Dev
 
-Todo alerta avisa no sino as pessoas ativas da equipe dele ([20.3](20-alertas.md#203-acompanhar-o-sino)); alguns tipos avisam também o {{Financeiro}} ou o {{Administrativo}}. Quando ninguém dessas equipes está ativo, o alerta crítico vai ao {{Administrativo}}, com o selo **Entrega alternativa**. O alerta normal, e o crítico quando nem o {{Administrativo}} tem alguém ativo, não chegam a ninguém e ficam registrados nesta aba. O alerta em si continua na fila de **Alertas**: o que falhou foi o aviso.
+Todo alerta avisa no sino as pessoas ativas da equipe dele ([20.3](20-alertas.md#203-acompanhar-o-sino)); alguns tipos avisam também o {{Financeiro}} ou o {{Administrativo}}. Quando ninguém dessas equipes está ativo, o alerta crítico vai ao {{Administrativo}}, com o selo **Entrega alternativa**. O alerta normal, e o crítico quando nem o {{Administrativo}} tem alguém ativo, não chegam a ninguém e ficam registrados no bloco **Falhas de entrega de alertas** da aba **Sistema**. O alerta em si continua na fila de **Alertas**: o que falhou foi o aviso.
 
-1. Em **Admin**, abra **Falhas de entrega de alertas**.
-2. Leia o **Setor sem destinatário** e o **Motivo**: "Ninguém ativo no setor do alerta." ou "Ninguém ativo no setor do alerta nem no Administrativo.".
+1. Em **Admin** › **Sistema**, veja os **Pontos de atenção**: uma equipe sem ninguém ativo aparece ali antes de algum alerta se perder, com **Abrir Usuários**.
+2. No bloco **Falhas de entrega de alertas**, leia o **Setor sem destinatário** e o **Motivo**: "Ninguém ativo no setor do alerta." ou "Ninguém ativo no setor do alerta nem no Administrativo.".
 3. Em **Usuários**, ative ou crie alguém dessa equipe ([25.2](#252-criar-um-usuário) e [25.5](#255-desativar-ou-reativar-um-usuário)).
 4. Use **Abrir alerta** para ir à pendência e tratá-la.
 
@@ -150,9 +151,9 @@ O aviso perdido não é reenviado: quem você ativar vê o alerta na fila e só 
 
 **Quem faz:** {{Administrativo}}
 
-O prazo é o de [11.4](11-adr-de-saida.md#114-cumprir-o-prazo-de-72-horas): cada equipe assina a sua parte do ADR de Saída até 72 horas corridas depois do ATD do terminal. Esta aba mede quem cumpriu, por equipe, nunca por pessoa.
+O prazo é o de [11.4](11-adr-de-saida.md#114-cumprir-o-prazo-de-72-horas): cada equipe assina a sua parte do ADR de Saída até 72 horas corridas depois do ATD do terminal. A visão **Prazo do ADR**, em **Relatórios**, mede quem cumpriu, por equipe, nunca por pessoa. Só o {{Administrativo}} a vê.
 
-1. Em **Admin**, abra **Prazo do ADR**.
+1. Em **Relatórios**, abra **Prazo do ADR**.
 2. Escolha o período em **Fechado de** e **Fechado até**: entram os ADRs fechados nesses dias.
 3. Leia os cartões: para {{Operações}}, {{Documentação}} e {{Equipamentos}}, quantos ADRs a equipe assinou no prazo, de quantos fechados.
 
@@ -160,6 +161,7 @@ O prazo é o de [11.4](11-adr-de-saida.md#114-cumprir-o-prazo-de-72-horas): cada
 Um ADR fechado em Salvador: Operações e Documentação assinaram no prazo, e Equipamentos atrasou 12 horas.
 :::
 4. Na lista, cada ADR mostra, por equipe, **No prazo**, **Atrasou N h** (em âmbar) ou **Não assinou** (em cinza); passe o mouse para ver quando a equipe assinou.
+5. Para levar a lista para fora, use **Exportar planilha**.
 
 ::: atencao
 - Ficam fora da medição a escala omitida, o ADR fechado sem ATD e os ADRs fechados antes de a medição existir.
@@ -168,19 +170,25 @@ Um ADR fechado em Salvador: Operações e Documentação assinaram no prazo, e E
 
 ## 25.10 Cuidar das configurações do Vela
 
-**Quem faz:** {{Administrativo}}; o envio real de e-mails, só a conta com a marca Dev
+**Quem faz:** a conta do {{Administrativo}} com a marca Dev; o intervalo da Régua, também {{Financeiro}} e {{Equipamentos}}
 
-O Vela tem poucas configurações com tela, e cada uma fica no seu assunto:
+As configurações ficam em **Admin** › **Sistema** › **Configurações**, que só a conta com a marca Dev vê:
 
-| Configuração | Onde | Quem muda |
+| Configuração | O que mostra | Quem muda |
 |---|---|---|
-| **Envio real** dos e-mails ao Cliente | **Clientes** › **Comunicação**, bloco **Canal de envio** ([16.2](16-emails-e-comunicados.md#162-saber-se-os-e-mails-saem-de-verdade)) | Só a conta do {{Administrativo}} com a marca Dev |
-| Intervalo da Régua de Cobrança da Demurrage | **Demurrage**, botão **Régua de cobrança** (capítulo 23) | {{Administrativo}}, {{Financeiro}} e {{Equipamentos}} |
+| **Envio real** dos e-mails ao Cliente ([16.2](16-emails-e-comunicados.md#162-saber-se-os-e-mails-saem-de-verdade)) | **Envio real** ou **Redirecionado ao suporte**, com a chave e **Enviar teste para mim** | A conta Dev, na própria tela, com confirmação |
+| Intervalo da Régua de Cobrança da Demurrage | De quantos em quantos dias a cobrança sai | {{Administrativo}}, {{Financeiro}} e {{Equipamentos}}, em **Demurrage**, botão **Régua de cobrança** (capítulo 23) |
+| Conta das rotinas | A conta escolhida ou, sem ela, a que vale: a conta ativa mais antiga do {{Administrativo}} | Suporte técnico |
+| Pix | Itaú, com o prazo de vencimento e a conta da baixa automática | Suporte técnico |
+| Feriados de Vitória/ES | Até que dia estão cadastrados | Suporte técnico |
+
+**Enviar teste para mim** manda um e-mail ao endereço de login da conta Dev, de verdade, com a chave ligada ou desligada. Use para conferir que o canal de envio funciona sem mandar nada a Cliente.
+
+Acima das configurações, **Pontos de atenção** lista o que pede ação: equipe sem ninguém ativo, alerta que não chegou a ninguém, rotina cuja última execução falhou, leitura do Pix Itaú parada, e-mail bloqueado e feriados do ano seguinte faltando. Sem nada, diz **Nada pede atenção**. Ao lado, **Rotinas automáticas** mostra cada rotina do Vela, quando roda, a última vez e a situação. No rodapé ficam a versão do Vela e o ambiente.
 
 A marca Dev é dada pela equipe de desenvolvimento, nunca pela tela; na lista de usuários, a conta aparece como "Administrativo · Dev". Cada troca da chave e do intervalo fica no **Histórico de ações**, assunto **Configuração do sistema**.
 
-O resto não tem tela: a cobrança do Pix pelo Itaú, a conta que dá a baixa automática e o calendário de feriados de Vitória/ES ficam com o suporte técnico. Quando faltam os feriados do ano seguinte, abre um alerta ([20.9](20-alertas.md#209-demurrage)). A aba **Sistema** da Administração, que só a conta com a marca Dev vê, mostra a versão do Vela, o ambiente e as datas da última Viagem criada e da última fatura emitida.
-
 ::: atencao
-- Se a troca do envio real falha, o bloco **Canal de envio** diz o motivo e continua mostrando o estado de verdade, **Envio real** ou **Redirecionado ao suporte**.
+- Se a troca do envio real falha, o bloco **Configurações** diz o motivo e continua mostrando o estado de verdade, **Envio real** ou **Redirecionado ao suporte**.
+- Quando faltam os feriados do ano seguinte, abre também um alerta ([20.9](20-alertas.md#209-demurrage)).
 :::

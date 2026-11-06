@@ -354,7 +354,11 @@ no repositório `cnpj-lookup` (consulta de CNPJ na BrasilAPI,
 [ADR 0127](../adr/0127-consulta-de-cnpj-na-brasilapi.md), 2026-11-05): não
 pede secret além dos padrões do Supabase e sai no próximo merge em `main`;
 antes disso, o Novo cliente mostra "Consulta à Receita indisponível agora" e o
-cadastro segue à mão. A Edge Function
+cadastro segue à mão. Também está só no repositório `admin-test-email`
+(Administração › Sistema › **Enviar teste para mim**, decisão do dono de
+2026-11-06, migration `605`): usa os secrets de e-mail que o Portal já usa
+(`RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`) e sai no próximo
+merge em `main`; antes disso, o botão diz que não foi possível enviar. A Edge Function
 antiga de aviso de fatura emitida, que a
 [ADR 0058](../adr/0058-canal-de-comunicado-ao-cliente.md) mandou apagar (o nome
 está na ADR), foi apagada pelo dono no painel em 2026-10-14
