@@ -308,3 +308,18 @@ it('valores em R$ não quebram em duas linhas', () => {
   expect(cells.at(-1)?.style.whiteSpace).toBe('nowrap')
   expect(cells.at(-2)?.style.whiteSpace).toBe('nowrap')
 })
+
+it('ADR 0125: o item cobrado pelo valor mínimo diz "Valor mínimo aplicado"; os outros não', () => {
+  const minimum = {
+    invoice: { id: 21, invoice_number: 'INV-21', status: 'issued', total_brl: 400, total_paid_brl: 0, balance_brl: 400, customer_name: 'Cliente BB', issued_at: '2026-11-05' },
+    bls: [{ bl_id: 'BL-21', pod: 'BRVIX' }],
+    items: [
+      { id: 41, bl_id: 'BL-21', description: 'BL BL-21 - THD', quantity: 2, unit_value_brl: 62.5, total_value_brl: 380, snapshot_payload: { minimum_value: { value_brl: 380 } } },
+      { id: 42, bl_id: 'BL-21', description: 'BL BL-21 - Armazenagem', quantity: 2, unit_value_brl: 10, total_value_brl: 20, snapshot_payload: {} },
+    ],
+    payments: [],
+  } as never
+  render(<InvoiceDocumentLocal detail={minimum} />)
+  expect(screen.getAllByText('Valor mínimo aplicado')).toHaveLength(1)
+  expect(screen.getByText('Valor mínimo aplicado').closest('tr')?.textContent).toContain('THD')
+})

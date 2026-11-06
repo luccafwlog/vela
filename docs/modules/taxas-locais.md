@@ -564,7 +564,9 @@ mínimo. Valor e escopo em `_thd_weight_ton_minimum_brl`; mudar exige migration
 (migration `594`, [ADR 0125](../adr/0125-thd-minimo-carga-solta-vitoria.md),
 decisão do dono de 2026-11-05). Fatura emitida antes não muda: sem pagamento,
 cancele a fatura, recalcule o B/L e emita; emitir sem recalcular repete o
-cálculo gravado.
+cálculo gravado. O item da fatura cobrado pelo mínimo leva `minimum_value` no
+`snapshot_payload` (gatilho `mark_minimum_invoice_item`, migration `602`) e
+mostra **Valor mínimo aplicado** no Vela, no Portal e no documento impresso.
 
 ### Taxa alterada à mão (ADR 0111)
 

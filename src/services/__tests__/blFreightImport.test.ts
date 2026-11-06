@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  describeManifestCorrectionsKept,
   BL_FREIGHT_DIFF_LABELS,
   buildBlFreightPayload,
   buildBlFreightPreview,
@@ -1861,5 +1862,21 @@ describe('blFreightImport', () => {
       expect(row.payload?.container_load_type).toBeNull()
       expect((row.warnings ?? []).join(' ')).toContain('Modalidade FCL/LCL não lida no Type of Movement')
     })
+  })
+})
+
+describe('dados do manifesto corrigidos na ficha (migration 601)', () => {
+  it('avisa só o campo que o arquivo traz diferente, sem contar pontuação do CNPJ nem espaços', () => {
+    const corrections = new Map<string, string | null>([
+      ['manifest_customer_cnpj_cpf', '28772926000114'],
+      ['shipper_block', 'SHIPPER CO\nRUA 1'],
+      ['total_packages', '775'],
+    ])
+    const warnings = describeManifestCorrectionsKept(
+      { manifest_customer_cnpj_cpf: '28.772.926/0001-14', shipper_block: 'shipper  co rua 1', total_packages: 10 },
+      corrections,
+    )
+    expect(warnings).toEqual([expect.stringContaining('Total de volumes corrigido na ficha')])
+    expect(describeManifestCorrectionsKept({ total_packages: 10 }, undefined)).toEqual([])
   })
 })

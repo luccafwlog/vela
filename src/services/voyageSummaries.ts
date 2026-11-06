@@ -609,6 +609,7 @@ export type VoyageTimelineEventKind =
   | 'ce-coverage'
   | 'omission'
   | 'transshipment-info'
+  | 'mercante-edi'
 
 export type VoyageTimelineEvent = {
   id: string
@@ -648,8 +649,20 @@ type TimelineBaplieImport = {
   created_at?: string | null
   container_count?: number | null
 }
+type TimelineMercanteEdiFile = {
+  number: number
+  file_name: string
+  pol: string
+  pod: string
+  cargo_mode: 'container' | 'carga_solta' | 'vazio'
+  bl_count: number
+  item_count: number
+  generated_by: string | null
+  generated_at: string
+}
 type VoyageTimelineInput = {
   importBatches?: TimelineImportBatch[] | null
+  mercanteEdiFiles?: TimelineMercanteEdiFile[] | null
   scheduleEvents?: TimelineAuditEvent[] | null
   auditEvents?: TimelineAuditEvent[] | null
   resolutions?: Array<{ field_name: string | null; resolved_at: string | null }> | null
@@ -723,10 +736,12 @@ const TIMELINE_KIND_ORDER: Record<VoyageTimelineEventKind, number> = {
   'pod-removed': 15,
   omission: 16,
   'transshipment-info': 17,
+  'mercante-edi': 18,
 }
 
 export function buildVoyageTimeline({
   importBatches,
+  mercanteEdiFiles,
   scheduleEvents,
   auditEvents,
   resolutions,
@@ -763,6 +778,8 @@ export function buildVoyageTimeline({
   events.push(...buildAuditTimeline(auditEvents, appendActor))
 
   events.push(...buildResolutionTimeline(resolutions))
+
+  events.push(...buildMercanteEdiTimeline(mercanteEdiFiles, actorNames))
 
   return events.sort((left, right) => {
     if (left.at < right.at) return 1
@@ -1424,6 +1441,31 @@ function buildAuditTimeline(
     }
   }
   return events
+}
+
+const MERCANTE_EDI_MODE_LABELS: Record<TimelineMercanteEdiFile['cargo_mode'], string> = {
+  container: 'contêiner',
+  carga_solta: 'carga solta (arquivo parcial)',
+  vazio: 'vazios',
+}
+
+/** Cada EDI Mercante baixado é um evento, com o nome do arquivo e quem gerou (migration 600). */
+function buildMercanteEdiTimeline(
+  files: TimelineMercanteEdiFile[] | null | undefined,
+  actorNames: Record<string, string> | null | undefined,
+): VoyageTimelineEvent[] {
+  return (files ?? []).map((file) => {
+    const content = file.cargo_mode === 'vazio'
+      ? `${formatMetric(file.item_count)} contêiner${file.item_count === 1 ? '' : 'es'} vazio${file.item_count === 1 ? '' : 's'}`
+      : `${formatMetric(file.bl_count)} B/L${file.bl_count === 1 ? '' : 's'} · ${formatMetric(file.item_count)} ${file.item_count === 1 ? 'item' : 'itens'}`
+    return {
+      id: `mercante-edi-${file.number}`,
+      kind: 'mercante-edi' as const,
+      at: file.generated_at,
+      title: `EDI Mercante gerado · ${file.pol} → ${file.pod}`,
+      detail: appendTimelineActor(`${file.file_name} · ${MERCANTE_EDI_MODE_LABELS[file.cargo_mode] ?? file.cargo_mode} · ${content}`, file.generated_by, actorNames, null),
+    }
+  })
 }
 
 const RESOLUTION_FIELD_LABELS: Record<string, string> = {

@@ -5,7 +5,7 @@ import {
   buildMercanteVaziosEdi,
   cleanMercanteText,
   mercanteContainerType,
-  mercanteFileName,
+  mercanteFileTag,
   mercanteFreightModality,
   mercanteNcmPositions,
   type MercanteEdiBl,
@@ -201,6 +201,32 @@ describe('buildMercanteCargoEdi', () => {
       expect.stringContaining('B/L à ordem'),
       expect.stringContaining('CNXXX não existe na tabela de portos'),
     ]))
+  })
+
+  it('consignatário estrangeiro impede o arquivo com o motivo, e não manda reimportar', () => {
+    const estrangeiro = 'GLOBAL TRADING PTE. LTD.\n10 ANSON ROAD #20-01\nSINGAPORE 079903'
+    const result = buildMercanteCargoEdi(header, [bl({ consigneeBlock: estrangeiro, consigneeCnpj: null })])
+    const messages = result.issues.filter((issue) => issue.severity === 'impedimento').map((issue) => issue.message)
+    expect(result.content).toBeNull()
+    expect(messages).toEqual([expect.stringContaining('Consignatário estrangeiro')])
+
+    // No arquivo parcial de carga solta, o mesmo caso fica para a equipe completar.
+    const parcial = buildMercanteBreakbulkEdi(header, [bl({ consigneeBlock: estrangeiro, consigneeCnpj: null })])
+    expect(parcial.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ severity: 'completar', message: expect.stringContaining('Consignatário estrangeiro') }),
+    ]))
+  })
+
+  it('consignatário brasileiro sem CNPJ lido continua pedindo o CNPJ, não vira estrangeiro', () => {
+    for (const consigneeBlock of [
+      'ACME COMERCIO LTDA\nAV. CENTRAL, 100\nVILA VELHA - ES, BRAZIL',
+      'ACME COMERCIO\nRUA DAS FLORES 10, CEP 29100-000',
+    ]) {
+      const result = buildMercanteCargoEdi(header, [bl({ consigneeBlock, consigneeCnpj: null })])
+      const messages = result.issues.map((issue) => issue.message)
+      expect(messages).toEqual(expect.arrayContaining([expect.stringContaining('Sem CNPJ/CPF do consignatário')]))
+      expect(messages.some((message) => message.includes('estrangeiro'))).toBe(false)
+    }
   })
 
   it('ordena os B/Ls pelo número e numera os itens por B/L', () => {
@@ -436,7 +462,8 @@ describe('regras auxiliares', () => {
     expect(cleanMercanteText('NCM:8483/8708 E-MAIL', 'description')).toBe('NCM:8483 8708 E-MAIL')
   })
 
-  it('nomeia o arquivo com o instante e a sigla do navio e da viagem', () => {
-    expect(mercanteFileName('GREEN GUANGZHOU', '6', new Date(2026, 10, 2, 9, 5))).toBe('FWL_MERCANTE_202611020905_GG6.TXT')
+  it('sigla do navio e da viagem para o nome do arquivo', () => {
+    expect(mercanteFileTag('GREEN GUANGZHOU', '6')).toBe('GG6')
+    expect(mercanteFileTag('COSCO SHIPPING SEREIA', '024E')).toBe('CSS024E')
   })
 })

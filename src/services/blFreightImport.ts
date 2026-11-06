@@ -313,6 +313,11 @@ export type BuildBlFreightPreviewArgs = {
   onlyBlId?: string | null
   /** B/Ls em COD vivo: a reimportação não muda o POD (ADR 0078, item 13) */
   codBlIds?: Set<string> | null
+  /**
+   * Dados do manifesto corrigidos na ficha, por B/L e campo (migration 601): o
+   * servidor mantém a correção, e a prévia avisa quando o arquivo traz outro valor.
+   */
+  manifestCorrections?: Map<string, Map<string, string | null>> | null
   /** portos omitidos (não revertidos) na Viagem escolhida */
   omittedPods?: Set<string> | null
   /** customers indexed by document/name so the import links each B/L to its payer */
@@ -379,7 +384,7 @@ export async function previewBlFreightImport(args: {
   // with a unique one (same count) still changes container_distinct_voyage billing.
   const existingContainerNumbers = existingBls.flatMap((bl) => (bl.bl_containers ?? []).map((container) => container.container_number))
   const sharedContainerNumbers = await fetchSharedContainerNumbers(blNumbers, [...containerNumbers, ...existingContainerNumbers])
-  const [selectedVoyage, knownPorts, containerSiblings, codBlIds, omittedPods, manualPolAtds, knownContainerTypes] = await Promise.all([
+  const [selectedVoyage, knownPorts, containerSiblings, codBlIds, omittedPods, manualPolAtds, knownContainerTypes, manifestCorrections] = await Promise.all([
     fetchSelectedVoyage(args.voyageId),
     fetchPortCatalog(),
     fetchContainerSiblings(args.voyageId, blNumbers, containerNumbers),
@@ -387,6 +392,7 @@ export async function previewBlFreightImport(args: {
     fetchOmittedPods(args.voyageId),
     fetchManualPolAtds(args.voyageId),
     fetchKnownContainerTypes(),
+    fetchManifestCorrections([...existingIds]),
   ])
   if (!selectedVoyage) throw new Error('Viagem selecionada não encontrada.')
 
@@ -437,6 +443,58 @@ export async function previewBlFreightImport(args: {
     containerRemovalBlockers,
     manualPolAtds,
     knownContainerTypes,
+    manifestCorrections,
+  })
+}
+
+/** Campos do manifesto corrigidos na ficha (migration 601), por B/L, em páginas. */
+async function fetchManifestCorrections(blIds: string[]): Promise<Map<string, Map<string, string | null>>> {
+  const corrections = new Map<string, Map<string, string | null>>()
+  if (!blIds.length) return corrections
+  const { rows } = await fetchAllPages<{ bl_id: string; field_name: string; value: string | null }>((from, to) => supabase
+    .from('bl_manifest_corrections' as never)
+    .select('bl_id, field_name, value')
+    .in('bl_id', blIds)
+    .order('bl_id')
+    .order('field_name')
+    .range(from, to) as never)
+  for (const row of rows) {
+    const fields = corrections.get(row.bl_id) ?? new Map<string, string | null>()
+    fields.set(row.field_name, row.value)
+    corrections.set(row.bl_id, fields)
+  }
+  return corrections
+}
+
+const MANIFEST_CORRECTION_LABELS: Record<string, string> = {
+  consignee_block: 'Bloco do consignatário',
+  shipper_block: 'Bloco do embarcador',
+  notify_block: 'Bloco do notify',
+  manifest_customer_cnpj_cpf: 'CNPJ/CPF do consignatário',
+  total_packages: 'Total de volumes',
+  packages_unit: 'Unidade dos volumes',
+}
+
+/** Compara sem diferença de espaços, caixa e pontuação de documento. */
+function manifestComparable(field: string, value: unknown): string {
+  const text = value === null || value === undefined ? '' : String(value)
+  if (field === 'manifest_customer_cnpj_cpf') return text.replace(/[^0-9A-Za-z]/g, '').toUpperCase()
+  return text.replace(/\s+/g, ' ').trim().toUpperCase()
+}
+
+/**
+ * Campo corrigido na ficha que o arquivo traz diferente: o servidor mantém a
+ * correção (gatilho `zz_keep_bl_manifest_corrections`) e a prévia diz isso.
+ */
+export function describeManifestCorrectionsKept(
+  payload: Record<string, unknown>,
+  corrections: Map<string, string | null> | undefined,
+): string[] {
+  if (!corrections?.size) return []
+  return [...corrections.entries()].flatMap(([field, value]) => {
+    if (!(field in payload)) return []
+    if (manifestComparable(field, payload[field]) === manifestComparable(field, value)) return []
+    return [`${MANIFEST_CORRECTION_LABELS[field] ?? field} corrigido na ficha: o arquivo traz outro valor e fica a correção da ficha. Para usar o do arquivo, corrija o campo na ficha.`]
   })
 }
 
@@ -469,6 +527,7 @@ export function buildBlFreightPreview({
   containerRemovalBlockers = null,
   manualPolAtds = null,
   knownContainerTypes = null,
+  manifestCorrections = null,
 }: BuildBlFreightPreviewArgs): BlFreightImportPreview {
   const existingById = new Map(existingBls.map((bl) => [bl.id, bl]))
   const earliestLadenByPol = new Map<string, string>()
@@ -550,6 +609,9 @@ export function buildBlFreightPreview({
     blockedReasons.push(...removal)
     // COD vivo: o POD do B/L é o destino do COD; o arquivo não o troca
     // (o servidor também mantém, migration 183). Mudar POD aqui é correção, nunca COD.
+    if (payload && existing) {
+      warnings.push(...describeManifestCorrectionsKept(payload as unknown as Record<string, unknown>, manifestCorrections?.get(existing.id)))
+    }
     if (payload && existing && codBlIds?.has(existing.id) && payload.pod && existing.pod && payload.pod !== existing.pod) {
       warnings.push(`B/L em COD: o POD continua ${existing.pod} (o arquivo traz ${payload.pod}); os demais campos atualizam.`)
       payload.pod = existing.pod

@@ -8,3 +8,11 @@ describe('BL_EDITABLE_FIELDS', () => {
     }
   })
 })
+
+describe('dados do manifesto na ficha (migration 601)', () => {
+  it('os seis campos do EDI Mercante são editáveis', () => {
+    for (const field of ['consignee_block', 'shipper_block', 'notify_block', 'manifest_customer_cnpj_cpf', 'total_packages', 'packages_unit']) {
+      expect(BL_EDITABLE_FIELDS).toContain(field)
+    }
+  })
+})

@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '../ui/Button'
 import { Modal } from '../ui/Modal'
 import { StatusText } from '../ui/StatusText'
@@ -10,12 +11,13 @@ import {
   buildMercanteBreakbulkEdi,
   buildMercanteCargoEdi,
   buildMercanteVaziosEdi,
-  mercanteFileName,
+  mercanteFileTag,
   mercantePortCode,
   type MercanteEdiIssue,
   type MercanteEdiResult,
 } from '../../services/mercanteEdi'
-import type { MercanteCargoInput, MercanteVaziosInput } from '../../services/mercanteEdiData'
+import { registerMercanteEdiFile, type MercanteCargoInput, type MercanteVaziosInput } from '../../services/mercanteEdiData'
+import { queryKeys } from '../../services/queryKeys'
 
 /** `carga_solta`: arquivo parcial, com o que a equipe completa antes de enviar. */
 export type MercanteEdiRoute = { pol: string; pod: string; label: string; kind: 'carga' | 'carga_solta' | 'vazio' }
@@ -40,13 +42,20 @@ function IssueList({ title, issues, tone }: { title: string; issues: MercanteEdi
   )
 }
 
+const FILE_MODE = { carga: 'container', carga_solta: 'carga_solta', vazio: 'vazio' } as const
+
 /**
  * Gerar EDI Mercante de uma linha de Rotas e Manifestos (issue 560): prévia
- * com os dados do manifesto, o que impede o download e os avisos. Só lê e
- * baixa o arquivo; o envio ao Mercante continua fora do Vela.
+ * com os dados do manifesto, o que impede o download e os avisos. Baixar
+ * arquivo registra a geração no Histórico da Viagem, com o número sequencial
+ * do Vela no nome (migration 600), e só então baixa; o envio ao Mercante
+ * continua fora do Vela.
  */
 export function MercanteEdiModal({ voyageId, route, onClose }: { voyageId: number; route: MercanteEdiRoute; onClose: () => void }) {
   const { data, isLoading, error } = useMercanteEdiInput(voyageId, route)
+  const queryClient = useQueryClient()
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<unknown>(null)
 
   const result = useMemo<(MercanteEdiResult & { extra: MercanteEdiIssue[] }) | null>(() => {
     if (!data) return null
@@ -121,16 +130,41 @@ export function MercanteEdiModal({ voyageId, route, onClose }: { voyageId: numbe
             <IssueList title="Avisos" issues={avisos} tone="warning" />
           </>
         ) : null}
+        {saveError ? (
+          <p role="alert"><StatusText tone="danger">{userFacingErrorMessage(saveError, 'Não foi possível registrar o arquivo no Histórico da Viagem; nada foi baixado. Tente de novo.')}</StatusText></p>
+        ) : null}
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>Fechar</Button>
           <Button
-            disabled={!result?.content || !data}
-            onClick={() => {
+            disabled={!result?.content || !data || saving}
+            onClick={async () => {
               if (!result?.content || !data) return
-              downloadBlob(mercanteFileName(data.vesselName, data.voyageNumber, new Date()), new Blob([result.content], { type: 'text/plain;charset=utf-8' }))
+              const content = result.content
+              setSaving(true)
+              setSaveError(null)
+              try {
+                // Sem o registro, o arquivo não é baixado: todo EDI baixado fica no Histórico.
+                const record = await registerMercanteEdiFile({
+                  voyageId,
+                  pol: data.header.pol,
+                  pod: data.header.pod,
+                  mode: FILE_MODE[route.kind],
+                  tag: mercanteFileTag(data.vesselName, data.voyageNumber),
+                  blCount: isCargo(data) ? data.bls.length : 0,
+                  itemCount: isCargo(data)
+                    ? data.bls.reduce((total, bl) => total + bl.containers.length + bl.breakbulkItems.length + bl.vehicles.length, 0)
+                    : data.vazios.length,
+                })
+                downloadBlob(record.fileName, new Blob([content], { type: 'text/plain;charset=utf-8' }))
+                void queryClient.invalidateQueries({ queryKey: queryKeys.voyages.timeline(voyageId) })
+              } catch (err) {
+                setSaveError(err)
+              } finally {
+                setSaving(false)
+              }
             }}
           >
-            Baixar arquivo
+            {saving ? 'Registrando…' : 'Baixar arquivo'}
           </Button>
         </div>
       </div>

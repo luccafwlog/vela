@@ -47,6 +47,8 @@ vi.mock('../voyageRouteSchedules', () => ({
 }))
 
 import { loadMercanteBreakbulkInput, loadMercanteCargoInput, loadMercanteVaziosInput } from '../mercanteEdiData'
+import { MERCANTE_TERMINAL_CODE } from '../mercanteEdiTables'
+import { MERCANTE_TERMINAL_CODES } from '../mercanteTableCodes'
 
 beforeEach(() => {
   db.orders = {}
@@ -90,6 +92,21 @@ describe('loadMercanteCargoInput', () => {
     expect(input.bls.map((bl) => bl.id)).toEqual(['BL1', 'BL2'])
     expect(input.bls[1]).toMatchObject({ terminalCode: null, terminalDepot: 'NOVO' })
     expect(input.skippedBls).toEqual([{ id: 'BL3', reason: 'carga solta' }, { id: 'BL4', reason: 'B/L misto (contêiner e carga solta)' }, { id: 'BL5', reason: 'carga solta' }])
+  })
+
+  it('rota para Salvador sai pelo TECON SSA (código com espaço no cadastro) como BRSSA002', async () => {
+    db.tables.depots.push({ id: 't-tecon', code: 'TECON SSA' })
+    db.tables.voyage_escala_operation_fronts.push({ voyage_id: 169, port: 'BRSSA', sentido: 'importacao', modalidade: 'carga_cheia', terminal_id: 't-tecon' })
+    db.tables.bls.push({ id: 'BL6', voyage_id: 169, pol: 'CNTAC', pod: 'BRSSA', cargo_mode: 'container', cancelled_at: null, terminal_id: null, ncm_codes: [] })
+
+    const input = await loadMercanteCargoInput(169, 'CNTAC', 'BRSSA')
+
+    expect(input.header).toMatchObject({ terminalCode: 'BRSSA002', terminalDepot: 'TECON SSA' })
+    expect(input.bls.map((bl) => bl.id)).toEqual(['BL6'])
+  })
+
+  it('todo terminal da tabela do Vela existe na tabela oficial de terminais do Mercante', () => {
+    for (const code of Object.values(MERCANTE_TERMINAL_CODE)) expect(MERCANTE_TERMINAL_CODES.has(code)).toBe(true)
   })
 })
 

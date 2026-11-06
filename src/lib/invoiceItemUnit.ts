@@ -23,3 +23,17 @@ export function invoiceItemOrigin(item: Pick<InvoiceItem, 'source' | 'snapshot_p
   if (payload && typeof payload === 'object' && !Array.isArray(payload) && 'charge_adjustment' in payload) return 'Alterado'
   return 'Calculado'
 }
+
+/** Texto da marca do item cobrado pelo valor mínimo (ADR 0125). */
+export const INVOICE_ITEM_MINIMUM_LABEL = 'Valor mínimo aplicado'
+
+/**
+ * O item cobrado pelo valor mínimo por B/L (THD por tonelada da carga solta de
+ * Vitória, ADR 0125): o servidor marca `minimum_value` no `snapshot_payload`
+ * na emissão (migration 602), e o total não é quantidade × unitário. Vale no
+ * Vela, no Portal e no documento impresso.
+ */
+export function invoiceItemMinimumApplied(item: Pick<InvoiceItem, 'snapshot_payload'>): boolean {
+  const payload = item.snapshot_payload
+  return Boolean(payload && typeof payload === 'object' && !Array.isArray(payload) && 'minimum_value' in payload)
+}

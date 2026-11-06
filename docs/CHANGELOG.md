@@ -6,6 +6,11 @@
 
 ## 2026-11
 
+- **Valor mínimo aplicado na fatura (pedido do dono de 2026-11-05, migration `602`, ADR 0125):** o item da fatura
+  cobrado pelo mínimo do THD da carga solta de Vitória diz **Valor mínimo aplicado** no detalhe da fatura do Vela, no
+  do Portal e no documento impresso. A emissão marca `minimum_value` no `snapshot_payload` do item; a migration marcou
+  os itens já emitidos com o mínimo (só acrescenta a chave; valores não mudam). Prova:
+  `thdMinimoVitoria.local-pg.test.ts` e `InvoiceDocumentLocal.behavior.test.tsx`.
 - **Revisão da release de 2026-11-06 (PR `staging` → `main`):** "Consulta à Receita indisponível agora" deixa de
   ficar guardada na sessão: voltar ao CNPJ ou reabrir o **Novo cliente** consulta de novo, e a resposta que chega
   depois ainda preenche os campos vazios. Na Revisão, o aviso da Receita mostra também o nome fantasia que vai para o
