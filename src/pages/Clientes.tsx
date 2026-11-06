@@ -159,7 +159,9 @@ export function Clientes() {
   if (cnpjAutofill.cnpj !== null && lookupCnpjValue !== cnpjAutofill.cnpj) {
     setCreateForm(applyCnpjLookup(createForm, null, cnpjAutofill.filled).form)
     setCnpjAutofill({ cnpj: null, filled: {} })
-  } else if (lookupCnpjValue && cnpjLookup.data && cnpjAutofill.cnpj === null) {
+  } else if (lookupCnpjValue && cnpjLookup.data && cnpjLookup.data.status !== 'indisponivel' && cnpjAutofill.cnpj === null) {
+    // "Indisponível" não conta como consulta feita: a próxima resposta (a
+    // consulta é refeita ao voltar ao CNPJ ou reabrir a janela) ainda preenche.
     const result = cnpjLookup.data
     const next = applyCnpjLookup(createForm, result.status === 'encontrado' ? result.data : null, {})
     setCreateForm(next.form)

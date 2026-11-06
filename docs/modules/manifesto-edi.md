@@ -970,7 +970,10 @@ e é corrigido ou removido só pela ficha do B/L; nenhuma outra importação o g
   "CE Mercante travado na viagem …", dizendo o que falta, e nada é gravado. Um
   veículo basta: o sistema não sabe quantos a Viagem terá. B/L de carga solta,
   Viagem concluída ou cancelada e a correção ou remoção de CE já vinculado não
-  passam pela trava. A prévia (`_analyze_ce_mercante_rows`) mostra a recusa; o
+  passam pela trava. Remover o CE e vincular outro depois é vinculação nova:
+  o B/L sem CE só recebe CE pela planilha, e a prévia trava. Na Viagem
+  travada, a troca de número é pelo **Corrigir CE** (o gatilho só confere B/L
+  que estava sem CE). A prévia (`_analyze_ce_mercante_rows`) mostra a recusa; o
   gatilho `guard_bl_ce_mercante_vehicle_answer` em `bls` recusa qualquer outro
   caminho. A resposta fica na tela Veículos ([`/veiculos`](#veiculos)).
 - **Prévia conferida no servidor** (`preview_ce_mercante_rows`): mostra CE e

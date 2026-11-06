@@ -653,6 +653,31 @@ describe('Clientes page behaviours', () => {
     expect((screen.getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('')
   })
 
+  // Revisão da release 2026-11-06: "indisponível" não marca o CNPJ como já
+  // consultado; a resposta seguinte (consulta refeita) ainda preenche.
+  it('Receita volta depois do "indisponível": a nova resposta preenche os campos vazios', async () => {
+    const user = userEvent.setup()
+    let receitaDisponivel = false
+    mocks.useCnpjLookup.mockImplementation((cnpj: string | null) => (!cnpj
+      ? { isFetching: false, data: undefined }
+      : receitaDisponivel
+        ? { isFetching: false, data: { status: 'encontrado', data: { cnpj, razao_social: 'EMPRESA DA RECEITA LTDA', nome_fantasia: '', cep: '29010000', endereco: 'RUA A, 10', cidade: 'VITORIA', uf: 'ES', situacao: 'ATIVA' } } }
+        : { isFetching: false, data: { status: 'indisponivel' } }))
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    const dialog = screen.getByRole('dialog', { name: 'Novo cliente' })
+    await user.type(within(dialog).getByLabelText(/^CNPJ/), '12345678000195')
+    expect(within(dialog).getAllByText('Consulta à Receita indisponível agora. Preencha os dados à mão.').length).toBeGreaterThan(0)
+
+    receitaDisponivel = true
+    await user.type(within(dialog).getByLabelText(/^Cidade/), 'Serra')
+
+    expect((within(dialog).getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('EMPRESA DA RECEITA LTDA')
+    expect((within(dialog).getByLabelText(/^Endereço/) as HTMLInputElement).value).toBe('RUA A, 10')
+    expect((within(dialog).getByLabelText(/^Cidade/) as HTMLInputElement).value).toBe('Serra')
+  })
+
   // Revisão da PR #1235: trocar de CNPJ não deixa o endereço do anterior enquanto a nova consulta corre.
   it('trocar o CNPJ limpa na hora o que a consulta anterior preencheu, e mantém o que foi digitado', async () => {
     const user = userEvent.setup()

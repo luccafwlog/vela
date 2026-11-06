@@ -49,7 +49,10 @@ export function useSendPortalInvite() {
     mutationFn: async ({ customerId, recoveryEmail, source }: { customerId: number; recoveryEmail: string; source: RecoveryEmailSource }) => {
       await sendPortalInvite(customerId, recoveryEmail, source)
     },
-    onSuccess: () => invalidatePortalQueries(queryClient),
+    // Também na recusa: `portal-invite-send` pode ter gravado o convite e
+    // marcado a conta como "falha no envio" antes de devolver o erro, e a
+    // lista de Clientes › Portal não pode continuar em "Aguardando análise".
+    onSettled: () => invalidatePortalQueries(queryClient),
   })
 }
 

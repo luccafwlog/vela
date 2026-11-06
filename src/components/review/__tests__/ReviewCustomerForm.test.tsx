@@ -93,6 +93,8 @@ describe('ReviewCustomerForm — razão social da Receita', () => {
     mocks.cnpjLookup.mockImplementation((cnpj: string | null) => (cnpj ? receita('ALFA', 'ATIVA', address) : { data: undefined, isFetching: false }))
     const { onOnboard } = renderForm('equipamentos')
 
+    // Tudo o que vai no cadastro aparece antes (ADR 0127): o nome fantasia também.
+    expect(screen.getByText('Nome fantasia da Receita, gravado no Cliente novo: ALFA.')).toBeTruthy()
     expect(screen.getByText('Endereço da Receita, gravado no Cliente novo: RUA A, 10 - CENTRO, VITORIA/ES, CEP 29010-000.')).toBeTruthy()
     await user.click(screen.getByRole('button', { name: 'Cadastrar e vincular' }))
     expect(onOnboard).toHaveBeenCalledWith(expect.objectContaining({
