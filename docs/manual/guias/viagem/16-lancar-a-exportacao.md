@@ -6,13 +6,14 @@ A aba Exportação da Viagem.
 
 ::: passos
 1. Na ficha da Viagem, aba **Exportação**, clique em **Novo embarque de vazios** e, na lista, em **Novo embarque**. Escolha o **Porto de embarque** e o **Terminal** e clique em **Criar embarque**.
-2. Em **Unidades embarcadas**, clique em **Importar planilha**: container, **Local** de onde saiu, **Condição** e as datas.
-3. Em **Serviços**, clique em **Lançar armazenagem** em cada linha de **Armazenagem a lançar**, e em **Lançar linha** para transporte e serviços gerais.
-4. Granito: clique em **Manifesto Granito**, escolha o "Relatório de Cargas/Booking" da COSCO e importe. Se a escala não declarava o Granito, abra-a pelo lápis: a janela já vem com o **Granito** marcado; escolha o terminal da frente e clique em **Salvar escala**.
+2. Em **Unidades embarcadas**, clique em **Importar planilha**: container, **Local** de onde saiu, **Condição**, as datas e o **POD** (porto onde o vazio descarrega).
+3. Em **Manifesto Mercante por porto de descarga**, informe o número do manifesto de cada rota.
+4. Em **Serviços**, clique em **Lançar armazenagem** em cada linha de **Armazenagem a lançar**, e em **Lançar linha** para transporte e serviços gerais; **Usar N** aplica a quantidade sugerida pelas unidades do local.
+5. Granito: clique em **Manifesto Granito**, escolha o "Relatório de Cargas/Booking" da COSCO e importe. Se a escala não declarava o Granito, abra-a pelo lápis: a janela já vem com o **Granito** marcado; escolha o terminal da frente e clique em **Salvar escala**.
 :::
 
 ::: sozinho
-- A armazenagem é calculada pelos dias no depot, menos o free time do depot.
+- A armazenagem é calculada pelos dias no depot, menos o free time do depot, e se divide por tamanho quando o depot cobra 20' e 40' à parte. A linha lançada guarda o free time do dia.
 - O embarque, os serviços e o Granito vão para o ADR de Saída do terminal da frente deles. O terminal escolhido no embarque vai para a escala, com a Atracação e o ADR dele.
 :::
 

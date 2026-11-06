@@ -10,6 +10,7 @@ import { accountSituationLabel, provisioningDecisionLabel } from '../../lib/port
 import { customerCommunicationKindLabel, customerCommunicationStatusLabel } from '../../services/customerCommunications'
 import { getVoyagePodCeStatusLabel } from '../../services/voyageRouteSchedules'
 import { INVOICE_STATUS_LABELS } from '../../lib/statusLabels'
+import { diasLabel, tamanhoLabel } from '../../lib/vaziosLabels'
 
 // Histórico de ações legível (lote 5b, Administração): cada linha de
 // `audit_logs` vira assunto, frase e "de → para" em português. Entidade sem
@@ -239,6 +240,8 @@ const GENERIC_FIELD_LABELS: Record<string, string> = {
   deactivated_at: 'Data da desativação',
   email_normalized: 'E-mail padronizado',
   container_type: 'Tipo de container',
+  // Migration 606 (ADR 0130): free time do depot gravado na linha de armazenagem.
+  free_time_days: 'Free time do lançamento',
   ptax: 'PTAX',
   roe: 'ROE',
   quote_date: 'Data da cotação',
@@ -393,10 +396,23 @@ function participle(noun: Noun, masculine: string) {
   return `${noun.noun} ${noun.feminine ? `${masculine.slice(0, -1)}a` : masculine}`
 }
 
+/**
+ * Migration 606 (ADR 0130): no serviço de Locais e na Linha de Serviço do
+ * Embarque, `container_type` é o tamanho que o serviço cobra ('20', '40' ou
+ * nulo = qualquer), com o nome e o valor da tela de Locais; nas outras tabelas
+ * continua sendo o tipo do container.
+ */
+const SIZE_ENTITIES = new Set(['depot_services', 'vazios_export_service_lines'])
+
+function isServiceSize(entityType: string | undefined, field: string): boolean {
+  return field === 'container_type' && entityType !== undefined && SIZE_ENTITIES.has(entityType)
+}
+
 /** Nome legível do campo, ou `null` quando não há rótulo (a tela mostra "Dado"). */
 export function auditFieldLabel(entityType: string, fieldName: string | null): string | null {
   if (!fieldName) return null
   const [field] = fieldName.split('|')
+  if (isServiceSize(entityType, field)) return 'Tamanho'
   if (entityType === 'customers' || entityType === 'customer') {
     if (CUSTOMER_FIELD_LABELS[field]) return CUSTOMER_FIELD_LABELS[field]
   }
@@ -464,8 +480,14 @@ export function formatBrasiliaDateTime(value: string): string {
  */
 export function formatAuditValue(fieldName: string | null, value: string | null, entityType?: string): string {
   const field = (fieldName ?? '').split('|')[0]
+  // Tamanho vazio é "Qualquer tamanho"; valor fora de 20/40 (linha anterior à 606) segue como está.
+  if (isServiceSize(entityType, field)) {
+    const size = value == null || value === 'null' ? '' : value.trim()
+    if (size === '' || size === '20' || size === '40') return tamanhoLabel(size)
+  }
   if (value == null || value.trim() === '' || value === 'null') return 'vazio'
   const trimmed = value.trim()
+  if (field === 'free_time_days' && /^\d+$/.test(trimmed)) return diasLabel(Number(trimmed))
   if (field === 'status' && entityType) {
     const status = STATUS_LABELS_BY_ENTITY[entityType]?.[trimmed]
     if (status) return status

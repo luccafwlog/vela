@@ -684,3 +684,11 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   contatos, e "E-mail duplicado no envio" passa a **Fora** (CLI-040, POR-090 e
   as duas mensagens no Ap. B da matriz 06). O texto do manual não cita essas
   mensagens.
+- **Embarque de vazios** (decisões do dono de 2026-11-06, migration `606`,
+  [ADR 0130](../adr/0130-embarque-de-vazios-pod-tamanho-e-free-time-congelado.md)):
+  POD obrigatório na unidade e terminal só do porto do embarque, Nº do
+  Manifesto Mercante por rota de exportação, serviço com tamanho e armazenagem
+  por depot, condição e tamanho, edição e quantidade sugerida da linha, free
+  time congelado na linha de armazenagem, rótulos e anexo do ADR (10.5, 10.6,
+  10.7, 11; EQU-081, EQU-083, EQU-087 a EQU-093, EQU-095, EQU-106, EQU-135 a
+  EQU-140, VIA-081).

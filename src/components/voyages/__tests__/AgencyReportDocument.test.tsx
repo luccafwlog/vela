@@ -787,3 +787,67 @@ it("imprime datas com hora em Brasília, traduz a condição e põe o Anexo no f
   });
   expect(small).toEqual([]);
 });
+
+// Migration 606 e revisão de 2026-11-06 (C2, C6, C7): o impresso mostra o POD e
+// o Nº do Manifesto Mercante por rota, a rota origem → destino e o tamanho da
+// linha, e o anexo lista só quem gerou armazenagem, com os dias.
+it("imprime POD, manifesto por rota, tamanho da linha e o anexo só com quem cobrou armazenagem", () => {
+  render(
+    <AgencyReportDocument
+      snapshot={{
+        header: { carrierName: "Armador teste", voyageLabel: "NAVIO TESTE / 01E", port: "BRVIX", schedule: {} },
+        sections: {
+          vaziosEmbarcados: [
+            { type: "40HC", condition: "EMPTY", localLabel: "ZIRAN", pod: "CNSHA", quantity: 2 },
+          ],
+          operation: { rotas: [{ pod: "CNSHA", unidades: 2, teu: 4, manifesto: "1226501860578" }] },
+          vaziosUnidades: [
+            { id: "a", container_number: "ABCD1234567", container_type: "40HC", local: { name: "ZIRAN" }, condition: "vazio", hand_in_date: "2026-10-01", hand_out_date: "2026-11-05", storage: { totalDays: 36, freeTime: 30, chargeableDays: 6 } },
+            { id: "b", container_number: "ABCD1234568", container_type: "40HC", local: { name: "ZIRAN" }, condition: "vazio", hand_in_date: "2026-10-20", hand_out_date: "2026-11-05", storage: { totalDays: 17, freeTime: 30, chargeableDays: 0 } },
+          ],
+          storage: { containers: 1, days: 6 },
+          costs: {
+            total: 18.84,
+            serviceLines: [
+              { id: "l1", service: { name: "ARMAZENAGEM 40''" }, local: { name: "ZIRAN" }, local_id: "z", destino: null, destino_id: null, container_type: "40", quantidade: 6, valor_unitario: 3.14, total: 18.84 },
+              { id: "l2", service: { name: "TRANSPORTE 1X40''" }, local: { name: "ZIRAN" }, local_id: "z", destino: { name: "TVV" }, destino_id: "tvv", container_type: "40", quantidade: 2, valor_unitario: 890, total: 1780 },
+            ],
+          },
+        },
+      }}
+    />,
+  );
+
+  expect(screen.getByRole("table", { name: "Embarque de vazios" }).textContent).toContain("CNSHA");
+  const rotas = screen.getByRole("table", { name: "Vazios por porto de descarga" });
+  expect(rotas.textContent).toContain("1226501860578");
+  const linhas = screen.getByRole("table", { name: "Linhas de serviço" });
+  expect(linhas.textContent).toContain("ZIRAN → TVV");
+  expect(linhas.textContent).toContain("40'");
+  expect(screen.getByRole("table", { name: "Storage" }).textContent).toContain("Unidades com armazenagem");
+  // Sem quantidade à mão (e no retrato sem o campo), o calculado não se repete.
+  expect(screen.getByRole("table", { name: "Storage" }).textContent).not.toContain("Dias pela lista de unidades");
+
+  const anexo = screen.getByRole("table", { name: "Unidades que geraram armazenagem" });
+  expect(anexo.textContent).toContain("ABCD1234567");
+  expect(anexo.textContent).not.toContain("ABCD1234568");
+  expect(anexo.textContent).toContain("Dias cobráveis");
+  expect(anexo.closest("section")!.textContent).toContain("6 dias cobráveis");
+});
+
+// C4 da revisão de 2026-11-06: com quantidade à mão numa linha de armazenagem,
+// Dias cobráveis é o que as linhas cobram, e o calculado pela lista fica ao lado.
+it("Storage mostra os dias cobrados pelas linhas e, com quantidade à mão, os dias pela lista de unidades", () => {
+  render(
+    <AgencyReportDocument
+      snapshot={{
+        header: { carrierName: "Armador teste", voyageLabel: "NAVIO TESTE / 01E", port: "BRVIX", schedule: {} },
+        sections: { storage: { containers: 20, days: 110, calculatedDays: 120 } },
+      }}
+    />,
+  );
+
+  const storage = screen.getByRole("table", { name: "Storage" }).textContent;
+  expect(storage).toContain("Dias cobráveis110");
+  expect(storage).toContain("Dias pela lista de unidades120");
+});

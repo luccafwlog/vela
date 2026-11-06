@@ -125,7 +125,7 @@ describeLocal('405/406 — hash do arquivo importado e desova por container fís
       INSERT INTO public.voyage_escala_operation_fronts (voyage_id, port, port_id, sentido, modalidade, terminal_id, source)
         SELECT ${w.voyageId}, 'BRSSZ', d.port_id, 'exportacao', 'vazio', d.id, 'export_declaration'
         FROM public.depots AS d WHERE d.code = 'FF9410TER'`)
-    const bookings = [{ container_number: 'FFVZ9410001', container_type: '40HC', local_code: 'FF9410DEP', condition: 'vazio', hand_in_date: '2026-10-01', hand_out_date: '2026-10-05' }]
+    const bookings = [{ container_number: 'FFVZ9410001', container_type: '40HC', local_code: 'FF9410DEP', condition: 'vazio', hand_in_date: '2026-10-01', hand_out_date: '2026-10-05', pod: 'CNSHA' }]
     w.asOk('operacoes', `SELECT public.import_vazios_bookings_transactional(${w.voyageId}, 'BRSSZ', '${actor}'::uuid, '${JSON.stringify(bookings)}'::jsonb, 'vazios.xlsx', '${HASH_B}')`)
     expect(w.psql(`SELECT filename || '|' || file_hash || '|' || imported_by FROM public.vazios_manifests WHERE voyage_id = ${w.voyageId}`))
       .toBe(`vazios.xlsx|${HASH_B}|${actor}`)
@@ -235,7 +235,7 @@ describeLocal('405/406 — hash do arquivo importado e desova por container fís
 
   it('Vazios de exportação: reimportar as mesmas unidades grava o recibo no manifesto em que elas estão (migration 408, R-10)', () => {
     const actor = w.actors.operacoes
-    const bookings = [{ container_number: 'FFVZ9410001', container_type: '40HC', local_code: 'FF9410DEP', condition: 'vazio', hand_in_date: '2026-10-01', hand_out_date: '2026-10-06' }]
+    const bookings = [{ container_number: 'FFVZ9410001', container_type: '40HC', local_code: 'FF9410DEP', condition: 'vazio', hand_in_date: '2026-10-01', hand_out_date: '2026-10-06', pod: 'CNSHA' }]
     w.asOk('operacoes', `SELECT public.import_vazios_bookings_transactional(${w.voyageId}, 'BRSSZ', '${actor}'::uuid, '${JSON.stringify(bookings)}'::jsonb, 'vazios-2.xlsx', '${HASH_A}')`)
     expect(previous('vazios_exportacao', HASH_A)).toBe('FF9410 operacoes|vazios-2.xlsx')
   })

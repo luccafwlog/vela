@@ -6,6 +6,27 @@
 
 ## 2026-11
 
+- **Embarque de vazios: porto de descarga, Nº do manifesto da rota, preço por tamanho e free time congelado
+  (decisões do dono de 2026-11-06, migration `606`, ADR 0130):** a revisão do Embarque de vazios
+  ([relatório](archive/audits/2026-11-06-revisao-embarque-de-vazios.md)) levou a estas mudanças:
+  - **POD obrigatório.** Toda unidade tem porto de descarga (POD), na planilha (oitava coluna) e na janela.
+  - **Embarque direto.** Só sai de um terminal do porto do embarque.
+  - **Nº do Manifesto Mercante.** O bloco **Manifesto Mercante por porto de descarga** registra o número de cada
+    rota no cadastro único de Manifestos.
+  - **Preço por tamanho.** O serviço de Locais ganha **Tamanho** (20'/40'), e a armazenagem se divide por tamanho;
+    no ZIRAN, o **Lançar armazenagem** usava um preço só para 20' e 40'.
+  - **Free time congelado.** A linha de armazenagem guarda o free time do lançamento.
+  - **Histórico de ações.** O tamanho do serviço aparece como **Tamanho** (20', 40' ou "Qualquer tamanho"), não
+    como "Tipo de container", e o free time gravado como **Free time do lançamento**.
+  - **Linha de serviço.** Agora se edita, e a quantidade de handling e transporte é sugerida pelas unidades do
+    local (**Usar N**).
+  - **ADR de Saída.** Mostra POD, TEU e manifesto por rota e rótulos que dizem o que contam. O anexo impresso
+    lista só as unidades que geraram armazenagem, com os dias. Os dias cobráveis de storage são os das linhas
+    de armazenagem, com a quantidade informada à mão valendo; quando ela difere, o calculado pela lista aparece
+    ao lado (C4).
+
+  Prova: `embarqueVaziosPodTamanho.local-pg.test.ts`, `vaziosCusto.test.ts`, `vaziosImportAdrColumns.test.ts`,
+  `EmbarqueVazios.flow.test.tsx` e `AgencyReportDocument.test.tsx`.
 - **Administração revisada (decisões do dono de 2026-11-06, [plano arquivado](archive/plans/2026-11-06-administracao-revisada.md), migrations `603` a `605`):**
   a Administração fica com **Usuários**, **Histórico de ações** e **Sistema**, esta só da conta Dev. O **Histórico de
   ações** passa a mostrar uma linha por ação (uma importação de 2.539 linhas vira "781 Containers criados, 17 B/Ls

@@ -243,3 +243,4 @@ src/integration/sinoAvisosDeAcontecimento.local-pg.test.ts
 src/integration/enderecoReceitaRevisao.local-pg.test.ts
 src/integration/travaCeMercanteVeiculos.local-pg.test.ts
 src/integration/ediMercanteRegistrado.local-pg.test.ts
+src/integration/embarqueVaziosPodTamanho.local-pg.test.ts
