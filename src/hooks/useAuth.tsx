@@ -50,6 +50,8 @@ export type Permission =
   | 'cancel_invoices'
   /** Cancelar Invoice de Demurrage sem pagamento e mudar a Régua: Administrativo, Financeiro e Equipamentos (migration 583). */
   | 'cancel_demurrage_invoices'
+  /** Responder se a viagem terá veículos, trocar e desfazer: Equipamentos e Administrativo (migration 596). */
+  | 'declare_voyage_vehicles'
   | 'customer_communications'
   | 'edit_customer_contacts'
 
@@ -62,6 +64,7 @@ export function roleHasPermission(role: UserProfileRole | undefined, permission:
   // administrativo e saiu da lista de papeis aceitos (migration 093).
   const effectiveRole: UserProfileRole = role === 'operator' ? 'documentacao' : role
   if (permission === 'cancel_demurrage_invoices') return ['administrativo', 'financeiro', 'equipamentos'].includes(effectiveRole)
+  if (permission === 'declare_voyage_vehicles') return ['administrativo', 'equipamentos'].includes(effectiveRole)
   // Ler o Desbloqueio de CE e abrir os documentos do pedido é de todos os
   // Departamentos; gerir o pedido segue de Administrativo e Documentação
   // (ADR 0085, D11; migration 250).

@@ -38,7 +38,7 @@
   alerta Normal **Declaração de veículos pendente**; na tela Veículos, Equipamentos responde **Esta viagem terá
   veículos** ou **Esta viagem não terá veículos** (trocar ou desfazer pede motivo). Sem resposta, ou com "terá" e
   nenhum veículo importado, a planilha de CE Mercante recusa o primeiro CE de B/L de container ou misto da viagem
-  ativa; um veículo importado libera. Em D-5, sem veículo e sem "não terá", abre o crítico **Planilha de Veículos
+  ativa; um veículo importado libera. Só Equipamentos e o Administrativo respondem, trocam e desfazem (migration `596`). Em D-5, sem veículo e sem "não terá", abre o crítico **Planilha de Veículos
   ausente** (antes "pendente"). Carga solta, viagem concluída e correção de CE ficam fora. Excluir viagem passa a
   levar a resposta junto (desde a `468`, a viagem declarada sem veículos não se excluía). A trava vale no dia para
   toda viagem ativa sem resposta. Prova: `travaCeMercanteVeiculos.local-pg.test.ts`

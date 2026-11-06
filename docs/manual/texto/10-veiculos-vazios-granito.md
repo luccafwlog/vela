@@ -25,7 +25,7 @@ Uma linha recusada recusa a planilha inteira, e a janela lista as recusadas.
 
 ### A Viagem terá veículos?
 
-A partir de 7 dias antes do primeiro ETA no Brasil, o Vela pede a {{Equipamentos}} que responda, na lista vazia de **Veículos**, se a Viagem terá veículos (capítulo 20):
+A partir de 7 dias antes do primeiro ETA no Brasil, o Vela pede a {{Equipamentos}} que responda, na lista vazia de **Veículos**, se a Viagem terá veículos (capítulo 20). Só {{Equipamentos}} e o {{Administrativo}} veem os botões da resposta:
 
 - **Esta viagem não terá veículos**: os alertas de veículos fecham e a {{Documentação}} pode importar o CE. Se a planilha chegar depois, importe: a declaração se desfaz sozinha.
 - **Esta viagem terá veículos**: a lista passa a dizer **Viagem com veículos a importar**, e o CE dos B/Ls de container fica travado até a planilha entrar. Um veículo importado já libera o CE da Viagem inteira.

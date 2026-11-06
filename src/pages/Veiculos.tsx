@@ -73,7 +73,7 @@ export function Veiculos() {
   // ADR 0111, D6: a prévia da taxa alterada agrupa os veículos selecionados,
   // de todas as páginas, pelo B/L de origem (`vehicleChargeImpactChanges`).
   const guardCharges = useChargeAdjustmentGuard()
-  const { user, profile } = useAuth()
+  const { user, profile, can } = useAuth()
   const narrow = useNarrowViewport()
   const canEditVehicles = Boolean(profile || user)
   // Excluir e Mover valem para qualquer usuário, com motivo (ADR 0078, item 23).
@@ -274,7 +274,9 @@ export function Veiculos() {
   const selectedVoyage = voyageRows.find((voyage) => voyage.id === voyageId)
   const selectedVoyageLabel = voyageLabel(selectedVoyage?.vessel?.name, selectedVoyage?.voyage_number, voyageId)
   // Viagem cancelada não recebe a declaração (o banco recusa): o botão não aparece.
-  const canDeclare = declarationQuery.isSuccess && selectedVoyage?.status !== 'cancelled'
+  // Só Equipamentos e o Administrativo respondem (migration 596): a Documentação só sente a trava do CE.
+  const canAnswerVehicles = can('declare_voyage_vehicles')
+  const canDeclare = canAnswerVehicles && declarationQuery.isSuccess && selectedVoyage?.status !== 'cancelled'
 
   async function declareVehicles(hasVehicles: boolean) {
     if (!voyageId) return
@@ -550,14 +552,16 @@ export function Veiculos() {
                             {declaration.hasVehicles ? 'Trocar para sem veículos' : 'Trocar para com veículos'}
                           </Button>
                         ) : null}
-                        <Button variant="ghost" loading={declaring} onClick={() => void undoDeclaration()}>Desfazer declaração</Button>
+                        {canAnswerVehicles ? (
+                          <Button variant="ghost" loading={declaring} onClick={() => void undoDeclaration()}>Desfazer declaração</Button>
+                        ) : null}
                       </span>
                     ) : undefined}
                   />
                 ) : (
                   <EmptyState
                     title="Nenhum veículo nesta viagem"
-                    description="Os veículos entram pela planilha do armador, ligados ao B/L e ao container da viagem. Responda se a viagem terá veículos: sem a resposta, o CE Mercante dos B/Ls de container fica travado para a Documentação."
+                    description="Os veículos entram pela planilha do armador, ligados ao B/L e ao container da viagem. Equipamentos responde se a viagem terá veículos: sem a resposta, o CE Mercante dos B/Ls de container fica travado para a Documentação."
                     action={canEditVehicles ? (
                       <span className="inline-flex flex-wrap justify-center gap-2">
                         <Button variant="secondary" onClick={() => setImportOpen(true)}>Importar veículos</Button>

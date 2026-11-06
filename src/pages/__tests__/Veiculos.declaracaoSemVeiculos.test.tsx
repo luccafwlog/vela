@@ -13,6 +13,7 @@ type Declaration = { voyageId: number; hasVehicles: boolean; declaredAt: string;
 const mocks = vi.hoisted(() => ({
   declaration: null as Declaration,
   voyageStatus: 'active',
+  canAnswer: true,
   declare: vi.fn<(voyageId: number, hasVehicles: boolean, reason?: string) => Promise<Declaration>>(),
   undo: vi.fn<(voyageId: number, reason: string) => Promise<void>>(),
   confirm: vi.fn(async () => true),
@@ -20,7 +21,7 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../../services/supabase', () => ({ supabase: {} }))
-vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, profile: { id: 'user-1' }, isAdmin: false }) }))
+vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, profile: { id: 'user-1' }, isAdmin: false, can: (permission: string) => permission !== 'declare_voyage_vehicles' || mocks.canAnswer }) }))
 vi.mock('../../components/shared/VoyageCombobox', () => ({ VoyageCombobox: () => <div /> }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm, useConfirmWithReason: () => mocks.confirmWithReason }))
@@ -58,6 +59,7 @@ import { Veiculos } from '../Veiculos'
 beforeEach(() => {
   mocks.declaration = null
   mocks.voyageStatus = 'active'
+  mocks.canAnswer = true
   mocks.declare.mockImplementation(async (voyageId, hasVehicles) => {
     mocks.declaration = { voyageId, hasVehicles, declaredAt: '2026-10-27T17:32:00Z', declaredByName: 'Equipamentos 468' }
     return mocks.declaration
@@ -134,4 +136,20 @@ it('viagem cancelada não oferece a declaração, que o banco recusaria', async 
   expect(await screen.findByText('Nenhum veículo nesta viagem')).toBeTruthy()
   await waitFor(() => expect(screen.getAllByRole('button', { name: 'Importar veículos' }).length).toBeGreaterThan(0))
   expect(screen.queryByRole('button', { name: 'Esta viagem não terá veículos' })).toBeNull()
+})
+
+it('quem não é de Equipamentos nem do Administrativo não vê as respostas nem o desfazer', async () => {
+  mocks.canAnswer = false
+  renderPage()
+  expect(await screen.findByText('Nenhum veículo nesta viagem')).toBeTruthy()
+  await waitFor(() => expect(screen.getAllByRole('button', { name: 'Importar veículos' }).length).toBeGreaterThan(0))
+  expect(screen.queryByRole('button', { name: 'Esta viagem terá veículos' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Esta viagem não terá veículos' })).toBeNull()
+
+  cleanup()
+  mocks.declaration = { voyageId: 7, hasVehicles: true, declaredAt: '2026-10-27T17:32:00Z', declaredByName: 'Equipamentos 468' }
+  renderPage()
+  expect(await screen.findByText('Viagem com veículos a importar')).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Desfazer declaração' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Trocar para sem veículos' })).toBeNull()
 })

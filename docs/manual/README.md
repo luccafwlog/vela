@@ -209,7 +209,7 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   terá veículos**, troca e desfazer com motivo; o alerta **Declaração de
   veículos pendente** em D-7 e o crítico **Planilha de Veículos ausente** (antes
   "pendente") em D-5; o primeiro CE de B/L de container espera a resposta ou o
-  primeiro veículo (EQU-128, EQU-129, EQU-134, CEB-102; capítulos 6, 10, 18, 19
+  primeiro veículo; só Equipamentos e o Administrativo respondem (migration `596`; ACE-133, EQU-128, EQU-129, EQU-134, CEB-102; capítulos 6, 10, 18, 19
   e 20, seções 6.5, 10.1 e 20.5; guia rápido, etapas 7, 11, 18 e 19; contagens de
   ACE-119).
 - **Solicitar acesso no login do Portal** (decisão do dono de 2026-11-05): o

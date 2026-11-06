@@ -29,6 +29,7 @@ const describeLocal = describeWithProbe(migrationApplied, 'migration 595 (voyage
 
 const ADMIN_ID = '59500000-0000-4000-8000-0000000000a1'
 const EQP_ID = '59500000-0000-4000-8000-0000000000e1'
+const DOC_ID = '59500000-0000-4000-8000-0000000000d1'
 const CARRIER_ID = 5950001
 const VESSEL_ID = 5950002
 // V_MAIN: o caminho inteiro; V_DONE: viagem concluída; V_NO: "não terá".
@@ -110,6 +111,11 @@ function audit(voyageId: number) {
     FROM public.audit_logs WHERE entity_type = 'voyage' AND entity_id = '${voyageId}' AND field_name IN ('sem_veiculos', 'com_veiculos');`)
 }
 
+// Vincular CE em BRVIT calcula as Taxas Locais pelas tabelas semente de Vitória:
+// as versões de preço que o cálculo cria saem na limpeza, como em
+// containerProfile.local-pg.test.ts (a bateria financeira confere o seed).
+let firstRuleVersionId: number | null = null
+
 function cleanup() {
   const voyageKeys = VOYAGES.map((id) => `(a.entity_type LIKE 'voyage%' AND (a.entity_id = '${id}' OR a.entity_id LIKE '${id}::%'))`).join(' OR ')
   psql(`DELETE FROM public.alerts a WHERE ${voyageKeys};`)
@@ -118,16 +124,17 @@ function cleanup() {
     DELETE FROM public.vehicles WHERE voyage_id IN (${VOYAGES.join(', ')});
     DELETE FROM public.bl_containers WHERE bl_id IN ('${BLS.join("', '")}');
     DELETE FROM public.charge_calculations WHERE bl_id IN ('${BLS.join("', '")}');
+    ${firstRuleVersionId === null ? '' : `DELETE FROM public.pricing_rule_versions WHERE id > ${firstRuleVersionId};`}
     DELETE FROM public.bls WHERE id IN ('${BLS.join("', '")}');
     DELETE FROM public.voyage_vehicle_declarations WHERE voyage_id IN (${VOYAGES.join(', ')});
-    DELETE FROM public.audit_logs WHERE changed_by IN ('${ADMIN_ID}', '${EQP_ID}')
+    DELETE FROM public.audit_logs WHERE changed_by IN ('${ADMIN_ID}', '${EQP_ID}', '${DOC_ID}')
       OR ${VOYAGES.map((id) => `entity_id = '${id}' OR entity_id LIKE '${id}::%'`).join(' OR ')} OR entity_id IN ('${BLS.join("', '")}');
     DELETE FROM public.voyages WHERE id IN (${VOYAGES.join(', ')});
     DELETE FROM public.vessels WHERE id = ${VESSEL_ID};
     DELETE FROM public.carriers WHERE id = ${CARRIER_ID};
-    DELETE FROM public.internal_notifications WHERE recipient_id IN ('${ADMIN_ID}', '${EQP_ID}');
-    DELETE FROM public.user_profiles WHERE id IN ('${ADMIN_ID}', '${EQP_ID}');
-    DELETE FROM auth.users WHERE id IN ('${ADMIN_ID}', '${EQP_ID}');
+    DELETE FROM public.internal_notifications WHERE recipient_id IN ('${ADMIN_ID}', '${EQP_ID}', '${DOC_ID}');
+    DELETE FROM public.user_profiles WHERE id IN ('${ADMIN_ID}', '${EQP_ID}', '${DOC_ID}');
+    DELETE FROM auth.users WHERE id IN ('${ADMIN_ID}', '${EQP_ID}', '${DOC_ID}');
     SET session_replication_role = origin;
   `)
 }
@@ -135,13 +142,16 @@ function cleanup() {
 describeLocal('595 — resposta de veículos em D-7 e CE Mercante travado', () => {
   beforeAll(() => {
     cleanup()
+    firstRuleVersionId = Number(psql('SELECT COALESCE(max(id), 0) FROM public.pricing_rule_versions;'))
     psql(`
       INSERT INTO auth.users (id, email, aud, role) VALUES
         ('${ADMIN_ID}', 'adm595@test.local', 'authenticated', 'authenticated'),
-        ('${EQP_ID}', 'eqp595@test.local', 'authenticated', 'authenticated');
+        ('${EQP_ID}', 'eqp595@test.local', 'authenticated', 'authenticated'),
+        ('${DOC_ID}', 'doc595@test.local', 'authenticated', 'authenticated');
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
         ('${ADMIN_ID}', 'Administrativo 595', 'administrativo', true),
-        ('${EQP_ID}', 'Equipamentos 595', 'equipamentos', true);
+        ('${EQP_ID}', 'Equipamentos 595', 'equipamentos', true),
+        ('${DOC_ID}', 'Documentação 595', 'documentacao', true);
       SET session_replication_role = replica;
       INSERT INTO public.carriers (id, name) VALUES (${CARRIER_ID}, 'Carrier 595');
       INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL_ID}, 'Vessel 595', ${CARRIER_ID});
@@ -189,6 +199,19 @@ describeLocal('595 — resposta de veículos em D-7 e CE Mercante travado', () =
     ])
     expect(linkCe(BL_CNTR, '152659500000001').stderr).toContain('Equipamentos ainda não respondeu se a viagem terá veículos')
     expect(linkCe(BL_BB, '152659500000009').stderr).toBe('')
+  })
+
+  // 596: a Documentação não solta a própria trava respondendo por Equipamentos.
+  it('a Documentação não responde nem desfaz a resposta de veículos; o Administrativo responde', () => {
+    for (const call of [`public.declare_voyage_without_vehicles(${V_MAIN})`, `public.declare_voyage_with_vehicles(${V_MAIN})`]) {
+      expect(rpcAs(DOC_ID, `SELECT ${call};`).stderr).toContain('Apenas Equipamentos ou Administrativo responde se a viagem terá veículos.')
+    }
+    expect(psql(`SELECT public.voyage_ce_mercante_vehicle_lock(${V_MAIN});`)).toBe('sem_resposta')
+    expect(rpcAs(ADMIN_ID, `SELECT public.declare_voyage_without_vehicles(${V_MAIN});`).stderr).toBe('')
+    expect(rpcAs(DOC_ID, `SELECT public.undo_voyage_vehicle_declaration(${V_MAIN}, 'teste');`).stderr)
+      .toContain('Apenas Equipamentos ou Administrativo desfaz a resposta de veículos da viagem.')
+    expect(rpcAs(ADMIN_ID, `SELECT public.undo_voyage_vehicle_declaration(${V_MAIN}, 'Teste da 596');`).stderr).toBe('')
+    psql(`DELETE FROM public.audit_logs WHERE entity_type = 'voyage' AND entity_id = '${V_MAIN}' AND field_name IN ('sem_veiculos', 'com_veiculos');`)
   })
 
   it('em D-5 sem resposta, o alerta de D-7 fecha e o crítico cobra a resposta', () => {
