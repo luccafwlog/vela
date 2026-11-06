@@ -241,6 +241,9 @@ export const queryKeys = {
     users: () => ['admin-users'] as const,
     routingFailures: (page: number) => ['admin-routing-failures', page] as const,
     auditLogs: (filters: unknown) => ['admin-audit-logs', filters] as const,
+    // Linhas de uma ação aberta: sob a mesma família, para a invalidação do Histórico relê-las.
+    auditActionLines: (actionKey: string, page: number) => ['admin-audit-logs', 'acao', actionKey, page] as const,
     metrics: () => ['admin-metrics'] as const,
+    systemHealth: () => ['admin-system-health'] as const,
   },
 }

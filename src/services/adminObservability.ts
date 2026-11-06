@@ -57,6 +57,8 @@ export type ActionHistoryFilters = {
   /** Dia de Brasília (YYYY-MM-DD), inclusive. */
   dateFrom: string
   dateTo: string
+  /** B/L, CE, container, navio, viagem ou Cliente (migration `603`); vazio = sem busca. */
+  search?: string
   page: number
 }
 
@@ -65,15 +67,32 @@ type ActionHistoryRpcRow = ActionHistoryRow & { total_count: number | string | n
 /** A contagem da busca para aqui (migration `558`): acima disso a tela diz "mais de 10.000". */
 export const ACTION_HISTORY_COUNT_CAP = 10_000
 
-export async function fetchActionHistory(filters: ActionHistoryFilters): Promise<{ rows: ActionHistoryRow[]; count: number; capped: boolean }> {
-  const { data, error } = await supabase.rpc('admin_action_history' as never, {
+function historyFilterParams(filters: Omit<ActionHistoryFilters, 'page'>) {
+  return {
     p_entity_types: filters.entityTypes.length ? [...filters.entityTypes] : null,
     p_actor: filters.changedBy || null,
     p_action: filters.action || null,
     p_date_from: filters.dateFrom || null,
     p_date_to: filters.dateTo || null,
-    p_limit: LOG_PAGE_SIZE,
-    p_offset: filters.page * LOG_PAGE_SIZE,
+    p_search: filters.search?.trim() || null,
+  }
+}
+
+/**
+ * Linhas do Histórico, campo a campo (RPC `admin_action_history`, migrations
+ * `558`, `561` e `603`): pelos filtros, ou todas as linhas de uma ação
+ * (`actionKey`), para a linha aberta e a planilha.
+ */
+export async function fetchActionHistory(
+  filters: ActionHistoryFilters,
+  options: { actionKey?: string; pageSize?: number } = {},
+): Promise<{ rows: ActionHistoryRow[]; count: number; capped: boolean }> {
+  const pageSize = options.pageSize ?? LOG_PAGE_SIZE
+  const { data, error } = await supabase.rpc('admin_action_history' as never, {
+    ...historyFilterParams(filters),
+    p_action_key: options.actionKey ?? null,
+    p_limit: pageSize,
+    p_offset: filters.page * pageSize,
   } as never)
   if (error) throw error
   const raw = (data ?? []) as ActionHistoryRpcRow[]
@@ -91,6 +110,69 @@ export async function fetchActionHistory(filters: ActionHistoryFilters): Promise
     }),
     count,
   }
+}
+
+/** Família de registros de uma ação: quantos registros de um tipo ela criou, alterou ou excluiu. */
+export type ActionHistoryGroup = {
+  entity_type: string
+  kind: AuditAction
+  entities: number
+  /** Até 8 campos alterados nesses registros. */
+  fields: string[]
+}
+
+/**
+ * Uma ação do Histórico (RPC `admin_action_history_actions`, migration `603`):
+ * as linhas gravadas na mesma transação pela mesma pessoa, com o resumo por
+ * registro e a linha que a representa (a primeira criação, ou a primeira linha).
+ */
+export type ActionHistoryAction = Omit<ActionHistoryRow, 'id' | 'action' | 'source'> & {
+  action_key: string
+  source: string
+  action: AuditAction
+  line_count: number
+  entity_count: number
+  groups: ActionHistoryGroup[]
+}
+
+type ActionHistoryActionRpcRow = ActionHistoryAction & { total_count: number | string | null }
+
+export async function fetchActionHistoryActions(filters: ActionHistoryFilters): Promise<{ rows: ActionHistoryAction[]; count: number; capped: boolean }> {
+  const { data, error } = await supabase.rpc('admin_action_history_actions' as never, {
+    ...historyFilterParams(filters),
+    p_limit: LOG_PAGE_SIZE,
+    p_offset: filters.page * LOG_PAGE_SIZE,
+  } as never)
+  if (error) throw error
+  const raw = (data ?? []) as ActionHistoryActionRpcRow[]
+  const total = raw.length ? Number(raw[0].total_count ?? 0) : 0
+  return {
+    capped: total > ACTION_HISTORY_COUNT_CAP,
+    count: Math.min(total, ACTION_HISTORY_COUNT_CAP),
+    rows: raw.map((rpcRow) => {
+      const row: ActionHistoryAction & { total_count?: unknown } = {
+        ...rpcRow,
+        groups: Array.isArray(rpcRow.groups) ? rpcRow.groups : [],
+        value_labels: rpcRow.value_labels ?? null,
+      }
+      delete row.total_count
+      return row
+    }),
+  }
+}
+
+/** Teto da planilha do Histórico: as linhas, campo a campo, do recorte filtrado. */
+export const ACTION_HISTORY_EXPORT_CAP = 10_000
+
+/** Todas as linhas do recorte, até o teto, em páginas de 1.000. */
+export async function fetchActionHistoryForExport(filters: Omit<ActionHistoryFilters, 'page'>): Promise<{ rows: ActionHistoryRow[]; capped: boolean }> {
+  const rows: ActionHistoryRow[] = []
+  for (let page = 0; rows.length < ACTION_HISTORY_EXPORT_CAP; page += 1) {
+    const result = await fetchActionHistory({ ...filters, page }, { pageSize: 1000 })
+    rows.push(...result.rows)
+    if (result.rows.length < 1000) return { rows, capped: false }
+  }
+  return { rows: rows.slice(0, ACTION_HISTORY_EXPORT_CAP), capped: true }
 }
 
 export type RoutingFailureRow = {

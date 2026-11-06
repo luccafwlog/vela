@@ -10,6 +10,8 @@ import {
   formatAuditValue,
   formatBrasiliaDateTime,
   formatBrasiliaDateTimeWithSeconds,
+  describeAuditAction,
+  pluralNoun,
 } from '../auditLogPresentation'
 import { appEnvironmentLabel } from '../../../lib/appVersion'
 
@@ -229,5 +231,35 @@ describe('Histórico de ações: campos e situações que viravam "B/L alterado"
     expect(formatBrasiliaDateTimeWithSeconds('2026-11-04 17:55:09+00')).toBe('04/11/2026 14:55:09')
     // Sem fuso é hora de parede: fica como a tela já mostrava.
     expect(formatBrasiliaDateTimeWithSeconds('2026-11-04T17:55')).toBe(formatBrasiliaDateTime('2026-11-04T17:55'))
+  })
+})
+
+describe('Histórico de ações: uma linha por ação (603)', () => {
+  const action = (patch: Record<string, unknown>) => ({ source: 'audit', entity_type: 'bls', field_name: 'criado', old_value: null, new_value: null, line_count: 2, groups: [], ...patch }) as Parameters<typeof describeAuditAction>[0]
+
+  it('plural dos nomes', () => {
+    expect(['B/L', 'Container', 'Recebível', 'Item da fatura', 'Taxa', 'Vínculo com a fatura', 'Configuração'].map(pluralNoun))
+      .toEqual(['B/Ls', 'Containers', 'Recebíveis', 'Itens da fatura', 'Taxas', 'Vínculos com a fatura', 'Configurações'])
+  })
+
+  it('várias famílias: a contagem por tipo, com "e mais" depois de três', () => {
+    expect(describeAuditAction(action({ groups: [
+      { entity_type: 'bl_containers', kind: 'criou', entities: 781, fields: [] },
+      { entity_type: 'bls', kind: 'criou', entities: 17, fields: [] },
+      { entity_type: 'charge_calculations', kind: 'excluiu', entities: 15, fields: [] },
+      { entity_type: 'bl_receivables', kind: 'criou', entities: 1, fields: [] },
+    ] }))).toBe('781 Containers criados, 17 B/Ls criados, 15 Taxas excluídas e mais 1')
+  })
+
+  it('um registro com vários campos: os campos pelo nome', () => {
+    expect(describeAuditAction(action({ entity_type: 'bls', field_name: 'notes', groups: [
+      { entity_type: 'bls', kind: 'alterou', entities: 1, fields: ['ncm_codes', 'notes', 'updated_at'] },
+    ] }))).toBe('B/L alterado: NCM, Notas, Data de atualização')
+  })
+
+  it('uma linha só e linha de trilha: a frase da linha', () => {
+    expect(describeAuditAction(action({ line_count: 1, entity_type: 'bls', field_name: 'ncm_codes', new_value: '8703.23' }))).toMatch(/^NCM/)
+    expect(describeAuditAction(action({ source: 'comunicado', entity_type: 'customer_communication', field_name: 'comunicado|aviso_chegada_noa', new_value: 'enviado' })))
+      .toBe('NOA · Chegada Próxima: Enviado')
   })
 })

@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { fetchActionHistory, fetchSystemMetrics, routingFailureReasonLabel } from '../adminObservability'
+import { fetchActionHistory, fetchActionHistoryActions, fetchActionHistoryForExport, fetchSystemMetrics, routingFailureReasonLabel } from '../adminObservability'
 
 const { fromMock, rpcMock, supabaseMock } = vi.hoisted(() => {
   const supabaseMock = { from: vi.fn(), rpc: vi.fn() }
@@ -129,6 +129,8 @@ it('Histórico de ações com nomes: filtros vão para a RPC e o total vem da bu
     p_action: 'alterou',
     p_date_from: '2026-10-12',
     p_date_to: null,
+    p_search: null,
+    p_action_key: null,
     p_limit: 50,
     p_offset: 100,
   })
@@ -148,4 +150,25 @@ it('Histórico de ações com nomes: sem filtro manda nulo e propaga a recusa do
   expect(rpcMock).toHaveBeenCalledWith('admin_action_history', expect.objectContaining({
     p_entity_types: null, p_actor: null, p_action: null, p_date_from: null, p_offset: 0,
   }))
+})
+
+it('Histórico por ação (603): filtros e busca vão para a RPC, o resumo chega como lista e o total é de ações', async () => {
+  rpcMock.mockResolvedValueOnce({
+    data: [{ action_key: 'audit|2026-11-04T17:55:11.626336Z|u-1', source: 'audit', line_count: 2539, entity_count: 798, groups: [{ entity_type: 'bls', kind: 'criou', entities: 17, fields: [] }], total_count: '3' }],
+    error: null,
+  })
+  const result = await fetchActionHistoryActions({ entityTypes: [], changedBy: '', action: '', dateFrom: '2026-10-08', dateTo: '', search: ' GSPT1 ', page: 0 })
+  expect(rpcMock).toHaveBeenCalledWith('admin_action_history_actions', expect.objectContaining({ p_search: 'GSPT1', p_date_from: '2026-10-08', p_limit: 50, p_offset: 0 }))
+  expect(result.count).toBe(3)
+  expect(result.rows[0]).not.toHaveProperty('total_count')
+  expect(result.rows[0].groups).toHaveLength(1)
+})
+
+it('Histórico: as linhas de uma ação pela chave, e a planilha lê em páginas de 1.000 até a última', async () => {
+  rpcMock.mockResolvedValueOnce({ data: Array.from({ length: 1000 }, (_, id) => ({ id, total_count: 1500 })), error: null })
+  rpcMock.mockResolvedValueOnce({ data: Array.from({ length: 500 }, (_, id) => ({ id, total_count: 1500 })), error: null })
+  const { rows, capped } = await fetchActionHistoryForExport({ entityTypes: [], changedBy: '', action: '', dateFrom: '', dateTo: '' })
+  expect(rows).toHaveLength(1500)
+  expect(capped).toBe(false)
+  expect(rpcMock).toHaveBeenLastCalledWith('admin_action_history', expect.objectContaining({ p_limit: 1000, p_offset: 1000 }))
 })

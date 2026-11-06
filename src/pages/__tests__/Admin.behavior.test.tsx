@@ -477,7 +477,9 @@ it('os endereços antigos das abas continuam abrindo a aba certa', () => {
   expect(screen.getByRole('tab', { name: 'Histórico de ações' }).getAttribute('aria-selected')).toBe('true')
 })
 
+// Uma ação de uma linha só (migration 603): a frase é a da linha.
 const historyRow = (patch: Record<string, unknown>) => ({
+  action_key: `audit|${String(patch.id ?? 1)}|${String(patch.source ?? 'audit')}`, line_count: 1, entity_count: 1, groups: [],
   source: 'audit', id: 1, changed_at: '2026-10-20T00:04:00Z', entity_type: 'voyages', field_name: 'status', old_value: null, new_value: null,
   justification: null, action: 'alterou', actor_kind: 'equipe', actor_name: 'Alice Operadora', actor_email: 'alice@example.test',
   actor_department: 'documentacao', entity_label: null, old_label: null, new_label: null, value_labels: null, ...patch,
@@ -496,11 +498,9 @@ it('Histórico de ações: pessoa pelo nome, "Sistema" sem autor, assunto e fras
   renderAdmin('historico')
   const created = screen.getByText('Tarifa criada: THC Granito').closest('tr') as HTMLElement
   expect(within(created).getByText('Sistema')).toBeTruthy()
-  expect(within(created).getByText('Tarifa do Granito')).toBeTruthy()
   expect(within(created).getByText('19/10/2026 21:04:00')).toBeTruthy()
   const role = screen.getByText('Setor: Financeiro').closest('tr') as HTMLElement
   expect(within(role).getByText('Alice Operadora')).toBeTruthy()
-  expect(within(role).getByText('Usuário')).toBeTruthy()
   // O registro pelo nome que o banco devolve; a justificativa na própria linha.
   expect(within(role).getByText('Carla Nunca')).toBeTruthy()
   expect(within(role).getByText('Mudou de área')).toBeTruthy()
@@ -516,6 +516,9 @@ it('Histórico de ações: pessoa pelo nome, "Sistema" sem autor, assunto e fras
   expect(within(screen.getByLabelText('Por')).getByRole('option', { name: 'Sistema' })).toBeTruthy()
   expect(within(screen.getByLabelText('Por')).getByRole('option', { name: 'Cliente pelo Portal' })).toBeTruthy()
   expect(within(screen.getByLabelText('Ação')).getByRole('option', { name: 'Excluiu' })).toBeTruthy()
+  // As datas aparecem ao escolher o período; a busca fica sempre à vista.
+  expect(screen.getByLabelText('Busca')).toBeTruthy()
+  fireEvent.click(screen.getByRole('radio', { name: 'Escolher datas' }))
   expect(screen.getByLabelText('Até')).toBeTruthy()
 })
 
@@ -580,7 +583,6 @@ it('Histórico de ações: linhas das trilhas próprias com a mesma chave numér
   }
   renderAdmin('historico')
   const ce = screen.getByText('Desbloqueio de CE: Pedido enviado').closest('tr') as HTMLElement
-  expect(within(ce).getByText('Desbloqueio de CE')).toBeTruthy()
   expect(within(ce).getByText('Cliente precisa retirar hoje')).toBeTruthy()
   const notice = screen.getByText('NOA · Chegada Próxima: Enviado').closest('tr') as HTMLElement
   fireEvent.click(within(ce).getByRole('button', { name: /Abrir/ }))
@@ -590,10 +592,37 @@ it('Histórico de ações: linhas das trilhas próprias com a mesma chave numér
   expect(within(ce.nextElementSibling as HTMLElement).getByText('B/L COSU1')).toBeTruthy()
 })
 
-it('Histórico de ações: contagem acima do teto diz "Mais de 10.000 registros"', () => {
+it('Histórico de ações: contagem acima do teto diz "Mais de 10.000 ações"', () => {
   mocks.dataByKey = { 'admin-audit-logs': { count: 10_000, capped: true, rows: [historyRow({ id: 8, field_name: 'voyage_number', old_value: '011S', new_value: '012S', entity_label: 'Santos / 012S' })] } }
   renderAdmin('historico')
-  expect(screen.getByText('Mais de 10.000 registros')).toBeTruthy()
+  expect(screen.getByText('Mais de 10.000 ações')).toBeTruthy()
+})
+
+it('Histórico de ações: uma importação é uma linha, com o resumo por registro e o campo a campo sob demanda', () => {
+  mocks.dataByKey = {
+    'admin-audit-logs': {
+      count: 1,
+      rows: [historyRow({
+        id: 30, entity_type: 'bls', field_name: 'criado', new_value: '{"id": "GSPT1"}', action: 'criou', entity_label: 'B/L GSPT1',
+        changed_at: '2026-11-04T17:55:11.626336+00:00', justification: 'Importação de B/L · Viagem GREEN SEPETIBA 8',
+        line_count: 2539, entity_count: 798,
+        groups: [
+          { entity_type: 'bl_containers', kind: 'criou', entities: 781, fields: ['criado', 'ownership'] },
+          { entity_type: 'bls', kind: 'criou', entities: 17, fields: ['criado'] },
+        ],
+      })],
+    },
+  }
+  renderAdmin('historico')
+  const row = screen.getByText('781 Containers criados, 17 B/Ls criados').closest('tr') as HTMLElement
+  expect(within(row).getByText('04/11/2026 14:55:11')).toBeTruthy()
+  expect(within(row).getByText('B/L GSPT1 e mais 797')).toBeTruthy()
+  expect(within(row).getByText('Origem: Importação de B/L · Viagem GREEN SEPETIBA 8')).toBeTruthy()
+  fireEvent.click(within(row).getByRole('button', { name: /Abrir/ }))
+  const detail = row.nextElementSibling as HTMLElement
+  expect(within(detail).getByText('781 Containers criados')).toBeTruthy()
+  expect(within(detail).getByRole('button', { name: 'Ver campo a campo (2.539 linhas)' })).toBeTruthy()
+  expect(screen.getByText('1 ação')).toBeTruthy()
 })
 
 it('Histórico de ações: acima do teto, o rodapé diz "de mais de 10.000" e Próxima passa da página 200', () => {

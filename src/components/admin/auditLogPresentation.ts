@@ -640,3 +640,83 @@ export function describeAuditLog(row: AuditLogLike): string {
   if (isCodeField(field) && value === (row.new_value ?? '').trim() && CODE_VALUE.test(value)) return fieldChanged(label)
   return `${label}: ${value}`
 }
+
+// ---------- Uma linha por ação (migration 603) ----------
+
+/** Áreas do filtro Assunto, na ordem da lista (`optgroup`). */
+export const AUDIT_SUBJECT_AREAS: ReadonlyArray<{ label: string; subjects: readonly string[] }> = [
+  { label: 'Operação', subjects: ['viagem', 'escala', 'adr', 'manifesto', 'bl', 'container', 'veiculo', 'importacao', 'vazios', 'granito', 'desbloqueio-ce'] },
+  { label: 'Financeiro', subjects: ['fatura', 'taxas-bl', 'taxas-locais', 'condicao-cliente', 'liberacao', 'restituicao', 'cod', 'pix', 'tarifa-granito'] },
+  { label: 'Demurrage', subjects: ['demurrage', 'tarifa-demurrage', 'tipo-container', 'acordo-demurrage', 'disputa-demurrage', 'cambio'] },
+  { label: 'Clientes e Portal', subjects: ['cliente', 'comunicado', 'conta-portal', 'central'] },
+  { label: 'Cadastros', subjects: ['cadastros', 'locais'] },
+  { label: 'Usuários e sistema', subjects: ['usuario', 'alerta', 'sistema'] },
+]
+
+/** Plural do nome ("B/L" → "B/Ls", "Item da fatura" → "Itens da fatura", "Recebível" → "Recebíveis"). */
+// Palavras emprestadas que não seguem a regra do português.
+const PLURAL_EXCEPTIONS: Readonly<Record<string, string>> = { Container: 'Containers', Pix: 'Pix' }
+
+export function pluralNoun(noun: string): string {
+  const [first, ...rest] = noun.split(' ')
+  const tail = rest.length ? ` ${rest.join(' ')}` : ''
+  if (PLURAL_EXCEPTIONS[first]) return `${PLURAL_EXCEPTIONS[first]}${tail}`
+  if (/^[A-Z/]+$/.test(first)) return `${first}s${tail}`
+  if (/ível$/.test(first)) return `${first.slice(0, -4)}íveis${tail}`
+  if (/el$/.test(first)) return `${first.slice(0, -2)}éis${tail}`
+  if (/al$/.test(first)) return `${first.slice(0, -1)}is${tail}`
+  if (/m$/.test(first)) return `${first.slice(0, -1)}ns${tail}`
+  if (/ão$/.test(first)) return `${first.slice(0, -2)}ões${tail}`
+  if (/[rz]$/.test(first)) return `${first}es${tail}`
+  return `${first}s${tail}`
+}
+
+const KIND_PARTICIPLE: Record<AuditActionKind, string> = { criou: 'criado', alterou: 'alterado', excluiu: 'excluído' }
+type AuditActionKind = 'criou' | 'alterou' | 'excluiu'
+
+export type AuditActionGroupLike = { entity_type: string; kind: AuditActionKind; entities: number; fields: readonly string[] }
+
+/** "B/L criado", "17 B/Ls criados", "3 Taxas excluídas". */
+export function describeActionGroup(group: AuditActionGroupLike): string {
+  const noun = nounOf(group.entity_type)
+  const masculine = KIND_PARTICIPLE[group.kind]
+  if (group.entities <= 1) return participle(noun, masculine)
+  const plural = noun.feminine ? `${masculine.slice(0, -1)}as` : `${masculine}s`
+  return `${group.entities.toLocaleString('pt-BR')} ${pluralNoun(noun.noun)} ${plural}`
+}
+
+export type AuditActionLike = AuditLogLike & {
+  source: string
+  line_count: number
+  groups: readonly AuditActionGroupLike[]
+}
+
+/**
+ * Frase da coluna "O que fez" de uma ação: a da linha quando a ação é uma
+ * linha só; "<registro> alterado: campo, campo" quando muda vários campos de um
+ * registro; e a contagem por tipo de registro quando mexe em vários
+ * ("17 B/Ls criados, 781 Containers criados e mais 2").
+ */
+export function describeAuditAction(action: AuditActionLike): string {
+  if (action.source !== 'audit' || action.line_count <= 1 || action.groups.length === 0) return describeAuditLog(action)
+  const [first] = action.groups
+  if (action.groups.length === 1 && first.entities <= 1) {
+    if (first.kind !== 'alterou') return describeAuditLog(action)
+    const labels = [...new Set(first.fields.map((field) => auditFieldLabel(first.entity_type, field)).filter((label): label is string => Boolean(label)))]
+    if (!labels.length) return participle(nounOf(first.entity_type), 'alterado')
+    const shown = labels.slice(0, 3).join(', ')
+    const more = labels.length > 3 || first.fields.length >= 8 ? ' e outros' : ''
+    return `${participle(nounOf(first.entity_type), 'alterado')}: ${shown}${more}`
+  }
+  const parts = action.groups.slice(0, 3).map(describeActionGroup)
+  const rest = action.groups.length - parts.length
+  return rest > 0 ? `${parts.join(', ')} e mais ${rest}` : parts.join(', ')
+}
+
+/** Dia de Brasília (YYYY-MM-DD) de hoje menos `days`. */
+export function brasiliaDay(daysAgo = 0, now: Date = new Date()): string {
+  const shifted = new Date(now.getTime() - daysAgo * 86_400_000)
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(shifted).map((part) => [part.type, part.value]))
+  return `${parts.year}-${parts.month}-${parts.day}`
+}
