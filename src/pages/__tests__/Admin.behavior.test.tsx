@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => ({
   isDev: false,
   setCommunicationsEnabled: vi.fn(),
   sendAdminTestEmail: vi.fn(),
+  fetchActionHistoryForExport: vi.fn(),
+  exportActionHistoryWorkbook: vi.fn(),
   signOut: vi.fn(),
   createUser: vi.fn(),
   updateUserCredentials: vi.fn(),
@@ -67,7 +69,9 @@ vi.mock('../../services/appSettings', async (importActual) => ({
 vi.mock('../../services/adminObservability', async (importActual) => ({
   ...(await importActual<typeof import('../../services/adminObservability')>()),
   sendAdminTestEmail: mocks.sendAdminTestEmail,
+  fetchActionHistoryForExport: mocks.fetchActionHistoryForExport,
 }))
+vi.mock('../../services/exports', () => ({ exportActionHistoryWorkbook: mocks.exportActionHistoryWorkbook }))
 vi.mock('../../components/ui/Toast', () => ({ useToast: () => ({ showToast: mocks.showToast }) }))
 vi.mock('../../components/ui/ConfirmDialog', () => ({ useConfirm: () => mocks.confirm, useConfirmWithReason: () => async (options: unknown) => ((await mocks.confirm(options)) ? 'motivo' : null) }))
 vi.mock('../../services/supabase', () => ({ supabase: { from: vi.fn() } }))
@@ -553,6 +557,21 @@ it('Histórico de ações: a busca lê o histórico depois da pausa de quem digi
   fireEvent.change(screen.getByLabelText('Busca'), { target: { value: 'MSCU1234567' } })
   expect(searched()).not.toContain('MSCU1234567')
   await waitFor(() => expect(searched()).toContain('MSCU1234567'))
+})
+
+it('Histórico de ações: com Assunto, a aba Filtros da planilha diz que vêm só as linhas que batem', async () => {
+  mocks.dataByKey = { 'admin-audit-logs': { count: 1, rows: [] } }
+  mocks.fetchActionHistoryForExport.mockResolvedValue({ rows: [], capped: false })
+  mocks.exportActionHistoryWorkbook.mockResolvedValue(undefined)
+  renderAdmin('historico')
+  fireEvent.click(screen.getByRole('button', { name: 'Exportar planilha' }))
+  await waitFor(() => expect(mocks.exportActionHistoryWorkbook).toHaveBeenCalledTimes(1))
+  expect(mocks.exportActionHistoryWorkbook.mock.calls[0][1]).not.toContainEqual(expect.objectContaining({ Filtro: 'Linhas' }))
+  const subject = screen.getByLabelText('Assunto') as HTMLSelectElement
+  fireEvent.change(subject, { target: { value: subject.options[1].value } })
+  fireEvent.click(screen.getByRole('button', { name: 'Exportar planilha' }))
+  await waitFor(() => expect(mocks.exportActionHistoryWorkbook).toHaveBeenCalledTimes(2))
+  expect(mocks.exportActionHistoryWorkbook.mock.calls[1][1]).toContainEqual({ Filtro: 'Linhas', Valor: 'Só as que batem com Busca, Assunto ou Ação; a tela mostra a ação inteira' })
 })
 
 it('Histórico de ações: ADR reaberto em português, com a Viagem pelo nome', () => {

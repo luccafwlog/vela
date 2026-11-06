@@ -486,6 +486,12 @@ function exportFilterLines(
     { Filtro: 'De', Valor: query.dateFrom ? query.dateFrom.split('-').reverse().join('/') : '' },
     { Filtro: 'Até', Valor: query.dateTo ? query.dateTo.split('-').reverse().join('/') : '' },
   ].filter((line) => line.Valor)
+  // Decisão do dono de 2026-11-06: a planilha traz só as linhas que batem com
+  // Busca, Assunto ou Ação, não a ação inteira que a tela resume; a aba Filtros
+  // diz isso. "Por" e o período valem para a ação inteira e não entram aqui.
+  if (query.search || subject || action) {
+    lines.push({ Filtro: 'Linhas', Valor: 'Só as que batem com Busca, Assunto ou Ação; a tela mostra a ação inteira' })
+  }
   return capped ? [...lines, { Filtro: 'Limite', Valor: 'Só as 10.000 linhas mais recentes do recorte' }] : lines
 }
 
