@@ -875,6 +875,24 @@ const ALERT_RULES_BASE = [
     impact: 'A Invoice de Demurrage não sai, e a sobreestadia corre sem cobrança.',
   },
   {
+    // Migration 607 (ADR 0131, D2): por atracação, Normal no ATB, Crítico em 24 horas.
+    type: 'container_sem_descarga',
+    domain: 'Demurrage',
+    responsible: 'equipamentos',
+    catalogAudience: ['equipamentos'],
+    entityType: 'voyage_escala_terminal',
+    severity: 'normal',
+    summary: 'O navio atracou e há container dos B/Ls daquele terminal sem a data de descarga.',
+    trigger: 'No ATB de cada terminal, se algum container de B/L não cancelado que descarrega ali está sem data de descarga. O container vai para o terminal da exceção do B/L ou, sem ela, para o da carga cheia da escala. Um alerta por atracação, com quantos faltam.',
+    timing: 'Na hora do ATB e a cada conferência de 15 minutos. Se a descarga não entra até 24 horas depois do ATB, o alerta vira Crítico e avisa de novo.',
+    resolution: 'Em Containers, use Importar datas com a planilha do terminal (B/L, container e descarga) ou grave a data no container.',
+    destination: '/containers',
+    destinationLabel: 'Abrir Containers',
+    destinationNote: 'O alerta abre Containers já na Viagem e no porto da atracação.',
+    afterResolution: 'Sozinho, na hora em que todo container do terminal tem a descarga, ou quando o B/L é cancelado ou muda de terminal, o ATB sai ou a Viagem é cancelada.',
+    impact: 'Sem a descarga, o container fica para sempre no free time: a Demurrage não corre, o grupo some da página Demurrage e a sobreestadia nunca é cobrada.',
+  },
+  {
     // Migrations 179, 317 e 349 (decisão P1).
     type: 'demurrage_invoice_dates_changed',
     domain: 'Demurrage',

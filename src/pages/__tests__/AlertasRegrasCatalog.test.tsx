@@ -176,11 +176,11 @@ describe('Regras de Alertas', () => {
   it('filtra o catálogo por setor notificado, não apenas pelo responsável', () => {
     renderPage()
 
-    expect(screen.getByText('57 regras')).toBeTruthy()
+    expect(screen.getByText('58 regras')).toBeTruthy()
     fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'equipamentos' } })
 
-    // 605: a PTAX e a exportação pós-ATD passaram a Equipamentos.
-    expect(screen.getByText('8 regras')).toBeTruthy()
+    // 605: a PTAX e a exportação pós-ATD passaram a Equipamentos; 607: Container sem descarga.
+    expect(screen.getByText('9 regras')).toBeTruthy()
     expect(screen.getByRole('button', { name: /Falha na atualização da PTAX Demurrage/ })).toBeTruthy()
     expect(screen.getByRole('button', { name: /Exportação pendente pós-ATD/ })).toBeTruthy()
     // Planilha de Veículos ausente (migration 468), o prazo da Disputa de
@@ -205,7 +205,7 @@ describe('Regras de Alertas', () => {
 
     // Retorna para qualquer setor (sem filtro de setor)
     fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'all' } })
-    expect(screen.getByText('57 regras')).toBeTruthy()
+    expect(screen.getByText('58 regras')).toBeTruthy()
   })
 
   it('ignora um deep-link para um tipo aposentado e cai na primeira regra viva', () => {
@@ -213,7 +213,7 @@ describe('Regras de Alertas', () => {
 
     expect(screen.queryByRole('heading', { name: 'Cancelamento bloqueado' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Cancelamento bloqueado/ })).toBeNull()
-    expect(screen.getByText('57 regras')).toBeTruthy()
+    expect(screen.getByText('58 regras')).toBeTruthy()
   })
 
   it('agrupa pelos assuntos do capítulo 20 do manual e limpa a combinação de filtros sem perder a regra selecionada', () => {
@@ -231,7 +231,7 @@ describe('Regras de Alertas', () => {
     expect((clearButton as HTMLButtonElement).disabled).toBe(false)
     fireEvent.click(clearButton)
 
-    expect(screen.getByText('57 regras')).toBeTruthy()
+    expect(screen.getByText('58 regras')).toBeTruthy()
     expect((screen.getByRole('combobox', { name: 'Assunto' }) as HTMLSelectElement).value).toBe('all')
     expect((screen.getByRole('combobox', { name: 'Gravidade' }) as HTMLSelectElement).value).toBe('all')
     expect((screen.getByRole('button', { name: 'Limpar filtros' }) as HTMLButtonElement).disabled).toBe(true)

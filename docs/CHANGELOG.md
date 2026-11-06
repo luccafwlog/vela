@@ -6,6 +6,9 @@
 
 ## 2026-11
 
+- **Container sem descarga (decisão D2 do dono de 2026-11-06, migration `607`, ADR 0131):** no ATB de cada terminal,
+  container dos B/Ls daquele terminal sem data de descarga abre alerta Normal para Equipamentos, que vira Crítico 24
+  horas depois; **Resolver** abre Containers na escala. Prova: `containerSemDescarga.local-pg.test.ts`.
 - **ATA e ATD críticos em 16 horas (decisão D3 do dono de 2026-11-06, migration `606`, ADR 0131):** sem o ATA 16 horas
   depois do ETA, ou sem o ATD 16 horas depois do ETD, a Data da escala ou a Data de terminal pendente vira Crítico e
   avisa de novo no sino. Prova: `ataAtdCriticosEm16Horas.local-pg.test.ts`.

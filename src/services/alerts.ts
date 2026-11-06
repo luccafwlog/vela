@@ -74,6 +74,7 @@ export type ActiveAlertType =
   | 'voyage_terminal_date_pending'
   | 'voyage_escala_terminal_missing'
   | 'voyage_export_after_atd'
+  | 'container_sem_descarga'
 
 export const TYPE_LABELS: Record<string, string> = {
   fatura_desatualizada: 'Fatura desatualizada',
@@ -143,6 +144,7 @@ export const TYPE_LABELS: Record<string, string> = {
   voyage_terminal_date_pending: 'Data de terminal pendente',
   voyage_escala_terminal_missing: 'Escala sem terminal',
   voyage_export_after_atd: 'Exportação pendente pós-ATD',
+  container_sem_descarga: 'Container sem descarga',
 }
 
 export const ENTITY_TYPE_LABELS: Record<string, string> = {
@@ -563,6 +565,14 @@ function alertEntityLinkRaw(alert: {
     if (port) params.set('escala', port)
     return `/viagens/${voyageId}${params.toString() ? `?${params.toString()}` : ''}`
   }
+  // 607 (ADR 0131, D2): o container sem descarga abre Containers na escala.
+  if (effectiveType === 'container_sem_descarga' && alert.entity_type === 'voyage_escala_terminal') {
+    const [voyageId, port] = alert.entity_id.split('::')
+    if (!/^\d+$/.test(voyageId)) return '/containers'
+    const params = new URLSearchParams({ voyage: voyageId })
+    if (port) params.set('pod', port)
+    return `/containers?${params.toString()}`
+  }
   // ALE-D05: registros sem ficha própria levam à tela que a Regra cita.
   const screen = SCREEN_BY_ENTITY_TYPE[alert.entity_type ?? '']
   if (screen) return screen
@@ -615,6 +625,7 @@ export function alertEntityLinkLabel(alert: {
   if (effectiveType.startsWith('voyage_baplie_')) return 'Abrir Baplie'
   if (effectiveType === 'voyage_vehicle_sheet_pending' || effectiveType === 'voyage_vehicle_declaration_pending') return 'Abrir Veículos'
   if (effectiveType === 'demurrage_travado') return 'Abrir Demurrage'
+  if (effectiveType === 'container_sem_descarga') return 'Abrir Containers'
   if (effectiveType === 'demurrage_disputa_prazo') return 'Abrir Disputa'
   if (alert.entity_type === 'bl' && (effectiveType === 'billing_calculation_blocked' || effectiveType === 'billing_auto_issue_failed')) {
     return 'Taxas Locais'
