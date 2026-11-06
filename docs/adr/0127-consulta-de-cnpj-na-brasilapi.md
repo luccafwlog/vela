@@ -1,5 +1,14 @@
 # 0127 — Consulta de CNPJ na BrasilAPI no Novo cliente
 
+> **Situação atual (2026-11-06).** Estendida a pedido do dono: na Revisão, o
+> CNPJ já cadastrado vira o vínculo ao Cliente existente e a Receita só é
+> consultada para CNPJ sem cadastro; o botão de cadastrar espera a resposta da
+> consulta (a Edge Function desiste em 6 s), porque o cadastro feito durante a
+> busca saía sem o perfil da Receita. **Completar pela Receita**, em Clientes,
+> só para o Administrativo, preenche os campos vazios dos Clientes cadastrados
+> antes desta ADR, pela mesma função e com o Histórico do Cliente. Regras em
+> [Clientes](../modules/clientes.md#completar-pela-receita).
+
 Status: aceito — 2026-11-05 (pedido do dono). Implementada na Edge Function
 `cnpj-lookup`.
 

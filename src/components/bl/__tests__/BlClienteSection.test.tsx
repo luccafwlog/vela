@@ -20,7 +20,8 @@ vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQue
 vi.mock('../../../hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'user-1' }, can: (permission: string) => mocks.can(permission) }) }))
 // Consulta de CNPJ (ADR 0127) fora do ar neste teste: sem QueryClient nem rede.
 vi.mock('../../../hooks/useCnpjLookup', () => ({ useCnpjLookup: () => ({ data: undefined, isFetching: false }) }))
-vi.mock('../../../hooks/useCustomers', () => ({ useCustomerLookup: () => ({ data: [] }), useCustomerPendingBalance: () => ({ data: { totalBrl: 0 } }) }))
+vi.mock('../../../hooks/useCustomers', () => ({ useCustomerLookup: () => ({ data: [] }), useCustomerPendingBalance: () => ({ data: { totalBrl: 0 } }),
+  useExistingCustomerByCnpj: () => ({ data: null, isPending: false, isSuccess: true, isError: false, fetchStatus: 'idle' }) }))
 vi.mock('../../../hooks/useReviewCustomerGroup', () => ({ useReviewCustomerGroup: () => ({ mutateAsync: mocks.onboard, isPending: false }) }))
 vi.mock('../../../services/reviewCustomerGroup', () => ({ sendReviewPortalInvite: mocks.invite }))
 vi.mock('../../../services/reviewBillingAutomation', () => ({ tryAutoIssueInvoice: mocks.autoInvoice }))

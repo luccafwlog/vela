@@ -244,3 +244,4 @@ src/integration/enderecoReceitaRevisao.local-pg.test.ts
 src/integration/travaCeMercanteVeiculos.local-pg.test.ts
 src/integration/ediMercanteRegistrado.local-pg.test.ts
 src/integration/embarqueVaziosPodTamanho.local-pg.test.ts
+src/integration/novoClienteVinculaBls.local-pg.test.ts

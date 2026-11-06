@@ -214,6 +214,13 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   primeiro veículo; só Equipamentos e o Administrativo respondem (migration `598`; ACE-134, EQU-128, EQU-129, EQU-134, CEB-102; capítulos 6, 10, 18, 19
   e 20, seções 6.5, 10.1 e 20.5; guia rápido, etapas 7, 11, 18 e 19; contagens de
   ACE-119).
+- **Cliente cadastrado depois do B/L** (pedido do dono de 2026-11-06,
+  migration `610`): o **Novo cliente** vincula os B/Ls que já esperavam pelo
+  CNPJ dele (CLI-111); a Revisão reconhece o CNPJ já cadastrado e vincula em
+  vez de cadastrar de novo, e espera a resposta da Receita antes de cadastrar
+  (BLR-087, BLR-120); **Completar pela Receita** preenche os campos vazios dos
+  Clientes antigos (CLI-112). Texto: capítulo 8, seção 8.2, e capítulo 13,
+  seções 13.3 e 13.5.
 - **Solicitar acesso no login do Portal** (decisão do dono de 2026-11-05): o
   botão abre o formulário da página do Portal no fwlog.com.br, em outra aba
   (POR-001; capítulo 15, seção 15.2).

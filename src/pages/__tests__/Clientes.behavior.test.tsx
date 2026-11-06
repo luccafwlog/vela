@@ -68,6 +68,7 @@ vi.mock('../../components/ui/ConfirmDialog', () => ({
 vi.mock('../../services/customers', async (importOriginal) => ({
   // A classificação da recusa é a real: o teste da corrida passa pelo mesmo código.
   isDuplicateCustomerCnpjError: (await importOriginal<typeof import('../../services/customers')>()).isDuplicateCustomerCnpjError,
+  createdCustomerLinkMessage: (await importOriginal<typeof import('../../services/customers')>()).createdCustomerLinkMessage,
   createCustomer: mocks.createCustomer,
   checkCustomerDependencies: mocks.checkCustomerDependencies,
   deleteCustomers: mocks.deleteCustomers,
@@ -153,7 +154,7 @@ describe('Clientes page behaviours', () => {
     mocks.useCustomerSummary.mockReturnValue({
       data: { pendingBalance: 150, totalCustomers: 1, totalBls: 1, chargePending: 1, chargeReady: 0, customersWithoutEmail: 0 },
     })
-    mocks.createCustomer.mockResolvedValue({ id: 99, cnpj_cpf: '12345678000195' })
+    mocks.createCustomer.mockResolvedValue({ id: 99, cnpj_cpf: '12345678000195', blLink: { linkedBlIds: [], chargesFailed: [] } })
     mocks.parseCustomerBaseFile.mockResolvedValue(parsedBase)
     mocks.compareCustomerBaseWithExisting.mockResolvedValue(parsedBase)
     mocks.importCustomerBaseRows.mockResolvedValue({ ok: true, imported: 1, updated: 0, contactsCreated: 1, blsLinked: 1, errors: [] })
@@ -254,6 +255,26 @@ describe('Clientes page behaviours', () => {
     await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
     expect((screen.getByLabelText(/^CNPJ/) as HTMLInputElement).value).toBe('')
     expect((screen.getByLabelText(/^Razão social/) as HTMLInputElement).value).toBe('')
+  })
+
+  // Migration 610: o cadastro vincula os B/Ls que esperavam pelo CNPJ e diz quais.
+  it('diz quais B/Ls o cadastro vinculou e atualiza a Revisão', async () => {
+    mocks.createCustomer.mockResolvedValue({
+      id: 99,
+      cnpj_cpf: '12345678000195',
+      blLink: { linkedBlIds: ['CSC45410807700'], chargesFailed: [] },
+    })
+    const user = userEvent.setup()
+    const { invalidateQueries } = renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Novo cliente' }))
+    await user.type(screen.getByLabelText(/^CNPJ/), '12345678000195')
+    await user.type(screen.getByLabelText(/^Razão social/), 'Cliente Novo')
+    await user.type(within(screen.getByRole('dialog')).getByLabelText(/^E-mail/), 'novo@example.com')
+    await user.click(screen.getByRole('button', { name: 'Cadastrar cliente' }))
+
+    await waitFor(() => expect(mocks.showToast).toHaveBeenCalledWith('Cliente cadastrado. B/L CSC45410807700 vinculado pelo CNPJ.', 'success'))
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['review-queue'] })
   })
 
   // Decisão do dono de 2026-11-04: o nome do contato principal não é obrigatório.

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
-import { Download, Plus, Search, Upload } from 'lucide-react'
+import { Download, Plus, Search, SearchCheck, Upload } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { Field, Input, Select } from '../components/ui/Input'
 import { MetricCard } from '../components/ui/MetricCard'
@@ -17,6 +17,7 @@ import { CreateCustomerModal } from '../components/customers/CreateCustomerModal
 import { CustomerTable } from '../components/customers/CustomerTable'
 import { ClientesTabs } from '../components/customers/ClientesTabs'
 import { ImportBaseModal, type CustomerBaseRefusal } from '../components/customers/ImportBaseModal'
+import { ReceitaFillModal } from '../components/customers/ReceitaFillModal'
 import {
   applyCnpjLookup,
   emptyCreateCustomerForm,
@@ -40,7 +41,7 @@ import { CUSTOMER_COMMUNICATION_BOXES } from '../services/customerCommunicationB
 import { compareCustomerBaseWithExisting, customerNameChanges, importCustomerBaseRows, parseCustomerBaseFile, type ParsedCustomerBase } from '../services/customerBase'
 import { afterBlRevisado, afterCargaAlterada } from '../services/cacheEffects'
 import { queryKeys } from '../services/queryKeys'
-import { checkCustomerDependencies, createCustomer, deleteCustomers, isDuplicateCustomerCnpjError } from '../services/customers'
+import { checkCustomerDependencies, createCustomer, createdCustomerLinkMessage, deleteCustomers, isDuplicateCustomerCnpjError } from '../services/customers'
 import { buildDeleteAffected, formatDeleteOutcome } from '../services/deleteDependencies'
 import { exportCustomerBaseWorkbook } from '../services/exports'
 import {
@@ -140,6 +141,8 @@ export function Clientes() {
 
   const [createOpen, setCreateOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  // Completar pela Receita é uma gravação em massa: só o Administrativo, como a exclusão em massa.
+  const [receitaFillOpen, setReceitaFillOpen] = useState(false)
   const [createForm, setCreateForm] = useState<CreateCustomerForm>(emptyCreateCustomerForm)
   const [createErrors, setCreateErrors] = useState<CustomerCreateErrors>({})
   // Consulta de CNPJ (ADR 0127): com o CNPJ válido, os dados da Receita entram
@@ -250,9 +253,10 @@ export function Clientes() {
         summary: `${createForm.name.trim()} · CNPJ ${formatCnpjCpf(createForm.cnpjCpf)} · ${formatCountLabel(activeContacts.length, 'contato', 'contatos')}`,
         items: activeContacts.map((c) => `${c.name.trim() ? `${c.name.trim()} (${c.email})` : c.email}${c.is_primary ? ' · principal' : ''}`),
       },
+      // Migration 610: B/L sem Cliente com este CNPJ no manifesto é vinculado na mesma gravação.
       consequence: inviteEmail
-        ? `O cliente entra no cadastro ativo e pode ser vinculado a B/Ls. Em seguida, o convite do Portal é enviado para ${inviteEmail}, válido por 48 horas.`
-        : 'O cliente entra no cadastro ativo, pode ser vinculado a B/Ls e aparece na fila de Clientes › Portal como "Aguardando análise". Nenhum convite é enviado.',
+        ? `O cliente entra no cadastro ativo, e os B/Ls sem cliente com este CNPJ no manifesto são vinculados a ele. Em seguida, o convite do Portal é enviado para ${inviteEmail}, válido por 48 horas.`
+        : 'O cliente entra no cadastro ativo, os B/Ls sem cliente com este CNPJ no manifesto são vinculados a ele, e ele aparece na fila de Clientes › Portal como "Aguardando análise". Nenhum convite é enviado.',
       reversibility: inviteEmail
         ? 'Os dados podem ser editados na ficha; o convite pendente pode ser cancelado em Clientes › Portal. O e-mail enviado não volta.'
         : 'Os dados podem ser editados na ficha; cadastros sem vínculos operacionais podem ser desativados ou excluídos pelo Administrativo.',
@@ -272,6 +276,8 @@ export function Clientes() {
         contacts: activeContacts,
       })
 
+      const linkedCount = customer.blLink.linkedBlIds.length
+
       // O cadastro já está gravado: uma recusa do convite não desfaz o Cliente
       // nem prende o formulário; vira aviso com o motivo e o caminho do reenvio.
       let inviteFailure: string | null = null
@@ -290,12 +296,17 @@ export function Clientes() {
         queryClient.invalidateQueries({ queryKey: ['customer-lookup'] }),
         queryClient.invalidateQueries({ queryKey: queryKeys.customers.detail() }),
         queryClient.invalidateQueries({ queryKey: ['customer-ficha'] }),
+        // B/L vinculado no cadastro sai da Revisão (ou fica só com o Portal) e segue para o faturamento.
+        linkedCount ? afterBlRevisado(queryClient) : Promise.resolve(),
+        linkedCount ? afterCargaAlterada(queryClient) : Promise.resolve(),
       ])
 
+      const linkedMsg = createdCustomerLinkMessage(customer.blLink)
       if (inviteFailure) {
-        showToast(`Cliente cadastrado, mas o convite do Portal não saiu (${inviteFailure}). Envie de novo em Clientes › Portal.`, 'error')
+        showToast(`Cliente cadastrado, mas o convite do Portal não saiu (${inviteFailure}). Envie de novo em Clientes › Portal.${linkedMsg}`, 'error')
       } else {
-        showToast(inviteEmail ? `Cliente cadastrado e convite do Portal enviado para ${inviteEmail}.` : 'Cliente cadastrado.', 'success')
+        showToast(`${inviteEmail ? `Cliente cadastrado e convite do Portal enviado para ${inviteEmail}.` : 'Cliente cadastrado.'}${linkedMsg}`,
+          customer.blLink.chargesFailed.length ? 'error' : 'success')
       }
       setCreateOpen(false)
       setCreateForm(emptyCreateCustomerForm)
@@ -541,6 +552,12 @@ export function Clientes() {
               <Download size={16} aria-hidden="true" />
               Exportar base
             </Button>
+            {isAdmin ? (
+              <Button variant="secondary" onClick={() => setReceitaFillOpen(true)}>
+                <SearchCheck size={16} aria-hidden="true" />
+                Completar pela Receita
+              </Button>
+            ) : null}
             {canCreateCustomer ? (
               <Button onClick={() => setCreateOpen(true)}>
                 <Plus size={16} aria-hidden="true" />
@@ -686,6 +703,8 @@ export function Clientes() {
         onAddContact={addContact}
         onRemoveContact={removeContact}
       />
+
+      {isAdmin ? <ReceitaFillModal open={receitaFillOpen} onClose={() => setReceitaFillOpen(false)} changedBy={user?.id ?? null} /> : null}
 
       <ImportBaseModal
         open={importOpen}
