@@ -56,11 +56,10 @@ O CNPJ é a identidade do Cliente: um Cliente por CNPJ, numérico ou alfanuméri
 4. Documentação e Administrativo veem o bloco **Portal do Cliente**: marque **Enviar o convite do Portal agora** para mandar o convite ao e-mail do contato principal no mesmo passo. O botão passa a ser **Cadastrar e convidar**.
 5. Clique em **Cadastrar cliente** (ou **Cadastrar e convidar**) e confirme.
 
-A ficha do novo Cliente abre. Ele já pode ser vinculado a B/Ls, e o B/L importado depois com o CNPJ dele se vincula sozinho (capítulo 6). Sem o convite marcado, ele aparece em **Clientes** › **Portal** como **Aguardando análise**: nenhum convite sai sem alguém enviar (capítulo 14). Com o convite marcado, ele aparece com o convite pendente, válido por 48 horas. Se o envio do convite for recusado, o Cliente continua cadastrado: o aviso diz o motivo, e você envia de novo em **Clientes** › **Portal**.
+A ficha do novo Cliente abre. Os B/Ls que já esperavam na Revisão com esse CNPJ no manifesto se vinculam a ele na mesma gravação, e o aviso diz quais ("Cliente cadastrado. B/L … vinculado pelo CNPJ."); cada um ganha a linha "Vínculo por documento no cadastro do Cliente" no Histórico e sai da Revisão se não sobrar outra pendência (o Portal do Cliente novo costuma ser a que sobra). O B/L cancelado, o de Viagem cancelada e o que já tem outro Cliente ficam como estão. Se as Taxas Locais de algum deles não puderem ser calculadas, o vínculo fica e o aviso diz o B/L e o motivo: recalcule em **Taxas Locais** › **Validação**. O B/L importado depois com o CNPJ dele se vincula sozinho (capítulo 6). Sem o convite marcado, ele aparece em **Clientes** › **Portal** como **Aguardando análise**: nenhum convite sai sem alguém enviar (capítulo 14). Com o convite marcado, ele aparece com o convite pendente, válido por 48 horas. Se o envio do convite for recusado, o Cliente continua cadastrado: o aviso diz o motivo, e você envia de novo em **Clientes** › **Portal**.
 
 ::: atencao
 - O Vela não aceita dois Clientes com o mesmo CNPJ. Se o CNPJ é de um Cliente desativado, peça ao {{Administrativo}} que o reative ([13.10](#1310-desativar-ou-reativar-um-cliente)).
-- Os B/Ls que já esperavam na Revisão com esse CNPJ não se vinculam sozinhos ao novo cadastro: vincule-os na Revisão ([8.2](08-revisao.md#82-cadastrar-ou-vincular-o-cliente)).
 - Todo contato preenchido precisa de nome e de e-mail válido; o que ficou todo em branco é ignorado.
 :::
 
@@ -94,6 +93,19 @@ A razão social passa a ser a da planilha; os outros campos só mudam quando vê
 Os dados novos saem nas faturas emitidas daqui em diante. A fatura já emitida guarda o cadastro do dia da emissão e não muda. As **Notas** são de uso interno: o Cliente não as vê.
 
 O CNPJ não se corrige aqui, porque é com ele que o Cliente entra no Portal: a troca é do {{Administrativo}}, na conta do Portal (capítulo 14).
+
+### Completar pela Receita
+
+**Quem faz:** {{Administrativo}}
+
+O Cliente cadastrado antes da consulta à Receita (5 de novembro de 2026) pode estar sem nome fantasia ou endereço. Para completar todos de uma vez:
+
+1. Em **Clientes**, clique em **Completar pela Receita**. A janela lista os Clientes ativos com CNPJ a que falta nome fantasia, endereço, cidade, UF ou CEP, e o que falta em cada um.
+2. Clique em **Consultar a Receita**. O Vela consulta um CNPJ por vez; **Interromper** para a consulta sem gravar nada.
+3. Confira na prévia **O que entra** em cada Cliente. "A Receita não tem o que falta.", "CNPJ não encontrado na Receita." e "Consulta indisponível agora" ficam de fora; situação diferente de ATIVA aparece em âmbar.
+4. Clique em **Gravar em N Clientes**.
+
+Só o campo vazio é preenchido: o que já está preenchido, a razão social e o CNPJ não mudam, nem o campo que alguém preencheu entre a consulta e a gravação. Cada campo gravado entra no Histórico e nas **Alterações do cadastro** do Cliente, com quem gravou e o motivo "Completar pela Receita". Um Cliente que falha não desfaz os outros: a coluna **Gravação** diz o motivo.
 
 ## 13.6 Cuidar dos contatos do Cliente
 

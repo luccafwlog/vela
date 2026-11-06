@@ -31,7 +31,46 @@ export type CreateCustomerInput = {
   contacts?: CreateCustomerContactInput[]
 }
 
-export async function createCustomer(input: CreateCustomerInput) {
+/** B/Ls pendentes que o cadastro vinculou pelo CNPJ (migration 610). */
+export type CustomerBlLink = {
+  linkedBlIds: string[]
+  /** B/L cujo vínculo ficou, mas as Taxas Locais não foram calculadas. */
+  chargesFailed: Array<{ blId: string; reason: string }>
+}
+
+export type CreatedCustomer = Customer & { blLink: CustomerBlLink }
+
+function parseBlLink(value: unknown): CustomerBlLink {
+  const raw = (value ?? {}) as { linked_bl_ids?: unknown; charges_failed?: unknown }
+  const linkedBlIds = Array.isArray(raw.linked_bl_ids) ? raw.linked_bl_ids.filter((id): id is string => typeof id === 'string') : []
+  const chargesFailed = Array.isArray(raw.charges_failed)
+    ? raw.charges_failed.flatMap((item) => {
+      const entry = item as { bl_id?: unknown; reason?: unknown }
+      return typeof entry.bl_id === 'string' ? [{ blId: entry.bl_id, reason: typeof entry.reason === 'string' ? entry.reason : '' }] : []
+    })
+    : []
+  return { linkedBlIds, chargesFailed }
+}
+
+/**
+ * O que o Novo cliente vinculou (migration 610): os B/Ls e, se houver, os que
+ * ficaram sem o cálculo das Taxas Locais, com o motivo.
+ */
+export function createdCustomerLinkMessage(link: CustomerBlLink): string {
+  if (!link.linkedBlIds.length) return ''
+  const ids = link.linkedBlIds.join(', ')
+  const linked = ` ${link.linkedBlIds.length === 1 ? `B/L ${ids} vinculado` : `B/Ls ${ids} vinculados`} pelo CNPJ.`
+  const failed = link.chargesFailed.length
+    ? ` Taxas Locais não calculadas: ${link.chargesFailed.map((item) => `${item.blId} (${item.reason})`).join('; ')}. Recalcule em Taxas Locais › Validação.`
+    : ''
+  return `${linked}${failed}`
+}
+
+/**
+ * Cadastra o Cliente com os contatos; os B/Ls pendentes com o mesmo CNPJ são
+ * vinculados por documento na mesma gravação (migration 610) e voltam em `blLink`.
+ */
+export async function createCustomer(input: CreateCustomerInput): Promise<CreatedCustomer> {
   const cnpj = canonicalizeValidCnpj(input.cnpjCpf)
   if (!cnpj) throw new Error('CNPJ inválido.')
   const contacts = (input.contacts ?? []).filter(
@@ -59,7 +98,8 @@ export async function createCustomer(input: CreateCustomerInput) {
   })
 
   if (error || !data) throw error
-  return data as unknown as Customer
+  const { bl_link: blLink, ...customer } = data as unknown as Customer & { bl_link?: unknown }
+  return { ...(customer as Customer), blLink: parseBlLink(blLink) }
 }
 
 /**

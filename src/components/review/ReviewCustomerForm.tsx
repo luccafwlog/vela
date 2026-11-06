@@ -6,6 +6,7 @@ import { SegmentedControl } from '../ui/SegmentedControl'
 import { InlineCustomerPicker } from '../shared/ReviewInlineEditors'
 import { ReceitaNameNote } from './ReceitaNameNote'
 import { useCnpjLookup } from '../../hooks/useCnpjLookup'
+import { useExistingCustomerByCnpj } from '../../hooks/useCustomers'
 import { reviewProfileFromLookup, type ReviewCustomerProfile } from '../../services/cnpjLookup'
 import { useAuth } from '../../hooks/useAuth'
 import type { ReviewCustomer } from '../../hooks/useReview'
@@ -112,9 +113,26 @@ export function ReviewCustomerForm({
 
   const validEmail = !canEditContacts || EMAIL_PATTERN.test(email.trim())
   const cnpjMismatch = Boolean(validCnpj && expectedCnpjs.length > 0 && !expectedCnpjs.includes(validCnpj))
+  // Um Cliente por CNPJ: o CNPJ já cadastrado (pela tela de Clientes depois da
+  // importação, por exemplo) não é cadastrado de novo. O Cliente ativo vira a
+  // escolha do "Vincular", uma vez por CNPJ; o desativado trava com o motivo.
+  // A Receita só é consultada para CNPJ sem cadastro, como no Novo cliente.
+  const checkedCnpj = mode === 'cadastrar' && !cnpjMismatch ? validCnpj : null
+  const existingQuery = useExistingCustomerByCnpj(checkedCnpj)
+  const existing = checkedCnpj && existingQuery.data ? existingQuery.data : null
+  const [existingAppliedFor, setExistingAppliedFor] = useState<string | null>(null)
+  if (existing && !existing.deactivated_at && existingAppliedFor !== existing.cnpj_cpf) {
+    setExistingAppliedFor(existing.cnpj_cpf)
+    setMode('vincular')
+    setLinkTarget({ id: existing.id, cnpj_cpf: existing.cnpj_cpf, name: existing.name })
+  }
+  const checkingExisting = Boolean(checkedCnpj) && existingQuery.isPending && existingQuery.fetchStatus === 'fetching'
   // Mesma consulta da nota (cache do React Query): o perfil vai junto no cadastro.
-  const receitaCnpj = mode === 'cadastrar' && !cnpjMismatch ? validCnpj : null
+  const receitaCnpj = checkedCnpj && (existingQuery.isError || (existingQuery.isSuccess && !existingQuery.data)) ? checkedCnpj : null
   const receita = useCnpjLookup(receitaCnpj)
+  // Cadastrar antes da resposta gravava o Cliente sem os dados da Receita. A
+  // espera é curta: a Edge Function desiste em 6 s e responde "indisponível".
+  const waitingReceita = Boolean(receitaCnpj) && !receita.data && receita.isFetching
   const target = plural(blCount, 'B/L', 'B/Ls')
   const linkTargetCnpj = canonicalizeValidCnpj(linkTarget?.cnpj_cpf)
   const linkMatches = linkTarget && expectedCnpjs.length && linkTargetCnpj ? expectedCnpjs.includes(linkTargetCnpj) : null
@@ -129,11 +147,19 @@ export function ReviewCustomerForm({
           ? 'Informe um CNPJ válido.'
           : cnpjMismatch
             ? 'O CNPJ precisa ser um dos lidos no B/L.'
-            : !validEmail
-              ? 'Informe um e-mail válido.'
-              : canInvitePortal && !portal
-                ? 'Escolha o que fazer com o Portal do Cliente para continuar.'
-                : null
+            : existing
+              ? existing.deactivated_at
+                ? 'Cliente desativado com este CNPJ: o Administrativo o reativa na ficha.'
+                : 'Este CNPJ já está cadastrado: vincule o Cliente em vez de cadastrar.'
+              : checkingExisting
+                ? 'Conferindo se o CNPJ já está cadastrado…'
+                : waitingReceita
+                  ? 'Aguarde os dados da Receita: eles vão para o Cliente novo.'
+                  : !validEmail
+                    ? 'Informe um e-mail válido.'
+                    : canInvitePortal && !portal
+                      ? 'Escolha o que fazer com o Portal do Cliente para continuar.'
+                      : null
   const linkBlock = saving ? null : !linkTarget ? 'Escolha o cliente cadastrado.' : null
   const block = mode === 'cadastrar' ? onboardBlock : linkBlock
 
@@ -192,6 +218,20 @@ export function ReviewCustomerForm({
               </Field>
             ) : null}
           </div>
+          {existing ? (
+            <p className="m-0" role="status">
+              {existing.deactivated_at
+                ? <>Já existe um Cliente desativado com este CNPJ: <strong>{existing.name}</strong>. O Administrativo o reativa na ficha.</>
+                : <>Este CNPJ já está cadastrado: <strong>{existing.name}</strong>.{' '}
+                  <button type="button" className="review-link-button" onClick={() => {
+                    setMode('vincular')
+                    setLinkTarget({ id: existing.id, cnpj_cpf: existing.cnpj_cpf, name: existing.name })
+                  }}>
+                    Vincular a este cliente
+                  </button>
+                </>}
+            </p>
+          ) : null}
           {/* ADR 0127: razão social da Receita para o CNPJ aceito (um dos lidos no B/L). */}
           <ReceitaNameNote cnpj={receitaCnpj} name={name} onUseName={setName} />
           {canInvitePortal ? (
@@ -220,6 +260,9 @@ export function ReviewCustomerForm({
         </>
       ) : (
         <div className="grid gap-2">
+          {linkTarget && existingAppliedFor && linkTarget.cnpj_cpf === existingAppliedFor ? (
+            <p className="m-0 text-[var(--app-muted)]" role="note">O CNPJ {formatCnpj(existingAppliedFor)} já está cadastrado: o B/L é vinculado a esse Cliente, sem cadastro novo.</p>
+          ) : null}
           <InlineCustomerPicker label="Cliente cadastrado" saving={saving} expectedCnpjs={expectedCnpjs} onSelect={setLinkTarget} />
           {linkTarget ? (
             <p role="status">

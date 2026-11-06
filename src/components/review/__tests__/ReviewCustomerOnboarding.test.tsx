@@ -10,10 +10,14 @@ const reviewOnboardingMocks = vi.hoisted(() => ({
   cnpjLookup: vi.fn((cnpj: string | null) => (cnpj
     ? { isFetching: false, data: { status: 'encontrado', data: { cnpj, razao_social: 'ALFA COMERCIO LTDA', nome_fantasia: '', cep: '29010000', endereco: 'RUA A, 10', cidade: 'VITORIA', uf: 'ES', situacao: 'ATIVA' } } }
     : { data: undefined, isFetching: false })),
+  existing: vi.fn((): unknown => ({ data: null, isPending: false, isSuccess: true, isError: false, fetchStatus: 'idle' })),
 }))
 // Consulta de CNPJ (ADR 0127) com resposta fixa: sem QueryClient nem rede.
 vi.mock('../../../hooks/useCnpjLookup', () => ({ useCnpjLookup: (cnpj: string | null) => reviewOnboardingMocks.cnpjLookup(cnpj) }))
-vi.mock('../../../hooks/useCustomers', () => ({ useCustomerLookup: () => ({ data: [reviewOnboardingMocks.lookupCustomer] }) }))
+vi.mock('../../../hooks/useCustomers', () => ({
+  useCustomerLookup: () => ({ data: [reviewOnboardingMocks.lookupCustomer] }),
+  useExistingCustomerByCnpj: (cnpj: string | null) => (cnpj ? reviewOnboardingMocks.existing() : { data: null, isPending: true, isSuccess: false, isError: false, fetchStatus: 'idle' }),
+}))
 
 const group = { key: 'document:11222333000181', cnpj: '11222333000181', displayName: 'Alfa', identityKind: 'document', candidateCnpjs: ['11222333000181'], canBulkOnboard: true, items: [{ id: 'BL1', source: 'bl', customer_id: null }] } as never as ReviewGroup
 
@@ -119,5 +123,23 @@ describe('ReviewCustomerOnboarding', () => {
     const conflict = { ...group, identityKind: 'conflict', candidateCnpjs: ['11222333000181', '06352972000121'] } as never as ReviewGroup
     rerender(<ReviewCustomerOnboarding group={conflict} existingCustomerId={null} existingCustomer={null} initialName="Alfa" initialCnpj="" initialEmail="" saving={false} proposedCnpj={{ cnpj: '06352972000121', seq: 1 }} onSelectExistingCustomer={vi.fn()} onSubmit={vi.fn()} />)
     expect((screen.getByPlaceholderText('00.000.000/0000-00') as HTMLInputElement).value).toBe('06.352.972/0001-21')
+  })
+
+  // Pedido do dono de 2026-11-06: CNPJ já cadastrado vira o Cliente escolhido.
+  it('CNPJ já cadastrado: escolhe o Cliente existente, mantém o e-mail e não cria outro', async () => {
+    const found = { data: { id: 7, cnpj_cpf: '11222333000181', name: 'ALFA COMERCIO LTDA', deactivated_at: null }, isPending: false, isSuccess: true, isError: false, fetchStatus: 'idle' }
+    reviewOnboardingMocks.existing.mockReturnValue(found)
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(<ReviewCustomerOnboarding group={group} existingCustomerId={null} existingCustomer={null} initialName="Alfa" initialCnpj="11222333000181" initialEmail="manifesto@alfa.com" saving={false} onSelectExistingCustomer={vi.fn()} onSubmit={onSubmit} />)
+
+    expect(screen.getByRole('status').textContent).toMatch(/Cliente cadastrado escolhido: ALFA COMERCIO LTDA\. O CNPJ do B\/L já está cadastrado/)
+    await user.click(screen.getByRole('button', { name: /vincular 1 b\/l$/i }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ customerId: 7, email: 'manifesto@alfa.com', profile: null }))
+
+    // "Criar cliente novo em vez disso" não cria um segundo Cliente com o mesmo CNPJ.
+    await user.click(screen.getByRole('button', { name: 'Criar cliente novo em vez disso' }))
+    expect(screen.getByText('Este CNPJ já é do Cliente ALFA COMERCIO LTDA: escolha-o em vez de criar outro.')).toBeTruthy()
+    reviewOnboardingMocks.existing.mockReturnValue({ data: null, isPending: false, isSuccess: true, isError: false, fetchStatus: 'idle' })
   })
 })
