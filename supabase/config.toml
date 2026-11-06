@@ -17,6 +17,10 @@ import_map = "./functions/deno.json"
 verify_jwt = false
 import_map = "./functions/deno.json"
 
+[functions.adr-closed-email]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
 [functions.portal-email-webhook]
 verify_jwt = false
 import_map = "./functions/deno.json"

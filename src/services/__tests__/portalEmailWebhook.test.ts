@@ -40,7 +40,7 @@ describe('webhook de email para Portal e Comunicados', () => {
     expect(processor).not.toContain('isCommunicationsEnabled')
     expect(processor).toMatch(/if\s*\(!recipient\.email\)\s*return true/)
     expect(portalEmail).toContain("from('app_settings').select('communications_enabled')")
-    expect(portalEmail).toContain("const INTERNAL_KINDS: ReadonlySet<PortalEmailKind> = new Set(['resumo_diario', 'alerta_critico'])")
+    expect(portalEmail).toContain("const INTERNAL_KINDS: ReadonlySet<PortalEmailKind> = new Set(['resumo_diario', 'alerta_critico', 'adr_fechado'])")
     expect(read('supabase/migrations/022_email_inbox_and_dispatch_state.sql')).toContain('repair_customer_contact_box_fallbacks')
     expect(read('supabase/migrations/022_email_inbox_and_dispatch_state.sql')).toContain("'portal_email_suprimido'")
   })

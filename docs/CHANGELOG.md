@@ -6,6 +6,11 @@
 
 ## 2026-11
 
+- **ADR fecha sozinho e avisa por e-mail (decisão D6 do dono de 2026-11-06, migration `611`, ADR 0131):** quando a
+  terceira equipe assina, a tela fecha o ADR; todo fechamento manda o e-mail **ADR fechado** a todos os usuários
+  internos ativos, com resumo e link. A Edge Function `adr-closed-email`, o segredo `ADR_CLOSED_EMAIL_SECRET` e o job
+  ainda precisam ser publicados e cadastrados em produção ([segredos-cron.md](operations/segredos-cron.md#agendar-o-e-mail-do-adr-fechado)).
+  Prova: `adrFechadoAvisaPorEmail.local-pg.test.ts`, `adrClosedEmail.test.ts`, `VoyageAgencyReportTab.test.tsx`.
 - **CE travado sem Baplie (decisão D4 do dono de 2026-11-06, migration `610`, ADR 0131):** na Viagem ativa, o CE
   Mercante de B/L de container também espera o Baplie importado; sem ele, a Documentação ou o Administrativo declara
   **Viagem sem Baplie**, com motivo, na página Baplie (a declaração fecha o alerta **Baplie ausente**). A prévia do CE

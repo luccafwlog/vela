@@ -1,7 +1,7 @@
 # 0131 — Decisões do dono sobre a revisão de cobertura dos alertas
 
 Status: aceito — 2026-11-06 (decisões do dono). Implementação em lotes no
-[plano](../plans/2026-11-06-decisoes-da-revisao-dos-alertas.md).
+[plano](../archive/plans/2026-11-06-decisoes-da-revisao-dos-alertas.md).
 
 ## Contexto
 

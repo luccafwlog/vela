@@ -1,11 +1,12 @@
 # Decisões da revisão dos alertas — plano de implementação
 
-Plano vivo. Executa as decisões do dono de 2026-11-06 sobre a
-[revisão de cobertura dos alertas](../archive/audits/2026-11-06-cobertura-dos-alertas-no-fluxo-de-trabalho.md),
-registradas na [ADR 0131](../adr/0131-decisoes-da-revisao-dos-alertas.md). Cada
+Plano executado em 2026-11-06 (arquivado). Executou as decisões do dono de 2026-11-06 sobre a
+[revisão de cobertura dos alertas](../audits/2026-11-06-cobertura-dos-alertas-no-fluxo-de-trabalho.md),
+registradas na [ADR 0131](../../adr/0131-decisoes-da-revisao-dos-alertas.md). Cada
 lote é uma entrega própria, com migration, testes e documentação viva na mesma
-mudança. Ao terminar o último lote, este plano vai para
-`docs/archive/plans/`.
+mudança. Pendente fora do repositório: publicar a Edge Function
+`adr-closed-email` e cadastrar `ADR_CLOSED_EMAIL_SECRET` e o job em produção
+([segredos-cron.md](../../operations/segredos-cron.md#agendar-o-e-mail-do-adr-fechado)).
 
 ## Lotes
 
@@ -18,7 +19,7 @@ mudança. Ao terminar o último lote, este plano vai para
 | 5 | D1 | Desbloqueio de CE: solicitação sem análise em 2 horas úteis (8h–17h) abre Crítico; prazo correndo abre Normal 2 horas depois do início e vira Crítico 2 horas antes do vencimento; Documentação e Administrativo | B01, B02 | feito: migration `608`, `alertasDoDesbloqueioDeCe.local-pg.test.ts` |
 | 6 | D5 | ADR de Saída recusa **Nada a declarar** e **Fechar ADR** com a exportação declarada e não lançada | B10 | feito: migration `609`, `adrRecusaSemExportacao.local-pg.test.ts` |
 | 7 | D4 | CE Mercante do B/L de container travado sem Baplie conciliado (salvo declaração "Viagem sem Baplie", com motivo), além da trava dos veículos; a prévia mostra as divergências da rota e pede confirmação | B16, B17 | feito: migration `610`, `travaCeMercanteSemBaplie.local-pg.test.ts` |
-| 8 | D6 | ADR fecha sozinho com as três assinaturas e manda e-mail com resumo e link a todos os usuários internos ativos | B09 | a fazer |
+| 8 | D6 | ADR fecha sozinho com as três assinaturas e manda e-mail com resumo e link a todos os usuários internos ativos | B09 | feito: migration `611`, `adrFechadoAvisaPorEmail.local-pg.test.ts`, `adrClosedEmail.test.ts`; publicar `adr-closed-email` e cadastrar `ADR_CLOSED_EMAIL_SECRET` em produção |
 
 ## Regras comuns
 

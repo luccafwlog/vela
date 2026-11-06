@@ -369,6 +369,41 @@ it('assina o departamento apenas quando habilitado e chama a RPC com o payload c
   }, expect.objectContaining({ onError: expect.any(Function) }))
 })
 
+it('611: a assinatura que completa as três fecha o ADR sozinha, com o retrato recarregado', async () => {
+  closeMutateMock.mockClear()
+  useAuthMock.mockReturnValue({ effectiveRole: 'equipamentos', isAdmin: false })
+  const twoSigned = allDepartmentsSigned().filter((row) => row.department !== 'equipamentos')
+  useAgencyReportOwnMock.mockReturnValue({ data: { status: 'open', terminal: 'TVV', signoffs: allSectionsSignoffs(), departmentSignoffs: twoSigned, occurrences: [], actor_names: {} } })
+  departmentSignoffMutateMock.mockImplementationOnce((_payload: unknown, options?: { onSuccess?: () => void }) => options?.onSuccess?.())
+
+  const view = render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
+  const equipamentosCard = screen.getByRole('heading', { name: 'Equipamentos', level: 2 }).closest('section')! as HTMLElement
+  fireEvent.click(within(equipamentosCard).getByRole('button', { name: 'Assinar Equipamentos' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+  // Antes de a aba recarregar com a terceira assinatura, nada fecha.
+  expect(closeMutateMock).not.toHaveBeenCalled()
+
+  useAgencyReportOwnMock.mockReturnValue({ data: { status: 'open', terminal: 'TVV', signoffs: allSectionsSignoffs(), departmentSignoffs: allDepartmentsSigned(), occurrences: [], actor_names: {} } })
+  view.rerender(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
+
+  await waitFor(() => expect(closeMutateMock).toHaveBeenCalledTimes(1))
+  const snapshot = closeMutateMock.mock.calls[0][0].snapshot
+  expect(snapshot.departmentSignoffs.map((row: { department: string }) => row.department).sort()).toEqual(['documentacao', 'equipamentos', 'operacoes'])
+})
+
+it('611: assinar sem completar as três não fecha', () => {
+  closeMutateMock.mockClear()
+  useAuthMock.mockReturnValue({ effectiveRole: 'equipamentos', isAdmin: false })
+  useAgencyReportOwnMock.mockReturnValue({ data: { status: 'open', terminal: 'TVV', signoffs: allSectionsSignoffs(), departmentSignoffs: [], occurrences: [], actor_names: {} } })
+  departmentSignoffMutateMock.mockImplementationOnce((_payload: unknown, options?: { onSuccess?: () => void }) => options?.onSuccess?.())
+
+  render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
+  const equipamentosCard = screen.getByRole('heading', { name: 'Equipamentos', level: 2 }).closest('section')! as HTMLElement
+  fireEvent.click(within(equipamentosCard).getByRole('button', { name: 'Assinar Equipamentos' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Confirmar' }))
+  expect(closeMutateMock).not.toHaveBeenCalled()
+})
+
 it('desabilita assinar o departamento enquanto houver seção pendente', () => {
   useAuthMock.mockReturnValue({ effectiveRole: 'equipamentos', isAdmin: false })
   useAgencyReportOwnMock.mockReturnValue({
