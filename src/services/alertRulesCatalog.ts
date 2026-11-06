@@ -1074,19 +1074,20 @@ const ALERT_RULES_BASE = [
   },
   {
     // Migration 608 (ADR 0131, D1): Normal 2 horas depois do início, Crítico 2 horas antes do vencimento.
+    // 612: fecha com a conciliação da ZPT trazendo o B/L desbloqueado, não com a exportação.
     type: 'desbloqueio_prazo_vencendo',
     domain: 'Desbloqueio de CE',
     responsible: 'documentacao',
     catalogAudience: ['documentacao', 'administrativo'],
     entityType: 'bl',
     severity: 'normal',
-    summary: 'O prazo de liberação do B/L está correndo e o B/L ainda não foi exportado para a ZPT.',
-    trigger: 'O B/L cumpriu os requisitos e o prazo começou há mais de 2 horas sem a exportação. Um alerta por B/L.',
+    summary: 'O prazo de liberação do B/L está correndo e a ZPT ainda não confirmou o desbloqueio.',
+    trigger: 'O B/L cumpriu os requisitos e o prazo começou há mais de 2 horas sem a conciliação da ZPT trazer o B/L como desbloqueado. Exportar não basta: o alerta segue até a conciliação. Um alerta por B/L.',
     timing: 'A cada conferência de 5 minutos. Faltando 2 horas para o vencimento, o alerta vira Crítico e avisa de novo.',
-    resolution: 'Em Desbloqueio de CE, aba Controle, gere a planilha dos B/Ls aptos e importe-a na ZPT.',
+    resolution: 'Em Desbloqueio de CE, aba Controle, gere a planilha dos B/Ls aptos e importe-a na ZPT. Depois que a ZPT desbloquear, use Conciliar com a ZPT com o arquivo dela.',
     destination: '/desbloqueio-ce?aba=controle',
     destinationLabel: 'Abrir Desbloqueio de CE',
-    afterResolution: 'Sozinho, quando o B/L é exportado ou o prazo deixa de correr.',
+    afterResolution: 'Sozinho, na hora em que a conciliação da ZPT traz o B/L desbloqueado no CE atual, quando o prazo deixa de correr ou o B/L é cancelado.',
     impact: 'Passado o prazo, o Cliente fica sem a liberação prometida e a carga continua retida no terminal.',
   },
 

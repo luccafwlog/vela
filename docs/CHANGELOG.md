@@ -6,6 +6,9 @@
 
 ## 2026-11
 
+- **Prazo do desbloqueio fecha pela ZPT (correção do dono de 2026-11-06, migration `612`, ADR 0131):** o alerta
+  **Prazo do desbloqueio vencendo** não fecha mais com a exportação; fecha na hora em que a conciliação da ZPT traz o
+  B/L como desbloqueado no CE atual. Prova: `alertasDoDesbloqueioDeCe.local-pg.test.ts`.
 - **ADR fecha sozinho e avisa por e-mail (decisão D6 do dono de 2026-11-06, migration `611`, ADR 0131):** quando a
   terceira equipe assina, a tela fecha o ADR; todo fechamento manda o e-mail **ADR fechado** a todos os usuários
   internos ativos, com resumo e link. A Edge Function `adr-closed-email`, o segredo `ADR_CLOSED_EMAIL_SECRET` e o job

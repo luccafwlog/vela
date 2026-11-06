@@ -2,7 +2,8 @@
 // - Solicitação do Cliente sem análise 2 horas úteis (08h–17h, dia útil)
 //   depois do envio: Crítico, para Documentação e Administrativo.
 // - Prazo do desbloqueio correndo: Normal 2 horas depois do início, Crítico 2
-//   horas antes do vencimento; fecha com a exportação.
+//   horas antes do vencimento; fecha quando a conciliação da ZPT traz o B/L
+//   desbloqueado no CE atual (migration 612), não com a exportação.
 // Cada cenário roda numa transação desfeita no fim.
 //
 // Namespace exclusivo: Cliente/Viagem 998608, B/L 'A608-*', usuários ...000000608001/2.
@@ -26,7 +27,8 @@ function sql(q: string): string {
     .replaceAll(String.fromCharCode(13), '').trim()
 }
 
-type Scenario = { submittedAgo: string; approved: boolean; startedAgo?: string; exported?: boolean }
+// `afterSweep`: SQL rodado depois da conferência, com os gatilhos ligados (a conciliação da ZPT, na 612).
+type Scenario = { submittedAgo: string; approved: boolean; startedAgo?: string; exported?: boolean; afterSweep?: string }
 
 /** Monta a solicitação, roda a conferência e devolve os alertas e avisos. */
 function run(s: Scenario): Record<string, string | number | null> {
@@ -48,10 +50,13 @@ function run(s: Scenario): Record<string, string | number | null> {
     INSERT INTO public.ce_unlock_bl_deliveries(bl_id,delivered,updated_at) VALUES('${BL}',true,${start});
     SET LOCAL session_replication_role=origin;
     SELECT public.reconcile_ce_unlock_alerts('teste_608') >= 0;
+    ${s.afterSweep ?? ''}
     SELECT jsonb_build_object(
       'request', (SELECT concat_ws('|', i.status, i.severity, i.department) FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id
         WHERE a.entity_id='${request}' AND i.item_type='desbloqueio_solicitacao_sem_analise'),
       'deadline', (SELECT concat_ws('|', i.status, i.severity, i.metadata->>'milestone') FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id
+        WHERE a.entity_id='${BL}' AND i.item_type='desbloqueio_prazo_vencendo'),
+      'message', (SELECT i.message FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id
         WHERE a.entity_id='${BL}' AND i.item_type='desbloqueio_prazo_vencendo'),
       'doc', (SELECT count(*) FROM public.internal_notifications n JOIN public.alerts a ON a.id=n.alert_id WHERE a.entity_id='${request}' AND n.recipient_id='${doc}'),
       'adm', (SELECT count(*) FROM public.internal_notifications n JOIN public.alerts a ON a.id=n.alert_id WHERE a.entity_id='${request}' AND n.recipient_id='${adm}'));
@@ -107,7 +112,18 @@ local('Alertas do Desbloqueio de CE (migration 608)', () => {
     expect(late.request).toBeNull()
   })
 
-  it('B/L exportado: sem alerta de prazo', () => {
-    expect(run({ submittedAgo: '6 days', approved: true, startedAgo: '5 days', exported: true }).deadline).toBeNull()
+  it('612: exportar não fecha; segue Crítico e diz que falta a conciliação da ZPT', () => {
+    const r = run({ submittedAgo: '6 days', approved: true, startedAgo: '5 days', exported: true })
+    expect(r.deadline).toBe('active|critical|prazo_critico')
+    expect(r.message).toContain('Exportado para a ZPT; falta a conciliação trazer o B/L desbloqueado.')
+  })
+
+  it('612: a conciliação da ZPT com "Desbloqueado" no CE atual fecha na hora; no CE antigo, não', () => {
+    const zpt = (ce: string) => `INSERT INTO public.ce_unlock_zpt_status(bl_id,ce_mercante,status,zpt_status,reconciled_by)
+      VALUES('${BL}','${ce}','unlocked','Desbloqueado','${doc}');`
+    expect(run({ submittedAgo: '6 days', approved: true, startedAgo: '5 days', exported: true, afterSweep: zpt('998608000000101') }).deadline)
+      .toMatch(/^resolved\|/)
+    expect(run({ submittedAgo: '6 days', approved: true, startedAgo: '5 days', exported: true, afterSweep: zpt('998608000000999') }).deadline)
+      .toBe('active|critical|prazo_critico')
   })
 })

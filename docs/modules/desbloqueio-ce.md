@@ -513,10 +513,14 @@ Administrativo também avisado; a rotina `ce-unlock-alerts` (5 minutos) abre e f
   `submitted` ou `in_review` com B/L ativo de Termo ou Procuração sem aprovar, 2 horas úteis depois do
   último `submit` (`_add_business_hours`: 8h às 17h de Brasília, dia útil de
   `itau_pix_business_day`). **Resolver** abre `/desbloqueio-ce?pedido=<id>`.
-- `desbloqueio_prazo_vencendo` (por B/L): com `sla_started_at` do item e sem exportação, Normal 2
-  horas depois do início; Crítico (marco `prazo_critico`) a partir de 2 horas antes de
-  `sla_deadline`. Fecha na exportação ou quando o prazo deixa de correr. **Resolver** abre a aba
-  Controle.
+- `desbloqueio_prazo_vencendo` (por B/L): com `sla_started_at` do item, Normal 2 horas depois do
+  início; Crítico (marco `prazo_critico`) a partir de 2 horas antes de `sla_deadline`. Desde a
+  migration `612` (correção do dono de 2026-11-06), exportar não fecha: fecha quando a conciliação
+  da ZPT traz o B/L desbloqueado no CE atual (`_ce_unlock_zpt_unlocked`: `ce_unlock_zpt_status`
+  `unlocked` com o CE do B/L; o gatilho `trg_ce_unlock_deadline_alert_on_zpt` fecha na hora), quando
+  o prazo deixa de correr ou o B/L é cancelado. A mensagem diz se o B/L já foi exportado. A rotina
+  só abre para prazo de B/L exportado ou validado nos últimos 30 dias; alerta aberto é reavaliado
+  até fechar. **Resolver** abre a aba Controle.
 **Teste:** `alertasDoDesbloqueioDeCe.local-pg.test.ts`.
 
 ### Avisos ao cliente
