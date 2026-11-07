@@ -1,5 +1,6 @@
 # Planos históricos (archive)
 
+- [2026-11-07 — Brechas restantes da revisão dos alertas](2026-11-07-brechas-restantes-da-revisao-dos-alertas.md) — executado e arquivado em 2026-11-07: as decisões da ADR 0132 nas migrations `613` a `619`; falta cadastrar o heartbeat das rotinas internas no Better Stack.
 - [2026-11-06 — Decisões da revisão dos alertas](2026-11-06-decisoes-da-revisao-dos-alertas.md) — executado e arquivado em 2026-11-06: as oito decisões do dono da ADR 0131 nas migrations `604` a `611`; falta publicar a Edge Function `adr-closed-email` e cadastrar o segredo e o job em produção.
 - [2026-10-23 — Reforços adiados da auditoria de segurança run-3](2026-10-23-reforcos-adiados-da-auditoria-run-3.md) — executado e arquivado em 2026-11-05: Edge Functions com todas as dependências no import map e no lock, `deno check` de todas as funções no CI e CSP sem o host compartilhado do PostHog em `script-src`. Ficou de fora, por decisão do dono, o `style-src` sem `'unsafe-inline'` (a janela de impressão depende dele); o carregador do PostHog pelo próprio domínio ficou obsoleto. Regras vigentes em [Segurança](../../operations/seguranca.md#headers-http--csp) e em [Serviços externos § Edge Functions](../../operations/servicos-externos.md#edge-functions).
 

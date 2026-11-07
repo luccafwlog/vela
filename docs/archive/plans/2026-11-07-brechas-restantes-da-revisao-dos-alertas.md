@@ -2,8 +2,9 @@
 
 Plano executado em 2026-11-07 (arquivado). Executou as decisões do dono de 2026-11-07 registradas na
 [ADR 0132](../../adr/0132-brechas-restantes-da-revisao-dos-alertas.md). Cada lote
-leva migration, testes e documentação viva na mesma mudança. Ao terminar o
-último lote, este plano vai para `docs/archive/plans/`.
+levou migration, testes e documentação viva na mesma mudança. Pendente fora do
+repositório: cadastrar o heartbeat das rotinas internas no Better Stack e a URL no
+cofre ([segredos-cron.md](../../operations/segredos-cron.md#ligar-o-sinal-das-rotinas-internas)).
 
 ## Lotes
 

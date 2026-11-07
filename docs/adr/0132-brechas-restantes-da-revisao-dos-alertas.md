@@ -1,7 +1,7 @@
 # 0132 — Brechas restantes da revisão dos alertas
 
 Status: aceito — 2026-11-07 (decisões do dono, uma a uma). Implementação no
-[plano](../plans/2026-11-07-brechas-restantes-da-revisao-dos-alertas.md).
+[plano](../archive/plans/2026-11-07-brechas-restantes-da-revisao-dos-alertas.md).
 
 ## Contexto
 
