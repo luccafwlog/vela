@@ -74,6 +74,14 @@ export type ActiveAlertType =
   | 'voyage_terminal_date_pending'
   | 'voyage_escala_terminal_missing'
   | 'voyage_export_after_atd'
+  | 'container_sem_descarga'
+  | 'desbloqueio_solicitacao_sem_analise'
+  | 'desbloqueio_prazo_vencendo'
+  | 'desbloqueio_divergente_zpt'
+  | 'fatura_cancelada_sem_reemissao'
+  | 'demurrage_cancelada_sem_reemissao'
+  | 'liberacao_vencendo'
+  | 'rotina_interna_sem_rodar'
 
 export const TYPE_LABELS: Record<string, string> = {
   fatura_desatualizada: 'Fatura desatualizada',
@@ -143,6 +151,14 @@ export const TYPE_LABELS: Record<string, string> = {
   voyage_terminal_date_pending: 'Data de terminal pendente',
   voyage_escala_terminal_missing: 'Escala sem terminal',
   voyage_export_after_atd: 'Exportação pendente pós-ATD',
+  container_sem_descarga: 'Container sem descarga',
+  desbloqueio_solicitacao_sem_analise: 'Solicitação de desbloqueio sem análise',
+  desbloqueio_prazo_vencendo: 'Prazo do desbloqueio vencendo',
+  desbloqueio_divergente_zpt: 'B/L divergente na ZPT',
+  fatura_cancelada_sem_reemissao: 'B/L sem fatura depois do cancelamento',
+  demurrage_cancelada_sem_reemissao: 'Invoice de Demurrage cancelada sem nova emissão',
+  liberacao_vencendo: 'Liberação de faturamento vencendo',
+  rotina_interna_sem_rodar: 'Rotina interna sem rodar',
 }
 
 export const ENTITY_TYPE_LABELS: Record<string, string> = {
@@ -168,6 +184,8 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   email_provider: 'Provedor de e-mail',
   user_profile: 'Usuário interno',
   cron_http: 'Rotinas agendadas',
+  // 628: rotina do agendador, pelo nome.
+  cron_job: 'Rotina interna',
   portal_email_event: 'E-mail',
   // Aviso de acontecimento da nova solicitação de Desbloqueio de CE (595).
   ce_unlock_request: 'Solicitação',
@@ -504,6 +522,10 @@ function alertEntityLinkRaw(alert: {
   if (effectiveType === 'review_granite_customer_unlinked') {
     return '/granito'
   }
+  // 626 (ADR 0134, decisão 9): a Liberação se renova em Clientes › Portal.
+  if (effectiveType === 'liberacao_vencendo' && alert.entity_type === 'customer') {
+    return `/clientes/portal?cliente=${encodeURIComponent(alert.entity_id)}`
+  }
   if (CUSTOMER_CONTACT_ALERT_TYPES.has(effectiveType) && alert.entity_type === 'customer') {
     const customerCnpj = alert.metadata?.customer_cnpj
     if (typeof customerCnpj === 'string' && customerCnpj.trim()) {
@@ -563,6 +585,19 @@ function alertEntityLinkRaw(alert: {
     if (port) params.set('escala', port)
     return `/viagens/${voyageId}${params.toString() ? `?${params.toString()}` : ''}`
   }
+  // 616 (ADR 0133, D2): o container sem descarga abre Containers na escala.
+  if (effectiveType === 'container_sem_descarga' && alert.entity_type === 'voyage_escala_terminal') {
+    const [voyageId, port] = alert.entity_id.split('::')
+    if (!/^\d+$/.test(voyageId)) return '/containers'
+    const params = new URLSearchParams({ voyage: voyageId })
+    if (port) params.set('pod', port)
+    return `/containers?${params.toString()}`
+  }
+  // 617 (ADR 0133, D1): a solicitação abre o pedido; o prazo, o Controle.
+  if (effectiveType === 'desbloqueio_solicitacao_sem_analise' && alert.entity_type === 'ce_unlock_request') {
+    return `/desbloqueio-ce?${new URLSearchParams({ pedido: alert.entity_id }).toString()}`
+  }
+  if (effectiveType === 'desbloqueio_prazo_vencendo' || effectiveType === 'desbloqueio_divergente_zpt') return '/desbloqueio-ce?aba=controle'
   // ALE-D05: registros sem ficha própria levam à tela que a Regra cita.
   const screen = SCREEN_BY_ENTITY_TYPE[alert.entity_type ?? '']
   if (screen) return screen
@@ -615,6 +650,9 @@ export function alertEntityLinkLabel(alert: {
   if (effectiveType.startsWith('voyage_baplie_')) return 'Abrir Baplie'
   if (effectiveType === 'voyage_vehicle_sheet_pending' || effectiveType === 'voyage_vehicle_declaration_pending') return 'Abrir Veículos'
   if (effectiveType === 'demurrage_travado') return 'Abrir Demurrage'
+  if (effectiveType === 'container_sem_descarga') return 'Abrir Containers'
+  if (effectiveType === 'desbloqueio_solicitacao_sem_analise') return 'Abrir Solicitação'
+  if (effectiveType === 'desbloqueio_prazo_vencendo' || effectiveType === 'desbloqueio_divergente_zpt') return 'Abrir Desbloqueio de CE'
   if (effectiveType === 'demurrage_disputa_prazo') return 'Abrir Disputa'
   if (alert.entity_type === 'bl' && (effectiveType === 'billing_calculation_blocked' || effectiveType === 'billing_auto_issue_failed')) {
     return 'Taxas Locais'
@@ -1136,6 +1174,27 @@ export async function getAlertDepartmentSummary(): Promise<AlertDepartmentSummar
   const { data, error } = await alertsRpc.rpc('summarize_alert_queue_by_department')
   if (error) throw error
   return (Array.isArray(data) ? data : []) as AlertDepartmentSummary[]
+}
+
+/**
+ * Quantos alertas ativos de cada tipo a pessoa vê na fila (migration 631,
+ * ADR 0136): o técnico conta só para a conta Dev. Tipo sem alerta aberto não
+ * vem na resposta.
+ */
+export async function fetchAlertQueueCountsByType(): Promise<Map<string, number>> {
+  const { data, error } = await alertsRpc.rpc('count_alert_queue_by_type' as never)
+  if (error) throw error
+  return parseAlertQueueCountsByType(data)
+}
+
+export function parseAlertQueueCountsByType(data: unknown): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const row of Array.isArray(data) ? data : []) {
+    const item = row && typeof row === 'object' ? row as Record<string, unknown> : null
+    const count = Number(item?.active_count)
+    if (typeof item?.type === 'string' && Number.isInteger(count) && count > 0) counts.set(item.type, count)
+  }
+  return counts
 }
 
 export type InternalNotification = {

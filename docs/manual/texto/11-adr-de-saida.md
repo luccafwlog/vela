@@ -61,6 +61,7 @@ No exemplo, com a carga cheia e a carga solta no TVV, a Carga descarregada do TV
 ::: atencao
 - Seção sem dado ("Nada operado nesta frente.", "Nada operado nesta escala." ou "Não há frente atribuída a este terminal.") continua pedindo resolução: o vazio não é conclusão.
 - Mudar uma decisão já registrada pede justificativa. Voltar uma seção a **Pendente** desfaz a assinatura da equipe dona ([11.3](#113-assinar-pela-equipe)).
+- Com exportação declarada na escala e o manifesto não vinculado à Viagem, **Carga carregada** (Granito) e **Embarque de vazios** não aceitam **Nada a declarar**: o Vela recusa e diz o que falta. Vincule o manifesto em **Granito** ou no Embarque de vazios, ou corrija a exportação da escala (capítulo 10).
 :::
 
 ## 11.3 Assinar pela equipe
@@ -106,16 +107,19 @@ O {{Administrativo}} acompanha o cumprimento em **Relatórios** › **Prazo do A
 
 Fechar congela o retrato. O ADR fechado não muda mais, mesmo que a origem mude depois, e é esse retrato que o {{Financeiro}} consulta e que se imprime.
 
-1. Com as três assinaturas, o bloco **ADR** diz "Pronto para fechar". Clique em **Fechar ADR**.
+1. Se o ADR não fechou sozinho com a terceira assinatura, o bloco **ADR** diz "Pronto para fechar". Clique em **Fechar ADR**.
 2. Clique em **Confirmar fechamento**.
 3. Para imprimir, clique em **Imprimir** e, na janela **Relatório de Saída do Navio (ADR)**, em **Imprimir** de novo.
 
-O ADR passa a mostrar "Fechado em … por …" e os alertas dele fecham. O impresso traz a identificação, as datas da escala, as seções, as observações, as assinaturas das equipes e, em página nova, as unidades que tiveram armazenagem. Ele não diz se o prazo foi cumprido.
+Quando a terceira equipe assina, você não precisa clicar: o Vela fecha o ADR sozinho e avisa "As três equipes assinaram: o ADR foi fechado…". Se algo ainda impede o fechamento, ele continua aberto e a mensagem diz o motivo; resolva e use **Fechar ADR**.
+
+O ADR passa a mostrar "Fechado em … por …" e os alertas dele fecham. Todo fechamento manda o e-mail **ADR fechado** a todos os usuários do Vela, com o resumo (viagem, porto e terminal, datas, assinaturas e seções) e o botão **Abrir o ADR no Vela**. O impresso traz a identificação, as datas da escala, as seções, as observações, as assinaturas das equipes e, em página nova, as unidades que tiveram armazenagem. Ele não diz se o prazo foi cumprido.
 
 Com o ADR fechado, o Vela trava o que mexe nele: o terminal das frentes, o ATB, o ATD e o Restow da Atracação, a declaração de exportação e o Embarque de vazios daquela escala (capítulo 10). Para mudar qualquer um, reabra o ADR ([11.6](#116-reabrir-um-adr-fechado)).
 
 ::: atencao
 - Uma frente em TBC em qualquer ponto da escala impede o fechamento, também a que nasceu depois de os terminais serem escolhidos (carga solta, vazios, Granito, carga em transbordo). O bloco **ADR** mostra o aviso **Sem terminal (TBC)**, **Fechar ADR** fica apagado e, com as três assinaturas, o bloco diz "Frente sem terminal impede o fechamento" no lugar de "Pronto para fechar". Escolha o terminal em **Editar escala** ([4.3](04-viagens-escalas.md#43-atribuir-os-terminais)); no Embarque de vazios antigo, em **Definir terminal** ([10.5](10-veiculos-vazios-granito.md#105-registrar-o-embarque-de-vazios)).
+- Com exportação declarada na escala (Granito ou Embarque de vazios) e o manifesto não vinculado à Viagem, o Vela recusa **Fechar ADR** e diz o que falta. Vincule o manifesto ou corrija a exportação da escala.
 - O Vela deixa fechar antes da saída do navio, mas depois não aceita o ATD daquele terminal sem reabrir, e o ADR fechado sem ATD fica fora do **Prazo do ADR**. Feche depois de registrar o ATD.
 :::
 

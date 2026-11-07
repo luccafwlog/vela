@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { NoValue } from '../ui/NoValue'
@@ -420,6 +420,9 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   const [reopenOpen, setReopenOpen] = useState(false)
   const [reopenJustification, setReopenJustification] = useState('')
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false)
+  // 620 (ADR 0133, D6): a assinatura que completa as três arma o fechamento
+  // automático; ele roda quando a aba recarrega com as três assinaturas.
+  const [autoCloseArmed, setAutoCloseArmed] = useState(false)
   const [terminalDraft, setTerminalDraft] = useState('')
   const terminalDraftSourceKey = [
     ownData?.id ?? 'none',
@@ -636,7 +639,13 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   }
   const canSignDepartment = (department: AgencyReportDepartmentKey) => !readOnly && (isAdmin || effectiveRole === department)
   const updateDepartmentSignoff = (department: AgencyReportDepartmentKey, signed: boolean, justification?: string) => {
-    if (!readOnly && port) departmentSignoffMutation.mutate({ voyageId, port, department, signed, justification }, { onError: showRefusal })
+    if (!readOnly && port) departmentSignoffMutation.mutate({ voyageId, port, department, signed, justification }, {
+      onSuccess: () => {
+        const othersSigned = DEPARTMENTS.filter((other) => other !== department && isDepartmentSigned(other)).length
+        if (signed && othersSigned === 2) setAutoCloseArmed(true)
+      },
+      onError: showRefusal,
+    })
   }
   async function saveTerminal() {
     if (readOnly || !port) return
@@ -890,6 +899,18 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
               {unassignedFrontLabels.length ? <UnassignedFrontWarning fronts={unassignedFrontLabels} /> : null}
             </div>
           </Block>
+          <AutoCloseWhenSigned
+            armed={autoCloseArmed}
+            ready={!readOnly && Boolean(port) && signedDepartmentsCount === 3 && unassignedFronts.length === 0 && Boolean(departmentSignoffEvents) && !closeMutation.isPending}
+            onClose={() => {
+              setAutoCloseArmed(false)
+              if (!port) return
+              closeMutation.mutate({ voyageId, port, snapshot: snapshot as unknown as Json }, {
+                onSuccess: () => showToast('As três equipes assinaram: o ADR foi fechado e a equipe vai receber o e-mail com o resumo.', 'success'),
+                onError: (error) => showToast(`As três equipes assinaram, mas o ADR continua aberto: ${userFacingErrorMessage(error, 'use Fechar ADR depois de resolver.')}`, 'error'),
+              })
+            }}
+          />
           <Modal open={closeConfirmOpen} title="Confirmar fechamento do ADR" onClose={() => setCloseConfirmOpen(false)}>
             <p className="text-sm text-[var(--app-text)]">Fechar o ADR de <strong>{voyageLabel}</strong> em <strong>{port ?? 'esta escala'}</strong> congela o retrato atual e libera a impressão.</p>
             <div className="mt-4 flex justify-end gap-2"><Button variant="secondary" onClick={() => setCloseConfirmOpen(false)}>Voltar</Button><Button variant="primary" loading={closeMutation.isPending} disabled={readOnly} onClick={() => { if (!readOnly && port) closeMutation.mutate({ voyageId, port, snapshot: snapshot as unknown as Json }, { onSuccess: () => setCloseConfirmOpen(false), onError: (error) => showToast(userFacingErrorMessage(error, 'Falha ao fechar o ADR. Tente novamente.'), 'error') }) }}>Confirmar fechamento</Button></div>
@@ -1095,4 +1116,18 @@ function OperatedListing({ rows }: { rows: Record<string, Record<string, number>
       </table>
     </div>
   )
+}
+
+/**
+ * Fechamento automático do ADR (migration 620, ADR 0133 D6): depois da
+ * assinatura que completa as três (`armed`), fecha assim que a aba mostra as
+ * três assinaturas e nada impede (`ready`), com o retrato da tela.
+ * ponytail: roda na tela de quem assinou; se a aba fechar antes de recarregar,
+ * o ADR fica "Pronto para fechar" e qualquer equipe usa Fechar ADR.
+ */
+function AutoCloseWhenSigned({ armed, ready, onClose }: { armed: boolean; ready: boolean; onClose: () => void }) {
+  useEffect(() => {
+    if (armed && ready) onClose()
+  }, [armed, ready, onClose])
+  return null
 }

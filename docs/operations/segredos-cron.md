@@ -459,6 +459,39 @@ continuam funcionando e as linhas de e-mail ficam pendentes em `ce_unlock_email_
 Com a chave de envio desligada, a função envia os avisos ao suporte e os registra como
 `simulated` (migration `307`, ADR 0104); sem `RESEND_API_KEY` (ambiente local), só registra.
 
+### Agendar o e-mail do ADR fechado
+
+**Ainda não agendado em produção** (migration `620`, ADR 0133 D6). A Edge Function
+`adr-closed-email` precisa ser publicada (`supabase functions deploy adr-closed-email`)
+e o segredo `ADR_CLOSED_EMAIL_SECRET` cadastrado na Edge e no cofre, com o mesmo valor
+(32 caracteres aleatórios ou mais). Opcional na Edge: `VELA_APP_URL` (padrão
+`https://vela.app.br`), a origem do link **Abrir o ADR no Vela**. Com o segredo no
+cofre, o fechamento do ADR já chama a função na hora (gatilho `trg_kick_adr_closed_email`);
+o job é a rede de segurança das linhas que ficaram na fila:
+
+```sql
+SELECT cron.schedule(
+  'adr-closed-email',
+  '*/5 * * * *',
+  $$SELECT ops.dispatch_edge_job('adr-closed-email', 'ADR_CLOSED_EMAIL_SECRET', 'Authorization', 'Bearer ');$$
+);
+```
+
+Remover: `SELECT cron.unschedule('adr-closed-email');`. Sem a função ou o segredo, os
+fechamentos ficam `pending` em `adr_closed_email_outbox` e saem quando ela entra no ar
+(cada linha tenta até 5 vezes). É e-mail da equipe: não passa pela chave de envio
+(ADR 0104), como o resumo diário.
+
+### Ligar o sinal das rotinas internas
+
+A rotina `internal-jobs-health` (migration `628`) já nasce agendada pela migration e
+abre o alerta **Rotina interna sem rodar** sem nada a cadastrar. Para o aviso de fora,
+quando ela mesma ou o banco param: crie no Better Stack um heartbeat de 15 minutos, com
+tolerância de 15 minutos, e grave a URL dele no cofre com o nome
+`BETTERSTACK_HEARTBEAT_INTERNAL_JOBS_URL` (`SELECT vault.create_secret('<url>',
+'BETTERSTACK_HEARTBEAT_INTERNAL_JOBS_URL');`). A cada rodada o banco chama a URL (com
+`/fail` quando alguma rotina está com problema). Sem a URL, a rotina só não manda o sinal.
+
 **O cofre tem as dez entradas** — deve retornar `10`:
 
 ```sql

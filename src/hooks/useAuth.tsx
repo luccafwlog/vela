@@ -52,8 +52,12 @@ export type Permission =
   | 'cancel_demurrage_invoices'
   /** Responder se a viagem terá veículos, trocar e desfazer: Equipamentos e Administrativo (migration 598). */
   | 'declare_voyage_vehicles'
+  /** Declarar a viagem sem Baplie e desfazer: Documentação e Administrativo (migration 619, ADR 0133 D4). */
+  | 'declare_voyage_without_baplie'
   | 'customer_communications'
   | 'edit_customer_contacts'
+  /** Trocar a gravidade de um alerta na tela Regras de alertas: só o Administrativo (migration 612, ADR 0132). */
+  | 'manage_alert_rules'
 
 export function roleHasPermission(role: UserProfileRole | undefined, permission: Permission, isDev = false): boolean {
   if (!role) return false
@@ -65,6 +69,7 @@ export function roleHasPermission(role: UserProfileRole | undefined, permission:
   const effectiveRole: UserProfileRole = role === 'operator' ? 'documentacao' : role
   if (permission === 'cancel_demurrage_invoices') return ['administrativo', 'financeiro', 'equipamentos'].includes(effectiveRole)
   if (permission === 'declare_voyage_vehicles') return ['administrativo', 'equipamentos'].includes(effectiveRole)
+  if (permission === 'declare_voyage_without_baplie') return ['administrativo', 'documentacao'].includes(effectiveRole)
   // Ler o Desbloqueio de CE e abrir os documentos do pedido é de todos os
   // Departamentos; gerir o pedido segue de Administrativo e Documentação
   // (ADR 0085, D11; migration 250).
@@ -76,7 +81,7 @@ export function roleHasPermission(role: UserProfileRole | undefined, permission:
   if (permission === 'customer_communications') return ['administrativo', 'documentacao', 'financeiro', 'operacoes', 'equipamentos'].includes(effectiveRole)
 
   switch (effectiveRole) {
-    case 'administrativo': return permission === 'admin_panel' || permission === 'manage_users' || permission === 'portal_provisioning' || permission === 'settle_financial_adjustments' || permission === 'cancel_invoices' || permission === 'edit_customer_contacts'
+    case 'administrativo': return permission === 'admin_panel' || permission === 'manage_users' || permission === 'portal_provisioning' || permission === 'settle_financial_adjustments' || permission === 'cancel_invoices' || permission === 'edit_customer_contacts' || permission === 'manage_alert_rules'
     case 'documentacao': return permission === 'portal_provisioning' || permission === 'edit_customer_contacts'
     case 'financeiro': return permission === 'settle_financial_adjustments' || permission === 'manage_payments' || permission === 'cancel_invoices'
     case 'operacoes': return false

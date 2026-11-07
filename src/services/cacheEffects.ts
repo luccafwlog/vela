@@ -159,6 +159,31 @@ export async function afterDeclaracaoVeiculosAlterada(queryClient: QueryInvalida
   ])
 }
 
+/**
+ * Declaração "Viagem sem Baplie" feita ou desfeita (migration 619): a própria
+ * declaração, a linha do tempo da viagem e os alertas (o "Baplie ausente" fecha
+ * ou reabre).
+ */
+export async function afterDeclaracaoBaplieAlterada(queryClient: QueryInvalidator, options: { voyageId: number | string }): Promise<void> {
+  await invalidate(queryClient, [
+    queryKeys.baplie.declaration(Number(options.voyageId)), voyageTimelineKey(options.voyageId),
+    queryKeys.alerts.all(), queryKeys.alerts.departmentSummary(), queryKeys.alerts.operationalCount(),
+    queryKeys.alerts.internalNotifications(), queryKeys.alerts.internalNotificationsUnreadCount(),
+  ])
+}
+
+/**
+ * Gravidade de um tipo de alerta trocada na tela Regras de alertas (migration
+ * 612, ADR 0132): a própria tela, a fila (ordem e cartão Críticos), os cartões
+ * por setor do Painel, o painel financeiro e o Histórico de ações.
+ */
+export async function afterGravidadeDoAlertaAlterada(queryClient: QueryInvalidator): Promise<void> {
+  await invalidate(queryClient, [
+    queryKeys.alerts.all(), queryKeys.alerts.departmentSummary(), queryKeys.alerts.financial(),
+    queryKeys.alerts.operationalCount(), queryKeys.dashboard(), [queryKeys.admin.auditLogs(undefined)[0]],
+  ])
+}
+
 /** Natureza (Cama, Cover plate) dos vazios de importação: a lista, os totais e o ADR, que a mostra. */
 export async function afterNaturezaVaziosAlterada(queryClient: QueryInvalidator): Promise<void> {
   await invalidate(queryClient, [['vazios-importacao-containers'], ['vazios-importacao-stats'], ['agency-report']])
@@ -170,7 +195,8 @@ export async function afterBaplieImportado(queryClient: QueryInvalidator, option
     ['baplie-staging', String(options.voyageId)], ...SCHEDULE_KEYS, ...CARD_SCHEDULE_KEYS, ...LINEUP_KEYS,
     // O Baplie pode criar a escala do porto marcado (migration 410): as
     // escalas da conferência, a linha do tempo e o rail mudam junto.
-    queryKeys.baplie.voyageContext(Number(options.voyageId)), voyageTimelineKey(options.voyageId), ['voyages'],
+    queryKeys.baplie.voyageContext(Number(options.voyageId)), queryKeys.baplie.declaration(Number(options.voyageId)),
+    voyageTimelineKey(options.voyageId), ['voyages'],
   ])
 }
 

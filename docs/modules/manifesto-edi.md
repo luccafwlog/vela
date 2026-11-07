@@ -1046,13 +1046,33 @@ e é corrigido ou removido só pela ficha do B/L; nenhuma outra importação o g
   viagem terá veículos" e nenhum veículo, a prévia recusa a planilha com
   "CE Mercante travado na viagem …", dizendo o que falta, e nada é gravado. Um
   veículo basta: o sistema não sabe quantos a Viagem terá. B/L de carga solta,
-  Viagem concluída ou cancelada e a correção ou remoção de CE já vinculado não
-  passam pela trava. Remover o CE e vincular outro depois é vinculação nova:
+  Viagem cancelada e a correção ou remoção de CE já vinculado não passam pela
+  trava; a Viagem concluída passa desde a migration `627`
+  ([ADR 0134](../adr/0134-brechas-restantes-da-revisao-dos-alertas.md), decisão 11). A prévia devolve
+  `vehicle_answer_voyages` e a tela chama `request_voyage_vehicle_answer`, que abre na hora a
+  Declaração de veículos pendente (marco `ce_recusado`) para Equipamentos, mesmo antes do D-7; a
+  conferência a mantém aberta até a resposta. Remover o CE e vincular outro depois é vinculação nova:
   o B/L sem CE só recebe CE pela planilha, e a prévia trava. Na Viagem
   travada, a troca de número é pelo **Corrigir CE** (o gatilho só confere B/L
   que estava sem CE). A prévia (`_analyze_ce_mercante_rows`) mostra a recusa; o
   gatilho `guard_bl_ce_mercante_vehicle_answer` em `bls` recusa qualquer outro
   caminho. A resposta fica na tela Veículos ([`/veiculos`](#veiculos)).
+- **Trava do Baplie** (migration `619`; decisão D4 do dono de 2026-11-06;
+  [ADR 0133](../adr/0133-decisoes-da-revisao-dos-alertas.md)). Depois da trava
+  de veículos, a mesma função (`voyage_ce_mercante_vehicle_lock`, que devolve
+  `sem_baplie`) recusa o primeiro CE de B/L de container ou misto na Viagem
+  ativa sem linha em `baplie_containers` e sem a declaração "Viagem sem Baplie"
+  (`voyage_baplie_declarations`, motivo obrigatório). Declarar
+  (`declare_voyage_without_baplie`) e desfazer
+  (`undo_voyage_baplie_declaration`, com motivo) são da Documentação e do
+  Administrativo, na página Baplie; a Viagem com Baplie ou cancelada não se
+  declara; o Histórico da Viagem guarda `sem_baplie` com autor e motivo; a
+  declaração fecha o alerta `voyage_baplie_missing`. Uma trava por vez: a dos
+  veículos aparece primeiro. A prévia também mostra como aviso a divergência
+  aberta entre o Baplie e os B/Ls (o item ativo de
+  `voyage_baplie_documentary_coverage`), devolve `baplie_divergence` e pede
+  confirmação com motivo (`needs_confirmation`). **Teste local-pg:**
+  `travaCeMercanteSemBaplie.local-pg.test.ts`.
 - **Prévia conferida no servidor** (`preview_ce_mercante_rows`): mostra CE e
   Manifesto antes → depois, faturas vivas (inclusive a consolidada ligada pelo
   recebível), Portal ("visível no Portal" ou "fora do Portal", por B/L),

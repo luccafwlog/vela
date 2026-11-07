@@ -144,7 +144,7 @@ O CE Mercante é o número de 15 algarismos do conhecimento eletrônico de cada 
 
 Cada planilha corresponde a um Manifesto Mercante, que é de uma rota (porto de embarque → porto de descarga). Os B/Ls precisam estar importados antes: o CE nunca cria B/L.
 
-O CE de B/L de container também espera a resposta de {{Equipamentos}} sobre veículos ([10.1](10-veiculos-vazios-granito.md#101-importar-os-veículos)). Enquanto a Viagem não foi declarada sem veículos nem tem veículo importado, a prévia recusa a planilha com **CE Mercante travado na viagem…** e diz o que falta. A carga solta não espera. Para trocar um CE já vinculado nessa Viagem, use **Corrigir CE** na ficha do B/L: depois de **Remover CE**, o B/L só recebe CE de novo pela planilha, que cai na mesma trava.
+O CE de B/L de container também espera a resposta de {{Equipamentos}} sobre veículos ([10.1](10-veiculos-vazios-granito.md#101-importar-os-veículos)). Enquanto a Viagem não foi declarada sem veículos nem tem veículo importado, a prévia recusa a planilha com **CE Mercante travado na viagem…** e diz o que falta, e {{Equipamentos}} recebe na hora o alerta **Declaração de veículos pendente**. A trava vale também na Viagem concluída. Do mesmo jeito, o CE de B/L de container espera o Baplie da Viagem ([6.7](#67-importar-o-baplie)): sem o Baplie importado e sem a declaração **Viagem sem Baplie**, a prévia recusa com **CE Mercante travado na viagem…: o Baplie ainda não foi importado**. A carga solta não espera. Para trocar um CE já vinculado nessa Viagem, use **Corrigir CE** na ficha do B/L: depois de **Remover CE**, o B/L só recebe CE de novo pela planilha, que cai na mesma trava.
 
 No lugar da planilha, você pode usar o **arquivo de Retorno Mercante** (o `.TXT` que o Mercante devolve depois do manifesto, por exemplo `RETFWL0023006.TXT`). Ele já traz o Nº do Manifesto e o CE de cada B/L: escolha o arquivo: o campo do número some e um aviso mostra o manifesto lido, sem precisar digitar. O resto é igual ao da planilha. O retorno do manifesto de vazios não tem CE e é recusado.
 
@@ -160,7 +160,7 @@ A planilha de CE do manifesto de Vitória, pronta para importar.
 :::
 
 ::: lado
-5. Se algum B/L já tinha outro CE, a janela mostra a troca e pede confirmação com motivo. Sem troca, grava direto.
+5. Se algum B/L já tinha outro CE, ou se há divergência aberta entre o Baplie e os B/Ls da Viagem ([6.8](#68-resolver-as-divergências-entre-baplie-e-bl)), a janela mostra o aviso e pede confirmação com motivo. Sem troca nem divergência, grava direto.
 6. Espere a emissão das faturas terminar, sem fechar a janela, e clique em **Concluir**.
 
 ::: tela ce-resultado
@@ -233,6 +233,14 @@ Quando a Viagem já tem Baplie e o arquivo novo é diferente, a janela **Substit
 - O porto brasileiro que ainda não é escala aparece desmarcado. Se o navio vai mesmo a esse porto, crie a escala na Viagem.
 - A marca IMO ou OOG corrigida à mão na ficha do B/L vale mais que o Baplie: o Baplie nunca a troca, e a diferença aparece como divergência.
 :::
+
+Sem o Baplie, o CE Mercante dos B/Ls de container da Viagem fica travado ([6.5](#65-importar-o-ce-mercante-e-emitir-as-faturas)). Se a Viagem não vai ter Baplie, a {{Documentação}} ou o {{Administrativo}} declara:
+
+1. Em **Baplie EDI**, escolha a Viagem.
+2. Clique em **Viagem sem Baplie**.
+3. Escreva o motivo e confirme.
+
+O CE fica liberado e o alerta **Baplie ausente** fecha. Sem o Baplie, as marcas OOG e SOC/COC não entram na fatura. Para voltar atrás, use **Desfazer declaração**, também com motivo. A Viagem que já tem Baplie não pode ser declarada.
 
 ## 6.8 Resolver as divergências entre Baplie e B/L
 

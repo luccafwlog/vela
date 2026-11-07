@@ -3,7 +3,7 @@ import { type EmailAttachment, maskEmail, sendEmail } from './email.ts'
 
 export { maskEmail } from './email.ts'
 
-export type PortalEmailKind = 'convite' | 'reenvio' | 'recuperacao' | 'alteracao_email' | 'alerta_critico' | 'resumo_diario' | 'contato_bounced_notificacao' | 'ce_unlock_notificacao' | 'senha_alterada' | 'teste_envio'
+export type PortalEmailKind = 'convite' | 'reenvio' | 'recuperacao' | 'alteracao_email' | 'alerta_critico' | 'resumo_diario' | 'contato_bounced_notificacao' | 'ce_unlock_notificacao' | 'senha_alterada' | 'teste_envio' | 'adr_fechado'
 export type SendPortalEmailInput = {
   admin: SupabaseClient
   kind: PortalEmailKind
@@ -31,7 +31,7 @@ export type SendPortalEmailInput = {
 
 // E-mail para a própria equipe não passa pela chave de envio (ADR 0104).
 // `teste_envio` (migration 605): a conta Dev manda a si mesma; não passa pela chave.
-const INTERNAL_KINDS: ReadonlySet<PortalEmailKind> = new Set(['resumo_diario', 'alerta_critico', 'teste_envio'])
+const INTERNAL_KINDS: ReadonlySet<PortalEmailKind> = new Set(['resumo_diario', 'alerta_critico', 'teste_envio', 'adr_fechado'])
 
 /**
  * Chave de envio desligada? Erro na leitura conta como desligada: o e-mail vai

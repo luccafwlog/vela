@@ -127,6 +127,7 @@ function cleanup() {
     ${firstRuleVersionId === null ? '' : `DELETE FROM public.pricing_rule_versions WHERE id > ${firstRuleVersionId};`}
     DELETE FROM public.bls WHERE id IN ('${BLS.join("', '")}');
     DELETE FROM public.voyage_vehicle_declarations WHERE voyage_id IN (${VOYAGES.join(', ')});
+    DELETE FROM public.voyage_baplie_declarations WHERE voyage_id IN (${VOYAGES.join(', ')});
     DELETE FROM public.audit_logs WHERE changed_by IN ('${ADMIN_ID}', '${EQP_ID}', '${DOC_ID}')
       OR ${VOYAGES.map((id) => `entity_id = '${id}' OR entity_id LIKE '${id}::%'`).join(' OR ')} OR entity_id IN ('${BLS.join("', '")}');
     DELETE FROM public.voyages WHERE id IN (${VOYAGES.join(', ')});
@@ -159,6 +160,9 @@ describeLocal('597 — resposta de veículos em D-7 e CE Mercante travado', () =
         (${V_MAIN}, ${VESSEL_ID}, 'V595M', 'active'),
         (${V_DONE}, ${VESSEL_ID}, 'V595D', 'completed'),
         (${V_NO}, ${VESSEL_ID}, 'V595N', 'active');
+      -- 619: esta suíte mede só a trava dos veículos; o Baplie fica declarado.
+      INSERT INTO public.voyage_baplie_declarations (voyage_id, reason) VALUES
+        (${V_MAIN}, 'fixture de teste'), (${V_DONE}, 'fixture de teste'), (${V_NO}, 'fixture de teste');
       SET session_replication_role = origin;
     `)
     as(ADMIN_ID, `
@@ -295,10 +299,24 @@ describeLocal('597 — resposta de veículos em D-7 e CE Mercante travado', () =
     expect(linkCe(BL_NO, '152659500000004').stderr).toBe('')
   })
 
-  it('viagem concluída não trava nem ganha alerta', () => {
-    expect(psql(`SELECT public.voyage_ce_mercante_vehicle_lock(${V_DONE}) IS NULL;`)).toBe('t')
-    setEta(V_DONE, 6)
+  // 627 (ADR 0134, decisão 11): a Viagem concluída também trava; a recusa pede a
+  // resposta a Equipamentos na hora, mesmo sem o D-7.
+  it('viagem concluída também trava; a recusa abre a Declaração para Equipamentos e a conferência não a fecha', () => {
+    expect(psql(`SELECT public.voyage_ce_mercante_vehicle_lock(${V_DONE});`)).toBe('sem_resposta')
+    expect(linkCe(BL_DONE, '152659500000005').stderr).toContain('Equipamentos ainda não respondeu')
     expect(item(DECL, V_DONE)).toBe('sem item')
+    const preview = rpcAs(EQP_ID, `SELECT public.preview_ce_mercante_rows('${JSON.stringify([{ row: 2, bl_id: BL_DONE, ce: '152659500000005' }])}'::jsonb, '${MANIFESTO}', ${V_DONE})->'vehicle_answer_voyages';`)
+    expect(JSON.parse(String(preview.stdout).trim())).toEqual([V_DONE])
+    const asked = rpcAs(DOC_ID, `SELECT public.request_voyage_vehicle_answer(${V_DONE});`)
+    expect(String(asked.stderr)).toBe('')
+    expect(String(asked.stdout).trim()).toBe('t')
+    expect(item(DECL, V_DONE)).toBe('active|normal|equipamentos')
+    expect(message(DECL, V_DONE)).toContain('A Documentação tentou vincular o CE Mercante')
+    // A conferência fora do D-7 mantém o pedido aberto até a resposta.
+    as(ADMIN_ID, `SELECT public.reconcile_voyage_vehicle_sheet_alerts(${V_DONE}, 'teste_627');`)
+    expect(item(DECL, V_DONE)).toBe('active|normal|equipamentos')
+    expect(rpcAs(EQP_ID, `SELECT public.declare_voyage_without_vehicles(${V_DONE});`).stderr).toBe('')
+    expect(item(DECL, V_DONE)).toMatch(/^resolved\|/)
     expect(linkCe(BL_DONE, '152659500000005').stderr).toBe('')
   })
 

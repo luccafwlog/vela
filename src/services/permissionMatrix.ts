@@ -1,6 +1,6 @@
 // "O que cada setor pode" (lote 5b, tela Administração, decisão de
 // 2026-10-19: opção A com C). Fonte única da matriz da aba Usuários e da
-// lista "Com este setor, ... pode" das janelas de usuário. As 48 linhas
+// lista "Com este setor, ... pode" das janelas de usuário. As 50 linhas
 // resumem as ações de docs/operations/seguranca.md § "Modelo de permissões
 // por perfil", que diz onde o banco aplica cada uma.
 //
@@ -60,16 +60,16 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
  * de Demurrage (migration 520). O Financeiro recebe os quatro da exceção do dono e a Taxa alterada à mão mudou (migration 495).
  * O Administrativo recebe também o Retorno do provedor de e-mail não aplicado (migration 535).
  * Operações recebe também a Escala sem terminal (migration 584). Desde a migration 587,
- * Pix não conciliado, Consulta de Pix do Itaú parada e Restituição pendente são do setor
+ * Pix não conciliado e Restituição pendente são do setor (a Consulta Itaú parada, técnica, é da conta Dev desde a 629)
  * Financeiro e saem do Administrativo.
  * A bateria confere estes números no banco.
  */
 export const ALERT_TYPE_COUNTS: Readonly<Record<Department, number>> = {
-  administrativo: 15,
-  financeiro: 5,
-  operacoes: 6,
-  documentacao: 36,
-  equipamentos: 6,
+  administrativo: 25,
+  financeiro: 4,
+  operacoes: 5,
+  documentacao: 38,
+  equipamentos: 10,
 }
 
 /**
@@ -181,14 +181,16 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   {
     id: 'alertas-do-setor', group: 'alertas', action: 'Recebe os alertas do próprio setor',
     can: {
-      administrativo: `${alertTypes(ALERT_TYPE_COUNTS.administrativo)} (inclusive os quatro críticos de contato e Portal da Documentação); também os críticos de setor sem ninguém ativo`,
-      financeiro: `${alertTypes(ALERT_TYPE_COUNTS.financeiro)} (do próprio setor: Pix não conciliado, Consulta de Pix do Itaú parada e Restituição pendente; avisado em Fatura desatualizada e Taxa alterada à mão mudou)`,
+      administrativo: `${alertTypes(ALERT_TYPE_COUNTS.administrativo)} (inclusive os quatro críticos de contato e Portal e, desde 2026-11-06, Tabela de cobrança faltando, Cálculo bloqueado e Portal não provisionado da Documentação, e o Calendário de feriados, só na conta Dev); também os críticos de setor sem ninguém ativo`,
+      financeiro: `${alertTypes(ALERT_TYPE_COUNTS.financeiro)} (do próprio setor: Pix não conciliado e Restituição pendente; avisado em Fatura desatualizada e Taxa alterada à mão mudou)`,
       operacoes: alertTypes(ALERT_TYPE_COUNTS.operacoes),
       documentacao: alertTypes(ALERT_TYPE_COUNTS.documentacao),
       equipamentos: alertTypes(ALERT_TYPE_COUNTS.equipamentos),
     },
-    proof: ['caso: Catálogo: cada setor recebe os tipos de alerta que a tela diz', 'caso: P5: Pix não conciliado, Consulta do Itaú parada e Restituição pendente são do Financeiro; Fatura desatualizada o avisa'],
+    proof: ['caso: Catálogo: cada setor recebe os tipos de alerta que a tela diz', 'caso: P5: Pix não conciliado e Restituição pendente são do Financeiro; Fatura desatualizada o avisa; Consulta Itaú é da conta Dev'],
   },
+  // Migration 612 (ADR 0132): a gravidade de cada alerta, na tela Regras de alertas.
+  { id: 'alertas-gravidade', group: 'alertas', action: 'Trocar a gravidade de um alerta (Crítico ou Normal) e o reforço por tempo, com motivo', can: ADM, proof: ['exceção: Trocar a gravidade de um alerta', 'exceção: Definir o reforço por tempo de um alerta'] },
 ]
 
 /** O setor pode a ação (✓ ou com condição). */

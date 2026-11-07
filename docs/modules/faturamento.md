@@ -400,6 +400,10 @@ na paga, "Imprimir recibo" ficam no topo:
   comprovante, favorecido e data; na avulsa, a autorização de restituição
   excepcional vem em bloco próprio (`FinancialRefundsPanel variant="authorization"`);
 - Ajustes pela correção do B/L em fatura com pagamento (abatimento e restituição);
+- Fatura cancelada à mão sem fatura nova abre, 1 dia útil depois, o Alerta **B/L sem fatura depois do
+  cancelamento** (`fatura_cancelada_sem_reemissao`, Documentação; migration `624`,
+  [ADR 0134](../adr/0134-brechas-restantes-da-revisao-dos-alertas.md)), que fecha na nova emissão, na isenção ou
+  no cancelamento do B/L. **Teste:** `faturaCanceladaSemReemissao.local-pg.test.ts`.
 - Cancelar fatura sem pagamentos, com confirmação; o bloco só aparece para o
   Administrativo e o Financeiro (`can('cancel_invoices')`, migration `583`, decisão do dono de 2026-11-04;
   antes, só o Administrativo, migration `247`);

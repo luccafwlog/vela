@@ -506,6 +506,36 @@ anteriores. Calculado na tela (`ceUnlockSla.ts`), no banco (`ce_unlock_private.s
 usado no texto do aviso) e escrito no bloco "O que o desbloqueio pede" do Portal; o teste SQL
 confere tela e banco com os mesmos casos. O cumprimento é medido pela data da exportação.
 
+**Alertas do prazo e da análise** (desde 2026-11-06, migration `617`,
+[ADR 0133](../adr/0133-decisoes-da-revisao-dos-alertas.md), D1). Da Documentação, com o
+Administrativo também avisado; a rotina `ce-unlock-alerts` (5 minutos) abre e fecha:
+- `desbloqueio_solicitacao_sem_analise` (Crítico, por solicitação): solicitação do Cliente em
+  `submitted` ou `in_review` com B/L ativo de Termo ou Procuração sem aprovar, 2 horas úteis depois do
+  último `submit` (`_add_business_hours`: 8h às 17h de Brasília, dia útil de
+  `itau_pix_business_day`). **Resolver** abre `/desbloqueio-ce?pedido=<id>`.
+- `desbloqueio_prazo_vencendo` (por B/L): com `sla_started_at` do item, Normal 2 horas depois do
+  início; Crítico (marco `prazo_critico`) a partir de 2 horas antes de `sla_deadline`. Desde a
+  migration `621` (correção do dono de 2026-11-06), exportar não fecha: fecha quando a conciliação
+  da ZPT traz o B/L desbloqueado no CE atual (`_ce_unlock_zpt_unlocked`: `ce_unlock_zpt_status`
+  `unlocked` com o CE do B/L; o gatilho `trg_ce_unlock_deadline_alert_on_zpt` fecha na hora), quando
+  o prazo deixa de correr ou o B/L é cancelado. A mensagem diz se o B/L já foi exportado. A rotina
+  abre para todo B/L com prazo e sem desbloqueio conferido, sem limite de idade (migration `622`,
+  [ADR 0134](../adr/0134-brechas-restantes-da-revisao-dos-alertas.md), decisão 1; na `621` o corte
+  era de 30 dias). **Resolver** abre a aba Controle.
+- `desbloqueio_divergente_zpt` (Crítico, por B/L; migration `622`, ADR 0134, decisão 3): a
+  conciliação gravou o B/L como `divergent` no CE atual. Mensagem com `zpt_status`, `description` e
+  `pending`; marco por `reconciled_at`, então cada conciliação divergente nova avisa de novo. Fecha
+  com o B/L desbloqueado, a linha apagada, o CE trocado ou o B/L cancelado. Abre e fecha pelo
+  gatilho `trg_ce_unlock_deadline_alert_on_zpt` e pela rotina.
+**Teste:** `alertasDoDesbloqueioDeCe.local-pg.test.ts`.
+
+**Anual do VIP enviado** (desde 2026-11-07, migration `623`, [ADR 0134](../adr/0134-brechas-restantes-da-revisao-dos-alertas.md),
+decisão 4): quando um `ce_unlock_documents` de `source = 'vip_annual'` passa a `uploaded` por conta do
+Portal, o gatilho `trg_notify_ce_unlock_annual_uploaded` manda o aviso **Novo documento anual VIP**
+(sem alerta) à Documentação e ao Administrativo, que abre a ficha do Cliente na aba Desbloqueio de CE e
+VIP. Envio pela equipe interna não avisa. Sem alerta de vencimento do anual (decisão do dono).
+**Teste:** `sinoAvisosDeAcontecimento.local-pg.test.ts`.
+
 ### Avisos ao cliente
 
 **Aviso à equipe (migration `595`, [ADR 0126](../adr/0126-sino-avisa-solicitacao-de-desbloqueio-e-pagamento.md)).**

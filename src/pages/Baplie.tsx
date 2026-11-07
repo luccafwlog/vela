@@ -1,4 +1,4 @@
-import { afterBaplieImportado, afterCargaAlterada } from '../services/cacheEffects'
+import { afterBaplieImportado, afterCargaAlterada, afterDeclaracaoBaplieAlterada } from '../services/cacheEffects'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -25,6 +25,8 @@ import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { useAuth } from '../hooks/useAuth'
 import { useVoyages } from '../hooks/useBls'
 import { useVoyageRailDivergences } from '../hooks/useVoyageReconciliation'
+import { useVoyageBaplieDeclaration } from '../hooks/useVoyageBaplieDeclaration'
+import { declareVoyageWithoutBaplie, undoVoyageBaplieDeclaration, type VoyageBaplieDeclaration } from '../services/baplieDeclaration'
 import { describeBaplieFlags, hasPendingBaplieVazios, loadBaplieVaziosNaPlanilha, retryBaplieVazios, summarizeBaplieFlags, type BaplieVaziosNaPlanilha } from '../services/baplieImport'
 import { BaplieImportModal } from '../components/shared/BaplieImportModal'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
@@ -61,7 +63,7 @@ export function Baplie() {
   const [searchParams, setSearchParams] = useSearchParams()
   const voyageId = searchParams.get('voyage') ?? ''
   const { showToast } = useToast()
-  const { user, profile } = useAuth()
+  const { user, profile, can } = useAuth()
   const canImportVazios = Boolean(profile || user)
   const canUploadManifests = Boolean(profile || user)
   const queryClient = useQueryClient()
@@ -260,7 +262,12 @@ export function Baplie() {
           <SkeletonTable rows={6} cols={6} label="Carregando Baplie" />
         </Card>
       ) : !hasStaging ? (
-        <StateA canImport={canUploadManifests} onUpload={() => setUploadOpen(true)} />
+        <StateA
+          canImport={canUploadManifests}
+          onUpload={() => setUploadOpen(true)}
+          voyageId={Number(voyageId)}
+          canDeclare={can('declare_voyage_without_baplie')}
+        />
       ) : (
         <>
           {stagingQuery.isError ? (
@@ -332,23 +339,81 @@ export function Baplie() {
   )
 }
 
-function StateA({ canImport, onUpload }: { canImport: boolean; onUpload: () => void }) {
+function StateA({ canImport, onUpload, voyageId, canDeclare }: { canImport: boolean; onUpload: () => void; voyageId: number; canDeclare: boolean }) {
+  const declarationQuery = useVoyageBaplieDeclaration(voyageId)
+  const declaration = declarationQuery.data ?? null
+  const declared = declaration?.declared === true
   return (
     <Card className="overflow-hidden p-0">
       <EmptyState
         icon={Upload}
-        title="Esta viagem ainda não tem Baplie"
-        description="O Baplie EDI traz a carga física a bordo: container, slot, IMO e OOG. Ao importar, IMO e OOG passam aos containers dos B/Ls e a conciliação compara as duas fontes."
-        action={canImport ? (
-          <Button onClick={onUpload}>
-            <Upload size={16} aria-hidden="true" />
-            Importar Baplie EDI
-          </Button>
-        ) : (
-          <p className="app-cargo-state__text">A importação do Baplie exige um usuário interno ativo.</p>
+        title={declared ? 'Viagem declarada sem Baplie' : 'Esta viagem ainda não tem Baplie'}
+        description={declared ? declaredDescription(declaration) : 'O Baplie EDI traz a carga física a bordo: container, slot, IMO e OOG. Ao importar, IMO e OOG passam aos containers dos B/Ls e a conciliação compara as duas fontes. Sem o Baplie, o CE Mercante dos B/Ls de container fica travado; se a viagem não vai ter Baplie, declare com o motivo.'}
+        action={(
+          <span className="inline-flex flex-wrap justify-center gap-2">
+            {canImport ? (
+              <Button onClick={onUpload}>
+                <Upload size={16} aria-hidden="true" />
+                Importar Baplie EDI
+              </Button>
+            ) : (
+              <p className="app-cargo-state__text">A importação do Baplie exige um usuário interno ativo.</p>
+            )}
+            {/* Só depois de ler a declaração: a leitura que falha não oferece declarar às cegas. */}
+            {canDeclare && declarationQuery.isSuccess ? (
+              <BaplieDeclarationButton voyageId={voyageId} declared={declared} />
+            ) : null}
+          </span>
         )}
       />
     </Card>
+  )
+}
+
+function declaredDescription(declaration: VoyageBaplieDeclaration | null): string {
+  const who = declaration?.declaredByName ?? 'usuário sem nome'
+  const when = declaration?.declaredAt ? ` em ${formatDateTimeBR(declaration.declaredAt)}` : ''
+  return `Declarado por ${who}${when}: "${declaration?.reason ?? ''}". O CE Mercante dos B/Ls de container está liberado sem o Baplie. Se o Baplie chegar, importe-o normalmente.`
+}
+
+function BaplieDeclarationButton({ voyageId, declared }: { voyageId: number; declared: boolean }) {
+  const confirmWithReason = useConfirmWithReason()
+  const queryClient = useQueryClient()
+  const { showToast } = useToast()
+  const [busy, setBusy] = useState(false)
+
+  async function run() {
+    const reason = await confirmWithReason(declared ? {
+      title: 'Desfazer declaração',
+      message: 'Desfazer a declaração de que a viagem não terá Baplie?',
+      consequence: 'O CE Mercante dos B/Ls de container volta a ficar travado até o Baplie ser importado, e o alerta Baplie ausente pode reabrir.',
+      reversibility: 'Dá para declarar de novo aqui, com motivo.',
+      confirmLabel: 'Desfazer declaração',
+    } : {
+      title: 'Viagem sem Baplie',
+      message: 'Declarar que esta viagem não terá Baplie?',
+      consequence: 'O CE Mercante dos B/Ls de container fica liberado sem o Baplie: as marcas OOG e SOC/COC, que só vêm dele, não entram na fatura. O alerta Baplie ausente fecha.',
+      reversibility: 'Dá para desfazer aqui, com motivo.',
+      confirmLabel: 'Declarar sem Baplie',
+    })
+    if (reason === null) return
+    setBusy(true)
+    try {
+      if (declared) await undoVoyageBaplieDeclaration(voyageId, reason)
+      else await declareVoyageWithoutBaplie(voyageId, reason)
+      await afterDeclaracaoBaplieAlterada(queryClient, { voyageId })
+      showToast(declared ? 'Declaração desfeita.' : 'Viagem declarada sem Baplie.', 'success')
+    } catch (err) {
+      showToast(`Falha ao ${declared ? 'desfazer a declaração' : 'declarar a viagem sem Baplie'}: ${userFacingErrorMessage(err, 'tente novamente.')}`, 'error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Button variant={declared ? 'ghost' : 'secondary'} loading={busy} onClick={() => void run()}>
+      {declared ? 'Desfazer declaração' : 'Viagem sem Baplie'}
+    </Button>
   )
 }
 

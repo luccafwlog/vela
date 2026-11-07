@@ -164,6 +164,8 @@ describeLocal('Embarque de vazios exige terminal (migration 541)', () => {
     const { lines, stderr } = scenario(`${asUser} ${create(TERMINAL)}
       SELECT '>travado=' || public.vazios_export_adr_locked(${VOYAGE}, 'BRVIX');
       RESET ROLE;
+      -- 618: o ADR só fecha com o manifesto do embarque de vazios declarado vinculado.
+      INSERT INTO public.vazios_manifests (voyage_id) VALUES (${VOYAGE});
       UPDATE public.agency_departure_reports SET status = 'closed', closed_at = now()
         WHERE voyage_id = ${VOYAGE} AND terminal_id = '${TERMINAL}';
       ${asUser}

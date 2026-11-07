@@ -90,7 +90,7 @@ Cinco rotinas cuidam da Demurrage:
 
 ::: atencao
 - Se a PTAX não chega, o último câmbio continua valendo, abre um alerta (capítulo 20) e alguém do {{Financeiro}}, do {{Administrativo}} ou de {{Equipamentos}} usa **Informar PTAX**, em **Demurrage**.
-- Com a cobrança pelo Itaú ligada, a partir de 1º de novembro abre **Calendário de feriados pendente** se os feriados do ano seguinte não estão cadastrados. Sem eles, feriado conta como dia útil na Régua, nos prazos do Pix da Demurrage e no prazo de resposta da Disputa. Peça o cadastro ao suporte técnico.
+- Com a cobrança pelo Itaú ligada, a partir de 1º de novembro abre **Calendário de feriados pendente** se os feriados do ano seguinte não estão cadastrados. Sem eles, feriado conta como dia útil na Régua, nos prazos do Pix da Demurrage, no prazo de resposta da Disputa e nos prazos do Desbloqueio de CE. Peça o cadastro ao suporte técnico.
 :::
 
 ## 19.6 O Pix do Itaú
@@ -134,5 +134,5 @@ O detalhe de cada prazo está no capítulo 12.
 Uma rotina parada não trava a tela: a gravação acontece, e o que a rotina faria fica esperando. Por isso o aviso vem pelos **Alertas**: quase toda rotina tem o seu, e ele chega à equipe que pode agir. Quase sempre o caminho é corrigir o dado que o alerta aponta (um contato do Cliente, a PTAX do dia) ou avisar o suporte técnico. Cada um desses alertas está no capítulo 20.
 
 ::: atencao
-A situação da Demurrage (00h17), as duas rotinas de 15 minutos da Demurrage e a Liberação vencida (00h13) não têm alerta próprio quando falham. Se um container que venceu o free time continua **No free time** no dia seguinte, avise o suporte técnico.
+Desde 2026-11-07, toda rotina do Vela que termina com erro ou para de rodar abre **Rotina interna sem rodar** para o {{Administrativo}} ([20.13](20-alertas.md#2013-rotinas-paradas)). Se um container que venceu o free time continua **No free time** no dia seguinte, avise o suporte técnico.
 :::

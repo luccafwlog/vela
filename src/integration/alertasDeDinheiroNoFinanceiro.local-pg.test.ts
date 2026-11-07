@@ -38,11 +38,12 @@ const items = (entity: string) => `SELECT '>' || i.item_type || '|' || a.entity_
   FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id WHERE a.entity_id LIKE '${entity}%' ORDER BY a.entity_id, i.id;`
 
 describeLocal('587 — alertas de dinheiro no setor Financeiro', () => {
-  it('o catálogo põe os três tipos no Financeiro; a Fatura desatualizada segue no Administrativo', () => {
+  // 629 (ADR 0135): a Consulta Itaú parada é técnica e passou à conta Dev do Administrativo.
+  it('o catálogo põe Pix e Restituição no Financeiro; a Fatura desatualizada e a Consulta Itaú no Administrativo', () => {
     expect(execPsql(['-X', '-At', '-q', '-d', databaseUrl, '-c', `SELECT string_agg(type || ':' || responsible_department, ',' ORDER BY type)
       FROM public.alert_type_catalog WHERE type IN ('pix_unreconciled', 'restituicao_pendente', 'itau_pix_consulta_parada', 'fatura_desatualizada')`],
     { encoding: 'utf8' }).trim())
-      .toBe('fatura_desatualizada:administrativo,itau_pix_consulta_parada:financeiro,pix_unreconciled:financeiro,restituicao_pendente:financeiro')
+      .toBe('fatura_desatualizada:administrativo,itau_pix_consulta_parada:administrativo,pix_unreconciled:financeiro,restituicao_pendente:financeiro')
   })
 
   it('o produtor que informa o Administrativo grava no Financeiro, e o sino vai só ao Financeiro', () => {

@@ -786,4 +786,23 @@ describeLocal('Classificação da cobrança de Demurrage (migration 515)', () =>
     const result = run(`BEGIN; SET LOCAL ROLE anon; SELECT public.list_demurrage_billing_board(); ROLLBACK;`)
     expect(result.status).not.toBe(0)
   })
+  // 624 (ADR 0134, decisão 6): Invoice cancelada à mão, 1 dia útil depois, sem o Gerar Invoice.
+  it('624: Invoice cancelada à mão há mais de 1 dia útil, com o grupo esperando o Gerar Invoice, abre o alerta a Equipamentos', () => {
+    const cancelledId = psql(`SELECT id FROM public.demurrage_invoices WHERE bl_id = '${blPrefix}CANCINV'`)
+    const check = (cancelledAgo: string) => {
+      const result = run(`
+        BEGIN;
+        SET LOCAL request.jwt.claim.role = 'service_role';
+        INSERT INTO public.audit_logs (entity_type, entity_id, field_name, old_value, new_value, justification, changed_at)
+          VALUES ('demurrage_invoice', '${cancelledId}', 'status', 'issued', 'cancelled', 'Cliente pediu correção', now() - interval '${cancelledAgo}');
+        SELECT public.reconcile_cancelled_demurrage_alert(${cancelledId}, 'teste_624') IS NULL;
+        SELECT COALESCE((SELECT concat_ws('|', i.status, i.severity, i.department) FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
+          WHERE a.entity_id = '${cancelledId}' AND i.item_type = 'demurrage_cancelada_sem_reemissao'), 'sem alerta');
+        ROLLBACK;`)
+      expect(result.status, result.stderr).toBe(0)
+      return result.stdout.trim().split('\n').filter(Boolean).at(-1)
+    }
+    expect(check('5 days')).toBe('active|normal|equipamentos')
+    expect(check('1 minute')).toBe('sem alerta')
+  })
 })

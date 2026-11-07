@@ -487,6 +487,13 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   **Baixar arquivo** do EDI Mercante registra o arquivo no Histórico da Viagem
   com número próprio, e o consignatário estrangeiro impede o arquivo (VIA-146,
   ACE-135, S6.36).
+- **Regras de alertas didática e gravidade pela tela** (pedido do dono de
+  2026-11-06, migration `612`, ADR 0132): a lista se agrupa pelos assuntos do
+  capítulo 20 e cada regra diz o que é, **Se ninguém agir**, quando abre e
+  fecha, quem recebe e quem age, como resolver e a gravidade, sem vocabulário
+  técnico; o Administrativo troca a gravidade de um alerta, com motivo, e a
+  troca vale para os abertos e os próximos (20.1, 2.2; ALE-036, ALE-037,
+  ALE-088, `permissao:alertas-gravidade` e as mensagens da troca na matriz 12).
 - **Sincronização de 2026-11-02** (PRs luccafwlog/vela#1132, #1133, #1135,
   #1141, #1143 a #1160 e #1163 a #1172; migrations `554` a `566`). A matriz veio
   atualizada nas PRs; o texto do manual e do guia passou a descrever:

@@ -52,7 +52,7 @@ it('exposes Baplie import and reimport controls to every active internal user', 
   // A confirmação da substituição é do modal comum (A1 do lote 6a), aberto daqui.
   expect(source).toContain('<BaplieImportModal')
   expect(readFileSync(resolve(process.cwd(), 'src/components/shared/BaplieImportModal.tsx'), 'utf8')).toContain('confirm(baplieReplacementConfirmOptions(plan, filteredContainers.length))')
-  expect(source).toContain('<StateA canImport={canUploadManifests}')
+  expect(source).toMatch(/<StateA\s+canImport=\{canUploadManifests\}/)
   expect(source).toContain('canUploadManifests ?')
   expect(source).toContain('A importação do Baplie exige um usuário interno ativo.')
   expect(source).toContain('const canImportVazios = Boolean(profile || user)')

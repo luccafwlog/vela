@@ -658,11 +658,12 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   // Migration 587 (decisão do dono de 2026-11-04): o que só o Financeiro resolve
   // é do setor Financeiro; a Fatura desatualizada, que todos corrigem, segue no
   // Administrativo e avisa o Financeiro.
-  it('P5: Pix não conciliado, Consulta do Itaú parada e Restituição pendente são do Financeiro; Fatura desatualizada o avisa', () => {
+  // 629 (ADR 0135): a Consulta do Itaú parada é técnica e passou à conta Dev do Administrativo.
+  it('P5: Pix não conciliado e Restituição pendente são do Financeiro; Fatura desatualizada o avisa; Consulta Itaú é da conta Dev', () => {
     expect(psql(`SELECT string_agg(type || ':' || responsible_department || ':' || array_to_string(audience_departments, '+'), ',' ORDER BY type)
       FROM public.alert_type_catalog
       WHERE type IN ('pix_unreconciled', 'fatura_desatualizada', 'restituicao_pendente', 'itau_pix_consulta_parada');`))
-      .toBe('fatura_desatualizada:administrativo:administrativo+financeiro,itau_pix_consulta_parada:financeiro:financeiro,'
+      .toBe('fatura_desatualizada:administrativo:administrativo+financeiro,itau_pix_consulta_parada:administrativo:administrativo,'
         + 'pix_unreconciled:financeiro:financeiro,restituicao_pendente:financeiro:financeiro')
   })
 
@@ -885,6 +886,10 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
     { row: 'Liberar e-mail bloqueado do Portal', allowed: ADM_DOC, call: `public.portal_release_suppressed_email(-1, 'novo-p14@example.test', 'motivo')` },
     { row: 'Reabrir análise do Portal', allowed: ADM_DOC, call: `public.portal_return_to_analysis(-1, 'motivo', NULL, NULL)` },
     { row: 'Gerir o Desbloqueio de CE', allowed: ADM_DOC, call: `public.ce_unlock_command('p14-inexistente', '{}'::jsonb)` },
+    // Migration 612 (ADR 0132): a guarda do Administrativo vem antes da busca do tipo.
+    { row: 'Trocar a gravidade de um alerta', allowed: ADM, call: `public.set_alert_type_severity('p14_tipo_inexistente', 'critical', 'motivo do teste P14')` },
+    // Migration 613 (ADR 0133, D8): o reforço por tempo, também só do Administrativo.
+    { row: 'Definir o reforço por tempo de um alerta', allowed: ADM, call: `public.set_alert_type_escalation('p14_tipo_inexistente', 4, 'motivo do teste P14')` },
   ]
 
   /**

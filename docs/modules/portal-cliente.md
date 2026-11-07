@@ -962,7 +962,10 @@ Persistência principal: `customer_portal_accounts`, `portal_login_attempts` (te
 A falta de Portal ou Email de Recuperação bloqueia a emissão, manual ou
 automática, até o Portal ficar pronto ou até a Liberação de faturamento sem
 Portal (ADR 0070). Ela gera `portal_pendencia_geral` para Documentação e o
-Alerta `review_portal_not_ready` (Documentação trata, Administrativo avisado).
+Alerta `review_portal_not_ready` (Documentação trata, Administrativo avisado). Desde a migration `626`
+([ADR 0134](../adr/0134-brechas-restantes-da-revisao-dos-alertas.md), decisão 9), a Liberação que vence nas
+próximas 18 horas úteis com o Portal ainda não pronto abre `liberacao_vencendo` (Normal, Administrativo), que
+fecha com a renovação, a revogação, o vencimento ou o Portal pronto. **Teste:** `liberacaoVencendo.local-pg.test.ts`.
 Uma fatura emitida sem Portal e sem Liberação, como as anteriores à migration
 083, abre `portal_excecao_critica_fatura` vinculada à fatura. A exceção é fechada
 quando a fatura é paga, coberta, cancelada ou obsoleta; a pendência geral fecha
