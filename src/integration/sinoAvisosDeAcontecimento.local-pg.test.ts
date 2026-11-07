@@ -137,6 +137,20 @@ describeLocal('595 — sino avisa solicitação de Desbloqueio de CE e pagamento
     expect(lines).toEqual(['>eventos|1'])
   })
 
+  // 614 (ADR 0132, decisão 4): o anual do VIP enviado pelo Cliente avisa Documentação e Administrativo.
+  it('anual VIP enviado pelo Cliente avisa Documentação e Administrativo; o enviado pela equipe não avisa', () => {
+    const doc = (id: string, by: string) => `INSERT INTO public.ce_unlock_documents (id, customer_id, type, source, status, storage_path, file_name, size_bytes, uploaded_by)
+      VALUES ('${id}', ${CUSTOMER}, 'termo', 'vip_annual', 'uploading', 'p/' || '${id}', 'a.pdf', 10, '${by}');
+      UPDATE public.ce_unlock_documents SET status = 'uploaded' WHERE id = '${id}';`
+    const lines = scenario(`
+      ${doc('59500000-0000-4000-8000-0000000000b1', PORTAL)}
+      ${doc('59500000-0000-4000-8000-0000000000b2', DOC)}
+      ${notices('ce_unlock_annual:')}`)
+    const cnpj = syntheticCnpj(595001)
+    expect(lines).toEqual(['administrativo', 'documentacao'].map((department) =>
+      `>${department}|Novo documento anual VIP|R595 Cliente enviou o termo de devolução anual para análise.|/clientes/${cnpj.replace(/\D/g, '')}?tab=desbloqueio-ce`))
+  })
+
   it('o aviso aparece no sino e no número até ser lido; ler tira dos dois', () => {
     const lines = scenario(`
       INSERT INTO public.invoices (id, invoice_number, customer_id, status, total_brl) VALUES (595001, 'FAT-595', ${CUSTOMER}, 'issued', 2000);

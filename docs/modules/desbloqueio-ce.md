@@ -529,6 +529,13 @@ Administrativo também avisado; a rotina `ce-unlock-alerts` (5 minutos) abre e f
   gatilho `trg_ce_unlock_deadline_alert_on_zpt` e pela rotina.
 **Teste:** `alertasDoDesbloqueioDeCe.local-pg.test.ts`.
 
+**Anual do VIP enviado** (desde 2026-11-07, migration `614`, [ADR 0132](../adr/0132-brechas-restantes-da-revisao-dos-alertas.md),
+decisão 4): quando um `ce_unlock_documents` de `source = 'vip_annual'` passa a `uploaded` por conta do
+Portal, o gatilho `trg_notify_ce_unlock_annual_uploaded` manda o aviso **Novo documento anual VIP**
+(sem alerta) à Documentação e ao Administrativo, que abre a ficha do Cliente na aba Desbloqueio de CE e
+VIP. Envio pela equipe interna não avisa. Sem alerta de vencimento do anual (decisão do dono).
+**Teste:** `sinoAvisosDeAcontecimento.local-pg.test.ts`.
+
 ### Avisos ao cliente
 
 **Aviso à equipe (migration `595`, [ADR 0126](../adr/0126-sino-avisa-solicitacao-de-desbloqueio-e-pagamento.md)).**

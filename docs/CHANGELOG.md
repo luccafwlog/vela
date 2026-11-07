@@ -6,6 +6,9 @@
 
 ## 2026-11
 
+- **Aviso do anual VIP (decisão 4 do dono de 2026-11-07, migration `614`, ADR 0132):** o termo ou a procuração
+  anual enviado pelo Cliente VIP avisa no sino a Documentação e o Administrativo. Prova:
+  `sinoAvisosDeAcontecimento.local-pg.test.ts`.
 - **B/L divergente na ZPT e prazo sem limite (decisões 1 e 3 do dono de 2026-11-07, migration `613`, ADR 0132):**
   a conciliação que traz o B/L divergente abre alerta Crítico com o motivo da ZPT, para Documentação e
   Administrativo; o alerta do prazo do desbloqueio cobre todo B/L sem conciliação, sem o corte de 30 dias. Prova:
