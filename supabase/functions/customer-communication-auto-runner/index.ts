@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 import { runCronWithBetterStackHeartbeat } from '../_shared/betterStackHeartbeat.ts'
-import { runAutomaticCommunications } from '../_shared/customerCommunicationAutoRunner.ts'
-import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
+import { runAutomaticCommunications, type AutoRunnerDispatchResult } from '../_shared/customerCommunicationAutoRunner.ts'
+import { dispatchCustomerCommunication, type Admin } from '../_shared/customerCommunicationDispatch.ts'
+import { captureEdgeException, instrumentEdgeHandler } from '../_shared/telemetry.ts'
 import { canonicalPortalUrl } from '../_shared/portalUrls.ts'
 
 function timingSafeEqual(leftValue: string, rightValue: string): boolean {
@@ -12,6 +13,28 @@ function timingSafeEqual(leftValue: string, rightValue: string): boolean {
   let difference = 0
   for (let index = 0; index < left.length; index += 1) difference |= left[index] ^ right[index]
   return difference === 0
+}
+
+// Envio de um destinatário no mesmo processo, sem POST à Edge
+// send-customer-communication: a Supabase limita as chamadas entre Edge
+// Functions e, em 07/11/2026, recusou da 31ª em diante. Os 5xx e as exceções
+// do envio continuam indo ao Sentry com o nome da send-customer-communication,
+// como quando passavam pelo handler dela.
+async function dispatchInProcess(admin: Admin, payload: Record<string, unknown>): Promise<AutoRunnerDispatchResult> {
+  const startedAt = Date.now()
+  const context = { functionName: 'send-customer-communication', jobName: 'customer-communication-auto-runner' }
+  try {
+    const result = await dispatchCustomerCommunication(admin, payload, { isAutomation: true, userId: null })
+    if (result.status >= 500) {
+      await captureEdgeException(new Error('Edge Function returned a server error'), {
+        ...context, status: `http_${result.status}`, category: 'server_error', durationMs: Date.now() - startedAt,
+      })
+    }
+    return result
+  } catch (error) {
+    await captureEdgeException(error, { ...context, status: 'uncaught', category: 'uncaught_exception', durationMs: Date.now() - startedAt })
+    throw error
+  }
 }
 
 function json(status: number, value: unknown, headers: Record<string, string> = {}): Response {
@@ -25,15 +48,11 @@ async function handler(req: Request): Promise<Response> {
   if (!secret || !timingSafeEqual(providedSecret, secret)) return json(401, { error: 'Não autorizado.' })
   const url = Deno.env.get('SUPABASE_URL')
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
-  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')
-  if (!url || !serviceKey || !anonKey) return json(500, { error: 'Configuração do Supabase ausente.' })
+  if (!url || !serviceKey) return json(500, { error: 'Configuração do Supabase ausente.' })
   const admin = createClient(url, serviceKey)
   const result = await runAutomaticCommunications({
     rpc: (fn, args) => admin.rpc(fn, args),
-    fetcher: fetch,
-    supabaseUrl: url,
-    anonKey,
-    secret,
+    dispatch: (payload) => dispatchInProcess(admin, payload),
     // Configuração única do endereço do Portal (ponto 4 de 2026-10-23).
     portalUrl: canonicalPortalUrl('billing'),
   })

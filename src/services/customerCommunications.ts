@@ -1555,10 +1555,23 @@ export function buildVoyageCommunicationCoverage(input: {
       const nobTargetKeys = new Set(input.terminalStates
         .filter((state) => state.voyage_id === voyage.id && (communicationPortCode(state.port) ?? '') === port)
         .flatMap((state) => Array.from(customers).map((customerId) => `${customerId}:${state.id}`)))
-      const count = (kind: string) => new Set(portComms
-        .filter((comm) => comm.kind === kind)
-        .filter((comm) => kind !== 'aviso_atracacao_nob' || nobTargetKeys.has(`${comm.customer_id}:${comm.anchor_atracacao_id}`))
-        .map((comm) => `${comm.customer_id}:${comm.anchor_atracacao_id ?? ''}`)).size
+      const portQueue = (input.queue ?? []).filter((row) => row.voyage_id === voyage.id && customers.has(row.customer_id)
+        && (row.kind === 'ce_mercante_taxas' || (communicationPortCode(row.port) ?? '') === port))
+      // Conta o Cliente (no NOB, Cliente × Atracação) só quando todo
+      // destinatário recebeu, como a régua e o alerta "Comunicado … pendente":
+      // o alvo ainda na fila tem destinatário sem envio, mesmo com um
+      // Comunicado Enviado (decisão do dono de 2026-11-07, depois do NOA da
+      // GREEN GUANGZHOU / 6 mostrar "32 de 35" com 5 Clientes pendentes).
+      const count = (kind: string) => {
+        const pending = new Set(portQueue
+          .filter((row) => row.kind === kind)
+          .map((row) => `${row.customer_id}:${kind === 'aviso_atracacao_nob' ? row.anchor_atracacao_id ?? '' : ''}`))
+        return new Set(portComms
+          .filter((comm) => comm.kind === kind)
+          .filter((comm) => kind !== 'aviso_atracacao_nob' || nobTargetKeys.has(`${comm.customer_id}:${comm.anchor_atracacao_id}`))
+          .map((comm) => `${comm.customer_id}:${kind === 'aviso_atracacao_nob' ? comm.anchor_atracacao_id ?? '' : ''}`)
+          .filter((key) => !pending.has(key))).size
+      }
 
       const noaOpen = coverageMilestoneOpen('aviso_chegada_noa', voyageEscalas, port, now)
       const norOpen = coverageMilestoneOpen('aviso_prontidao_nor', voyageEscalas, port, now)
@@ -1572,8 +1585,6 @@ export function buildVoyageCommunicationCoverage(input: {
       const resend = financeSent.size - upToDate
 
       // Drill-down: o envio mais recente e a fila de cada Cliente × modelo.
-      const portQueue = (input.queue ?? []).filter((row) => row.voyage_id === voyage.id && customers.has(row.customer_id)
-        && (row.kind === 'ce_mercante_taxas' || (communicationPortCode(row.port) ?? '') === port))
       const details: CoverageCustomerDetail[] = Array.from(customers).sort((a, b) => a - b).map((customerId) => {
         const cellFor = (kind: CoverageKind): CoverageCell => {
           const lastSent = (kind === 'ce_mercante_taxas'
