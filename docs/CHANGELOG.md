@@ -6,6 +6,17 @@
 
 ## 2026-11
 
+- **Pix Itaú: a consulta parada ou falhando passa a avisar por e-mail (decisão do dono de
+  2026-11-06):** no incidente do mesmo dia, nenhum aviso chegou por e-mail. Os alertas do Vela
+  ficam no sino (e **Consulta de Pix do Itaú parada** só no do Financeiro); o Better Stack não
+  vigiava a `itau-pix`; e o Sentry juntou os erros ao VELA-26, aberto desde outubro, sem ser erro
+  novo nem regressão. Agora a `itau-pix` reporta ao heartbeat `BETTERSTACK_HEARTBEAT_ITAU_PIX_URL`
+  a cada rodada do cron (`/fail` na rodada com falha; o disparo da fila só manda o `/fail`; o
+  diagnóstico não reporta), e o VELA-26 foi marcado como resolvido no Sentry, para a próxima falha
+  voltar a mandar e-mail. Falta o passo do dono: criar o heartbeat no Better Stack (1 min,
+  tolerância 5 min) e cadastrar a URL como secret das Edge Functions. Prova:
+  `itau-pix/index.test.ts` (sucesso, `/fail`, disparo da fila e diagnóstico) e
+  `betterStackHeartbeat.test.ts`.
 - **Pix Itaú: o horário do Pix nunca mais para a consulta de recebimentos (incidente e decisão do
   dono de 2026-11-06):** a partir das 17:33 de Brasília, a `itau-pix` respondeu 500 a cada minuto
   ("Horário do Itaú diverge do endToEndId") e abriu **Consulta de Pix do Itaú parada** e **Rotina

@@ -21,7 +21,8 @@ Ele não cria contas, monitores, chaves, DNS, status page ou alertas.
 - heartbeats repository-side para Edge Functions agendadas foram implementados via
   `supabase/functions/_shared/betterStackHeartbeat.ts` nos runners `alerts-detector`,
   `portal-daily-digest`, `demurrage-dunning`, `customer-communication-auto-runner`,
-  `ce-unlock-notify-email` e `portal-email-events-runner`.
+  `ce-unlock-notify-email`, `portal-email-events-runner` e, desde 2026-11-06,
+  `itau-pix` (consulta e baixa do Pix Itaú).
   Com a URL do heartbeat nos secrets do Supabase, cada rodada autorizada envia um
   ping: o de sucesso com resposta 2xx sem falha contada, e o de falha (`/fail`) com
   resposta fora de 2xx, com exceção ou com `failed`, `partial` ou `releaseFailures`
@@ -75,6 +76,7 @@ ao bundle nem commitadas no Git:
 | `portal-daily-digest` | `BETTERSTACK_HEARTBEAT_PORTAL_DAILY_DIGEST_URL` | diária |
 | `ce-unlock-notify-email` | `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` | 5 min |
 | `portal-email-events-runner` | `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL` | a cada minuto |
+| `itau-pix` (job `itau-pix-queue`) | `BETTERSTACK_HEARTBEAT_ITAU_PIX_URL` (a cadastrar, decisão do dono de 2026-11-06) | a cada minuto; o disparo da fila (`process_charges`) manda só o `/fail`, e o diagnóstico não reporta |
 
 O ping de sucesso só sai depois da conclusão do job com resposta 2xx sem falha
 contada; o restante manda `/fail`. Desde a migration `458`, três desses runners

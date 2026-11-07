@@ -6,6 +6,7 @@
 // sem ela, a execução não chama o Itaú para cobranças (prazos e recebimentos seguem).
 // Diagnóstico (Fase 1): token, create_test (até R$ 1,00), get, update_test, cancel, list_pix.
 import { createClient } from "@supabase/supabase-js";
+import { runWithBetterStackHeartbeat } from "../_shared/betterStackHeartbeat.ts";
 import { validCleanupAuthorization as validBearer } from "../_shared/ceUnlockCleanupAuth.ts";
 import {
   type ChargeQueue, createItauPixClient, ItauPixError, itauPixConfigFromEnv, pollItauPixReceipts, processItauPixQueue,
@@ -29,19 +30,43 @@ async function reportAbsorbedFailure(step: string, error: unknown, detail?: unkn
   await captureEdgeException(error, { functionName: "itau-pix", status: step, category: "absorbed_failure" });
 }
 
-if (typeof Deno !== "undefined")
+// Um segredo por uso (auditoria run-3, decisão do dono de 2026-10-22): a
+// rotina (cron e disparo da fila) usa ITAU_PIX_CRON_SECRET; o diagnóstico
+// da equipe técnica, ITAU_PIX_DIAGNOSTIC_SECRET. ITAU_PIX_ADMIN_SECRET, que
+// servia aos dois, segue aceito na transição.
+// ponytail: apagar ITAU_PIX_ADMIN_SECRET da Edge e do Vault encerra a
+// transição; daí em diante cada uso só aceita o próprio.
+function authorizedUses(req: Request) {
+  const authorization = req.headers.get("Authorization");
+  const legacy = validBearer(authorization, Deno.env.get("ITAU_PIX_ADMIN_SECRET"));
+  const routine = legacy || validBearer(authorization, Deno.env.get("ITAU_PIX_CRON_SECRET"));
+  const diagnostic = legacy || validBearer(authorization, Deno.env.get("ITAU_PIX_DIAGNOSTIC_SECRET"));
+  return { routine, diagnostic };
+}
+
+// Heartbeat do Better Stack (BETTERSTACK_HEARTBEAT_ITAU_PIX_URL; sem ele, nada
+// muda). A rodada do cron ({} ou process_queue) com o segredo da rotina reporta
+// sucesso ou, com resposta fora de 2xx, falha; o disparo da fila
+// (process_charges) reporta só a falha, para não esconder um cron parado;
+// diagnóstico e chamada recusada não reportam. Rodada que falha ou cron que
+// para avisa a equipe por e-mail pelo Better Stack (decisão do dono de
+// 2026-11-06: a consulta ficou parada por horas sem nenhum e-mail).
+async function heartbeatMode(req: Request): Promise<"cron" | "kick" | null> {
+  if (req.method !== "POST" || !authorizedUses(req).routine) return null;
+  try {
+    const action = (await req.clone().json() as { action?: unknown } | null)?.action;
+    if (action === undefined || action === "process_queue") return "cron";
+    if (action === "process_charges") return "kick";
+  } catch {
+    // JSON inválido: a função responde 400, sem rodada.
+  }
+  return null;
+}
+
+if (typeof Deno !== "undefined") {
   // O wrapper manda ao Sentry toda resposta 5xx e toda exceção (F-09 só mudava o status).
-  Deno.serve(instrumentEdgeHandler("itau-pix", async (req) => {
-    // Um segredo por uso (auditoria run-3, decisão do dono de 2026-10-22): a
-    // rotina (cron e disparo da fila) usa ITAU_PIX_CRON_SECRET; o diagnóstico
-    // da equipe técnica, ITAU_PIX_DIAGNOSTIC_SECRET. ITAU_PIX_ADMIN_SECRET, que
-    // servia aos dois, segue aceito na transição.
-    // ponytail: apagar ITAU_PIX_ADMIN_SECRET da Edge e do Vault encerra a
-    // transição; daí em diante cada uso só aceita o próprio.
-    const authorization = req.headers.get("Authorization");
-    const legacy = validBearer(authorization, Deno.env.get("ITAU_PIX_ADMIN_SECRET"));
-    const routine = legacy || validBearer(authorization, Deno.env.get("ITAU_PIX_CRON_SECRET"));
-    const diagnostic = legacy || validBearer(authorization, Deno.env.get("ITAU_PIX_DIAGNOSTIC_SECRET"));
+  const handler = instrumentEdgeHandler("itau-pix", async (req) => {
+    const { routine, diagnostic } = authorizedUses(req);
     if (req.method !== "POST" || !(routine || diagnostic))
       return new Response("Acesso negado", { status: 403 });
     let input: Record<string, unknown>;
@@ -177,4 +202,9 @@ if (typeof Deno !== "undefined")
         return Response.json({ error: error.message, itau_status: error.status, itau_body: error.body }, { status: error.status === 400 ? 400 : 502 });
       return Response.json({ error: error instanceof Error ? error.message : "Falha interna" }, { status: 500 });
     }
-  }));
+  });
+  Deno.serve(async (req) => {
+    const mode = await heartbeatMode(req);
+    return runWithBetterStackHeartbeat("itauPix", () => handler(req), { enabled: mode !== null, reportSuccess: mode === "cron" });
+  });
+}
