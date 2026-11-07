@@ -412,15 +412,36 @@ describe('Mapa dos alertas (ADR 0134)', () => {
     expect(screen.getByRole('heading', { name: 'CE Mercante', level: 2 })).toBeTruthy()
   })
 
-  it('o que fica parado lista quem pode segurar, de todas as equipes', () => {
+  it('quem trava o quê separa o alerta que avisa das causas, cada uma com o motivo', () => {
     renderPage()
 
-    fireEvent.click(within(screen.getByRole('group', { name: 'O que fica parado' })).getByRole('button', { name: /Desbloqueio de CE/ }))
-    expect(screen.getByRole('heading', { name: 'Desbloqueio de CE', level: 2 })).toBeTruthy()
-    expect(screen.getByText(/14 alertas podem segurar/)).toBeTruthy()
+    fireEvent.click(within(screen.getByRole('group', { name: 'Quem trava o quê' })).getByRole('button', { name: /CE Mercante/ }))
+    expect(screen.getByRole('heading', { name: 'CE Mercante', level: 2 })).toBeTruthy()
     const aside = screen.getByRole('complementary', { name: 'Ficha' })
-    expect(within(aside).getByRole('button', { name: 'PIX sem conciliação segura' })).toBeTruthy()
-    expect(within(aside).getByRole('button', { name: 'Calendário de feriados pendente' })).toBeTruthy()
+    // O CE Mercante pendente avisa que falta o CE: é o sintoma, não a causa.
+    expect(within(within(aside).getByRole('list', { name: 'Quem avisa' })).getByRole('button', { name: 'CE Mercante pendente' })).toBeTruthy()
+    const causes = within(aside).getByRole('list', { name: 'Causas em D−7' })
+    expect(within(causes).getByRole('button', { name: 'Baplie ausente' })).toBeTruthy()
+    expect(within(causes).getAllByText('→ trava CE Mercante').length).toBeGreaterThan(0)
+    expect(within(aside).queryByRole('list', { name: 'Causas em D−5' })).toBeTruthy()
+    expect(within(aside).getByText(/5 alertas\. Enquanto qualquer um deles estiver aberto/)).toBeTruthy()
+  })
+
+  it('os roteiros guiam passo a passo pelo mapa e terminam no que fica parado', () => {
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Veículos sem resposta no D−7/ }))
+    const bar = screen.getByRole('region', { name: 'Roteiro' })
+    expect(within(bar).getByText('Passo 1 de 5')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Declaração de veículos pendente', level: 2 })).toBeTruthy()
+    fireEvent.click(within(bar).getByRole('button', { name: 'Próximo passo' }))
+    expect(within(bar).getByText('Sem a resposta, o CE dos B/Ls de container não vincula.')).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'CE Mercante pendente', level: 2 })).toBeTruthy()
+    for (let step = 0; step < 3; step += 1) fireEvent.click(within(bar).getByRole('button', { name: 'Próximo passo' }))
+    expect(screen.getByRole('heading', { name: 'Desbloqueio de CE', level: 2 })).toBeTruthy()
+    fireEvent.click(within(bar).getByRole('button', { name: 'Terminar' }))
+    expect(screen.queryByRole('region', { name: 'Roteiro' })).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Como ler o mapa' })).toBeTruthy()
   })
 
   it('"E se ninguém agir?" mostra a cascata passo a passo até o que fica parado', () => {

@@ -10,7 +10,10 @@ import {
   ALERT_MAP_OFF_MAP,
   ALERT_MAP_SHORT_LABELS,
   ALERT_MAP_STATIONS,
+  ALERT_MAP_TOURS,
+  ALERT_STAKE_INFO,
   ALERT_STAKES_BY_TYPE,
+  stakeCauses,
   inactionWalk,
   linksOf,
 } from '../alertRulesMap'
@@ -109,5 +112,26 @@ describe('Mapa dos alertas', () => {
     expect(ce.steps.flat()).not.toContain('billing_auto_issue_failed')
     // Alerta sem ligação de falta de ação fica num passo só.
     expect(inactionWalk('portal_abuso_login').steps).toEqual([['portal_abuso_login']])
+  })
+
+  it('quem trava o quê: o alerta que avisa está no mapa e nunca conta como causa', () => {
+    for (const [stake, info] of Object.entries(ALERT_STAKE_INFO)) {
+      for (const id of info.warn) expect(placed).toContain(id)
+      expect(stakeCauses(stake as never).some((id) => info.warn.includes(id as never))).toBe(false)
+    }
+    expect(stakeCauses('ce')).toContain('voyage_baplie_missing')
+    expect(stakeCauses('ce')).not.toContain('voyage_ce_mercante_missing')
+  })
+
+  it('os roteiros só passam por alertas do mapa, sem falar da conta Dev', () => {
+    const ids = ALERT_MAP_TOURS.map((tour) => tour.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    for (const tour of ALERT_MAP_TOURS) {
+      expect(tour.steps.length).toBeGreaterThan(1)
+      for (const step of tour.steps) {
+        if ('node' in step) expect(placed).toContain(step.node)
+        expect(`${tour.title} ${tour.sub} ${tour.who} ${step.text}`).not.toMatch(/conta Dev/i)
+      }
+    }
   })
 })

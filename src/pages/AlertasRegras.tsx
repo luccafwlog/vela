@@ -1,5 +1,5 @@
 import { ChevronRight, FilterX } from 'lucide-react'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { EmptyState, PageHeader } from '../components/ui/Card'
@@ -12,7 +12,7 @@ import { Drawer } from '../components/ui/Drawer'
 import { SegmentedControl, type SegmentedOption } from '../components/ui/SegmentedControl'
 import { useNarrowViewport } from '../components/bl/useNarrowViewport'
 import { AlertLinkSample, AlertRulesMap, type AlertMapCard, type AlertMapFocus } from '../components/alerts/AlertRulesMap'
-import { AlertChainBlock, AlertMapLegend, InactionWalkBar, NoticeDetail, StakeDetail } from '../components/alerts/AlertRuleChain'
+import { AlertChainBlock, AlertMapLegend, AlertMapTourBar, AlertMapTours, InactionWalkBar, NoticeDetail, StakeDetail } from '../components/alerts/AlertRuleChain'
 import { NoValue } from '../components/ui/NoValue'
 import { StatusText } from '../components/ui/StatusText'
 import { useToast } from '../components/ui/Toast'
@@ -43,13 +43,15 @@ import {
   ALERT_MAP_NOTICES,
   ALERT_MAP_SHORT_LABELS,
   ALERT_MAP_STATIONS,
+  ALERT_MAP_TOURS,
   ALERT_STAKES,
   inactionWalk,
   isAlertMapNotice,
+  stakeCauses,
   stakeLabel,
-  stakesOf,
   type AlertLinkKind,
   type AlertMapNodeId,
+  type AlertMapTour,
   type AlertMapNoticeId,
   type AlertStakeId,
   type InactionWalk,
@@ -217,6 +219,8 @@ export function AlertasRegras() {
   }
   const sidePanelAsDrawer = useNarrowViewport(MAP_SIDE_PANEL_QUERY)
   const [walkState, setWalkState] = useState<{ walk: InactionWalk; step: number } | null>(null)
+  const [tourState, setTourState] = useState<{ tour: AlertMapTour; step: number } | null>(null)
+  const stakesRef = useRef<HTMLDetailsElement>(null)
 
   const view: AlertRulesView = searchParams.get('visao') === 'lista' ? 'lista' : 'mapa'
   const query = searchParams.get('q') ?? ''
@@ -296,6 +300,7 @@ export function AlertasRegras() {
   /** Escolher pela ficha: vai ao alerta e o mostra no mapa. */
   function selectNode(id: AlertMapNodeId) {
     setWalkState(null)
+    setTourState(null)
     changeParams((next) => {
       next.set('regra', id)
       next.delete('parado')
@@ -311,6 +316,7 @@ export function AlertasRegras() {
 
   function selectStake(stake: AlertStakeId | null) {
     setWalkState(null)
+    setTourState(null)
     changeParams((next) => {
       next.delete('regra')
       if (stake) next.set('parado', stake)
@@ -320,6 +326,7 @@ export function AlertasRegras() {
 
   function clearSelection() {
     setWalkState(null)
+    setTourState(null)
     changeParams((next) => {
       next.delete('regra')
       next.delete('parado')
@@ -327,6 +334,7 @@ export function AlertasRegras() {
   }
 
   function startWalk(id: AlertMapNodeId) {
+    setTourState(null)
     setWalkState({ walk: inactionWalk(id), step: 0 })
     changeParams((next) => {
       next.delete('visao')
@@ -334,6 +342,25 @@ export function AlertasRegras() {
       next.set('regra', id)
     })
     revealCard(id)
+  }
+
+  /** Roteiro: cada passo escolhe um alerta ou uma coisa parada, sem sair do mapa. */
+  function tourTo(tour: AlertMapTour, step: number) {
+    const bounded = Math.max(0, Math.min(step, tour.steps.length - 1))
+    const current = tour.steps[bounded]
+    setWalkState(null)
+    setTourState({ tour, step: bounded })
+    changeParams((next) => {
+      next.delete('visao')
+      if ('node' in current) {
+        next.set('regra', current.node)
+        next.delete('parado')
+      } else {
+        next.set('parado', current.stake)
+        next.delete('regra')
+      }
+    })
+    if ('node' in current) revealCard(current.node)
   }
 
   function walkTo(step: number) {
@@ -366,6 +393,11 @@ export function AlertasRegras() {
         ? { kind: 'stake', id: stakeParam }
         : null
   const walkStakes = walkState && walkState.step >= walkState.walk.steps.length ? walkState.walk.stakes : []
+  const openStakes = walkStakes.length > 0 || Boolean(stakeParam && !tourState)
+  useEffect(() => {
+    // Quem trava o quê nasce recolhido; abre quando a tela escolhe uma coisa parada.
+    if (openStakes && stakesRef.current) stakesRef.current.open = true
+  }, [openStakes])
 
   const chainFor = (id: AlertMapNodeId) => (
     <AlertChainBlock id={id} labelOf={nodeLabel} onSelect={selectNode} onStake={selectStake} onWalk={startWalk} />
@@ -380,7 +412,16 @@ export function AlertasRegras() {
       ? <NoticeDetail id={mapSelected}>{chainFor(mapSelected)}</NoticeDetail>
       : <RuleDetail rule={RULES_BY_TYPE.get(mapSelected)!} settings={settings} chain={chainFor(mapSelected)} />
     : stakeParam
-      ? <StakeDetail stake={stakeParam} labelOf={nodeLabel} isCritical={isCritical} onSelect={selectNode} />
+      ? (
+        <StakeDetail
+          stake={stakeParam}
+          labelOf={nodeLabel}
+          isCritical={isCritical}
+          impactOf={(id) => (isAlertMapNotice(id) ? '' : RULES_BY_TYPE.get(id)?.impact ?? '')}
+          summaryOf={(id) => (isAlertMapNotice(id) ? ALERT_MAP_NOTICES[id].summary : RULES_BY_TYPE.get(id)?.summary ?? '')}
+          onSelect={selectNode}
+        />
+      )
       : null
   const drawerTitle = mapSelected ? nodeLabel(mapSelected) : stakeParam ? stakeLabel(stakeParam) : 'Regras de alertas'
 
@@ -428,25 +469,33 @@ export function AlertasRegras() {
 
       {view === 'mapa' ? (
         <>
-          <Block title="O que fica parado" aside="Os alertas que podem segurar cada coisa">
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="O que fica parado">
-              {ALERT_STAKES.map((stake) => {
-                const total = [...MAP_NODES].filter((id) => stakesOf(id as AlertMapNodeId).includes(stake.id)).length
-                const pressed = stakeParam === stake.id
-                return (
-                  <Button
-                    key={stake.id}
-                    variant={pressed ? 'primary' : walkStakes.includes(stake.id) ? 'danger' : 'secondary'}
-                    className="app-btn--sm"
-                    aria-pressed={pressed}
-                    onClick={() => selectStake(pressed ? null : stake.id)}
-                  >
-                    {stake.label} <span className="text-xs">{total}</span>
-                  </Button>
-                )
-              })}
-            </div>
-          </Block>
+          <div className="grid gap-3">
+            <AlertMapTours activeId={tourState?.tour.id ?? null} onStart={(id) => tourTo(ALERT_MAP_TOURS.find((tour) => tour.id === id)!, 0)} />
+
+            <details ref={stakesRef} className="group rounded-[var(--app-radius)] border border-[var(--app-border-soft)] bg-[var(--app-surface)]">
+              <summary className="flex cursor-pointer list-none flex-wrap items-baseline justify-between gap-x-3 gap-y-1 rounded-[var(--app-radius)] bg-[var(--app-strip)] px-4 py-2.5 group-open:rounded-b-none group-open:border-b group-open:border-[var(--app-border-soft)]">
+                <span className="font-semibold text-[var(--app-strip-text)]"><span aria-hidden="true" className="mr-1.5 inline-block transition-transform group-open:rotate-90">▸</span>Quem trava o quê</span>
+                <span className="text-sm text-[var(--app-muted)]">Escolha o que está parado: a ficha mostra o alerta que avisa e os alertas que podem ser a causa</span>
+              </summary>
+              <div className="flex flex-wrap gap-1.5 p-3" role="group" aria-label="Quem trava o quê">
+                {ALERT_STAKES.map((stake) => {
+                  const total = stakeCauses(stake.id).length
+                  const pressed = stakeParam === stake.id
+                  return (
+                    <Button
+                      key={stake.id}
+                      variant={pressed ? 'primary' : walkStakes.includes(stake.id) ? 'danger' : 'secondary'}
+                      className="app-btn--sm"
+                      aria-pressed={pressed}
+                      onClick={() => selectStake(pressed ? null : stake.id)}
+                    >
+                      {stake.label} <span className="text-xs">{total}</span>
+                    </Button>
+                  )
+                })}
+              </div>
+            </details>
+          </div>
 
           <div className="mb-2 mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-[var(--app-muted)]">
             <span>
@@ -474,9 +523,13 @@ export function AlertasRegras() {
           </div>
 
           {sidePanelAsDrawer ? (
-            <Drawer open={Boolean(mapDetail) && !walkState} title={drawerTitle} onClose={clearSelection}>
+            <Drawer open={Boolean(mapDetail) && !walkState && !tourState} title={drawerTitle} onClose={clearSelection}>
               {mapDetail}
             </Drawer>
+          ) : null}
+
+          {tourState ? (
+            <AlertMapTourBar tour={tourState.tour} step={tourState.step} onStep={(step) => tourTo(tourState.tour, step)} onClose={clearSelection} />
           ) : null}
 
           {walkState ? (

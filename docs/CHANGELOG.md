@@ -10,7 +10,8 @@
   mapa por momento da viagem, com a cadeia de cada alerta (vira, segura, atrapalha, depois, mesma causa), o que fica
   parado, "E se ninguém agir?" passo a passo, os avisos do sino como marcos e quantos a pessoa tem na fila, com link
   para a fila filtrada no tipo (`/alertas?tipo=`); a lista por assunto vira a aba **Lista**, e o filtro de setor ganha
-  **Conta Dev**. Corrige também os textos de **Baplie ausente** (fecha com a declaração Viagem sem Baplie, migration
+  **Conta Dev**. Depois do protótipo: **Quem trava o quê** separa o alerta que avisa das causas, doze **Roteiros**
+  guiam passo a passo, as duas seções abrem recolhidas e o mapa ficou mais enxuto. Corrige também os textos de **Baplie ausente** (fecha com a declaração Viagem sem Baplie, migration
   `610`) e **Calendário de feriados pendente** (vale para os prazos do Desbloqueio de CE, migration `608`). Prova:
   `AlertasRegrasCatalog.test.tsx`, `alertRulesMap.test.ts`, `Alertas.behavior.test.tsx`,
   `contagemDaFilaPorTipo.local-pg.test.ts`.

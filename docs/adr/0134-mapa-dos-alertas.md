@@ -50,6 +50,22 @@ cobrança de Demurrage e os próprios alertas); escolher uma lista os alertas
 que podem segurá-la. O filtro **Setor avisado** ganha **Conta Dev**, e o
 alerta só da conta Dev deixa de contar para o Administrativo.
 
+### Revisão de 2026-11-07, depois do protótipo
+
+6. **Quem trava o quê** substitui "O que fica parado", que não deixava claro
+   quem trava quem. Escolher uma coisa parada separa o alerta que avisa (o
+   sintoma: o CE Mercante pendente avisa que falta o CE) dos alertas que a
+   travam (as causas: o Baplie ausente trava o CE Mercante), cada causa com
+   "→ trava" e o motivo do "Se ninguém agir" da regra. O número de cada coisa
+   conta só as causas. Na ficha de um alerta, "Fica parado" passa a "Enquanto
+   aberto, trava".
+7. **Roteiros**: doze histórias curtas sobre o mapa, uma frase por passo, que
+   escolhem um alerta ou uma coisa parada e acendem a cadeia. Diretos, sem
+   falar da conta Dev.
+8. **Roteiros** e **Quem trava o quê** abrem recolhidos. O mapa fica mais
+   enxuto: D−7 e D−5 ocupam duas colunas, com os cartões lado a lado, e as
+   faixas "Depois da viagem" e "A qualquer momento" usam a largura toda.
+
 ## Consequências
 
 - Nada muda em quem recebe, na gravidade nem no reforço por tempo: a tela só

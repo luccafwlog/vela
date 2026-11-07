@@ -447,3 +447,109 @@ export function inactionWalk(start: AlertMapNodeId, links: AlertLink[] = ALERT_L
   const stakes = ALERT_STAKES.map((stake) => stake.id).filter((stake) => reached.some((id) => stakesOf(id).includes(stake)))
   return { start, steps, stepLinks, stakes }
 }
+
+/**
+ * Quem trava o quê (ADR 0134, revisão de 2026-11-07): o que cada coisa parada
+ * é e o alerta que avisa que ela está parada. O que avisa é o sintoma; os
+ * outros alertas que a seguram são as causas.
+ */
+export const ALERT_STAKE_INFO: Record<AlertStakeId, { what: string; warn: ActiveAlertType[] }> = {
+  ce: { what: 'O número do CE Mercante de cada B/L. Sem ele, a fatura não sai, o Cliente não recebe o CE e Taxas e o Desbloqueio não começa.', warn: ['voyage_ce_mercante_missing'] },
+  fatura: { what: 'A fatura de Taxas Locais do B/L. Sem ela, o Cliente não tem o que pagar e o Desbloqueio não começa.', warn: ['billing_auto_issue_failed', 'billing_calculation_blocked'] },
+  aviso: { what: 'NOA, NOR, NOB, CE e Taxas, cobranças e os demais e-mails que o Vela manda ao Cliente.', warn: ['comunicado_recusado', 'nob_sem_destinatario'] },
+  portal: { what: 'O acesso do Cliente ao Portal, onde ele vê B/Ls e faturas e pede o Desbloqueio.', warn: ['portal_pendencia_geral'] },
+  pix: { what: 'A baixa do pagamento que o Cliente já fez: o dinheiro entrou, mas a fatura continua em aberto.', warn: ['pix_unreconciled'] },
+  desbloqueio: { what: 'A liberação da carga do Cliente no terminal, depois dos quatro requisitos e da conciliação com a ZPT.', warn: ['desbloqueio_prazo_vencendo'] },
+  adr: { what: 'O ADR de Saída da atracação, conferido e assinado pelas três equipes em até 72 horas do ATD.', warn: ['agency_report_deadline_missed'] },
+  demurrage: { what: 'A cobrança da sobreestadia dos containers, pela Invoice de Demurrage.', warn: ['demurrage_travado'] },
+  alertas: { what: 'Os próprios alertas: se a rotina que os confere para, eles deixam de abrir sem ninguém perceber.', warn: ['rotina_interna_sem_rodar'] },
+}
+
+/** O alerta é uma causa (não o aviso) do que fica parado. */
+export function isStakeCause(id: AlertMapNodeId, stake: AlertStakeId): boolean {
+  return stakesOf(id).includes(stake) && !(ALERT_STAKE_INFO[stake].warn as AlertMapNodeId[]).includes(id)
+}
+
+export function stakeCauses(stake: AlertStakeId): AlertMapNodeId[] {
+  return ALERT_MAP_STATIONS.flatMap((station) => station.nodes).filter((id) => isStakeCause(id, stake))
+}
+
+export type AlertMapTourStep = { node: AlertMapNodeId; text: string } | { stake: AlertStakeId; text: string }
+export type AlertMapTour = { id: string; title: string; sub: string; who: string; steps: AlertMapTourStep[] }
+
+/**
+ * Roteiros (ADR 0134, pedido do dono de 2026-11-07): histórias curtas sobre o
+ * mapa, uma frase por passo, sem falar da conta Dev.
+ */
+export const ALERT_MAP_TOURS: AlertMapTour[] = [
+  { id: 'veiculos', title: 'Veículos sem resposta no D−7', sub: 'A resposta de veículos trava o CE, a fatura e o Desbloqueio.', who: 'Equipamentos e Documentação', steps: [
+    { node: 'voyage_vehicle_declaration_pending', text: 'D−7: Equipamentos não respondeu se a Viagem terá veículos.' },
+    { node: 'voyage_ce_mercante_missing', text: 'Sem a resposta, o CE dos B/Ls de container não vincula.' },
+    { node: 'voyage_vehicle_sheet_pending', text: 'D−5 sem resposta: abre Planilha de Veículos ausente, crítico.' },
+    { node: 'demurrage_travado', text: 'B/L sem CE trava a Demurrage.' },
+    { stake: 'desbloqueio', text: 'Sem CE, não sai fatura. Sem fatura paga, o Desbloqueio não começa.' },
+  ] },
+  { id: 'desbloqueio', title: 'Desbloqueio atrasado', sub: 'Onde procurar quando a carga não foi liberada.', who: 'Documentação, Financeiro e Administrativo', steps: [
+    { stake: 'desbloqueio', text: 'Comece pelo que está parado: quem avisa e as causas possíveis.' },
+    { node: 'review_portal_not_ready', text: 'Sem Portal pronto nem Liberação, a fatura fica retida e o Cliente não paga.' },
+    { node: 'pix_unreconciled', text: 'Pix que não casou com a fatura: ela segue em aberto e o prazo não começa.' },
+    { node: 'desbloqueio_solicitacao_sem_analise', text: 'A Documentação tem 2 horas úteis para analisar Termo e Procuração.' },
+    { node: 'desbloqueio_prazo_vencendo', text: 'Com os quatro requisitos, o prazo começa. Só fecha com a ZPT trazendo Desbloqueado.' },
+    { node: 'desbloqueio_divergente_zpt', text: 'A ZPT voltou sem Desbloqueado no CE atual: a carga continua retida.' },
+  ] },
+  { id: 'portal', title: 'Convite do Portal vencido', sub: 'Por que o convite segura a fatura.', who: 'Documentação e Administrativo', steps: [
+    { node: 'portal_convite_expirado', text: 'O convite venceu e o Cliente não entrou no Portal.' },
+    { node: 'review_portal_not_ready', text: 'Sem Portal pronto nem Liberação, a fatura fica retida na Revisão.' },
+    { node: 'liberacao_vencendo', text: 'A Liberação, dada pelo Administrativo, libera a fatura. Vencida, ela volta a ficar retida.' },
+    { node: 'portal_reprocessamento_falhou', text: 'Com o Portal pronto, as faturas retidas saem. Se uma falhar, abre este alerta.' },
+  ] },
+  { id: 'adr', title: 'Do ATA ao ADR vencido', sub: 'As datas do navio no porto e o prazo do ADR.', who: 'Operações, Documentação e Equipamentos', steps: [
+    { node: 'voyage_schedule_date_pending', text: 'Dia do ETA sem ATA: o NOR não sai. Crítico após 16 horas.' },
+    { node: 'voyage_terminal_date_pending', text: 'Com o ATA, faltam ETB, ATB, ETD e ATD de cada terminal. Sem ATD, o prazo do ADR não começa.' },
+    { node: 'container_sem_descarga', text: 'No ATB, container sem data de descarga: a Demurrage não corre.' },
+    { node: 'voyage_export_after_atd', text: 'Depois do ATD, exportação declarada sem lançamento: o ADR não fecha.' },
+    { node: 'agency_report_department_pending', text: 'Cada equipe resolve e assina a sua seção do ADR.' },
+    { node: 'agency_report_deadline_missed', text: '72 horas após o ATD sem assinatura: crítico.' },
+  ] },
+  { id: 'baplie', title: 'Baplie ausente no D−7', sub: 'Sem Baplie, o CE de container não vincula.', who: 'Documentação', steps: [
+    { node: 'voyage_baplie_missing', text: 'D−7 sem Baplie importado.' },
+    { node: 'voyage_ce_mercante_missing', text: 'Sem Baplie nem a declaração Viagem sem Baplie, o CE de container é recusado.' },
+    { node: 'voyage_baplie_documentary_coverage', text: 'Com o Baplie importado, a conferência com os B/Ls pode abrir a Cobertura.' },
+    { stake: 'ce', text: 'O CE Mercante parado: quem avisa e as causas possíveis.' },
+  ] },
+  { id: 'cliente', title: 'B/L sem Cliente', sub: 'B/L sem Cliente não é faturado nem avisado.', who: 'Documentação', steps: [
+    { node: 'review_customer_unlinked', text: 'B/L na Revisão sem Cliente.' },
+    { node: 'bl_sem_cliente_perto_eta', text: 'A 5 dias do ETA, também abre este alerta, crítico.' },
+    { node: 'demurrage_travado', text: 'B/L sem Cliente trava a Demurrage.' },
+  ] },
+  { id: 'escala', title: 'Escala sem terminal', sub: 'Frente sem terminal fica fora do NOB e do ADR.', who: 'Operações', steps: [
+    { node: 'voyage_escala_terminal_missing', text: 'D−5 da escala com frente sem terminal.' },
+    { node: 'comunicado_nob_pendente', text: 'B/L sem atracação fica fora do NOB.' },
+    { node: 'agency_report_department_pending', text: 'A carga fica fora do ADR e o Fechar ADR trava.' },
+  ] },
+  { id: 'contato', title: 'E-mail do Cliente devolvido', sub: 'Sem contato válido, os avisos não saem.', who: 'Documentação e Administrativo', steps: [
+    { node: 'cliente_contato_bounced_sem_alternativa', text: 'O e-mail do Cliente foi devolvido e não há outro contato válido.' },
+    { node: 'nob_sem_destinatario', text: 'Os próximos avisos automáticos não têm a quem ir.' },
+    { node: 'desbloqueio_ce_aviso_nao_enviado', text: 'O aviso do Desbloqueio também fica sem destinatário.' },
+    { node: 'caixa_sem_destinatario', text: 'Caixa sem contato válido tem o mesmo efeito.' },
+  ] },
+  { id: 'pix', title: 'Pagamento que não baixou', sub: 'Pix sem conciliação, a mais ou em fatura que mudou.', who: 'Financeiro e Administrativo', steps: [
+    { node: 'pix_unreconciled', text: 'O Pix não casou sozinho com a fatura: ela segue em aberto.' },
+    { node: 'desbloqueio_prazo_vencendo', text: 'Sem a baixa, o prazo do Desbloqueio não começa.' },
+    { node: 'restituicao_pendente', text: 'Pago a mais ou em duplicidade: abre Restituição pendente.' },
+    { node: 'fatura_desatualizada', text: 'Correção do B/L em fatura paga também pode gerar restituição.' },
+  ] },
+  { id: 'cancelada', title: 'Fatura cancelada sem nova', sub: 'Cancelou à mão e não emitiu de novo.', who: 'Documentação e Equipamentos', steps: [
+    { node: 'fatura_cancelada_sem_reemissao', text: '1 dia útil após cancelar a fatura de Taxas Locais, o B/L segue sem fatura.' },
+    { node: 'demurrage_cancelada_sem_reemissao', text: 'A mesma regra vale para a Invoice de Demurrage.' },
+  ] },
+  { id: 'cetrocado', title: 'CE trocado depois do Desbloqueio', sub: 'O desbloqueio pode ter ficado no CE antigo.', who: 'Documentação', steps: [
+    { node: 'ce_trocado_com_desbloqueio', text: 'O CE do B/L mudou depois do Desbloqueio conferido.' },
+    { node: 'desbloqueio_divergente_zpt', text: 'Se ninguém exportar de novo, a próxima conciliação traz o CE novo sem Desbloqueado.' },
+    { node: 'comunicado_ce_reenvio_pendente', text: 'O Cliente recebeu o CE antigo: é preciso reenviar o CE e Taxas.' },
+  ] },
+  { id: 'disputa', title: 'Disputa de Demurrage', sub: 'O prazo de resposta da equipe.', who: 'Equipamentos', steps: [
+    { node: 'portal_dispute_opened', text: 'O Cliente abriu uma Disputa no Portal. A cobrança dessa Invoice pausa.' },
+    { node: 'demurrage_disputa_prazo', text: '1 dia útil sem resposta da equipe: abre este alerta.' },
+  ] },
+]

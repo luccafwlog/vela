@@ -40,7 +40,9 @@ Clique num alerta para abrir a ficha. O bloco **Cadeia deste alerta** diz o que 
 - **depois** (azul): o caminho normal. Com o CE, a fatura sai; se a emissão falhar, abre a falha de emissão.
 - **mesma causa** (azul-marinho): dois alertas que nascem do mesmo problema.
 
-**Fica parado** diz o que o alerta segura do Cliente e do caixa. No alto do mapa, **O que fica parado** reúne as nove coisas (CE Mercante, Fatura de Taxas Locais, Avisos e e-mails ao Cliente, Portal do Cliente, Pix e baixa, Desbloqueio de CE, ADR de Saída, Cobrança de Demurrage e Os próprios alertas); escolher uma lista os alertas que podem segurá-la.
+**Enquanto aberto, trava** diz o que o alerta segura do Cliente e do caixa. No alto do mapa, **Quem trava o quê** (recolhido; clique no título para abrir) reúne as nove coisas que podem ficar paradas: CE Mercante, Fatura de Taxas Locais, Avisos e e-mails ao Cliente, Portal do Cliente, Pix e baixa, Desbloqueio de CE, ADR de Saída, Cobrança de Demurrage e Os próprios alertas. Escolha uma para ver, na ficha, o que ela é, **Quem avisa que está parado** (o sintoma: o **CE Mercante pendente** avisa que falta o CE) e **O que pode estar travando** (as causas, cada uma com "→ trava" e o motivo: o **Baplie ausente** trava o CE Mercante). No mapa, o que avisa fica com borda azul-marinho e as causas acendem.
+
+**Roteiros** (recolhido, logo acima) traz doze histórias curtas, como **Veículos sem resposta no D−7** e **Desbloqueio atrasado**. Cada passo escolhe um alerta ou uma coisa parada e explica numa frase, na barra embaixo da tela: **Próximo passo**, **Voltar**, **Terminar** ou **Encerrar**. Clicar em outro alerta sai do roteiro.
 
 **E se ninguém agir?**, no bloco da cadeia, mostra a cascata passo a passo: os cartões se acendem numerados no mapa e a barra embaixo explica cada passo, até o que fica parado. **Próximo passo** avança, **Voltar** recua e **Encerrar** fecha.
 

@@ -10,7 +10,8 @@ import {
   ALERT_LINK_KINDS,
   ALERT_MAP_BANDS,
   ALERT_MAP_STATIONS,
-  stakesOf,
+  ALERT_STAKE_INFO,
+  isStakeCause,
   type AlertDevRouting,
   type AlertLink,
   type AlertLinkKind,
@@ -75,8 +76,10 @@ function highlights(focus: AlertMapFocus | null): Map<AlertMapNodeId, Highlight>
     }
   } else if (focus.kind === 'stake') {
     for (const station of ALERT_MAP_STATIONS) {
-      for (const id of station.nodes) if (stakesOf(id).includes(focus.id)) map.set(id, { lit: true, selected: false, relation: null, step: null })
+      for (const id of station.nodes) if (isStakeCause(id, focus.id)) map.set(id, { lit: true, selected: false, relation: null, step: null })
     }
+    // O alerta que avisa (o sintoma) fica marcado como o escolhido; as causas, acesas.
+    for (const id of ALERT_STAKE_INFO[focus.id].warn) map.set(id, { lit: true, selected: true, relation: null, step: null })
   } else {
     const upto = Math.min(focus.step, focus.walk.steps.length - 1)
     focus.walk.steps.slice(0, upto + 1).forEach((ids, index) => {
@@ -138,15 +141,17 @@ export function AlertRulesMap({
     }
   }, [links])
 
+  // Momento da viagem com muitos alertas ocupa duas colunas, com os cartões lado a lado.
+  const wide = (station: AlertMapStation) => station.band === 'viagem' && station.nodes.length > 5
   const stationsOf = (band: string) => ALERT_MAP_STATIONS.filter((station) => station.band === band)
   const renderStation = (station: AlertMapStation, flow: boolean, last: boolean) => (
-    <section key={station.id} aria-label={`${station.when}: ${station.what}`} className="min-w-0 rounded-[var(--app-radius)] border border-[var(--app-border-soft)] bg-[var(--app-surface)]">
+    <section key={station.id} aria-label={`${station.when}: ${station.what}`} className={cn('min-w-0 rounded-[var(--app-radius)] border border-[var(--app-border-soft)] bg-[var(--app-surface)]', wide(station) && 'col-span-2 max-md:col-span-1')}>
       <header className="relative grid rounded-t-[var(--app-radius)] border-b border-[var(--app-border-soft)] bg-[var(--app-strip)] px-2.5 py-1.5">
         <span className="text-table font-bold text-[var(--app-strip-text)]">{station.when}</span>
         <span className="text-xs text-[var(--app-muted)]">{station.what}</span>
         {flow && !last ? <ChevronRight size={16} aria-hidden="true" className="absolute -right-[13px] top-1/2 z-[1] -translate-y-1/2 text-[var(--app-strip-text)] max-md:hidden" /> : null}
       </header>
-      <ul className="grid gap-1.5 p-2 max-md:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
+      <ul className={cn('grid gap-1.5 p-2 max-md:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]', (wide(station) || station.band !== 'viagem') && 'grid-cols-2')}>
         {station.nodes.map((id) => {
           const card = cards.get(id)
           if (!card) return null
@@ -173,7 +178,7 @@ export function AlertRulesMap({
 
   return (
     <div className="overflow-x-auto pb-1">
-      <div ref={innerRef} className="relative grid min-w-[940px] gap-5 px-0.5 pt-2.5 max-md:min-w-0">
+      <div ref={innerRef} lang="pt-BR" className="relative grid min-w-[940px] gap-5 px-0.5 pt-2.5 max-md:min-w-0">
         <svg className="pointer-events-none absolute inset-0 z-[4] h-full w-full overflow-visible" aria-hidden="true">
           <defs>
             {(Object.keys(ALERT_LINK_COLORS) as AlertLinkKind[]).map((kind) => (
@@ -202,12 +207,12 @@ export function AlertRulesMap({
         {ALERT_MAP_BANDS.filter((band) => band.id === 'viagem').map((band) => (
           <div key={band.id} className="grid gap-2.5">
             <BandHeader title={band.title} note={band.note} />
-            <div className="grid grid-cols-6 items-start gap-2.5 max-md:grid-cols-1">
+            <div className="grid grid-cols-8 items-start gap-2.5 max-md:grid-cols-1">
               {stationsOf(band.id).map((station, index, list) => renderStation(station, true, index === list.length - 1))}
             </div>
           </div>
         ))}
-        <div className="grid grid-cols-2 items-start gap-2.5 max-md:grid-cols-1">
+        <div className="grid grid-cols-1 items-start gap-5">
           {ALERT_MAP_BANDS.filter((band) => band.id !== 'viagem').map((band) => (
             <div key={band.id} className="grid gap-2.5">
               <BandHeader title={band.title} note={band.note} />
@@ -279,13 +284,13 @@ function MapCard({
         onClick={() => onSelect(card.id)}
         className="grid w-full gap-1 rounded-[var(--app-radius-control)] px-2 py-1.5 text-left"
       >
-        <span className="text-xs font-semibold leading-snug text-[var(--app-text-strong)]">
+        <span className="hyphens-auto break-words text-xs font-semibold leading-snug text-[var(--app-text-strong)]">
           {card.label}
           {card.fullLabel === card.label ? null : <span className="sr-only"> ({card.fullLabel})</span>}
         </span>
         <span className="flex flex-wrap items-center gap-1">
           {card.notice ? <Badge tone="neutral">{card.notice === 'sino' ? 'Aviso do sino' : 'E-mail'}</Badge> : null}
-          {card.severity === 'critical' ? <Badge tone="danger">Crítico</Badge> : card.escalation ? <Badge tone="warning">{card.escalation}</Badge> : null}
+          {card.severity === 'critical' ? <Badge tone="danger">Crítico</Badge> : card.escalation ? <Badge tone="warning" className="max-w-full whitespace-normal">{card.escalation}</Badge> : null}
           {card.teams.map((team) => <Badge key={team} tone="neutral">{team}</Badge>)}
           {card.dev ? <Badge tone="info" title={ALERT_DEV_ROUTING_LABELS[card.dev].sentence}>{ALERT_DEV_ROUTING_LABELS[card.dev].tag}</Badge> : null}
         </span>
