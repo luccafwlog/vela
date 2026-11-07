@@ -971,8 +971,12 @@ e é corrigido ou removido só pela ficha do B/L; nenhuma outra importação o g
   viagem terá veículos" e nenhum veículo, a prévia recusa a planilha com
   "CE Mercante travado na viagem …", dizendo o que falta, e nada é gravado. Um
   veículo basta: o sistema não sabe quantos a Viagem terá. B/L de carga solta,
-  Viagem concluída ou cancelada e a correção ou remoção de CE já vinculado não
-  passam pela trava. Remover o CE e vincular outro depois é vinculação nova:
+  Viagem cancelada e a correção ou remoção de CE já vinculado não passam pela
+  trava; a Viagem concluída passa desde a migration `618`
+  ([ADR 0132](../adr/0132-brechas-restantes-da-revisao-dos-alertas.md), decisão 11). A prévia devolve
+  `vehicle_answer_voyages` e a tela chama `request_voyage_vehicle_answer`, que abre na hora a
+  Declaração de veículos pendente (marco `ce_recusado`) para Equipamentos, mesmo antes do D-7; a
+  conferência a mantém aberta até a resposta. Remover o CE e vincular outro depois é vinculação nova:
   o B/L sem CE só recebe CE pela planilha, e a prévia trava. Na Viagem
   travada, a troca de número é pelo **Corrigir CE** (o gatilho só confere B/L
   que estava sem CE). A prévia (`_analyze_ce_mercante_rows`) mostra a recusa; o

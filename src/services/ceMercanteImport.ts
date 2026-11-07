@@ -98,6 +98,8 @@ export type CeServerPreview = {
   needs_confirmation: boolean
   /** 610: divergência aberta entre o Baplie e os B/Ls da viagem; pede confirmação. */
   baplie_divergence?: string | null
+  /** 618: Viagens recusadas por falta de resposta de veículos; Equipamentos é avisado. */
+  vehicle_answer_voyages?: number[]
   manifesto: { numero: string | null; exists: boolean }
 }
 
@@ -115,7 +117,15 @@ export async function previewCeMercanteRows(
     p_voyage_id: options.voyageId ?? null,
   } as never)
   if (error) throw error
-  return data as unknown as CeServerPreview
+  const preview = data as unknown as CeServerPreview
+  // 618 (ADR 0132, decisão 11): a recusa por falta de resposta de veículos avisa
+  // Equipamentos na hora. A prévia roda só de leitura; o pedido vai à parte e,
+  // se falhar, a recusa continua valendo e o alerta abre no D-7.
+  await Promise.all((preview.vehicle_answer_voyages ?? []).map(async (voyageId) => {
+    const { error: requestError } = await supabase.rpc('request_voyage_vehicle_answer' as never, { p_voyage_id: voyageId } as never)
+    if (requestError) console.warn('Pedido de resposta de veículos não registrado', requestError)
+  }))
+  return preview
 }
 
 export type CeBillingResult = {

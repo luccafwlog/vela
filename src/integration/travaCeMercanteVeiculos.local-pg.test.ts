@@ -299,10 +299,24 @@ describeLocal('597 — resposta de veículos em D-7 e CE Mercante travado', () =
     expect(linkCe(BL_NO, '152659500000004').stderr).toBe('')
   })
 
-  it('viagem concluída não trava nem ganha alerta', () => {
-    expect(psql(`SELECT public.voyage_ce_mercante_vehicle_lock(${V_DONE}) IS NULL;`)).toBe('t')
-    setEta(V_DONE, 6)
+  // 618 (ADR 0132, decisão 11): a Viagem concluída também trava; a recusa pede a
+  // resposta a Equipamentos na hora, mesmo sem o D-7.
+  it('viagem concluída também trava; a recusa abre a Declaração para Equipamentos e a conferência não a fecha', () => {
+    expect(psql(`SELECT public.voyage_ce_mercante_vehicle_lock(${V_DONE});`)).toBe('sem_resposta')
+    expect(linkCe(BL_DONE, '152659500000005').stderr).toContain('Equipamentos ainda não respondeu')
     expect(item(DECL, V_DONE)).toBe('sem item')
+    const preview = rpcAs(EQP_ID, `SELECT public.preview_ce_mercante_rows('${JSON.stringify([{ row: 2, bl_id: BL_DONE, ce: '152659500000005' }])}'::jsonb, '${MANIFESTO}', ${V_DONE})->'vehicle_answer_voyages';`)
+    expect(JSON.parse(String(preview.stdout).trim())).toEqual([V_DONE])
+    const asked = rpcAs(DOC_ID, `SELECT public.request_voyage_vehicle_answer(${V_DONE});`)
+    expect(String(asked.stderr)).toBe('')
+    expect(String(asked.stdout).trim()).toBe('t')
+    expect(item(DECL, V_DONE)).toBe('active|normal|equipamentos')
+    expect(message(DECL, V_DONE)).toContain('A Documentação tentou vincular o CE Mercante')
+    // A conferência fora do D-7 mantém o pedido aberto até a resposta.
+    as(ADMIN_ID, `SELECT public.reconcile_voyage_vehicle_sheet_alerts(${V_DONE}, 'teste_618');`)
+    expect(item(DECL, V_DONE)).toBe('active|normal|equipamentos')
+    expect(rpcAs(EQP_ID, `SELECT public.declare_voyage_without_vehicles(${V_DONE});`).stderr).toBe('')
+    expect(item(DECL, V_DONE)).toMatch(/^resolved\|/)
     expect(linkCe(BL_DONE, '152659500000005').stderr).toBe('')
   })
 

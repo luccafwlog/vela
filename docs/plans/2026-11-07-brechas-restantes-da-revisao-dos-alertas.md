@@ -14,5 +14,5 @@ leva migration, testes e documentação viva na mesma mudança. Ao terminar o
 | C | 6 | Alertas da fatura e da Invoice de Demurrage canceladas sem nova emissão | feito: migration `615`, `faturaCanceladaSemReemissao.local-pg.test.ts` |
 | D | 7 | Reenviar Comunicado de CE e Taxas quando um B/L fica pronto depois do envio | feito: migration `616`, `reenvioCeTaxasBlTardio.local-pg.test.ts` |
 | E | 9 | Liberação de faturamento vencendo | feito: migration `617`, `liberacaoVencendo.local-pg.test.ts` |
-| F | 11 | Trava de veículos na Viagem concluída; recusa abre a Declaração de veículos pendente | a fazer |
+| F | 11 | Trava de veículos na Viagem concluída; recusa abre a Declaração de veículos pendente | feito: migration `618`, `travaCeMercanteVeiculos.local-pg.test.ts` |
 | G | 8 | Rotina interna sem rodar e sinal externo | a fazer |

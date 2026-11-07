@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { importCeMercanteRows, parseCeMercanteBuffer, partitionRowsByVoyage, type CeMercanteRow } from '../ceMercanteImport'
+import { importCeMercanteRows, parseCeMercanteBuffer, partitionRowsByVoyage, previewCeMercanteRows, type CeMercanteRow } from '../ceMercanteImport'
 import { jsonToBuffer, sheetsToBuffer } from './testWorkbook'
 
 const { mockFrom, mockRpc } = vi.hoisted(() => ({
@@ -18,6 +18,22 @@ describe('ceMercanteImport', () => {
   beforeEach(() => {
     mockFrom.mockReset()
     mockRpc.mockReset()
+  })
+
+  // 618 (ADR 0132, decisão 11): a recusa por falta de resposta de veículos avisa Equipamentos.
+  it('prévia recusada por falta de resposta de veículos pede a resposta a Equipamentos para cada Viagem', async () => {
+    mockRpc.mockImplementation((fn: string) => Promise.resolve(fn === 'preview_ce_mercante_rows'
+      ? { data: { rows: [], errors: [{ message: 'CE Mercante travado' }], warnings: [], changes: 0, moves: 0, needs_confirmation: false, manifesto: { numero: null, exists: false }, vehicle_answer_voyages: [77] }, error: null }
+      : { data: true, error: null }))
+    const preview = await previewCeMercanteRows([{ rowNumber: 2, bl_id: 'BL1', ce_mercante: '152659500000005' } as CeMercanteRow], { manifestoNumero: 'M1', voyageId: 77 })
+    expect(preview.errors).toHaveLength(1)
+    expect(mockRpc).toHaveBeenCalledWith('request_voyage_vehicle_answer', { p_voyage_id: 77 })
+  })
+
+  it('prévia sem a trava de veículos não pede nada', async () => {
+    mockRpc.mockResolvedValue({ data: { rows: [], errors: [], warnings: [], changes: 0, moves: 0, needs_confirmation: false, manifesto: { numero: null, exists: false } }, error: null })
+    await previewCeMercanteRows([], { manifestoNumero: 'M1' })
+    expect(mockRpc).toHaveBeenCalledTimes(1)
   })
 
   it('parseia a planilha e rejeita BL duplicado', async () => {

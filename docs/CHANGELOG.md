@@ -6,6 +6,10 @@
 
 ## 2026-11
 
+- **Trava de veículos na Viagem concluída e aviso na recusa (decisão 11 do dono de 2026-11-07, migration `618`, ADR
+  0132):** o CE de container da Viagem concluída também espera a resposta de veículos, e a prévia recusada abre na hora
+  a **Declaração de veículos pendente** para Equipamentos, mesmo antes do D-7. Prova:
+  `travaCeMercanteVeiculos.local-pg.test.ts`, `ceMercanteImport.test.ts`.
 - **Liberação de faturamento vencendo (decisão 9 do dono de 2026-11-07, migration `617`, ADR 0132):** 2 dias úteis
   antes do vencimento, com o Portal do Cliente não pronto, o Administrativo recebe o alerta. Prova:
   `liberacaoVencendo.local-pg.test.ts`.
