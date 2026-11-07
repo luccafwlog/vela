@@ -130,6 +130,25 @@ describe('heartbeats dos jobs no Better Stack', () => {
     expect(requests).toEqual(['https://uptime.betterstack.com/api/v1/heartbeat/ce/fail'])
   })
 
+  it('consulta do Pix Itaú (a cada minuto) reporta ao próprio heartbeat (incidente de 2026-11-06)', async () => {
+    const source = readFileSync(path.resolve('supabase/functions/itau-pix/index.ts'), 'utf8')
+    expect(source).toContain('runWithBetterStackHeartbeat("itauPix"')
+    expect(source).toContain('instrumentEdgeHandler("itau-pix"')
+    // O heartbeat espera uma rodada por minuto: o job nasceu assim na 358, e a 438
+    // o recria com o mesmo horário.
+    expect(readFileSync(path.resolve('supabase/migrations/358_baixa_itau_nao_para_em_silencio.sql'), 'utf8'))
+      .toMatch(/cron\.schedule\('itau-pix-queue', '\* \* \* \* \*'/)
+    const requests: string[] = []
+    await runWithBetterStackHeartbeat('itauPix', () => Response.json({ receipts: { error: 'falha' } }, { status: 500 }), {
+      getEnv: (name) => (name === 'BETTERSTACK_HEARTBEAT_ITAU_PIX_URL' ? 'https://uptime.betterstack.com/api/v1/heartbeat/itau' : undefined),
+      fetcher: (input: RequestInfo | URL) => {
+        requests.push(String(input))
+        return Promise.resolve(new Response(null, { status: 200 }))
+      },
+    })
+    expect(requests).toEqual(['https://uptime.betterstack.com/api/v1/heartbeat/itau/fail'])
+  })
+
   it('pula telemetria para chamadas não autorizadas', async () => {
     const response = new Response(null, { status: 401 })
     const fetcher = vi.fn()

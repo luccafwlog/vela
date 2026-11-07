@@ -45,7 +45,7 @@ flowchart LR
 | Upstash | database `vela-rate-limit` (`sa-east-1`) | — |
 | Sentry | organização com projetos `vela` e `portal` | — |
 | PostHog | região **EU** (`eu.posthog.com`) | — |
-| Better Stack | Uptime: 2 monitores e 7 heartbeats (um deles do backup); os de `ce-unlock-notify-email` (5 min, tolerância 5 min) e `portal-email-events-runner` (1 min, tolerância 5 min) foram cadastrados em 2026-10-19 e estão Up | Free (avisa a equipe inteira) |
+| Better Stack | Uptime: 2 monitores e 7 heartbeats (um deles do backup); os de `ce-unlock-notify-email` (5 min, tolerância 5 min) e `portal-email-events-runner` (1 min, tolerância 5 min) foram cadastrados em 2026-10-19 e estão Up; o 8º, da `itau-pix` (1 min, tolerância 5 min), tem o código desde 2026-11-06 e falta ser criado pelo dono | Free (avisa a equipe inteira) |
 | Computador do backup | usuário Windows `Lucca`, pasta `C:\Users\Lucca\Downloads\Vela` | — |
 
 Ao transferir a responsabilidade, siga o [checklist de passagem](#passagem-de-responsabilidade).
@@ -485,7 +485,7 @@ rodada ([Itaú](#itaú--api-pix-recebimentos), "Rodadas com 500 desde a v29").
 | Trava de tentativas | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `PORTAL_RATE_LIMIT_HMAC_SECRET` (e opcionais `PORTAL_RATE_LIMIT_*`) | Upstash |
 | Jobs | `ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`, `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `IMPORT_EFFECTS_CRON_SECRET`, `RECALC_CRON_SECRET`, `CE_UNLOCK_CLEANUP_SECRET`, `CE_UNLOCK_NOTIFY_SECRET`, `ITAU_PIX_CRON_SECRET`, `ITAU_PIX_DIAGNOSTIC_SECRET` e, na transição, `ITAU_PIX_ADMIN_SECRET`; `CE_UNLOCK_NOTIFY_SHARED_RETIRED=true` (não é segredo) encerra a transição dos avisos de CE (par com o Vault quando o job está habilitado; lista do cofre e ordem da troca em [segredos-cron.md](segredos-cron.md#um-segredo-por-rotina-auditoria-run-3)) | — |
 | Itaú | `ITAU_CLIENT_ID`, `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`, `ITAU_KEY_B64`, `ITAU_PIX_KEY` (e opcionais `ITAU_PIX_BASE_URL`, `ITAU_TOKEN_URL`, `ITAU_AUTH_HEADER`) | Itaú (seção [Itaú](#itaú--api-pix-recebimentos)) |
-| Monitoramento | `BETTERSTACK_HEARTBEAT_*_URL` (6, todos gravados; os dois últimos, `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` e `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`, em 2026-10-19), `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Better Stack, Sentry |
+| Monitoramento | `BETTERSTACK_HEARTBEAT_*_URL` (7; seis gravados, os dois últimos deles, `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` e `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`, em 2026-10-19; `BETTERSTACK_HEARTBEAT_ITAU_PIX_URL` a cadastrar, decisão do dono de 2026-11-06), `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Better Stack, Sentry |
 | CORS de previews | `CLOUDFLARE_PAGES_PREVIEW_ORIGINS` (opcional) | Cloudflare Pages |
 | Widgets públicos do fwlog.com.br ([ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md)) | `TURNSTILE_PUBLIC_SECRET_KEY`, `TURNSTILE_PUBLIC_ALLOWED_HOSTNAMES` (widget próprio, separado do login), `PUBLIC_FWLOG_ALLOWED_ORIGINS` (origens HTTPS exatas do iframe; em produção `https://portalfwlog.com.br`); reaproveitam `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` e `PORTAL_RATE_LIMIT_HMAC_SECRET`. Sem qualquer um, recusa. Cadastrados em produção (conferido em 2026-11-06: a consulta responde e só `https://portalfwlog.com.br` passa no CORS) | Cloudflare Turnstile, Upstash |
 
@@ -532,7 +532,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | Job | Frequência (UTC) | O que faz | Heartbeat no Better Stack |
 |---|---|---|---|
 | `portal-email-events-runner` | a cada minuto; desde a migration `458` também chamado assim que o webhook grava o evento ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | processa eventos do provedor de e-mail (entrega, bounce, reclamação), suprime endereços e abre Alertas; aviso de entrega de e-mail que não é do Vela fecha sem alerta na 6ª tentativa (migration `535`); os demais que esgotam as 6 tentativas ou são ambíguos vão para investigação e abrem `email_retorno_nao_aplicado`, do Administrativo (migrations `309` e `535`; até a `535`, `portal_reprocessamento_falhou` da Documentação) | `portal-email-events-runner` (secret `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`; cadastrado em 2026-10-19) |
-| `itau-pix-queue` | a cada minuto (criado à mão em 07/10, jobid 25; recriado pela migration `358`, `ops.dispatch_edge_job('itau-pix', 'ITAU_PIX_ADMIN_SECRET')`); desde a migration `219` a fila de COB também é disparada pela transação que deixa cobrança pendente (`{"action":"process_charges"}`) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática; o comportamento da fila está em [Reconciliação PIX](../modules/reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151) | — |
+| `itau-pix-queue` | a cada minuto (criado à mão em 07/10, jobid 25; recriado pela migration `358`, `ops.dispatch_edge_job('itau-pix', 'ITAU_PIX_ADMIN_SECRET')`); desde a migration `219` a fila de COB também é disparada pela transação que deixa cobrança pendente (`{"action":"process_charges"}`) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática; o comportamento da fila está em [Reconciliação PIX](../modules/reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151) | `itau-pix` desde 2026-11-06 (decisão do dono; código pronto, heartbeat **a criar** pelo dono: 1 min, tolerância 5 min) |
 | `ce-unlock-notify-email` | a cada 5 min (manual, 07/10; jobid 35 desde a recriação da migration `438`); desde a migration `458` também chamado assim que o aviso é gravado na fila ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | avisos do Desbloqueio de CE ao Cliente (a rodada do cron também valida o B/L VIP sem solicitação que ficou apto, migration `581`); com a chave global desligada, registra o aviso como `simulated` e não o envia depois (migration `307`); abre o Alerta `desbloqueio_ce_aviso_nao_enviado` quando o aviso fica sem destinatário ou falha ([Desbloqueio de CE](../modules/desbloqueio-ce.md#avisos-ao-cliente)) | `ce-unlock-notify-email` (secret `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL`; cadastrado em 2026-10-19) |
 | `import-effects-runner` | a cada minuto (`* * * * *`, migration `218`; antes `3-59/5`, migration `165`) e também disparado pela própria importação, uma vez por transação que grava efeito | fila de efeitos de importação; ligado desde 2026-10-12. Um runner por vez (`ops.import_effects_runner_lease`, renovada a cada bloco; a chamada sem a vez responde `skipped: busy`); cada chamada trabalha em blocos de 10 por até ~25 s. A parada é avisada pelo Alerta `import_effects_queue_stalled` | — |
 | `alerts-foundation-detectors` | a cada 15 min, em :02/:17/:32/:47 (`2-59/15 * * * *`, migration `165`) | abre/fecha Alertas do sino; remove até 100 anexos órfãos de Disputa | `alerts-detector` |
@@ -987,6 +987,14 @@ Variáveis: `VITE_POSTHOG_KEY`, `VITE_POSTHOG_HOST` = `https://eu.i.posthog.com`
   tolerância de 6 horas, aviso por e-mail; a URL fica na variável do usuário
   `BETTERSTACK_HEARTBEAT_BACKUP_URL` do computador do [backup](#backup)
   ([roteiro](backup-r2.md#heartbeat-do-backup)).
+- **Heartbeat da consulta do Pix Itaú** (decisão do dono de 2026-11-06, depois
+  de a consulta ficar parada por horas sem nenhum e-mail): a `itau-pix` reporta
+  ao `BETTERSTACK_HEARTBEAT_ITAU_PIX_URL` a cada rodada do cron (`/fail` quando a
+  rodada falha; o disparo da fila manda só o `/fail`; o diagnóstico não reporta).
+  **Pendente (passo do dono):** criar no Better Stack o heartbeat `itau-pix`,
+  período de 1 min e tolerância de 5 min, e cadastrar a URL dele em Supabase →
+  Edge Functions → Secrets com esse nome. Sem o secret a função não reporta e
+  nada muda; com ele, a consulta parada ou falhando avisa a equipe por e-mail.
 - Sem escalation policy: no plano grátis o aviso vai à equipe inteira (e-mail do
   responsável).
 
