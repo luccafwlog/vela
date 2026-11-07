@@ -1,5 +1,7 @@
 # 0128 — CE Mercante de container travado até Equipamentos responder sobre veículos
 
+> **Situação atual (2026-11-07).** A [ADR 0132](./0132-brechas-restantes-da-revisao-dos-alertas.md) (decisão 11) põe a trava também na Viagem concluída e faz a recusa abrir a Declaração de veículos pendente para Equipamentos na hora.
+
 > **Situação atual (2026-11-06).** Continua valendo. Estendida pela [ADR 0131](./0131-decisoes-da-revisao-dos-alertas.md) (D4, migration `610`): depois dos veículos, o CE de container também espera o Baplie importado ou a declaração "Viagem sem Baplie", com motivo, e a prévia pede confirmação quando há divergência aberta entre o Baplie e os B/Ls.
 
 Status: aceito — 2026-11-06 (decisão do dono, com os times de Documentação e

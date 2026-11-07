@@ -12,6 +12,7 @@ verdade sobre o estado atual.
 
 | Plano | Assunto | Situação |
 |---|---|---|
+| [2026-11-07-brechas-restantes-da-revisao-dos-alertas.md](2026-11-07-brechas-restantes-da-revisao-dos-alertas.md) | Brechas restantes da revisão dos alertas (ADR 0132), em sete lotes | em execução |
 
 
 Planos concluídos, encerrados ou superados ficam no [índice dos planos arquivados](../archive/plans/README.md). As notas de estado que este índice acumulou até 2026-10-13 estão no [registro histórico](../archive/reports/2026-10-14-estado-planos-vivos-ate-2026-10-13.md); as anteriores, no [registro de 2026-09-18](../archive/reports/2026-09-18-notas-historicas-indice-planos.md).

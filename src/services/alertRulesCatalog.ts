@@ -1090,6 +1090,23 @@ const ALERT_RULES_BASE = [
     afterResolution: 'Sozinho, na hora em que a conciliação da ZPT traz o B/L desbloqueado no CE atual, quando o prazo deixa de correr ou o B/L é cancelado.',
     impact: 'Passado o prazo, o Cliente fica sem a liberação prometida e a carga continua retida no terminal.',
   },
+  {
+    // Migration 613 (ADR 0132, decisão 3): Divergente na conciliação da ZPT.
+    type: 'desbloqueio_divergente_zpt',
+    domain: 'Desbloqueio de CE',
+    responsible: 'documentacao',
+    catalogAudience: ['documentacao', 'administrativo'],
+    entityType: 'bl',
+    severity: 'critical',
+    summary: 'A conciliação da ZPT trouxe o B/L como divergente: a ZPT não desbloqueou o CE atual.',
+    trigger: 'Na conciliação com a ZPT, o B/L exportado volta com outra situação que não Desbloqueado, ou com pendência, no CE que ele tem agora. Um alerta por B/L; cada conciliação divergente nova avisa de novo.',
+    timing: 'Na hora da conciliação; a conferência de 5 minutos confere de novo.',
+    resolution: 'Leia o motivo da ZPT no alerta, corrija com o terminal ou no Vela (CE, documento) e concilie de novo com o arquivo da ZPT.',
+    destination: '/desbloqueio-ce?aba=controle',
+    destinationLabel: 'Abrir Desbloqueio de CE',
+    afterResolution: 'Sozinho, quando uma conciliação seguinte traz o B/L desbloqueado, o CE do B/L muda ou o B/L é cancelado.',
+    impact: 'A carga do Cliente continua retida no terminal, e ele pode ir buscá-la achando que está liberada.',
+  },
 
   // 20.12 ADR de Saída -------------------------------------------------------
   {

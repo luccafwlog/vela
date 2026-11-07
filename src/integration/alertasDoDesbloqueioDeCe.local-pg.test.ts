@@ -56,6 +56,10 @@ function run(s: Scenario): Record<string, string | number | null> {
         WHERE a.entity_id='${request}' AND i.item_type='desbloqueio_solicitacao_sem_analise'),
       'deadline', (SELECT concat_ws('|', i.status, i.severity, i.metadata->>'milestone') FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id
         WHERE a.entity_id='${BL}' AND i.item_type='desbloqueio_prazo_vencendo'),
+      'divergent', (SELECT concat_ws('|', i.status, i.severity, i.department) FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id
+        WHERE a.entity_id='${BL}' AND i.item_type='desbloqueio_divergente_zpt'),
+      'divergent_message', (SELECT i.message FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id
+        WHERE a.entity_id='${BL}' AND i.item_type='desbloqueio_divergente_zpt'),
       'message', (SELECT i.message FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id
         WHERE a.entity_id='${BL}' AND i.item_type='desbloqueio_prazo_vencendo'),
       'doc', (SELECT count(*) FROM public.internal_notifications n JOIN public.alerts a ON a.id=n.alert_id WHERE a.entity_id='${request}' AND n.recipient_id='${doc}'),
@@ -125,5 +129,22 @@ local('Alertas do Desbloqueio de CE (migration 608)', () => {
       .toMatch(/^resolved\|/)
     expect(run({ submittedAgo: '6 days', approved: true, startedAgo: '5 days', exported: true, afterSweep: zpt('998608000000999') }).deadline)
       .toBe('active|critical|prazo_critico')
+  })
+
+  it('613: sem limite de idade, o prazo de um B/L exportado há 60 dias e nunca conciliado abre', () => {
+    expect(run({ submittedAgo: '70 days', approved: true, startedAgo: '60 days', exported: true }).deadline)
+      .toBe('active|critical|prazo_critico')
+  })
+
+  it('613: conciliação Divergente abre Crítico com o motivo da ZPT; a seguinte com Desbloqueado fecha', () => {
+    const divergent = `INSERT INTO public.ce_unlock_zpt_status(bl_id,ce_mercante,status,zpt_status,description,pending,reconciled_by)
+      VALUES('${BL}','998608000000101','divergent','Bloqueado','CE de outro B/L',ARRAY['Procuração'],'${doc}');`
+    const r = run({ submittedAgo: '6 days', approved: true, startedAgo: '5 days', exported: true, afterSweep: divergent })
+    expect(r.divergent).toBe('active|critical|documentacao')
+    expect(r.divergent_message).toContain('trouxe "Bloqueado": CE de outro B/L. Pendências na ZPT: Procuração. O B/L não está desbloqueado.')
+    const fixed = `${divergent} UPDATE public.ce_unlock_zpt_status SET status='unlocked', zpt_status='Desbloqueado', reconciled_at=now()+interval '1 second' WHERE bl_id='${BL}';`
+    const after = run({ submittedAgo: '6 days', approved: true, startedAgo: '5 days', exported: true, afterSweep: fixed })
+    expect(after.divergent).toMatch(/^resolved\|/)
+    expect(after.deadline).toMatch(/^resolved\|/)
   })
 })

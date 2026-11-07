@@ -77,6 +77,7 @@ export type ActiveAlertType =
   | 'container_sem_descarga'
   | 'desbloqueio_solicitacao_sem_analise'
   | 'desbloqueio_prazo_vencendo'
+  | 'desbloqueio_divergente_zpt'
 
 export const TYPE_LABELS: Record<string, string> = {
   fatura_desatualizada: 'Fatura desatualizada',
@@ -149,6 +150,7 @@ export const TYPE_LABELS: Record<string, string> = {
   container_sem_descarga: 'Container sem descarga',
   desbloqueio_solicitacao_sem_analise: 'Solicitação de desbloqueio sem análise',
   desbloqueio_prazo_vencendo: 'Prazo do desbloqueio vencendo',
+  desbloqueio_divergente_zpt: 'B/L divergente na ZPT',
 }
 
 export const ENTITY_TYPE_LABELS: Record<string, string> = {
@@ -581,7 +583,7 @@ function alertEntityLinkRaw(alert: {
   if (effectiveType === 'desbloqueio_solicitacao_sem_analise' && alert.entity_type === 'ce_unlock_request') {
     return `/desbloqueio-ce?${new URLSearchParams({ pedido: alert.entity_id }).toString()}`
   }
-  if (effectiveType === 'desbloqueio_prazo_vencendo') return '/desbloqueio-ce?aba=controle'
+  if (effectiveType === 'desbloqueio_prazo_vencendo' || effectiveType === 'desbloqueio_divergente_zpt') return '/desbloqueio-ce?aba=controle'
   // ALE-D05: registros sem ficha própria levam à tela que a Regra cita.
   const screen = SCREEN_BY_ENTITY_TYPE[alert.entity_type ?? '']
   if (screen) return screen
@@ -636,7 +638,7 @@ export function alertEntityLinkLabel(alert: {
   if (effectiveType === 'demurrage_travado') return 'Abrir Demurrage'
   if (effectiveType === 'container_sem_descarga') return 'Abrir Containers'
   if (effectiveType === 'desbloqueio_solicitacao_sem_analise') return 'Abrir Solicitação'
-  if (effectiveType === 'desbloqueio_prazo_vencendo') return 'Abrir Desbloqueio de CE'
+  if (effectiveType === 'desbloqueio_prazo_vencendo' || effectiveType === 'desbloqueio_divergente_zpt') return 'Abrir Desbloqueio de CE'
   if (effectiveType === 'demurrage_disputa_prazo') return 'Abrir Disputa'
   if (alert.entity_type === 'bl' && (effectiveType === 'billing_calculation_blocked' || effectiveType === 'billing_auto_issue_failed')) {
     return 'Taxas Locais'

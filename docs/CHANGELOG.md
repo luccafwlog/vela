@@ -6,6 +6,10 @@
 
 ## 2026-11
 
+- **B/L divergente na ZPT e prazo sem limite (decisões 1 e 3 do dono de 2026-11-07, migration `613`, ADR 0132):**
+  a conciliação que traz o B/L divergente abre alerta Crítico com o motivo da ZPT, para Documentação e
+  Administrativo; o alerta do prazo do desbloqueio cobre todo B/L sem conciliação, sem o corte de 30 dias. Prova:
+  `alertasDoDesbloqueioDeCe.local-pg.test.ts`.
 - **Prazo do desbloqueio fecha pela ZPT (correção do dono de 2026-11-06, migration `612`, ADR 0131):** o alerta
   **Prazo do desbloqueio vencendo** não fecha mais com a exportação; fecha na hora em que a conciliação da ZPT traz o
   B/L como desbloqueado no CE atual. Prova: `alertasDoDesbloqueioDeCe.local-pg.test.ts`.

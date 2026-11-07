@@ -519,8 +519,14 @@ Administrativo também avisado; a rotina `ce-unlock-alerts` (5 minutos) abre e f
   da ZPT traz o B/L desbloqueado no CE atual (`_ce_unlock_zpt_unlocked`: `ce_unlock_zpt_status`
   `unlocked` com o CE do B/L; o gatilho `trg_ce_unlock_deadline_alert_on_zpt` fecha na hora), quando
   o prazo deixa de correr ou o B/L é cancelado. A mensagem diz se o B/L já foi exportado. A rotina
-  só abre para prazo de B/L exportado ou validado nos últimos 30 dias; alerta aberto é reavaliado
-  até fechar. **Resolver** abre a aba Controle.
+  abre para todo B/L com prazo e sem desbloqueio conferido, sem limite de idade (migration `613`,
+  [ADR 0132](../adr/0132-brechas-restantes-da-revisao-dos-alertas.md), decisão 1; na `612` o corte
+  era de 30 dias). **Resolver** abre a aba Controle.
+- `desbloqueio_divergente_zpt` (Crítico, por B/L; migration `613`, ADR 0132, decisão 3): a
+  conciliação gravou o B/L como `divergent` no CE atual. Mensagem com `zpt_status`, `description` e
+  `pending`; marco por `reconciled_at`, então cada conciliação divergente nova avisa de novo. Fecha
+  com o B/L desbloqueado, a linha apagada, o CE trocado ou o B/L cancelado. Abre e fecha pelo
+  gatilho `trg_ce_unlock_deadline_alert_on_zpt` e pela rotina.
 **Teste:** `alertasDoDesbloqueioDeCe.local-pg.test.ts`.
 
 ### Avisos ao cliente
