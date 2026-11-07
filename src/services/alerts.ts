@@ -81,6 +81,7 @@ export type ActiveAlertType =
   | 'fatura_cancelada_sem_reemissao'
   | 'demurrage_cancelada_sem_reemissao'
   | 'liberacao_vencendo'
+  | 'rotina_interna_sem_rodar'
 
 export const TYPE_LABELS: Record<string, string> = {
   fatura_desatualizada: 'Fatura desatualizada',
@@ -157,6 +158,7 @@ export const TYPE_LABELS: Record<string, string> = {
   fatura_cancelada_sem_reemissao: 'B/L sem fatura depois do cancelamento',
   demurrage_cancelada_sem_reemissao: 'Invoice de Demurrage cancelada sem nova emissão',
   liberacao_vencendo: 'Liberação de faturamento vencendo',
+  rotina_interna_sem_rodar: 'Rotina interna sem rodar',
 }
 
 export const ENTITY_TYPE_LABELS: Record<string, string> = {
@@ -182,6 +184,8 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   email_provider: 'Provedor de e-mail',
   user_profile: 'Usuário interno',
   cron_http: 'Rotinas agendadas',
+  // 619: rotina do agendador, pelo nome.
+  cron_job: 'Rotina interna',
   portal_email_event: 'E-mail',
   // Aviso de acontecimento da nova solicitação de Desbloqueio de CE (595).
   ce_unlock_request: 'Solicitação',

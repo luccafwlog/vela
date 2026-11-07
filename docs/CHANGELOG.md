@@ -6,6 +6,9 @@
 
 ## 2026-11
 
+- **Rotina interna sem rodar (decisão 8 do dono de 2026-11-07, migration `619`, ADR 0132):** rotina do agendador
+  com erro ou parada abre alerta Crítico ao Administrativo, e a conferência manda sinal ao Better Stack (heartbeat a
+  cadastrar). Prova: `rotinaInternaSemRodar.local-pg.test.ts`.
 - **Trava de veículos na Viagem concluída e aviso na recusa (decisão 11 do dono de 2026-11-07, migration `618`, ADR
   0132):** o CE de container da Viagem concluída também espera a resposta de veículos, e a prévia recusada abre na hora
   a **Declaração de veículos pendente** para Equipamentos, mesmo antes do D-7. Prova:

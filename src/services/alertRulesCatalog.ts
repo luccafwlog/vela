@@ -1251,7 +1251,24 @@ const ALERT_RULES_BASE = [
     destinationNote: 'O alerta mostra o horário da falha, não o nome da rotina.',
     afterResolution: closesOrHeld,
     impact: 'O que a rotina faria fica parado: avisos ao Cliente, cobrança, baixa do Pix ou a própria conferência dos alertas.',
+  },  {
+    // Migration 619 (ADR 0132, decisão 8): rotina do agendador com erro ou parada.
+    type: 'rotina_interna_sem_rodar',
+    domain: 'Rotinas paradas',
+    responsible: 'administrativo',
+    catalogAudience: ['administrativo'],
+    entityType: 'cron_job',
+    severity: 'critical',
+    summary: 'Uma rotina automática do Vela terminou com erro ou parou de rodar.',
+    trigger: 'A última execução da rotina terminou com erro nas últimas 2 horas, ou ela não roda há mais de 3 vezes o intervalo de costume (no mínimo 30 minutos). Um alerta por rotina. Se a própria conferência parar, o monitoramento externo avisa por e-mail.',
+    timing: 'Na conferência a cada 15 minutos.',
+    resolution: 'Passe o nome da rotina e a mensagem do alerta ao suporte técnico.',
+    destination: '/alertas',
+    destinationLabel: 'Abrir Alertas',
+    afterResolution: 'Sozinho, quando a rotina volta a rodar sem erro, ou sai da agenda.',
+    impact: 'O que a rotina faz fica parado: alertas de prazo, cobrança, situação da Demurrage ou avisos ao Cliente, sem ninguém perceber.',
   },
+
   {
     // Migrations 535 e 536: aviso do provedor em investigação.
     type: 'email_retorno_nao_aplicado',

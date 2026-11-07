@@ -54,6 +54,7 @@ const CATALOG_MIGRATIONS = [
   '613_desbloqueio_divergente_na_zpt.sql',
   '615_fatura_cancelada_sem_nova_emissao.sql',
   '617_liberacao_de_faturamento_vencendo.sql',
+  '619_rotina_interna_sem_rodar.sql',
 ]
 
 // Migrations que aposentam tipos. Aceitam tanto `type IN (...)` quanto

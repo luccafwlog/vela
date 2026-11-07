@@ -1,7 +1,7 @@
 # Brechas restantes da revisão dos alertas — plano de implementação
 
-Plano vivo. Executa as decisões do dono de 2026-11-07 registradas na
-[ADR 0132](../adr/0132-brechas-restantes-da-revisao-dos-alertas.md). Cada lote
+Plano executado em 2026-11-07 (arquivado). Executou as decisões do dono de 2026-11-07 registradas na
+[ADR 0132](../../adr/0132-brechas-restantes-da-revisao-dos-alertas.md). Cada lote
 leva migration, testes e documentação viva na mesma mudança. Ao terminar o
 último lote, este plano vai para `docs/archive/plans/`.
 
@@ -15,4 +15,4 @@ leva migration, testes e documentação viva na mesma mudança. Ao terminar o
 | D | 7 | Reenviar Comunicado de CE e Taxas quando um B/L fica pronto depois do envio | feito: migration `616`, `reenvioCeTaxasBlTardio.local-pg.test.ts` |
 | E | 9 | Liberação de faturamento vencendo | feito: migration `617`, `liberacaoVencendo.local-pg.test.ts` |
 | F | 11 | Trava de veículos na Viagem concluída; recusa abre a Declaração de veículos pendente | feito: migration `618`, `travaCeMercanteVeiculos.local-pg.test.ts` |
-| G | 8 | Rotina interna sem rodar e sinal externo | a fazer |
+| G | 8 | Rotina interna sem rodar e sinal externo | feito: migration `619`, `rotinaInternaSemRodar.local-pg.test.ts`; cadastrar o heartbeat e a URL no cofre em produção |

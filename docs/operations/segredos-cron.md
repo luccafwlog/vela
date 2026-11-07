@@ -482,6 +482,16 @@ fechamentos ficam `pending` em `adr_closed_email_outbox` e saem quando ela entra
 (cada linha tenta até 5 vezes). É e-mail da equipe: não passa pela chave de envio
 (ADR 0104), como o resumo diário.
 
+### Ligar o sinal das rotinas internas
+
+A rotina `internal-jobs-health` (migration `619`) já nasce agendada pela migration e
+abre o alerta **Rotina interna sem rodar** sem nada a cadastrar. Para o aviso de fora,
+quando ela mesma ou o banco param: crie no Better Stack um heartbeat de 15 minutos, com
+tolerância de 15 minutos, e grave a URL dele no cofre com o nome
+`BETTERSTACK_HEARTBEAT_INTERNAL_JOBS_URL` (`SELECT vault.create_secret('<url>',
+'BETTERSTACK_HEARTBEAT_INTERNAL_JOBS_URL');`). A cada rodada o banco chama a URL (com
+`/fail` quando alguma rotina está com problema). Sem a URL, a rotina só não manda o sinal.
+
 **O cofre tem as dez entradas** — deve retornar `10`:
 
 ```sql
