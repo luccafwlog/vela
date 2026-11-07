@@ -85,4 +85,11 @@ local('Alertas técnicos só para a conta Dev (migration 620)', () => {
     expect(lines).toContain(`>sino|${DEV},${DOC}`)
     expect(lines).toContain('>fila|adm|1')
   })
+
+  // 621: a PTAX também avisa a conta Dev.
+  it('Falha na atualização da PTAX: Equipamentos e a conta Dev', () => {
+    const lines = scenario('demurrage_ptax_recalc_failed', 'exchange_rate_reference', 'A620-PTAX', {}, 'equipamentos')
+    expect(lines[0]).toMatch(new RegExp(`^>sino\\|.*${DEV}`))
+    expect(lines).toContain('>fila|adm|1')
+  })
 })

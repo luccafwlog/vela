@@ -6,6 +6,8 @@
 
 ## 2026-11
 
+- **PTAX avisa a conta Dev (migration `621`, ADR 0133):** a Falha na atualização da PTAX Demurrage avisa Equipamentos e
+  também a conta Dev. Prova: `alertasTecnicosSoDev.local-pg.test.ts`.
 - **Alertas técnicos só para a conta Dev (decisões do dono de 2026-11-07, migration `620`, ADR 0133):** rotinas
   paradas, provedor de e-mail sem retorno, Consulta Itaú parada e retorno não aplicado vão só à conta Dev (sino e
   fila); faturamento automático, fatura retida e passo bloqueado avisam também a conta Dev; nas falhas de e-mail, a

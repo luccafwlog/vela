@@ -1,6 +1,6 @@
 # 0133 — Alertas técnicos só para a conta Dev
 
-Status: aceito — 2026-11-07 (decisões do dono). Implementada na migration `620`.
+Status: aceito — 2026-11-07 (decisões do dono). Implementada nas migrations `620` e `621`.
 
 ## Contexto
 
@@ -17,7 +17,8 @@ todo o Administrativo (ou ao Financeiro), que não tem as ferramentas para agir.
    com resposta de erro, Rotina interna sem rodar, Consulta de Pix do Itaú
    parada (antes do Financeiro) e Retorno do provedor de e-mail não aplicado.
 2. **A equipe e a conta Dev**: Faturamento automático falhou, Revisão de B/L —
-   fatura retida não saiu e Passo da importação bloqueado. A equipe tem uma ação
+   fatura retida não saiu, Passo da importação bloqueado e, desde a migration
+   `621`, Falha na atualização da PTAX Demurrage. A equipe tem uma ação
    na tela; a conta Dev corrige a causa técnica.
 3. **Pela causa**: no Aviso do Desbloqueio de CE não enviado, na Cobrança de
    Demurrage recusada e no Comunicado recusado, recusa por contato do Cliente

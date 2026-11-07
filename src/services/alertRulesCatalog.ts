@@ -988,7 +988,7 @@ const ALERT_RULES_BASE = [
     domain: 'Demurrage',
     responsible: 'equipamentos',
     catalogAudience: ['equipamentos'],
-    routingNote: 'De Equipamentos desde 2026-11-06: é quem usa Informar PTAX, junto com o Financeiro e o Administrativo.',
+    routingNote: 'De Equipamentos desde 2026-11-06: é quem usa Informar PTAX, junto com o Financeiro e o Administrativo. A equipe recebe e a conta Dev do Administrativo também, para corrigir a causa técnica.',
     entityType: 'exchange_rate_reference',
     severity: 'critical',
     summary: 'A cotação do dólar (PTAX) do dia não chegou à Demurrage. O último câmbio válido continua valendo.',
