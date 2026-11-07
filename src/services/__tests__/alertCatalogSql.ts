@@ -52,6 +52,7 @@ const CATALOG_MIGRATIONS = [
   '607_alerta_container_sem_descarga.sql',
   '608_alertas_do_desbloqueio_de_ce.sql',
   '613_desbloqueio_divergente_na_zpt.sql',
+  '615_fatura_cancelada_sem_nova_emissao.sql',
 ]
 
 // Migrations que aposentam tipos. Aceitam tanto `type IN (...)` quanto

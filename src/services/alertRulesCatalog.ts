@@ -816,7 +816,24 @@ const ALERT_RULES_BASE = [
     destinationLabel: 'Abrir o B/L',
     afterResolution: 'Com justificativa. Uma nova mudança que afete taxa alterada à mão abre outro.',
     impact: 'O valor combinado à mão pode ter se perdido: a fatura pode sair, ou já ter saído, diferente do combinado com o Cliente.',
+  },  {
+    // Migration 615 (ADR 0132, decisão 6): 1 dia útil depois do cancelamento à mão, sem fatura nova.
+    type: 'fatura_cancelada_sem_reemissao',
+    domain: 'Faturamento e Taxas Locais',
+    responsible: 'documentacao',
+    catalogAudience: ['documentacao'],
+    entityType: 'bl',
+    severity: 'normal',
+    summary: 'A fatura de Taxas Locais do B/L foi cancelada à mão e nenhuma fatura nova saiu.',
+    trigger: 'Passou 1 dia útil desde o cancelamento da fatura por uma pessoa, e o B/L ficou sem fatura viva. A fatura avulsa, o cancelamento automático, o B/L isento e o B/L cancelado ficam de fora. Um alerta por B/L.',
+    timing: 'A cada conferência de 15 minutos.',
+    resolution: 'Na ficha do B/L, aba Faturamento, use Emitir. Se o B/L não deve mais ser cobrado, marque a isenção ou cancele o B/L.',
+    destination: '/taxas-locais',
+    destinationLabel: 'Abrir B/L',
+    afterResolution: 'Sozinho, quando a fatura nova sai, o B/L fica isento ou é cancelado.',
+    impact: 'O Cliente fica sem fatura e sem Pix; sem pagamento, o Desbloqueio de CE não começa.',
   },
+
 
   // 20.9 Demurrage -------------------------------------------------------------
   {
@@ -925,7 +942,24 @@ const ALERT_RULES_BASE = [
     destinationLabel: 'Abrir Demurrage',
     afterResolution: 'A falha repetida fecha sozinha quando a cobrança sai; a recusa, com justificativa. Os dois fecham quando a Invoice é paga, isenta ou cancelada.',
     impact: 'O Cliente não recebe a cobrança, e a Invoice pode vencer sem aviso.',
+  },  {
+    // Migration 615 (ADR 0132, decisão 6): Invoice cancelada à mão, grupo esperando o Gerar Invoice.
+    type: 'demurrage_cancelada_sem_reemissao',
+    domain: 'Demurrage',
+    responsible: 'equipamentos',
+    catalogAudience: ['equipamentos'],
+    entityType: 'demurrage_invoice',
+    severity: 'normal',
+    summary: 'A Invoice de Demurrage foi cancelada à mão e os containers dela esperam o Gerar Invoice.',
+    trigger: 'Passou 1 dia útil desde o cancelamento à mão e o grupo continua em A emitir esperando o Gerar Invoice. O cancelamento automático, que reemite sozinho, fica de fora. Um alerta por Invoice.',
+    timing: 'A cada conferência de 15 minutos.',
+    resolution: 'Na Demurrage, divisão A emitir, use Gerar Invoice no grupo.',
+    destination: '/demurrage',
+    destinationLabel: 'Ver Demurrage',
+    afterResolution: 'Sozinho, quando o grupo é emitido ou sai de A emitir.',
+    impact: 'A sobreestadia desses containers não é cobrada até alguém gerar a Invoice nova.',
   },
+
   {
     // Edge recalc-demurrage-ptax e manutenção do Itaú às 14h (ALE-D11).
     type: 'demurrage_ptax_recalc_failed',

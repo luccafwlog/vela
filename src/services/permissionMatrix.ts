@@ -68,8 +68,8 @@ export const ALERT_TYPE_COUNTS: Readonly<Record<Department, number>> = {
   administrativo: 22,
   financeiro: 5,
   operacoes: 5,
-  documentacao: 37,
-  equipamentos: 9,
+  documentacao: 38,
+  equipamentos: 10,
 }
 
 /**

@@ -6,6 +6,10 @@
 
 ## 2026-11
 
+- **Fatura cancelada sem nova emissão (decisão 6 do dono de 2026-11-07, migration `615`, ADR 0132):** 1 dia útil
+  depois do cancelamento à mão sem fatura nova, abre **B/L sem fatura depois do cancelamento** (Documentação) ou
+  **Invoice de Demurrage cancelada sem nova emissão** (Equipamentos); fecham na nova emissão. Prova:
+  `faturaCanceladaSemReemissao.local-pg.test.ts`, `classificacaoDemurrage.local-pg.test.ts`.
 - **Aviso do anual VIP (decisão 4 do dono de 2026-11-07, migration `614`, ADR 0132):** o termo ou a procuração
   anual enviado pelo Cliente VIP avisa no sino a Documentação e o Administrativo. Prova:
   `sinoAvisosDeAcontecimento.local-pg.test.ts`.

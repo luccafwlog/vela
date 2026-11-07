@@ -78,6 +78,8 @@ export type ActiveAlertType =
   | 'desbloqueio_solicitacao_sem_analise'
   | 'desbloqueio_prazo_vencendo'
   | 'desbloqueio_divergente_zpt'
+  | 'fatura_cancelada_sem_reemissao'
+  | 'demurrage_cancelada_sem_reemissao'
 
 export const TYPE_LABELS: Record<string, string> = {
   fatura_desatualizada: 'Fatura desatualizada',
@@ -151,6 +153,8 @@ export const TYPE_LABELS: Record<string, string> = {
   desbloqueio_solicitacao_sem_analise: 'Solicitação de desbloqueio sem análise',
   desbloqueio_prazo_vencendo: 'Prazo do desbloqueio vencendo',
   desbloqueio_divergente_zpt: 'B/L divergente na ZPT',
+  fatura_cancelada_sem_reemissao: 'B/L sem fatura depois do cancelamento',
+  demurrage_cancelada_sem_reemissao: 'Invoice de Demurrage cancelada sem nova emissão',
 }
 
 export const ENTITY_TYPE_LABELS: Record<string, string> = {
