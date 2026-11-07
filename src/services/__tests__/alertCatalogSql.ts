@@ -90,7 +90,7 @@ const AUDIENCE_EXCEPTION_MIGRATIONS = ['485_alertas_ajustes_da_revisao.sql']
 // passam para o setor Financeiro.
 // 605: PTAX e exportação a Equipamentos, feriados ao Administrativo, e o
 // Administrativo avisado em tabela de cobrança, cálculo e Portal.
-const POST_RESET_CATALOG_UPDATE_MIGRATIONS = ['587_alertas_de_dinheiro_no_setor_financeiro.sql', '605_quem_recebe_cada_alerta.sql']
+const POST_RESET_CATALOG_UPDATE_MIGRATIONS = ['587_alertas_de_dinheiro_no_setor_financeiro.sql', '605_quem_recebe_cada_alerta.sql', '620_alertas_tecnicos_so_para_a_conta_dev.sql']
 const AUDIENCE_IN_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+audience_departments\s*=\s*ARRAY\[([^\]]*)\]\s+WHERE\s+type\s+IN\s*\(([^)]*)\)/gi
 
 const CATALOG_UPDATE_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+([\s\S]*?)\s+WHERE\s+type\s*=\s*'([a-z0-9_]+)'/gi

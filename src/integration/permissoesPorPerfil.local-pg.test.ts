@@ -658,11 +658,12 @@ describeLocal('Modelo de permissões por perfil (ADR 0085)', () => {
   // Migration 587 (decisão do dono de 2026-11-04): o que só o Financeiro resolve
   // é do setor Financeiro; a Fatura desatualizada, que todos corrigem, segue no
   // Administrativo e avisa o Financeiro.
-  it('P5: Pix não conciliado, Consulta do Itaú parada e Restituição pendente são do Financeiro; Fatura desatualizada o avisa', () => {
+  // 620 (ADR 0133): a Consulta do Itaú parada é técnica e passou à conta Dev do Administrativo.
+  it('P5: Pix não conciliado e Restituição pendente são do Financeiro; Fatura desatualizada o avisa; Consulta Itaú é da conta Dev', () => {
     expect(psql(`SELECT string_agg(type || ':' || responsible_department || ':' || array_to_string(audience_departments, '+'), ',' ORDER BY type)
       FROM public.alert_type_catalog
       WHERE type IN ('pix_unreconciled', 'fatura_desatualizada', 'restituicao_pendente', 'itau_pix_consulta_parada');`))
-      .toBe('fatura_desatualizada:administrativo:administrativo+financeiro,itau_pix_consulta_parada:financeiro:financeiro,'
+      .toBe('fatura_desatualizada:administrativo:administrativo+financeiro,itau_pix_consulta_parada:administrativo:administrativo,'
         + 'pix_unreconciled:financeiro:financeiro,restituicao_pendente:financeiro:financeiro')
   })
 

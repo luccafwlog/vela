@@ -6,6 +6,10 @@
 
 ## 2026-11
 
+- **Alertas técnicos só para a conta Dev (decisões do dono de 2026-11-07, migration `620`, ADR 0133):** rotinas
+  paradas, provedor de e-mail sem retorno, Consulta Itaú parada e retorno não aplicado vão só à conta Dev (sino e
+  fila); faturamento automático, fatura retida e passo bloqueado avisam também a conta Dev; nas falhas de e-mail, a
+  causa decide. Prova: `alertasTecnicosSoDev.local-pg.test.ts`.
 - **Rotina interna sem rodar (decisão 8 do dono de 2026-11-07, migration `619`, ADR 0132):** rotina do agendador
   com erro ou parada abre alerta Crítico ao Administrativo, e a conferência manda sinal ao Better Stack (heartbeat a
   cadastrar). Prova: `rotinaInternaSemRodar.local-pg.test.ts`.

@@ -1,5 +1,7 @@
 # 0131 — Decisões do dono sobre a revisão de cobertura dos alertas
 
+> **Situação atual (2026-11-07).** A [ADR 0133](./0133-alertas-tecnicos-so-para-a-conta-dev.md) tira do Administrativo e do Financeiro os alertas puramente técnicos (só a conta Dev).
+
 > **Situação atual (2026-11-06).** Correção do dono à D1: o alerta do prazo do desbloqueio não fecha com a exportação para a ZPT; fecha quando a conciliação da ZPT traz o B/L como desbloqueado no CE atual (migration `612`). O resto da D1 continua valendo.
 
 Status: aceito — 2026-11-06 (decisões do dono). Implementação em lotes no

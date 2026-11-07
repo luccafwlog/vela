@@ -164,13 +164,14 @@ describe('Regras de Alertas', () => {
     expect(invoice.responsibleDepartments).toEqual(['administrativo'])
     expect(invoice.notifiedDepartments).toEqual(['financeiro', 'administrativo'])
     expect(ALERT_RULES.filter((rule) => rule.responsibleDepartments.includes('financeiro')).map((rule) => rule.type).sort())
-      .toEqual(['itau_pix_consulta_parada', 'pix_unreconciled', 'restituicao_pendente'])
+      // 620: a Consulta Itaú parada é técnica e vai só à conta Dev.
+      .toEqual(['pix_unreconciled', 'restituicao_pendente'])
     expect(schedule.notifiedDepartments).toEqual(['operacoes'])
     expect(terminal.notifiedDepartments).toEqual(['operacoes'])
     // 605: o Administrativo também é avisado (concede a Liberação).
     expect(portal.notifiedDepartments).toEqual(['documentacao', 'administrativo'])
     expect(ALERT_RULES.filter((rule) => rule.notifiedDepartments.includes('financeiro')).map((rule) => rule.type).sort())
-      .toEqual(['fatura_desatualizada', 'itau_pix_consulta_parada', 'pix_unreconciled', 'restituicao_pendente', 'taxa_alterada_mudou'])
+      .toEqual(['fatura_desatualizada', 'pix_unreconciled', 'restituicao_pendente', 'taxa_alterada_mudou'])
   })
 
   it('filtra o catálogo por setor notificado, não apenas pelo responsável', () => {

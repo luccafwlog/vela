@@ -254,3 +254,4 @@ src/integration/faturaCanceladaSemReemissao.local-pg.test.ts
 src/integration/reenvioCeTaxasBlTardio.local-pg.test.ts
 src/integration/liberacaoVencendo.local-pg.test.ts
 src/integration/rotinaInternaSemRodar.local-pg.test.ts
+src/integration/alertasTecnicosSoDev.local-pg.test.ts
