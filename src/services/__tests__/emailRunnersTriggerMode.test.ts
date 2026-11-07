@@ -66,10 +66,7 @@ const runners: Runner[] = [
       const work: string[] = []
       const result = await runAutomaticCommunications({
         rpc: (fn) => { work.push(fn); return Promise.resolve({ data: [], error: null }) },
-        fetcher: vi.fn() as unknown as typeof fetch,
-        supabaseUrl: 'https://supabase.example.test',
-        anonKey: 'anon',
-        secret: 'secret',
+        dispatch: vi.fn(),
       })
       return { ...result, work }
     },

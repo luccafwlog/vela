@@ -79,7 +79,10 @@ ao bundle nem commitadas no Git:
 | `itau-pix` (job `itau-pix-queue`) | `BETTERSTACK_HEARTBEAT_ITAU_PIX_URL` (a cadastrar, decisão do dono de 2026-11-06) | a cada minuto; o disparo da fila (`process_charges`) manda só o `/fail`, e o diagnóstico não reporta |
 
 O ping de sucesso só sai depois da conclusão do job com resposta 2xx sem falha
-contada; o restante manda `/fail`. Desde a migration `458`, três desses runners
+contada; o restante manda `/fail`. Na régua de Comunicados, o destinatário que
+a rodada não chegou a enviar (teto de 50 destinatários ou 15 s, ou recusa da
+própria Supabase) não conta como falha: volta na rodada seguinte, e a resposta
+traz `nextRound` e `paused` ([ADR 0131](../adr/0131-edge-function-nao-chama-outra-e-rodada-de-comunicados-com-teto.md)). Desde a migration `458`, três desses runners
 (`customer-communication-auto-runner`, `ce-unlock-notify-email` e
 `portal-email-events-runner`) também são chamados pelo banco no evento, com
 `{"source":"trigger"}` ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento));

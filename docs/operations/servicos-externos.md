@@ -238,6 +238,18 @@ Em 2026-11-04 o dono apagou todos os snippets do SQL Editor do projeto (Shared,
 Favorites e Private vazios, conferido por ele)
 ([relatório](../archive/reports/2026-11-04-tentativas-de-truncate-em-producao.md)).
 
+**Limite de chamadas entre Edge Functions:** a Supabase limita as chamadas de
+uma Edge Function a outra do mesmo projeto, por execução, e recusa o excesso
+com `RateLimitError: Rate limit exceeded for trace … Retry after …ms`. A
+documentação ([Recursive / Nested Function Calls](https://supabase.com/docs/guides/functions/recursive-functions))
+promete ao menos 5.000 por minuto, igual em todos os planos, e manda pedir mais
+ao suporte. Em 2026-11-07 o corte veio na 31ª chamada da régua de Comunicados,
+nas rodadas de 12:01 e 12:17 de Brasília (NOA de 35 Clientes de uma vez). Por
+isso nenhuma Edge Function do Vela chama outra: o código comum fica em
+`supabase/functions/_shared/` ([ADR 0131](../adr/0131-edge-function-nao-chama-outra-e-rodada-de-comunicados-com-teto.md)).
+Os demais limites que pesam numa rodada: 2 s de CPU por execução, 150 s de
+espera pela resposta e os 30 s do `pg_net` nos jobs (migration `165`).
+
 Para uma Preview pontual sem ligar Automatic branching: em Supabase → projeto
 Vela → Branching → Create branch, informe o nome da branch de Preview e a mesma
 branch GitHub da PR em "Sync with Git branch". A integração publica commits
@@ -536,7 +548,7 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | `ce-unlock-notify-email` | a cada 5 min (manual, 07/10; jobid 35 desde a recriação da migration `438`); desde a migration `458` também chamado assim que o aviso é gravado na fila ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | avisos do Desbloqueio de CE ao Cliente (a rodada do cron também valida o B/L VIP sem solicitação que ficou apto, migration `581`); com a chave global desligada, registra o aviso como `simulated` e não o envia depois (migration `307`); abre o Alerta `desbloqueio_ce_aviso_nao_enviado` quando o aviso fica sem destinatário ou falha ([Desbloqueio de CE](../modules/desbloqueio-ce.md#avisos-ao-cliente)) | `ce-unlock-notify-email` (secret `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL`; cadastrado em 2026-10-19) |
 | `import-effects-runner` | a cada minuto (`* * * * *`, migration `218`; antes `3-59/5`, migration `165`) e também disparado pela própria importação, uma vez por transação que grava efeito | fila de efeitos de importação; ligado desde 2026-10-12. Um runner por vez (`ops.import_effects_runner_lease`, renovada a cada bloco; a chamada sem a vez responde `skipped: busy`); cada chamada trabalha em blocos de 10 por até ~25 s. A parada é avisada pelo Alerta `import_effects_queue_stalled` | — |
 | `alerts-foundation-detectors` | a cada 15 min, em :02/:17/:32/:47 (`2-59/15 * * * *`, migration `165`) | abre/fecha Alertas do sino; remove até 100 anexos órfãos de Disputa | `alerts-detector` |
-| `customer-communication-auto-runner` | a cada 2 min, nos minutos ímpares (`1-59/2 * * * *`, migration `458`; antes `4-59/15`, migration `165`); também chamado pelo que deixa um alvo pronto, no máximo a cada 90 s ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | Comunicados automáticos NOA/NOR/NOB e CE Mercante/Taxas (respeita a chave global). A Cobertura de `/clientes/comunicacao` mostra "Na fila · próxima rodada às HH:MM" com estes minutos, espelhados em `src/lib/communicationAutoRunner.ts`: mudar o agendamento exige mudar o espelho no mesmo PR | `customer-communication-auto-runner` |
+| `customer-communication-auto-runner` | a cada 2 min, nos minutos ímpares (`1-59/2 * * * *`, migration `458`; antes `4-59/15`, migration `165`); também chamado pelo que deixa um alvo pronto, no máximo a cada 90 s ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | Comunicados automáticos NOA/NOR/NOB e CE Mercante/Taxas (respeita a chave global). Envia no mesmo processo, sem chamar a `send-customer-communication`, até 50 destinatários ou 15 s por rodada; o resto volta na rodada seguinte sem contar falha nem acender o heartbeat ([ADR 0131](../adr/0131-edge-function-nao-chama-outra-e-rodada-de-comunicados-com-teto.md)). A Cobertura de `/clientes/comunicacao` mostra "Na fila · próxima rodada às HH:MM" com estes minutos, espelhados em `src/lib/communicationAutoRunner.ts`: mudar o agendamento exige mudar o espelho no mesmo PR | `customer-communication-auto-runner` |
 | `portal-mark-expired-invites` | a cada 15 min | expira convites do Portal vencidos; a conta passa a Convite expirado e o Alerta de reenvio abre pelo gatilho da conta, só para Cliente com processo ativo (migration `350`) | — |
 | `demurrage-dunning` | a cada 5 min (`3-59/5 * * * *`, migration `458`; antes de hora em hora, `7 * * * *`); sem chamada pela emissão da Invoice (criada na `458`, tirada na `459`) | Régua de Cobrança de Demurrage (respeita a chave global, a janela de dia útil a partir das 9h e o intervalo entre cobranças) | `demurrage-dunning` |
 | `cleanup-provision-rate-limit` | 03:30 | apaga registros de limite de provisionamento com mais de 2 dias | — |
