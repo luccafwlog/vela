@@ -1,5 +1,5 @@
--- 614: aviso no sino quando o Cliente VIP envia um documento anual (decisão 4
--- do dono de 2026-11-07; ADR 0132, lote B do plano
+-- 623: aviso no sino quando o Cliente VIP envia um documento anual (decisão 4
+-- do dono de 2026-11-07; ADR 0134, lote B do plano
 -- 2026-11-07-brechas-restantes-da-revisao-dos-alertas).
 --
 -- O termo e a procuração anuais do VIP chegam pelo Portal e esperavam análise

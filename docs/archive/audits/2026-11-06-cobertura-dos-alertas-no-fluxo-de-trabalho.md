@@ -27,8 +27,8 @@ revisão técnica anterior, de abertura e fechamento dos alertas, é a de
   fluxo de usuário foi exercitado de ponta a ponta para as brechas.
 - **Junto com esta revisão** foi entregue a tela **Regras de alertas**
   didática, com a troca de gravidade pelo Administrativo
-  ([ADR 0130](../../adr/0130-gravidade-do-alerta-pela-tela.md), migration
-  `603`). Algumas brechas de gravidade abaixo já podem ser ajustadas por ela,
+  ([ADR 0132](../../adr/0132-gravidade-do-alerta-pela-tela.md), migration
+  `612`). Algumas brechas de gravidade abaixo já podem ser ajustadas por ela,
   sem código.
 
 ## Resumo
@@ -413,7 +413,7 @@ cálculo e Portal não provisionado avisando também o Administrativo (B21).
 ## O que a nova tela já permite
 
 Com a troca de gravidade entregue nesta revisão
-([ADR 0130](../../adr/0130-gravidade-do-alerta-pela-tela.md)), o Administrativo
+([ADR 0132](../../adr/0132-gravidade-do-alerta-pela-tela.md)), o Administrativo
 pode, sem código, dar mais peso a alertas que hoje são Normais e seguram
 dinheiro ou prazo. Sugestões para avaliar (não foram aplicadas):
 

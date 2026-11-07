@@ -1,4 +1,4 @@
-// E-mail "ADR fechado" (migration 611, ADR 0131 D6): a todos os usuários
+// E-mail "ADR fechado" (migration 620, ADR 0133 D6): a todos os usuários
 // internos ativos, com o resumo do ADR e o link. Enviado pela Edge Function
 // `adr-closed-email`. A lógica fica aqui, sem Deno, para o teste do Vitest.
 import { emailFacts, emailKit, emailStack, escapeHtml, renderEmailLayout, renderEmailText } from '../../../src/services/emailLayout.ts'

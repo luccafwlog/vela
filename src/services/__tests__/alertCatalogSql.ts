@@ -49,12 +49,12 @@ const CATALOG_MIGRATIONS = [
   '535_retorno_de_email_nao_aplicado.sql',
   '584_terminal_da_escala_cobrado.sql',
   '597_ce_mercante_travado_ate_resposta_de_veiculos.sql',
-  '607_alerta_container_sem_descarga.sql',
-  '608_alertas_do_desbloqueio_de_ce.sql',
-  '613_desbloqueio_divergente_na_zpt.sql',
-  '615_fatura_cancelada_sem_nova_emissao.sql',
-  '617_liberacao_de_faturamento_vencendo.sql',
-  '619_rotina_interna_sem_rodar.sql',
+  '616_alerta_container_sem_descarga.sql',
+  '617_alertas_do_desbloqueio_de_ce.sql',
+  '622_desbloqueio_divergente_na_zpt.sql',
+  '624_fatura_cancelada_sem_nova_emissao.sql',
+  '626_liberacao_de_faturamento_vencendo.sql',
+  '628_rotina_interna_sem_rodar.sql',
 ]
 
 // Migrations que aposentam tipos. Aceitam tanto `type IN (...)` quanto
@@ -88,9 +88,9 @@ const AUDIENCE_EXCEPTION_MIGRATIONS = ['485_alertas_ajustes_da_revisao.sql']
 // (`UPDATE ... SET ... WHERE type = '...'`), aplicadas depois do reset e das
 // exceções, na ordem da cadeia. 587: Pix, Consulta do Itaú e Restituição
 // passam para o setor Financeiro.
-// 605: PTAX e exportação a Equipamentos, feriados ao Administrativo, e o
+// 614: PTAX e exportação a Equipamentos, feriados ao Administrativo, e o
 // Administrativo avisado em tabela de cobrança, cálculo e Portal.
-const POST_RESET_CATALOG_UPDATE_MIGRATIONS = ['587_alertas_de_dinheiro_no_setor_financeiro.sql', '605_quem_recebe_cada_alerta.sql', '620_alertas_tecnicos_so_para_a_conta_dev.sql']
+const POST_RESET_CATALOG_UPDATE_MIGRATIONS = ['587_alertas_de_dinheiro_no_setor_financeiro.sql', '614_quem_recebe_cada_alerta.sql', '629_alertas_tecnicos_so_para_a_conta_dev.sql']
 const AUDIENCE_IN_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+audience_departments\s*=\s*ARRAY\[([^\]]*)\]\s+WHERE\s+type\s+IN\s*\(([^)]*)\)/gi
 
 const CATALOG_UPDATE_PATTERN = /UPDATE\s+public\.alert_type_catalog\s+SET\s+([\s\S]*?)\s+WHERE\s+type\s*=\s*'([a-z0-9_]+)'/gi

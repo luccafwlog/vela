@@ -1,4 +1,4 @@
-// Migration 620 (ADR 0133): alertas técnicos vão só para a conta Dev.
+// Migration 629 (ADR 0135): alertas técnicos vão só para a conta Dev.
 // - Tipo técnico (Rotina agendada com resposta de erro, Consulta Itaú...):
 //   sino só da conta Dev; a fila e a contagem escondem dos demais.
 // - Causa técnica (Aviso do Desbloqueio com falha de envio): só a conta Dev;
@@ -33,7 +33,7 @@ function scenario(type: string, entityType: string, entityId: string, metadata: 
     RESET ROLE;`
   return sql(`BEGIN;
     SET LOCAL request.jwt.claim.role = 'service_role';
-    SELECT public.upsert_alert_item('${type}', '${entityType}', '${entityId}', 'Teste 620', 'teste_620', '${department}', '${meta}'::jsonb, NULL) IS NOT NULL;
+    SELECT public.upsert_alert_item('${type}', '${entityType}', '${entityId}', 'Teste 629', 'teste_629', '${department}', '${meta}'::jsonb, NULL) IS NOT NULL;
     SELECT '>sino|' || string_agg(n.recipient_id::text, ',' ORDER BY n.recipient_id)
       FROM public.internal_notifications n JOIN public.alerts a ON a.id = n.alert_id
       WHERE a.entity_id = '${entityId}' AND n.recipient_id IN (${USERS});
@@ -43,7 +43,7 @@ function scenario(type: string, entityType: string, entityId: string, metadata: 
     ROLLBACK;`)
 }
 
-local('Alertas técnicos só para a conta Dev (migration 620)', () => {
+local('Alertas técnicos só para a conta Dev (migration 629)', () => {
   const cleanup = () => sql(`SET session_replication_role = replica;
     DELETE FROM public.user_profiles WHERE id IN (${USERS});
     DELETE FROM auth.users WHERE id IN (${USERS});
@@ -86,7 +86,7 @@ local('Alertas técnicos só para a conta Dev (migration 620)', () => {
     expect(lines).toContain('>fila|adm|1')
   })
 
-  // 621: a PTAX também avisa a conta Dev.
+  // 630: a PTAX também avisa a conta Dev.
   it('Falha na atualização da PTAX: Equipamentos e a conta Dev', () => {
     const lines = scenario('demurrage_ptax_recalc_failed', 'exchange_rate_reference', 'A620-PTAX', {}, 'equipamentos')
     expect(lines[0]).toMatch(new RegExp(`^>sino\\|.*${DEV}`))

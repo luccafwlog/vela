@@ -481,7 +481,7 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   com número próprio, e o consignatário estrangeiro impede o arquivo (VIA-146,
   ACE-135, S6.36).
 - **Regras de alertas didática e gravidade pela tela** (pedido do dono de
-  2026-11-06, migration `603`, ADR 0130): a lista se agrupa pelos assuntos do
+  2026-11-06, migration `612`, ADR 0132): a lista se agrupa pelos assuntos do
   capítulo 20 e cada regra diz o que é, **Se ninguém agir**, quando abre e
   fecha, quem recebe e quem age, como resolver e a gravidade, sem vocabulário
   técnico; o Administrativo troca a gravidade de um alerta, com motivo, e a

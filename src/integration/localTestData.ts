@@ -56,7 +56,7 @@ export function describeWithProbe(probe: () => boolean, requirement: string): ty
  * na viagem ativa em que Equipamentos respondeu "não terá veículos" ou que já
  * tem veículo importado. A fixture que vincula CE sem medir essa trava
  * responde "não terá veículos" pelas viagens dela; quem mede a trava fica em
- * `travaCeMercanteVeiculos.local-pg.test.ts`. Migration 610: também trava sem
+ * `travaCeMercanteVeiculos.local-pg.test.ts`. Migration 619: também trava sem
  * Baplie; a fixture declara "Viagem sem Baplie" (quem mede essa trava fica em
  * `travaCeMercanteSemBaplie.local-pg.test.ts`). Devolve o SQL para o `psql` da
  * suíte; viagem já respondida fica como está.

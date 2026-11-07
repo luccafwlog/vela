@@ -1,5 +1,5 @@
--- 611: o ADR fechado avisa a equipe por e-mail (decisão D6 do dono de
--- 2026-11-06; ADR 0131, lote 8 do plano 2026-11-06-decisoes-da-revisao-dos-alertas).
+-- 620: o ADR fechado avisa a equipe por e-mail (decisão D6 do dono de
+-- 2026-11-06; ADR 0133, lote 8 do plano 2026-11-06-decisoes-da-revisao-dos-alertas).
 --
 -- O fechamento do ADR não tinha dono nem aviso (brecha B09). Agora a tela
 -- fecha o ADR sozinha quando a terceira equipe assina (o retrato congelado é o
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS public.adr_closed_email_outbox (
   UNIQUE (report_id, closed_at)
 );
 COMMENT ON TABLE public.adr_closed_email_outbox IS
-  'E-mail "ADR fechado" a todos os usuários internos ativos (611, ADR 0131 D6): uma linha por fechamento.';
+  'E-mail "ADR fechado" a todos os usuários internos ativos (620, ADR 0133 D6): uma linha por fechamento.';
 ALTER TABLE public.adr_closed_email_outbox ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.adr_closed_email_outbox FROM PUBLIC, anon, authenticated;
 GRANT ALL ON public.adr_closed_email_outbox TO service_role;

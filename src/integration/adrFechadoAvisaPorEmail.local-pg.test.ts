@@ -1,4 +1,4 @@
-// Migration 611 (ADR 0131, D6): cada fechamento do ADR entra na fila do e-mail
+// Migration 620 (ADR 0133, D6): cada fechamento do ADR entra na fila do e-mail
 // "ADR fechado"; a leitura reserva a linha e traz o resumo e os destinatários
 // (todo usuário interno ativo, sem a conta de integração); o fechamento da
 // linha volta à fila na falha e desiste depois de 5 tentativas.
@@ -41,7 +41,7 @@ function cleanup() {
   `)
 }
 
-describeLocal('ADR fechado avisa por e-mail (migration 611)', () => {
+describeLocal('ADR fechado avisa por e-mail (migration 620)', () => {
   beforeAll(() => {
     cleanup()
     psql(`

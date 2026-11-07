@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 
 /**
- * Declaração "Viagem sem Baplie" (migration 610, ADR 0131 D4): sem o Baplie
+ * Declaração "Viagem sem Baplie" (migration 619, ADR 0133 D4): sem o Baplie
  * importado e sem esta declaração, o CE Mercante dos B/Ls de container fica
  * travado. Declarar e desfazer pedem motivo; só Documentação e Administrativo.
  */

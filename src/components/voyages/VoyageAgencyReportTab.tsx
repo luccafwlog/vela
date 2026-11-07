@@ -418,7 +418,7 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
   const [reopenOpen, setReopenOpen] = useState(false)
   const [reopenJustification, setReopenJustification] = useState('')
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false)
-  // 611 (ADR 0131, D6): a assinatura que completa as três arma o fechamento
+  // 620 (ADR 0133, D6): a assinatura que completa as três arma o fechamento
   // automático; ele roda quando a aba recarrega com as três assinaturas.
   const [autoCloseArmed, setAutoCloseArmed] = useState(false)
   const [terminalDraft, setTerminalDraft] = useState('')
@@ -1102,7 +1102,7 @@ function OperatedListing({ rows }: { rows: Record<string, Record<string, number>
 }
 
 /**
- * Fechamento automático do ADR (migration 611, ADR 0131 D6): depois da
+ * Fechamento automático do ADR (migration 620, ADR 0133 D6): depois da
  * assinatura que completa as três (`armed`), fecha assim que a aba mostra as
  * três assinaturas e nada impede (`ready`), com o retrato da tela.
  * ponytail: roda na tela de quem assinou; se a aba fechar antes de recarregar,

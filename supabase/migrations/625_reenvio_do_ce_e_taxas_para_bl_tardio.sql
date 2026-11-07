@@ -1,5 +1,5 @@
--- 616: B/L que fica pronto depois do Comunicado de CE e Taxas abre o alerta de
--- reenvio (decisão 7 do dono de 2026-11-07; ADR 0132, lote D do plano
+-- 625: B/L que fica pronto depois do Comunicado de CE e Taxas abre o alerta de
+-- reenvio (decisão 7 do dono de 2026-11-07; ADR 0134, lote D do plano
 -- 2026-11-07-brechas-restantes-da-revisao-dos-alertas).
 --
 -- O Comunicado de CE e Taxas sai uma vez por Cliente e Viagem. O B/L que entra
@@ -80,14 +80,14 @@ $function$;
 REVOKE ALL ON FUNCTION public.reconcile_ce_taxas_late_bl_alerts(text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reconcile_ce_taxas_late_bl_alerts(text) TO service_role;
 
-DO $schedule_616$
+DO $schedule_625$
 BEGIN
   IF to_regnamespace('cron') IS NULL THEN
-    RAISE WARNING '616: pg_cron ausente; agende ce-taxas-late-bl-alerts no ambiente de produção.';
+    RAISE WARNING '625: pg_cron ausente; agende ce-taxas-late-bl-alerts no ambiente de produção.';
     RETURN;
   END IF;
   PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'ce-taxas-late-bl-alerts';
   PERFORM cron.schedule('ce-taxas-late-bl-alerts', '14-59/15 * * * *',
-    $cmd_616$SELECT public.reconcile_ce_taxas_late_bl_alerts('ce-taxas-late-bl-alerts');$cmd_616$);
+    $cmd_625$SELECT public.reconcile_ce_taxas_late_bl_alerts('ce-taxas-late-bl-alerts');$cmd_625$);
 END;
-$schedule_616$;
+$schedule_625$;

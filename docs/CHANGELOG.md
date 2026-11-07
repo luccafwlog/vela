@@ -6,85 +6,85 @@
 
 ## 2026-11
 
-- **Mapa dos alertas (decisões do dono de 2026-11-07, migration `622`, ADR 0134):** a tela Regras de alertas abre num
+- **Mapa dos alertas (decisões do dono de 2026-11-07, migration `631`, ADR 0136):** a tela Regras de alertas abre num
   mapa por momento da viagem, com a cadeia de cada alerta (vira, segura, atrapalha, depois, mesma causa), o que fica
   parado, "E se ninguém agir?" passo a passo, os avisos do sino como marcos e quantos a pessoa tem na fila, com link
   para a fila filtrada no tipo (`/alertas?tipo=`); a lista por assunto vira a aba **Lista**, e o filtro de setor ganha
   **Conta Dev**. Depois do protótipo: **Quem trava o quê** separa o alerta que avisa das causas, doze **Roteiros**
   guiam passo a passo, as duas seções abrem recolhidas e o mapa ficou mais enxuto. Corrige também os textos de **Baplie ausente** (fecha com a declaração Viagem sem Baplie, migration
-  `610`) e **Calendário de feriados pendente** (vale para os prazos do Desbloqueio de CE, migration `608`). Prova:
+  `619`) e **Calendário de feriados pendente** (vale para os prazos do Desbloqueio de CE, migration `617`). Prova:
   `AlertasRegrasCatalog.test.tsx`, `alertRulesMap.test.ts`, `Alertas.behavior.test.tsx`,
   `contagemDaFilaPorTipo.local-pg.test.ts`.
-- **PTAX avisa a conta Dev (migration `621`, ADR 0133):** a Falha na atualização da PTAX Demurrage avisa Equipamentos e
+- **PTAX avisa a conta Dev (migration `630`, ADR 0135):** a Falha na atualização da PTAX Demurrage avisa Equipamentos e
   também a conta Dev. Prova: `alertasTecnicosSoDev.local-pg.test.ts`.
-- **Alertas técnicos só para a conta Dev (decisões do dono de 2026-11-07, migration `620`, ADR 0133):** rotinas
+- **Alertas técnicos só para a conta Dev (decisões do dono de 2026-11-07, migration `629`, ADR 0135):** rotinas
   paradas, provedor de e-mail sem retorno, Consulta Itaú parada e retorno não aplicado vão só à conta Dev (sino e
   fila); faturamento automático, fatura retida e passo bloqueado avisam também a conta Dev; nas falhas de e-mail, a
   causa decide. Prova: `alertasTecnicosSoDev.local-pg.test.ts`.
-- **Rotina interna sem rodar (decisão 8 do dono de 2026-11-07, migration `619`, ADR 0132):** rotina do agendador
+- **Rotina interna sem rodar (decisão 8 do dono de 2026-11-07, migration `628`, ADR 0134):** rotina do agendador
   com erro ou parada abre alerta Crítico ao Administrativo, e a conferência manda sinal ao Better Stack (heartbeat a
   cadastrar). Prova: `rotinaInternaSemRodar.local-pg.test.ts`.
-- **Trava de veículos na Viagem concluída e aviso na recusa (decisão 11 do dono de 2026-11-07, migration `618`, ADR
-  0132):** o CE de container da Viagem concluída também espera a resposta de veículos, e a prévia recusada abre na hora
+- **Trava de veículos na Viagem concluída e aviso na recusa (decisão 11 do dono de 2026-11-07, migration `627`, ADR
+  0134):** o CE de container da Viagem concluída também espera a resposta de veículos, e a prévia recusada abre na hora
   a **Declaração de veículos pendente** para Equipamentos, mesmo antes do D-7. Prova:
   `travaCeMercanteVeiculos.local-pg.test.ts`, `ceMercanteImport.test.ts`.
-- **Liberação de faturamento vencendo (decisão 9 do dono de 2026-11-07, migration `617`, ADR 0132):** 2 dias úteis
+- **Liberação de faturamento vencendo (decisão 9 do dono de 2026-11-07, migration `626`, ADR 0134):** 2 dias úteis
   antes do vencimento, com o Portal do Cliente não pronto, o Administrativo recebe o alerta. Prova:
   `liberacaoVencendo.local-pg.test.ts`.
-- **Reenvio do CE e Taxas para B/L tardio (decisão 7 do dono de 2026-11-07, migration `616`, ADR 0132):** o B/L que
+- **Reenvio do CE e Taxas para B/L tardio (decisão 7 do dono de 2026-11-07, migration `625`, ADR 0134):** o B/L que
   fica pronto depois do Comunicado de CE e Taxas da Viagem abre **Reenviar Comunicado de CE e Taxas** para a
   Documentação. Prova: `reenvioCeTaxasBlTardio.local-pg.test.ts`.
-- **Fatura cancelada sem nova emissão (decisão 6 do dono de 2026-11-07, migration `615`, ADR 0132):** 1 dia útil
+- **Fatura cancelada sem nova emissão (decisão 6 do dono de 2026-11-07, migration `624`, ADR 0134):** 1 dia útil
   depois do cancelamento à mão sem fatura nova, abre **B/L sem fatura depois do cancelamento** (Documentação) ou
   **Invoice de Demurrage cancelada sem nova emissão** (Equipamentos); fecham na nova emissão. Prova:
   `faturaCanceladaSemReemissao.local-pg.test.ts`, `classificacaoDemurrage.local-pg.test.ts`.
-- **Aviso do anual VIP (decisão 4 do dono de 2026-11-07, migration `614`, ADR 0132):** o termo ou a procuração
+- **Aviso do anual VIP (decisão 4 do dono de 2026-11-07, migration `623`, ADR 0134):** o termo ou a procuração
   anual enviado pelo Cliente VIP avisa no sino a Documentação e o Administrativo. Prova:
   `sinoAvisosDeAcontecimento.local-pg.test.ts`.
-- **B/L divergente na ZPT e prazo sem limite (decisões 1 e 3 do dono de 2026-11-07, migration `613`, ADR 0132):**
+- **B/L divergente na ZPT e prazo sem limite (decisões 1 e 3 do dono de 2026-11-07, migration `622`, ADR 0134):**
   a conciliação que traz o B/L divergente abre alerta Crítico com o motivo da ZPT, para Documentação e
   Administrativo; o alerta do prazo do desbloqueio cobre todo B/L sem conciliação, sem o corte de 30 dias. Prova:
   `alertasDoDesbloqueioDeCe.local-pg.test.ts`.
-- **Prazo do desbloqueio fecha pela ZPT (correção do dono de 2026-11-06, migration `612`, ADR 0131):** o alerta
+- **Prazo do desbloqueio fecha pela ZPT (correção do dono de 2026-11-06, migration `621`, ADR 0133):** o alerta
   **Prazo do desbloqueio vencendo** não fecha mais com a exportação; fecha na hora em que a conciliação da ZPT traz o
   B/L como desbloqueado no CE atual. Prova: `alertasDoDesbloqueioDeCe.local-pg.test.ts`.
-- **ADR fecha sozinho e avisa por e-mail (decisão D6 do dono de 2026-11-06, migration `611`, ADR 0131):** quando a
+- **ADR fecha sozinho e avisa por e-mail (decisão D6 do dono de 2026-11-06, migration `620`, ADR 0133):** quando a
   terceira equipe assina, a tela fecha o ADR; todo fechamento manda o e-mail **ADR fechado** a todos os usuários
   internos ativos, com resumo e link. A Edge Function `adr-closed-email`, o segredo `ADR_CLOSED_EMAIL_SECRET` e o job
   ainda precisam ser publicados e cadastrados em produção ([segredos-cron.md](operations/segredos-cron.md#agendar-o-e-mail-do-adr-fechado)).
   Prova: `adrFechadoAvisaPorEmail.local-pg.test.ts`, `adrClosedEmail.test.ts`, `VoyageAgencyReportTab.test.tsx`.
-- **CE travado sem Baplie (decisão D4 do dono de 2026-11-06, migration `610`, ADR 0131):** na Viagem ativa, o CE
+- **CE travado sem Baplie (decisão D4 do dono de 2026-11-06, migration `619`, ADR 0133):** na Viagem ativa, o CE
   Mercante de B/L de container também espera o Baplie importado; sem ele, a Documentação ou o Administrativo declara
   **Viagem sem Baplie**, com motivo, na página Baplie (a declaração fecha o alerta **Baplie ausente**). A prévia do CE
   mostra a divergência aberta entre o Baplie e os B/Ls e pede confirmação com motivo. Prova:
   `travaCeMercanteSemBaplie.local-pg.test.ts`, `Baplie.cacheRefresh.test.tsx`.
-- **ADR recusa sem a exportação lançada (decisão D5 do dono de 2026-11-06, migration `609`, ADR 0131):** com a
+- **ADR recusa sem a exportação lançada (decisão D5 do dono de 2026-11-06, migration `618`, ADR 0133):** com a
   escala declarando Granito ou Embarque de vazios e o manifesto não vinculado à Viagem, **Carga carregada** e **Embarque
   de vazios** recusam **Nada a declarar** e **Fechar ADR** recusa, dizendo o que falta. Prova:
   `adrRecusaSemExportacao.local-pg.test.ts`.
-- **Alertas do Desbloqueio de CE (decisão D1 do dono de 2026-11-06, migration `608`, ADR 0131):** solicitação do
+- **Alertas do Desbloqueio de CE (decisão D1 do dono de 2026-11-06, migration `617`, ADR 0133):** solicitação do
   Cliente sem análise 2 horas úteis (8h às 17h) depois do envio abre alerta Crítico; prazo de liberação correndo há 2
   horas sem exportação abre Normal, que vira Crítico 2 horas antes do vencimento. Documentação e Administrativo
   recebem. Prova: `alertasDoDesbloqueioDeCe.local-pg.test.ts`.
-- **Container sem descarga (decisão D2 do dono de 2026-11-06, migration `607`, ADR 0131):** no ATB de cada terminal,
+- **Container sem descarga (decisão D2 do dono de 2026-11-06, migration `616`, ADR 0133):** no ATB de cada terminal,
   container dos B/Ls daquele terminal sem data de descarga abre alerta Normal para Equipamentos, que vira Crítico 24
   horas depois; **Resolver** abre Containers na escala. Prova: `containerSemDescarga.local-pg.test.ts`.
-- **ATA e ATD críticos em 16 horas (decisão D3 do dono de 2026-11-06, migration `606`, ADR 0131):** sem o ATA 16 horas
+- **ATA e ATD críticos em 16 horas (decisão D3 do dono de 2026-11-06, migration `615`, ADR 0133):** sem o ATA 16 horas
   depois do ETA, ou sem o ATD 16 horas depois do ETD, a Data da escala ou a Data de terminal pendente vira Crítico e
   avisa de novo no sino. Prova: `ataAtdCriticosEm16Horas.local-pg.test.ts`.
-- **Quem recebe cada alerta (decisões D5 e D7 do dono de 2026-11-06, migration `605`, ADR 0131):** a Falha na
+- **Quem recebe cada alerta (decisões D5 e D7 do dono de 2026-11-06, migration `614`, ADR 0133):** a Falha na
   atualização da PTAX e a Exportação pendente pós-ATD passam a Equipamentos; o Calendário de feriados, ao
   Administrativo, só na conta Dev; Tabela de cobrança faltando, Cálculo bloqueado e Portal não provisionado avisam
   também o Administrativo; o aviso de nova solicitação de desbloqueio de CE vai também ao Administrativo. Alertas
   abertos mudam de setor com o anterior no histórico. Prova: `sinoAvisosDeAcontecimento`, `alertasESinoLote8`,
   `alertasDeViagemEscala` e `portalBillingRelease` (local-pg) e `AlertasRegrasCatalog.test.tsx`.
-- **Reforço por tempo dos alertas (decisão D8 do dono de 2026-11-06, migration `604`, ADR 0131):** em **Regras de
+- **Reforço por tempo dos alertas (decisão D8 do dono de 2026-11-06, migration `613`, ADR 0133):** em **Regras de
   alertas**, o Administrativo define "vira Crítico depois de N horas aberto" para um alerta Normal, com motivo. A rotina
   `alerts-escalation` (5 min) escala o alerta esquecido e avisa de novo no sino. A gravidade passa a ser do alerta: o
   marco crítico do produtor e o reforço valem acima do tipo, e a troca do tipo para Normal não rebaixa o escalado.
   Prova: `reforcoPorTempoDosAlertas.local-pg.test.ts`, `permissoesPorPerfil.local-pg.test.ts` (P14) e
   `AlertasRegrasCatalog.test.tsx`.
-- **Regras de alertas didática e gravidade pela tela (pedido do dono de 2026-11-06, migration `603`, ADR 0130):** a
+- **Regras de alertas didática e gravidade pela tela (pedido do dono de 2026-11-06, migration `612`, ADR 0132):** a
   tela **Regras de alertas** fala a língua de quem opera: a lista se agrupa pelos assuntos do capítulo 20 do manual, e
   cada regra diz o que é, **Se ninguém agir**, quando abre e fecha, quem recebe e quem age, como resolver e a
   gravidade, sem migration, função, tabela ou rotina técnica no texto. O Administrativo troca a gravidade (Crítico ou

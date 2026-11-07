@@ -729,7 +729,7 @@ export function BillingProgress({
   )
 }
 
-/** Título da confirmação: trocas de CE, mudança de Manifesto e, desde a 610, a divergência do Baplie. */
+/** Título da confirmação: trocas de CE, mudança de Manifesto e, desde a 619, a divergência do Baplie. */
 function ceConfirmationTitle(preview: Pick<CeServerPreview, 'changes' | 'moves' | 'baplie_divergence'>): string {
   const parts: string[] = []
   if (preview.changes > 0) parts.push(`trocar o CE de ${plural(preview.changes, 'B/L', 'B/Ls')}`)

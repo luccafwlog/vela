@@ -1,5 +1,5 @@
--- 613: B/L divergente na ZPT vira alerta Crítico, e o prazo do desbloqueio
--- perde o limite de idade (decisões 1 e 3 do dono de 2026-11-07; ADR 0132,
+-- 622: B/L divergente na ZPT vira alerta Crítico, e o prazo do desbloqueio
+-- perde o limite de idade (decisões 1 e 3 do dono de 2026-11-07; ADR 0134,
 -- lote A do plano 2026-11-07-brechas-restantes-da-revisao-dos-alertas).
 --
 -- 1. Alerta novo `desbloqueio_divergente_zpt` (Crítico, Documentação, com o
@@ -11,10 +11,10 @@
 --    na hora da conciliação (gatilho em `ce_unlock_zpt_status`) e na rotina
 --    `ce-unlock-alerts` (5 minutos), que pega a troca de CE.
 -- 2. A rotina deixa de limitar a 30 dias o alerta **Prazo do desbloqueio
---    vencendo** (612): todo B/L com prazo e sem desbloqueio conferido entra.
+--    vencendo** (621): todo B/L com prazo e sem desbloqueio conferido entra.
 --
 -- Plano de preservação: a migration acrescenta um tipo ao catálogo, funções e
--- redefine a rotina e o gatilho da 612; não reescreve nem apaga linha
+-- redefine a rotina e o gatilho da 621; não reescreve nem apaga linha
 -- existente. Efeito no dia: a primeira rodada abre o alerta do prazo para os
 -- B/Ls antigos com prazo e sem conciliação (decisão do dono) e o divergente
 -- para os B/Ls já gravados como divergentes no CE atual. Conferir: `SELECT
@@ -24,7 +24,7 @@
 -- 'desbloqueio_divergente_zpt'`.
 --
 -- Rollback: reaplicar `reconcile_ce_unlock_alerts` e
--- `_ce_unlock_deadline_alert_on_zpt` pela 612 e dropar
+-- `_ce_unlock_deadline_alert_on_zpt` pela 621 e dropar
 -- `reconcile_ce_unlock_zpt_divergent_alert`.
 
 INSERT INTO public.alert_type_catalog (type, severity, responsible_department, audience_departments, default_destination, active)
@@ -98,7 +98,7 @@ BEGIN
     v_count := v_count + 1;
   END LOOP;
 
-  -- 613: B/L com prazo e sem desbloqueio conferido, sem limite de idade.
+  -- 622: B/L com prazo e sem desbloqueio conferido, sem limite de idade.
   -- ponytail: `ce_unlock_private.item` por B/L candidato; com milhares de B/Ls
   -- antigos sem conciliação, a rodada fica mais lenta. Upgrade: guardar o
   -- início do prazo numa coluna.

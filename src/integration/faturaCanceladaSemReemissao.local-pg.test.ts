@@ -1,4 +1,4 @@
-// Migration 615 (ADR 0132, decisão 6): a fatura de Taxas Locais cancelada por
+// Migration 624 (ADR 0134, decisão 6): a fatura de Taxas Locais cancelada por
 // uma pessoa, sem fatura nova, abre "B/L sem fatura depois do cancelamento"
 // (Normal, Documentação) 1 dia útil depois. A avulsa, o cancelamento
 // automático, o B/L isento e a fatura nova não abrem. Cada cenário roda numa
@@ -34,14 +34,14 @@ function run(c: Case): string {
               now() - interval '${c.cancelledAgo}', ${by}, 'Corrigir o CNPJ', 100);
     ${c.extra ?? ''}
     SET LOCAL session_replication_role = origin;
-    SELECT public.reconcile_cancelled_invoice_alerts('teste_615') >= 0;
+    SELECT public.reconcile_cancelled_invoice_alerts('teste_624') >= 0;
     SELECT COALESCE((SELECT concat_ws('|', i.status, i.severity, i.department) FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
       WHERE a.entity_id = '${BL}' AND i.item_type = 'fatura_cancelada_sem_reemissao'), 'sem alerta');
     ROLLBACK;`)
   return out.split('\n').at(-1) ?? ''
 }
 
-local('Fatura cancelada sem nova emissão (migration 615)', () => {
+local('Fatura cancelada sem nova emissão (migration 624)', () => {
   const cleanup = () => sql(`SET session_replication_role = replica;
     DELETE FROM public.customers WHERE id = ${CUSTOMER};
     DELETE FROM public.user_profiles WHERE id = '${USER}';

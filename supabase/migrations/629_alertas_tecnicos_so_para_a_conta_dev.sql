@@ -1,5 +1,5 @@
--- 620: alertas técnicos vão só para a conta Dev (decisões do dono de
--- 2026-11-07; ADR 0133).
+-- 629: alertas técnicos vão só para a conta Dev (decisões do dono de
+-- 2026-11-07; ADR 0135).
 --
 -- O dono, que é a conta Dev do Administrativo, é o único com as ferramentas
 -- para resolver problema técnico. Avisar os setores, inclusive o resto do
@@ -8,7 +8,7 @@
 --      Provedor de e-mail sem retorno, Rotina agendada com resposta de erro,
 --      Rotina interna sem rodar, Consulta de Pix do Itaú parada (antes do
 --      Financeiro) e Retorno do provedor não aplicado. Ficam no
---      Administrativo com a marca `notify_dev_only` (605): o sino só às contas
+--      Administrativo com a marca `notify_dev_only` (614): o sino só às contas
 --      Dev, e a fila, as contagens por setor e o número do menu só mostram
 --      esses itens a quem tem a marca Dev.
 --   2. A equipe continua recebendo e a conta Dev passa a receber também
@@ -28,11 +28,11 @@
 -- Plano de preservação: a seção 4 reescreve `alert_items.department` dos
 -- itens ativos de `itau_pix_consulta_parada` (Financeiro → Administrativo).
 -- O setor anterior fica no evento `updated` de `alert_item_events`
--- (`metadata.department_from`, `metadata.migration = '620'`). Itens
+-- (`metadata.department_from`, `metadata.migration = '629'`). Itens
 -- resolvidos e notificações entregues não mudam. Conferir: `SELECT
 -- item_type, department, status, count(*) FROM alert_items WHERE item_type =
 -- 'itau_pix_consulta_parada' GROUP BY 1, 2, 3` antes e depois. Desfazer:
--- voltar `department` pelo `metadata.department_from` dos eventos da 620, o
+-- voltar `department` pelo `metadata.department_from` dos eventos da 629, o
 -- catálogo pelos valores anteriores (Consulta Itaú: Financeiro; os seis tipos
 -- com `notify_dev_only = false`), dropar a coluna `also_notify_dev`, e
 -- reaplicar os corpos anteriores das funções corrigidas abaixo.
@@ -43,7 +43,7 @@ BEGIN;
 ALTER TABLE public.alert_type_catalog
   ADD COLUMN IF NOT EXISTS also_notify_dev boolean NOT NULL DEFAULT false;
 COMMENT ON COLUMN public.alert_type_catalog.also_notify_dev IS
-  'O sino do tipo vai também às contas Dev, além da equipe (620; falha técnica que a equipe contorna).';
+  'O sino do tipo vai também às contas Dev, além da equipe (629; falha técnica que a equipe contorna).';
 
 UPDATE public.alert_type_catalog SET responsible_department = 'administrativo', audience_departments = ARRAY['administrativo'], notify_dev_only = true WHERE type = 'import_effects_queue_stalled';
 UPDATE public.alert_type_catalog SET responsible_department = 'administrativo', audience_departments = ARRAY['administrativo'], notify_dev_only = true WHERE type = 'email_retorno_provedor_silencioso';
@@ -105,19 +105,19 @@ BEGIN
   v_tech BOOLEAN;$new$),
       ('public.fanout_alert_item_for_department(bigint,bigint,bigint,text)', 2,
        $old$  -- O papel legado `operator` é Documentação, como no resto do sistema (328).$old$,
-       $new$  -- 620: alerta técnico (pelo tipo ou pela causa) só às contas Dev.
+       $new$  -- 629: alerta técnico (pelo tipo ou pela causa) só às contas Dev.
   v_tech := COALESCE(v_catalog.notify_dev_only, false) OR public._alert_item_is_technical(v_item.item_type, v_item.metadata);
 
   -- O papel legado `operator` é Documentação, como no resto do sistema (328).$new$),
       ('public.fanout_alert_item_for_department(bigint,bigint,bigint,text)', 3,
        $old$      AND (CASE up.role WHEN 'operator' THEN 'documentacao' ELSE up.role END) = ANY (v_audience)
-      -- 605: tipo só da conta Dev (calendário de feriados).
+      -- 614: tipo só da conta Dev (calendário de feriados).
       AND (NOT COALESCE(v_catalog.notify_dev_only, false) OR up.is_dev)$old$,
        $new$      AND (
         (NOT v_tech AND (CASE up.role WHEN 'operator' THEN 'documentacao' ELSE up.role END) = ANY (v_audience))
-        -- 605/620: tipo ou causa técnica, só a conta Dev.
+        -- 614/629: tipo ou causa técnica, só a conta Dev.
         OR (v_tech AND up.is_dev)
-        -- 620: a equipe recebe e a conta Dev também.
+        -- 629: a equipe recebe e a conta Dev também.
         OR (COALESCE(v_catalog.also_notify_dev, false) AND up.is_dev))$new$),
       -- O catálogo vence o setor do produtor também na Consulta Itaú.
       ('public._alert_item_department(text,text)', 1,
@@ -139,7 +139,7 @@ BEGIN
     v_def := pg_get_functiondef(v_patch.fn::regprocedure);
     IF position(v_patch.new_text in v_def) > 0 THEN CONTINUE; END IF;  -- já aplicado
     IF (length(v_def) - length(replace(v_def, v_patch.old_text, ''))) / length(v_patch.old_text) <> 1 THEN
-      RAISE EXCEPTION '620: trecho não encontrado uma única vez em %: %', v_patch.fn, left(v_patch.old_text, 50);
+      RAISE EXCEPTION '629: trecho não encontrado uma única vez em %: %', v_patch.fn, left(v_patch.old_text, 50);
     END IF;
     EXECUTE replace(v_def, v_patch.old_text, v_patch.new_text);
   END LOOP;
@@ -160,7 +160,7 @@ BEGIN
     v_def := pg_get_functiondef(v_fn::regprocedure);
     IF position(v_new in v_def) > 0 THEN CONTINUE; END IF;
     IF (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old) <> 1 THEN
-      RAISE EXCEPTION '620: trecho não encontrado uma única vez em %', v_fn;
+      RAISE EXCEPTION '629: trecho não encontrado uma única vez em %', v_fn;
     END IF;
     EXECUTE replace(v_def, v_old, v_new);
   END LOOP;
@@ -184,7 +184,7 @@ WITH moved AS (
 )
 INSERT INTO public.alert_item_events (alert_item_id, occurrence_id, event_type, previous_status, new_status, actor_id, metadata)
 SELECT m.id, m.occurrence_id, 'updated', 'active', 'active', NULL,
-  jsonb_build_object('migration', '620', 'department_from', m.department_from, 'department_to', 'administrativo')
+  jsonb_build_object('migration', '629', 'department_from', m.department_from, 'department_to', 'administrativo')
 FROM moved m;
 
 COMMIT;

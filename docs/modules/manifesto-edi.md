@@ -972,8 +972,8 @@ e é corrigido ou removido só pela ficha do B/L; nenhuma outra importação o g
   "CE Mercante travado na viagem …", dizendo o que falta, e nada é gravado. Um
   veículo basta: o sistema não sabe quantos a Viagem terá. B/L de carga solta,
   Viagem cancelada e a correção ou remoção de CE já vinculado não passam pela
-  trava; a Viagem concluída passa desde a migration `618`
-  ([ADR 0132](../adr/0132-brechas-restantes-da-revisao-dos-alertas.md), decisão 11). A prévia devolve
+  trava; a Viagem concluída passa desde a migration `627`
+  ([ADR 0134](../adr/0134-brechas-restantes-da-revisao-dos-alertas.md), decisão 11). A prévia devolve
   `vehicle_answer_voyages` e a tela chama `request_voyage_vehicle_answer`, que abre na hora a
   Declaração de veículos pendente (marco `ce_recusado`) para Equipamentos, mesmo antes do D-7; a
   conferência a mantém aberta até a resposta. Remover o CE e vincular outro depois é vinculação nova:
@@ -982,8 +982,8 @@ e é corrigido ou removido só pela ficha do B/L; nenhuma outra importação o g
   que estava sem CE). A prévia (`_analyze_ce_mercante_rows`) mostra a recusa; o
   gatilho `guard_bl_ce_mercante_vehicle_answer` em `bls` recusa qualquer outro
   caminho. A resposta fica na tela Veículos ([`/veiculos`](#veiculos)).
-- **Trava do Baplie** (migration `610`; decisão D4 do dono de 2026-11-06;
-  [ADR 0131](../adr/0131-decisoes-da-revisao-dos-alertas.md)). Depois da trava
+- **Trava do Baplie** (migration `619`; decisão D4 do dono de 2026-11-06;
+  [ADR 0133](../adr/0133-decisoes-da-revisao-dos-alertas.md)). Depois da trava
   de veículos, a mesma função (`voyage_ce_mercante_vehicle_lock`, que devolve
   `sem_baplie`) recusa o primeiro CE de B/L de container ou misto na Viagem
   ativa sem linha em `baplie_containers` e sem a declaração "Viagem sem Baplie"

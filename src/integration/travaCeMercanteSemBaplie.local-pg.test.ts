@@ -2,7 +2,7 @@ import { execPsql, spawnPsql } from './localPsql'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 import { describeWithProbe } from './localTestData'
 
-// Migration 610 (ADR 0131, D4): o CE Mercante de B/L de container só entra
+// Migration 619 (ADR 0133, D4): o CE Mercante de B/L de container só entra
 // depois do Baplie importado ou da declaração "Viagem sem Baplie", com motivo,
 // pela Documentação ou pelo Administrativo. A prévia do CE mostra a
 // divergência aberta entre o Baplie e os B/Ls e pede confirmação.
@@ -25,7 +25,7 @@ function migrationApplied() {
   }
 }
 
-const describeLocal = describeWithProbe(migrationApplied, 'migration 610 (declare_voyage_without_baplie)')
+const describeLocal = describeWithProbe(migrationApplied, 'migration 619 (declare_voyage_without_baplie)')
 
 const ADMIN_ID = '61000000-0000-4000-8000-0000000000a1'
 const EQP_ID = '61000000-0000-4000-8000-0000000000e1'
@@ -81,7 +81,7 @@ function cleanup() {
   `)
 }
 
-describeLocal('610 — CE Mercante travado sem Baplie', () => {
+describeLocal('619 — CE Mercante travado sem Baplie', () => {
   beforeAll(() => {
     cleanup()
     psql(`
@@ -90,19 +90,19 @@ describeLocal('610 — CE Mercante travado sem Baplie', () => {
         ('${EQP_ID}', 'eqp610@test.local', 'authenticated', 'authenticated'),
         ('${DOC_ID}', 'doc610@test.local', 'authenticated', 'authenticated');
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES
-        ('${ADMIN_ID}', 'Administrativo 610', 'administrativo', true),
-        ('${EQP_ID}', 'Equipamentos 610', 'equipamentos', true),
-        ('${DOC_ID}', 'Documentação 610', 'documentacao', true);
+        ('${ADMIN_ID}', 'Administrativo 619', 'administrativo', true),
+        ('${EQP_ID}', 'Equipamentos 619', 'equipamentos', true),
+        ('${DOC_ID}', 'Documentação 619', 'documentacao', true);
       SET session_replication_role = replica;
-      INSERT INTO public.carriers (id, name) VALUES (${CARRIER_ID}, 'Carrier 610');
-      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL_ID}, 'Vessel 610', ${CARRIER_ID});
+      INSERT INTO public.carriers (id, name) VALUES (${CARRIER_ID}, 'Carrier 619');
+      INSERT INTO public.vessels (id, name, carrier_id) VALUES (${VESSEL_ID}, 'Vessel 619', ${CARRIER_ID});
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES
         (${V_MAIN}, ${VESSEL_ID}, 'V610M', 'active'), (${V_BAPLIE}, ${VESSEL_ID}, 'V610B', 'active');
       -- A trava dos veículos (597) fica respondida: aqui só o Baplie conta.
       INSERT INTO public.voyage_vehicle_declarations (voyage_id, declared_by) VALUES (${V_MAIN}, '${EQP_ID}'), (${V_BAPLIE}, '${EQP_ID}');
       INSERT INTO public.bls (id, voyage_id, pol, pod, cargo_mode, review_status, consignee) VALUES
-        ('${BL_CNTR}', ${V_MAIN}, 'CNSHA', 'BRVIT', 'container', 'ok', 'CONSIGNEE 610'),
-        ('${BL_BAPLIE}', ${V_BAPLIE}, 'CNSHA', 'BRVIT', 'container', 'ok', 'CONSIGNEE 610');
+        ('${BL_CNTR}', ${V_MAIN}, 'CNSHA', 'BRVIT', 'container', 'ok', 'CONSIGNEE 619'),
+        ('${BL_BAPLIE}', ${V_BAPLIE}, 'CNSHA', 'BRVIT', 'container', 'ok', 'CONSIGNEE 619');
       INSERT INTO public.bl_containers (bl_id, container_number, type) VALUES
         ('${BL_CNTR}', 'MSCU6100001', '40HC'), ('${BL_BAPLIE}', 'MSCU6100002', '40HC');
       INSERT INTO public.baplie_containers (voyage_id, container_number, pol, pod, status) VALUES
@@ -116,7 +116,7 @@ describeLocal('610 — CE Mercante travado sem Baplie', () => {
   it('sem Baplie, o CE de container é recusado na prévia e no banco', () => {
     expect(lock(V_MAIN)).toBe('sem_baplie')
     expect(preview(V_MAIN, BL_CNTR, '152661000000001').errors.map((e) => e.message)).toEqual([
-      'CE Mercante travado na viagem Vessel 610 V610M: o Baplie ainda não foi importado. O CE de B/L de container só é vinculado depois do Baplie, ou da declaração "Viagem sem Baplie" com motivo, na tela Baplie.',
+      'CE Mercante travado na viagem Vessel 619 V610M: o Baplie ainda não foi importado. O CE de B/L de container só é vinculado depois do Baplie, ou da declaração "Viagem sem Baplie" com motivo, na tela Baplie.',
     ])
     const linked = asTry(ADMIN_ID, `UPDATE public.bls SET ce_mercante = '152661000000001' WHERE id = '${BL_CNTR}';`)
     expect(String(linked.stderr)).toContain('o Baplie ainda não foi importado')
@@ -153,7 +153,7 @@ describeLocal('610 — CE Mercante travado sem Baplie', () => {
     expect(preview(V_BAPLIE, BL_BAPLIE, '152661000000002').needs_confirmation).toBe(false)
     psql(`SET request.jwt.claim.role = 'service_role';
       SELECT public.upsert_alert_item('voyage_baplie_documentary_coverage', 'voyage', '${V_BAPLIE}',
-        '1 container diverge entre o Baplie e os B/Ls.', 'teste_610', '{}'::jsonb, NULL);`)
+        '1 container diverge entre o Baplie e os B/Ls.', 'teste_619', '{}'::jsonb, NULL);`)
     const result = preview(V_BAPLIE, BL_BAPLIE, '152661000000002')
     expect(result.errors).toEqual([])
     expect(result.needs_confirmation).toBe(true)

@@ -1,11 +1,11 @@
--- 615: fatura e Invoice de Demurrage canceladas à mão sem nova emissão (decisão
--- 6 do dono de 2026-11-07; ADR 0132, lote C do plano
+-- 624: fatura e Invoice de Demurrage canceladas à mão sem nova emissão (decisão
+-- 6 do dono de 2026-11-07; ADR 0134, lote C do plano
 -- 2026-11-07-brechas-restantes-da-revisao-dos-alertas).
 --
 -- Cancelar a fatura de Taxas Locais devolve o B/L a não faturado e nada emite
 -- de novo sozinho; a Invoice de Demurrage cancelada à mão espera o Gerar
 -- Invoice (brecha B07). Dois tipos novos, Normais, 1 dia útil depois do
--- cancelamento (9 horas úteis, `_add_business_hours`, 608):
+-- cancelamento (9 horas úteis, `_add_business_hours`, 617):
 --   1. `fatura_cancelada_sem_reemissao` (Documentação), por B/L: a última
 --      fatura de Taxas Locais do B/L (individual, consolidada ou de Granito;
 --      a avulsa fica fora) foi cancelada por uma pessoa, o B/L ficou sem fatura
@@ -186,14 +186,14 @@ $function$;
 REVOKE ALL ON FUNCTION public.reconcile_cancelled_invoice_alerts(text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reconcile_cancelled_invoice_alerts(text) TO service_role;
 
-DO $schedule_615$
+DO $schedule_624$
 BEGIN
   IF to_regnamespace('cron') IS NULL THEN
-    RAISE WARNING '615: pg_cron ausente; agende cancelled-invoice-alerts no ambiente de produção.';
+    RAISE WARNING '624: pg_cron ausente; agende cancelled-invoice-alerts no ambiente de produção.';
     RETURN;
   END IF;
   PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'cancelled-invoice-alerts';
   PERFORM cron.schedule('cancelled-invoice-alerts', '13-59/15 * * * *',
-    $cmd_615$SELECT public.reconcile_cancelled_invoice_alerts('cancelled-invoice-alerts');$cmd_615$);
+    $cmd_624$SELECT public.reconcile_cancelled_invoice_alerts('cancelled-invoice-alerts');$cmd_624$);
 END;
-$schedule_615$;
+$schedule_624$;

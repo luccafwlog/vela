@@ -1,4 +1,4 @@
-// Migration 619 (ADR 0132, decisão 8): rotina do agendador que termina com
+// Migration 628 (ADR 0134, decisão 8): rotina do agendador que termina com
 // erro, ou que para de rodar no ritmo dela, abre "Rotina interna sem rodar"
 // (Crítico, Administrativo); voltar a rodar bem fecha. O banco local não tem
 // o histórico do pg_cron: cada cenário cria `cron.job_run_details` numa
@@ -30,7 +30,7 @@ function scenario(runs: Array<[string, number, string?]>, after = ''): string[] 
     UPDATE cron.job SET active = false WHERE jobname <> '${JOB}';
     INSERT INTO cron.job (jobname, schedule, command) VALUES ('${JOB}', '*/5 * * * *', 'SELECT 1');
     INSERT INTO cron.job_run_details (jobid, status, start_time, return_message) VALUES ${values};
-    SELECT '>falhando|' || public.reconcile_internal_job_alerts('teste_619');
+    SELECT '>falhando|' || public.reconcile_internal_job_alerts('teste_628');
     ${after}
     SELECT '>' || i.status || '|' || i.severity || '|' || i.department || '|' || i.message
       FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id
@@ -38,7 +38,7 @@ function scenario(runs: Array<[string, number, string?]>, after = ''): string[] 
     ROLLBACK;`)
 }
 
-local('Rotina interna sem rodar (migration 619)', () => {
+local('Rotina interna sem rodar (migration 628)', () => {
   it('rodando a cada 5 minutos sem erro: nada abre', () => {
     expect(scenario([['succeeded', 2], ['succeeded', 7], ['succeeded', 12], ['succeeded', 17]])).toEqual(['>falhando|0'])
   })
@@ -49,7 +49,7 @@ local('Rotina interna sem rodar (migration 619)', () => {
     expect(lines[1]).toMatch(/^>active\|critical\|administrativo\|A rotina a619-teste terminou com erro em .*: ERROR: division by zero$/)
     const fixed = scenario([['failed', 2, 'ERROR: division by zero'], ['succeeded', 7]],
       `INSERT INTO cron.job_run_details (jobid, status, start_time) VALUES ((SELECT jobid FROM cron.job WHERE jobname = '${JOB}'), 'succeeded', now());
-       SELECT '>de novo|' || public.reconcile_internal_job_alerts('teste_619');`)
+       SELECT '>de novo|' || public.reconcile_internal_job_alerts('teste_628');`)
     expect(fixed.at(-1)).toMatch(/^>resolved\|/)
   })
 

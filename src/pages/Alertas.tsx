@@ -98,7 +98,7 @@ export function Alertas() {
   const [searchParams, setSearchParams] = useSearchParams()
   const rawDept = searchParams.get('departamento') || searchParams.get('department') || 'all'
   const departmentFilter = DEPARTMENT_VALUES.includes(rawDept) ? rawDept : 'all'
-  // 622 (ADR 0134): o número de um cartão do mapa das Regras de alertas abre
+  // 631 (ADR 0136): o número de um cartão do mapa das Regras de alertas abre
   // a fila só naquele tipo. Tipo desconhecido no link é ignorado.
   const rawType = searchParams.get('tipo')
   const typeFilter = rawType && Object.prototype.hasOwnProperty.call(TYPE_LABELS, rawType) ? rawType : null

@@ -1,5 +1,5 @@
--- 607: alerta de container sem data de descarga, por atracação (decisão D2 do
--- dono de 2026-11-06; ADR 0131, lote 4 do plano
+-- 616: alerta de container sem data de descarga, por atracação (decisão D2 do
+-- dono de 2026-11-06; ADR 0133, lote 4 do plano
 -- 2026-11-06-decisoes-da-revisao-dos-alertas).
 --
 -- Sem a data de descarga, o container fica para sempre no free time; o grupo
@@ -7,7 +7,7 @@
 -- Agora, no ATB de cada terminal, abre "Container sem descarga" (Normal, de
 -- Equipamentos) quando algum container de B/L daquele terminal está sem a
 -- data; 24 horas depois do ATB, o mesmo alerta muda de marco e vira Crítico
--- (marco crítico da migration 604), com novo aviso. Fecha quando todos têm a
+-- (marco crítico da migration 613), com novo aviso. Fecha quando todos têm a
 -- descarga, o B/L é cancelado ou muda de terminal, o ATB sai ou a Viagem é
 -- cancelada.
 --
@@ -223,14 +223,14 @@ AFTER INSERT ON public.bl_containers
 REFERENCING NEW TABLE AS changed_rows
 FOR EACH STATEMENT EXECUTE FUNCTION public._container_discharge_alert_on_containers();
 
-DO $schedule_607$
+DO $schedule_616$
 BEGIN
   IF to_regnamespace('cron') IS NULL THEN
-    RAISE WARNING '607: pg_cron ausente; agende container-discharge-alerts no ambiente de produção.';
+    RAISE WARNING '616: pg_cron ausente; agende container-discharge-alerts no ambiente de produção.';
     RETURN;
   END IF;
   PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'container-discharge-alerts';
   PERFORM cron.schedule('container-discharge-alerts', '11-59/15 * * * *',
-    $cmd_607$SELECT public.reconcile_container_discharge_alerts('container-discharge-alerts');$cmd_607$);
+    $cmd_616$SELECT public.reconcile_container_discharge_alerts('container-discharge-alerts');$cmd_616$);
 END;
-$schedule_607$;
+$schedule_616$;

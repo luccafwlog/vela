@@ -96,9 +96,9 @@ export type CeServerPreview = {
   changes: number
   moves: number
   needs_confirmation: boolean
-  /** 610: divergência aberta entre o Baplie e os B/Ls da viagem; pede confirmação. */
+  /** 619: divergência aberta entre o Baplie e os B/Ls da viagem; pede confirmação. */
   baplie_divergence?: string | null
-  /** 618: Viagens recusadas por falta de resposta de veículos; Equipamentos é avisado. */
+  /** 627: Viagens recusadas por falta de resposta de veículos; Equipamentos é avisado. */
   vehicle_answer_voyages?: number[]
   manifesto: { numero: string | null; exists: boolean }
 }
@@ -118,7 +118,7 @@ export async function previewCeMercanteRows(
   } as never)
   if (error) throw error
   const preview = data as unknown as CeServerPreview
-  // 618 (ADR 0132, decisão 11): a recusa por falta de resposta de veículos avisa
+  // 627 (ADR 0134, decisão 11): a recusa por falta de resposta de veículos avisa
   // Equipamentos na hora. A prévia roda só de leitura; o pedido vai à parte e,
   // se falhar, a recusa continua valendo e o alerta abre no D-7.
   await Promise.all((preview.vehicle_answer_voyages ?? []).map(async (voyageId) => {

@@ -1,4 +1,4 @@
-// Migration 609 (ADR 0131, D5): com exportação declarada na escala e o
+// Migration 618 (ADR 0133, D5): com exportação declarada na escala e o
 // manifesto não vinculado à Viagem, o ADR recusa "Nada a declarar" na seção
 // da exportação e recusa fechar. Com o manifesto vinculado, ou sem exportação
 // declarada, segue como antes. Cada cenário roda numa transação desfeita.
@@ -46,7 +46,7 @@ const nothing = (section: string) =>
   `INSERT INTO public.agency_departure_report_signoffs (report_id, section, state, department) VALUES ('${REPORT}', '${section}', 'nothing_to_declare', 'equipamentos');`
 const close = `UPDATE public.agency_departure_reports SET status = 'closed', closed_at = now() WHERE id = '${REPORT}';`
 
-local('ADR recusa sem a exportação lançada (migration 609)', () => {
+local('ADR recusa sem a exportação lançada (migration 618)', () => {
   it('Granito declarado e sem manifesto: Carga carregada recusa Nada a declarar', () => {
     expect(run({ granite: true, empty: false }, nothing('carga_carregada'))).toContain('nenhum manifesto de Granito')
     // A seção dos vazios não depende do Granito.

@@ -1,12 +1,12 @@
--- 617: Liberação de faturamento vencendo (decisão 9 do dono de 2026-11-07; ADR
--- 0132, lote E do plano 2026-11-07-brechas-restantes-da-revisao-dos-alertas).
+-- 626: Liberação de faturamento vencendo (decisão 9 do dono de 2026-11-07; ADR
+-- 0134, lote E do plano 2026-11-07-brechas-restantes-da-revisao-dos-alertas).
 --
 -- A Liberação de faturamento (`customer_billing_portal_releases`) deixa sair a
 -- fatura do Cliente sem Portal pronto até `review_at`. Ela vencia sem aviso, e
 -- o alerta do vencimento caía na Documentação, que não renova (brecha B15).
 -- Agora abre **Liberação de faturamento vencendo** (`liberacao_vencendo`,
 -- Normal, Administrativo), por Cliente, 2 dias úteis antes do vencimento
--- (`_add_business_hours`, 608: o vencimento cai dentro das próximas 18 horas
+-- (`_add_business_hours`, 617: o vencimento cai dentro das próximas 18 horas
 -- úteis), se o Cliente ainda não tem o Portal pronto para faturar
 -- (`customer_portal_billing_ready`). Fecha com a renovação (nova Liberação
 -- além da janela), o Portal pronto, a revogação ou o vencimento (dali em
@@ -120,14 +120,14 @@ CREATE TRIGGER trg_billing_release_expiring_alert
   AFTER INSERT OR UPDATE OF review_at, revoked_at ON public.customer_billing_portal_releases
   FOR EACH ROW EXECUTE FUNCTION public._billing_release_expiring_alert_trigger();
 
-DO $schedule_617$
+DO $schedule_626$
 BEGIN
   IF to_regnamespace('cron') IS NULL THEN
-    RAISE WARNING '617: pg_cron ausente; agende billing-release-expiring-alerts no ambiente de produção.';
+    RAISE WARNING '626: pg_cron ausente; agende billing-release-expiring-alerts no ambiente de produção.';
     RETURN;
   END IF;
   PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'billing-release-expiring-alerts';
   PERFORM cron.schedule('billing-release-expiring-alerts', '23 * * * *',
-    $cmd_617$SELECT public.reconcile_billing_release_expiring_alerts('billing-release-expiring-alerts');$cmd_617$);
+    $cmd_626$SELECT public.reconcile_billing_release_expiring_alerts('billing-release-expiring-alerts');$cmd_626$);
 END;
-$schedule_617$;
+$schedule_626$;

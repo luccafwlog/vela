@@ -1,9 +1,9 @@
-// Migration 608 (ADR 0131, D1): alertas do Desbloqueio de CE.
+// Migration 617 (ADR 0133, D1): alertas do Desbloqueio de CE.
 // - Solicitação do Cliente sem análise 2 horas úteis (08h–17h, dia útil)
 //   depois do envio: Crítico, para Documentação e Administrativo.
 // - Prazo do desbloqueio correndo: Normal 2 horas depois do início, Crítico 2
 //   horas antes do vencimento; fecha quando a conciliação da ZPT traz o B/L
-//   desbloqueado no CE atual (migration 612), não com a exportação.
+//   desbloqueado no CE atual (migration 621), não com a exportação.
 // Cada cenário roda numa transação desfeita no fim.
 //
 // Namespace exclusivo: Cliente/Viagem 998608, B/L 'A608-*', usuários ...000000608001/2.
@@ -27,7 +27,7 @@ function sql(q: string): string {
     .replaceAll(String.fromCharCode(13), '').trim()
 }
 
-// `afterSweep`: SQL rodado depois da conferência, com os gatilhos ligados (a conciliação da ZPT, na 612).
+// `afterSweep`: SQL rodado depois da conferência, com os gatilhos ligados (a conciliação da ZPT, na 621).
 type Scenario = { submittedAgo: string; approved: boolean; startedAgo?: string; exported?: boolean; afterSweep?: string }
 
 /** Monta a solicitação, roda a conferência e devolve os alertas e avisos. */
@@ -49,7 +49,7 @@ function run(s: Scenario): Record<string, string | number | null> {
       VALUES('${request}','${BL}','998608000000101','${termo}','${procuracao}',${s.approved},${s.approved},${s.exported ? 'now()' : 'NULL'});
     INSERT INTO public.ce_unlock_bl_deliveries(bl_id,delivered,updated_at) VALUES('${BL}',true,${start});
     SET LOCAL session_replication_role=origin;
-    SELECT public.reconcile_ce_unlock_alerts('teste_608') >= 0;
+    SELECT public.reconcile_ce_unlock_alerts('teste_617') >= 0;
     ${s.afterSweep ?? ''}
     SELECT jsonb_build_object(
       'request', (SELECT concat_ws('|', i.status, i.severity, i.department) FROM public.alert_items i JOIN public.alerts a ON a.id=i.alert_id
@@ -68,7 +68,7 @@ function run(s: Scenario): Record<string, string | number | null> {
   return JSON.parse(out.split('\n').at(-1) ?? 'null') as Record<string, string | number | null>
 }
 
-local('Alertas do Desbloqueio de CE (migration 608)', () => {
+local('Alertas do Desbloqueio de CE (migration 617)', () => {
   const cleanup = () => sql(`SET session_replication_role=replica;
     DELETE FROM public.internal_notifications WHERE recipient_id IN('${doc}','${adm}');
     DELETE FROM public.voyages WHERE id=${customer}; DELETE FROM public.vessels WHERE id=${customer}; DELETE FROM public.carriers WHERE id=${customer};
@@ -116,13 +116,13 @@ local('Alertas do Desbloqueio de CE (migration 608)', () => {
     expect(late.request).toBeNull()
   })
 
-  it('612: exportar não fecha; segue Crítico e diz que falta a conciliação da ZPT', () => {
+  it('621: exportar não fecha; segue Crítico e diz que falta a conciliação da ZPT', () => {
     const r = run({ submittedAgo: '6 days', approved: true, startedAgo: '5 days', exported: true })
     expect(r.deadline).toBe('active|critical|prazo_critico')
     expect(r.message).toContain('Exportado para a ZPT; falta a conciliação trazer o B/L desbloqueado.')
   })
 
-  it('612: a conciliação da ZPT com "Desbloqueado" no CE atual fecha na hora; no CE antigo, não', () => {
+  it('621: a conciliação da ZPT com "Desbloqueado" no CE atual fecha na hora; no CE antigo, não', () => {
     const zpt = (ce: string) => `INSERT INTO public.ce_unlock_zpt_status(bl_id,ce_mercante,status,zpt_status,reconciled_by)
       VALUES('${BL}','${ce}','unlocked','Desbloqueado','${doc}');`
     expect(run({ submittedAgo: '6 days', approved: true, startedAgo: '5 days', exported: true, afterSweep: zpt('998608000000101') }).deadline)
@@ -131,12 +131,12 @@ local('Alertas do Desbloqueio de CE (migration 608)', () => {
       .toBe('active|critical|prazo_critico')
   })
 
-  it('613: sem limite de idade, o prazo de um B/L exportado há 60 dias e nunca conciliado abre', () => {
+  it('622: sem limite de idade, o prazo de um B/L exportado há 60 dias e nunca conciliado abre', () => {
     expect(run({ submittedAgo: '70 days', approved: true, startedAgo: '60 days', exported: true }).deadline)
       .toBe('active|critical|prazo_critico')
   })
 
-  it('613: conciliação Divergente abre Crítico com o motivo da ZPT; a seguinte com Desbloqueado fecha', () => {
+  it('622: conciliação Divergente abre Crítico com o motivo da ZPT; a seguinte com Desbloqueado fecha', () => {
     const divergent = `INSERT INTO public.ce_unlock_zpt_status(bl_id,ce_mercante,status,zpt_status,description,pending,reconciled_by)
       VALUES('${BL}','998608000000101','divergent','Bloqueado','CE de outro B/L',ARRAY['Procuração'],'${doc}');`
     const r = run({ submittedAgo: '6 days', approved: true, startedAgo: '5 days', exported: true, afterSweep: divergent })

@@ -1,6 +1,6 @@
 # 0039 — Prazo de Conclusão do ADR: contagem a partir do ATD real, medida por departamento
 
-> **Situação atual (2026-11-06).** O fechamento deixou de ser ato sem dono: a [ADR 0131](./0131-decisoes-da-revisao-dos-alertas.md) (D6, migration `611`) faz o ADR fechar sozinho quando a terceira equipe assina e mandar e-mail com o resumo e o link a todos os usuários internos ativos. O prazo por departamento abaixo continua valendo.
+> **Situação atual (2026-11-06).** O fechamento deixou de ser ato sem dono: a [ADR 0133](./0133-decisoes-da-revisao-dos-alertas.md) (D6, migration `620`) faz o ADR fechar sozinho quando a terceira equipe assina e mandar e-mail com o resumo e o link a todos os usuários internos ativos. O prazo por departamento abaixo continua valendo.
 
 > **Situação atual (2026-10-15).** O prazo passou a ser de **72 horas corridas a partir da hora do ATD** (decisão do responsável; migration `290`), no lugar dos três dias úteis contados do dia do ATD. ADRs abertos passam à regra nova; os fechados mantêm o prazo congelado. O restante da nota de 2026-10-13 abaixo segue valendo.
 

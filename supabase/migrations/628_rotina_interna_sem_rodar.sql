@@ -1,5 +1,5 @@
--- 619: rotina interna que falha ou para de rodar abre alerta, e o vigia manda
--- sinal ao Better Stack (decisão 8 do dono de 2026-11-07; ADR 0132, lote G do
+-- 628: rotina interna que falha ou para de rodar abre alerta, e o vigia manda
+-- sinal ao Better Stack (decisão 8 do dono de 2026-11-07; ADR 0134, lote G do
 -- plano 2026-11-07-brechas-restantes-da-revisao-dos-alertas).
 --
 -- Rotinas só de banco (situação da Demurrage, Demurrage travada, prazo da
@@ -134,14 +134,14 @@ $function$;
 REVOKE ALL ON FUNCTION public.reconcile_internal_job_alerts(text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reconcile_internal_job_alerts(text) TO service_role;
 
-DO $schedule_619$
+DO $schedule_628$
 BEGIN
   IF to_regnamespace('cron') IS NULL THEN
-    RAISE WARNING '619: pg_cron ausente; agende internal-jobs-health no ambiente de produção.';
+    RAISE WARNING '628: pg_cron ausente; agende internal-jobs-health no ambiente de produção.';
     RETURN;
   END IF;
   PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'internal-jobs-health';
   PERFORM cron.schedule('internal-jobs-health', '6-59/15 * * * *',
-    $cmd_619$SELECT public.reconcile_internal_job_alerts('internal-jobs-health');$cmd_619$);
+    $cmd_628$SELECT public.reconcile_internal_job_alerts('internal-jobs-health');$cmd_628$);
 END;
-$schedule_619$;
+$schedule_628$;

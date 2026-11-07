@@ -1,11 +1,11 @@
--- 622: quantos alertas de cada tipo a pessoa vê na fila agora (decisão do
--- dono de 2026-11-07, ADR 0134, item 2). É o número de cada cartão do mapa
+-- 631: quantos alertas de cada tipo a pessoa vê na fila agora (decisão do
+-- dono de 2026-11-07, ADR 0136, item 2). É o número de cada cartão do mapa
 -- da tela Regras de alertas; clicar nele abre a fila filtrada no tipo.
 --
 -- Conta o que a fila mostra a quem pergunta, item por item, como
--- `list_alert_queue_page`: o alerta técnico (620, `_alert_item_visible_to_caller`)
+-- `list_alert_queue_page`: o alerta técnico (629, `_alert_item_visible_to_caller`)
 -- conta só para a conta Dev. O "Abertos agora" da ficha
--- (`list_alert_type_settings`, 603) continua contando todos os itens do tipo,
+-- (`list_alert_type_settings`, 612) continua contando todos os itens do tipo,
 -- porque é o que a troca de gravidade alcança.
 --
 -- Plano de preservação: só cria uma função de leitura; não grava, não muda
@@ -37,7 +37,7 @@ END;
 $function$;
 
 COMMENT ON FUNCTION public.count_alert_queue_by_type() IS
-  'Alertas ativos por tipo que a pessoa vê na fila (622, ADR 0134): o técnico conta só para a conta Dev.';
+  'Alertas ativos por tipo que a pessoa vê na fila (631, ADR 0136): o técnico conta só para a conta Dev.';
 
 REVOKE ALL ON FUNCTION public.count_alert_queue_by_type() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.count_alert_queue_by_type() TO authenticated, service_role;

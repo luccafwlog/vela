@@ -1,6 +1,6 @@
--- 603: a gravidade de cada tipo de alerta passa a ser trocada na tela Regras
+-- 612: a gravidade de cada tipo de alerta passa a ser trocada na tela Regras
 -- de alertas, pelo Administrativo, com motivo (pedido do dono de 2026-11-06;
--- ADR 0130).
+-- ADR 0132).
 --
 -- Até aqui a gravidade (Crítico ou Normal) de um tipo só mudava por migration
 -- (a 467 fez Crítico a Fatura desatualizada). Ela decide a ordem da fila (os
@@ -82,7 +82,7 @@ END;
 $function$;
 
 COMMENT ON FUNCTION public.list_alert_type_settings() IS
-  'Gravidade vigente de cada tipo ativo de alerta, alertas abertos e a última troca feita na tela Regras de alertas (603, ADR 0130).';
+  'Gravidade vigente de cada tipo ativo de alerta, alertas abertos e a última troca feita na tela Regras de alertas (612, ADR 0132).';
 
 REVOKE ALL ON FUNCTION public.list_alert_type_settings() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.list_alert_type_settings() TO authenticated, service_role;
@@ -103,7 +103,7 @@ BEGIN
   IF auth.uid() IS NULL OR NOT public.is_active_user() THEN
     RAISE EXCEPTION 'Sem permissão.' USING ERRCODE = '42501';
   END IF;
-  -- ADR 0130: só o Administrativo (e a conta Dev, que é do Administrativo).
+  -- ADR 0132: só o Administrativo (e a conta Dev, que é do Administrativo).
   IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'Somente o Administrativo troca a gravidade de um alerta.' USING ERRCODE = '42501';
   END IF;
@@ -158,7 +158,7 @@ END;
 $function$;
 
 COMMENT ON FUNCTION public.set_alert_type_severity(text, text, text) IS
-  'Troca a gravidade (critical/normal) de um tipo de alerta e dos alertas abertos dele; só o Administrativo, com motivo (603, ADR 0130).';
+  'Troca a gravidade (critical/normal) de um tipo de alerta e dos alertas abertos dele; só o Administrativo, com motivo (612, ADR 0132).';
 
 REVOKE ALL ON FUNCTION public.set_alert_type_severity(text, text, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.set_alert_type_severity(text, text, text) TO authenticated, service_role;

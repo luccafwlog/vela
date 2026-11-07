@@ -1,11 +1,11 @@
-# 0132 — Brechas restantes da revisão dos alertas
+# 0134 — Brechas restantes da revisão dos alertas
 
 Status: aceito — 2026-11-07 (decisões do dono, uma a uma). Implementação no
 [plano](../archive/plans/2026-11-07-brechas-restantes-da-revisao-dos-alertas.md).
 
 ## Contexto
 
-A [ADR 0131](./0131-decisoes-da-revisao-dos-alertas.md) tratou oito decisões da
+A [ADR 0133](./0133-decisoes-da-revisao-dos-alertas.md) tratou oito decisões da
 [revisão de cobertura dos alertas](../archive/audits/2026-11-06-cobertura-dos-alertas-no-fluxo-de-trabalho.md).
 Ficaram duas pendências da implementação e dez brechas sem decisão. O dono
 decidiu cada uma em 2026-11-07, antes da PR para `staging`.
@@ -14,7 +14,7 @@ decidiu cada uma em 2026-11-07, antes da PR para `staging`.
 
 1. **Prazo do desbloqueio sem limite de idade.** O alerta **Prazo do
    desbloqueio vencendo** abre para todo B/L com prazo e sem desbloqueio
-   conferido pela ZPT, sem o corte de 30 dias da migration `612`.
+   conferido pela ZPT, sem o corte de 30 dias da migration `621`.
 2. **E-mail ADR fechado:** continua indo a todos os usuários internos ativos.
 3. **B03 — Divergente na ZPT.** Alerta Crítico na hora da conciliação, para a
    Documentação e o Administrativo, com o motivo da ZPT. Fecha quando uma

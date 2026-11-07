@@ -160,7 +160,7 @@ export async function afterDeclaracaoVeiculosAlterada(queryClient: QueryInvalida
 }
 
 /**
- * Declaração "Viagem sem Baplie" feita ou desfeita (migration 610): a própria
+ * Declaração "Viagem sem Baplie" feita ou desfeita (migration 619): a própria
  * declaração, a linha do tempo da viagem e os alertas (o "Baplie ausente" fecha
  * ou reabre).
  */
@@ -174,7 +174,7 @@ export async function afterDeclaracaoBaplieAlterada(queryClient: QueryInvalidato
 
 /**
  * Gravidade de um tipo de alerta trocada na tela Regras de alertas (migration
- * 603, ADR 0130): a própria tela, a fila (ordem e cartão Críticos), os cartões
+ * 612, ADR 0132): a própria tela, a fila (ordem e cartão Críticos), os cartões
  * por setor do Painel, o painel financeiro e o Histórico de ações.
  */
 export async function afterGravidadeDoAlertaAlterada(queryClient: QueryInvalidator): Promise<void> {

@@ -5,7 +5,7 @@ import { ENTITY_TYPE_LABELS, TYPE_LABELS, type ActiveAlertType } from './alerts'
 // vivo quer dizer, em linguagem de quem opera o Vela. Os textos seguem o
 // capítulo 20 do Manual do Operador e os assuntos dele (20.4 a 20.13).
 //
-// Regra de escrita (pedido do dono de 2026-11-06, ADR 0130): a tela não fala
+// Regra de escrita (pedido do dono de 2026-11-06, ADR 0132): a tela não fala
 // de migration, função, tabela, rotina técnica nem endereço de tela. A origem
 // técnica de cada regra fica nos comentários deste arquivo, para quem mantém
 // o código.
@@ -57,7 +57,7 @@ export type AlertRule = {
   entityType: keyof typeof ENTITY_TYPE_LABELS
   /**
    * Gravidade de fábrica, a do `alert_type_catalog` semeado pelas migrations.
-   * Desde a migration 603 o Administrativo troca a gravidade na tela; a
+   * Desde a migration 612 o Administrativo troca a gravidade na tela; a
    * vigente vem de `list_alert_type_settings` (`useAlertTypeSettings`).
    */
   severity: AlertRuleSeverity
@@ -154,7 +154,7 @@ const ALERT_RULES_BASE = [
     severity: 'normal',
     summary: 'Uma escala está sem a data que o navio já devia ter.',
     trigger: 'No dia do ETA (horário de Brasília), se a escala não tem ATA. Com o ATA, se a escala não tem terminal nenhum nem frente para atribuir. A frente sem terminal é cobrada em Escala sem terminal; com terminal, o ETB é cobrado em Data de terminal pendente.',
-    // 606 (ADR 0131, D3): 16 horas depois do ETA sem ATA, Crítico pelo marco.
+    // 615 (ADR 0133, D3): 16 horas depois do ETA sem ATA, Crítico pelo marco.
     timing: `${detectorRound} no dia do ETA e no fim de cada gravação da escala. Se o ATA não entra até 16 horas depois do ETA, o alerta vira Crítico e avisa de novo.`,
     resolution: 'Abra a Viagem e registre o ATA da escala, ou escolha o terminal e o ETB em Editar escala.',
     destination: '/viagens',
@@ -172,7 +172,7 @@ const ALERT_RULES_BASE = [
     severity: 'normal',
     summary: 'Uma atracação está sem a data do terminal que já devia ter.',
     trigger: 'Para cada terminal: com o ATA da escala, enquanto falta o ETB; no dia do ETB, sem ATB; com o ATB, enquanto falta o ETD; no dia do ETD, sem ATD.',
-    // 606 (ADR 0131, D3): 16 horas depois do ETD sem ATD, Crítico pelo marco.
+    // 615 (ADR 0133, D3): 16 horas depois do ETD sem ATD, Crítico pelo marco.
     timing: `${detectorRound} no dia da data prevista, ou logo depois de a data anterior ser gravada. Cada terminal da escala tem a própria sequência. Se o ATD não entra até 16 horas depois do ETD, o alerta vira Crítico e avisa de novo.`,
     resolution: 'Abra a Viagem e registre a data cobrada no cartão do terminal.',
     destination: '/viagens',
@@ -218,7 +218,7 @@ const ALERT_RULES_BASE = [
     impact: 'Sem o B/L, a carga fica sem Cliente para os avisos de chegada, o CE Mercante e a fatura. Um B/L que divide container e chega depois do CE refaz a divisão do container e a fatura de quem já foi faturado.',
   },
   {
-    // Migrations 324 e 341: fecha na importação do Baplie; 610 (ADR 0131,
+    // Migrations 324 e 341: fecha na importação do Baplie; 619 (ADR 0133,
     // D4): fecha também com a declaração "Viagem sem Baplie", e sem um nem
     // outro o CE de B/L de container é recusado.
     type: 'voyage_baplie_missing',
@@ -381,7 +381,7 @@ const ALERT_RULES_BASE = [
     type: 'review_portal_not_ready',
     domain: 'Documentação e importação',
     responsible: 'documentacao',
-    // 605 (ADR 0131, D7): avisa também o Administrativo.
+    // 614 (ADR 0133, D7): avisa também o Administrativo.
     catalogAudience: ['documentacao', 'administrativo'],
     routingNote: 'Avisa também o Administrativo, que concede a Liberação de faturamento sem Portal.',
     entityType: 'customer',
@@ -533,7 +533,7 @@ const ALERT_RULES_BASE = [
     afterResolution: 'Sozinho, quando a fatura é paga (mesmo em parte), cancelada ou substituída.',
     impact: 'O Cliente não vê a fatura no Portal e pode não pagar a tempo.',
   },  {
-    // Migration 617 (ADR 0132, decisão 9): 2 dias úteis antes do vencimento da Liberação.
+    // Migration 626 (ADR 0134, decisão 9): 2 dias úteis antes do vencimento da Liberação.
     type: 'liberacao_vencendo',
     domain: 'Cliente e Portal',
     responsible: 'administrativo',
@@ -754,7 +754,7 @@ const ALERT_RULES_BASE = [
     type: 'billing_calculation_blocked',
     domain: 'Faturamento e Taxas Locais',
     responsible: 'documentacao',
-    // 605 (ADR 0131, D7): avisa também o Administrativo.
+    // 614 (ADR 0133, D7): avisa também o Administrativo.
     catalogAudience: ['documentacao', 'administrativo'],
     routingNote: 'Avisa também o Administrativo: ativar ou corrigir uma tabela de cobrança já usada e conceder a Liberação de faturamento são só dele.',
     entityType: 'bl',
@@ -792,7 +792,7 @@ const ALERT_RULES_BASE = [
     type: 'billing_charge_table_missing',
     domain: 'Faturamento e Taxas Locais',
     responsible: 'documentacao',
-    // 605 (ADR 0131, D7): avisa também o Administrativo.
+    // 614 (ADR 0133, D7): avisa também o Administrativo.
     catalogAudience: ['documentacao', 'administrativo'],
     routingNote: 'Avisa também o Administrativo: qualquer equipe cadastra a tabela, mas só ele a ativa ou corrige item de tabela já usada.',
     entityType: 'charge_table_gap',
@@ -840,7 +840,7 @@ const ALERT_RULES_BASE = [
     afterResolution: 'Com justificativa. Uma nova mudança que afete taxa alterada à mão abre outro.',
     impact: 'O valor combinado à mão pode ter se perdido: a fatura pode sair, ou já ter saído, diferente do combinado com o Cliente.',
   },  {
-    // Migration 615 (ADR 0132, decisão 6): 1 dia útil depois do cancelamento à mão, sem fatura nova.
+    // Migration 624 (ADR 0134, decisão 6): 1 dia útil depois do cancelamento à mão, sem fatura nova.
     type: 'fatura_cancelada_sem_reemissao',
     domain: 'Faturamento e Taxas Locais',
     responsible: 'documentacao',
@@ -915,7 +915,7 @@ const ALERT_RULES_BASE = [
     impact: 'A Invoice de Demurrage não sai, e a sobreestadia corre sem cobrança.',
   },
   {
-    // Migration 607 (ADR 0131, D2): por atracação, Normal no ATB, Crítico em 24 horas.
+    // Migration 616 (ADR 0133, D2): por atracação, Normal no ATB, Crítico em 24 horas.
     type: 'container_sem_descarga',
     domain: 'Demurrage',
     responsible: 'equipamentos',
@@ -967,7 +967,7 @@ const ALERT_RULES_BASE = [
     afterResolution: 'A falha repetida fecha sozinha quando a cobrança sai; a recusa, com justificativa. Os dois fecham quando a Invoice é paga, isenta ou cancelada.',
     impact: 'O Cliente não recebe a cobrança, e a Invoice pode vencer sem aviso.',
   },  {
-    // Migration 615 (ADR 0132, decisão 6): Invoice cancelada à mão, grupo esperando o Gerar Invoice.
+    // Migration 624 (ADR 0134, decisão 6): Invoice cancelada à mão, grupo esperando o Gerar Invoice.
     type: 'demurrage_cancelada_sem_reemissao',
     domain: 'Demurrage',
     responsible: 'equipamentos',
@@ -1114,7 +1114,7 @@ const ALERT_RULES_BASE = [
     impact: 'O Cliente pode não saber que um documento foi recusado ou que a documentação foi validada, e o desbloqueio atrasa.',
   },
   {
-    // Migration 608 (ADR 0131, D1): 2 horas úteis sem análise.
+    // Migration 617 (ADR 0133, D1): 2 horas úteis sem análise.
     type: 'desbloqueio_solicitacao_sem_analise',
     domain: 'Desbloqueio de CE',
     responsible: 'documentacao',
@@ -1132,8 +1132,8 @@ const ALERT_RULES_BASE = [
     impact: 'Sem a análise, o prazo de liberação não começa e a carga do Cliente continua retida.',
   },
   {
-    // Migration 608 (ADR 0131, D1): Normal 2 horas depois do início, Crítico 2 horas antes do vencimento.
-    // 612: fecha com a conciliação da ZPT trazendo o B/L desbloqueado, não com a exportação.
+    // Migration 617 (ADR 0133, D1): Normal 2 horas depois do início, Crítico 2 horas antes do vencimento.
+    // 621: fecha com a conciliação da ZPT trazendo o B/L desbloqueado, não com a exportação.
     type: 'desbloqueio_prazo_vencendo',
     domain: 'Desbloqueio de CE',
     responsible: 'documentacao',
@@ -1150,7 +1150,7 @@ const ALERT_RULES_BASE = [
     impact: 'Passado o prazo, o Cliente fica sem a liberação prometida e a carga continua retida no terminal.',
   },
   {
-    // Migration 613 (ADR 0132, decisão 3): Divergente na conciliação da ZPT.
+    // Migration 622 (ADR 0134, decisão 3): Divergente na conciliação da ZPT.
     type: 'desbloqueio_divergente_zpt',
     domain: 'Desbloqueio de CE',
     responsible: 'documentacao',
@@ -1263,7 +1263,7 @@ const ALERT_RULES_BASE = [
     afterResolution: closesOrHeld,
     impact: 'O que a rotina faria fica parado: avisos ao Cliente, cobrança, baixa do Pix ou a própria conferência dos alertas.',
   },  {
-    // Migration 619 (ADR 0132, decisão 8): rotina do agendador com erro ou parada.
+    // Migration 628 (ADR 0134, decisão 8): rotina do agendador com erro ou parada.
     type: 'rotina_interna_sem_rodar',
     domain: 'Rotinas paradas',
     responsible: 'administrativo',

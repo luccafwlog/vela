@@ -1,5 +1,5 @@
--- 604: reforço por tempo dos alertas e gravidade do item (decisão D8 do dono
--- de 2026-11-06; ADR 0131, lote 1 do plano 2026-11-06-decisoes-da-revisao-dos-alertas).
+-- 613: reforço por tempo dos alertas e gravidade do item (decisão D8 do dono
+-- de 2026-11-06; ADR 0133, lote 1 do plano 2026-11-06-decisoes-da-revisao-dos-alertas).
 --
 -- Até aqui a gravidade era só do tipo (`alert_type_catalog.severity`): todo
 -- alerta aberto de um tipo tinha a mesma, e um alerta Normal esquecido avisava
@@ -18,7 +18,7 @@
 -- 3. `set_alert_type_escalation(tipo, horas, motivo)`: só o Administrativo,
 --    na tela Regras de alertas; `NULL` tira o reforço. Grava em `audit_logs`
 --    (`alert_type`, campo `escalate_after_hours`).
--- 4. `set_alert_type_severity` (603) não rebaixa o item escalado quando o
+-- 4. `set_alert_type_severity` (612) não rebaixa o item escalado quando o
 --    tipo passa a Normal; `list_alert_type_settings` devolve também o reforço.
 --
 -- Plano de preservação: a migration só acrescenta duas colunas vazias
@@ -32,7 +32,7 @@
 --
 -- Rollback: reaplicar `upsert_alert_item` (8 argumentos) e
 -- `upsert_alert_item_before_milestone_hardening` pela definição vigente da
--- 587/485, `set_alert_type_severity` e `list_alert_type_settings` pela 603,
+-- 587/485, `set_alert_type_severity` e `list_alert_type_settings` pela 612,
 -- `cron.unschedule('alerts-escalation')` e remover as duas colunas.
 
 ALTER TABLE public.alert_type_catalog
@@ -43,12 +43,12 @@ ALTER TABLE public.alert_type_catalog
   ADD CONSTRAINT alert_type_catalog_escalate_after_hours_check
   CHECK (escalate_after_hours IS NULL OR escalate_after_hours BETWEEN 1 AND 720);
 COMMENT ON COLUMN public.alert_type_catalog.escalate_after_hours IS
-  'Reforço por tempo (604): o alerta Normal aberto há mais de N horas vira Crítico e avisa de novo. NULL = sem reforço.';
+  'Reforço por tempo (613): o alerta Normal aberto há mais de N horas vira Crítico e avisa de novo. NULL = sem reforço.';
 
 ALTER TABLE public.alert_items
   ADD COLUMN IF NOT EXISTS escalated_at timestamp with time zone;
 COMMENT ON COLUMN public.alert_items.escalated_at IS
-  'Quando o reforço por tempo (604) escalou o item a Crítico, na ocorrência atual; zera ao reabrir ou mudar de marco.';
+  'Quando o reforço por tempo (613) escalou o item a Crítico, na ocorrência atual; zera ao reabrir ou mudar de marco.';
 
 -- 1. Abertura do alerta: gravidade do item ----------------------------------
 
@@ -68,7 +68,7 @@ DECLARE
   v_item_changed BOOLEAN := false;
   v_department TEXT := NULLIF(btrim(p_department), '');
   v_effective_destination TEXT;
-  -- 604 (ADR 0131): gravidade do item, que pode ficar acima da do tipo.
+  -- 613 (ADR 0133): gravidade do item, que pode ficar acima da do tipo.
   v_severity TEXT;
 BEGIN
   IF NOT public.alert_actor_is_authorized() THEN
@@ -122,7 +122,7 @@ BEGIN
   WHERE alert_id = v_alert.id AND item_type = p_type AND department = v_department
   FOR UPDATE;
 
-  -- 604 (ADR 0131): o item é Crítico quando o tipo é, quando o produtor marca
+  -- 613 (ADR 0133): o item é Crítico quando o tipo é, quando o produtor marca
   -- o marco como crítico (`metadata.severity`) ou quando o reforço por tempo
   -- já o escalou nesta ocorrência (`escalated_at`, zerado ao reabrir).
   v_severity := CASE
@@ -276,7 +276,7 @@ BEGIN
     WHERE i.id = v_before.id
     FOR UPDATE;
 
-    -- 604 (ADR 0131): marco novo é ocorrência nova; o reforço por tempo
+    -- 613 (ADR 0133): marco novo é ocorrência nova; o reforço por tempo
     -- recomeça, e a gravidade é a do tipo ou a do marco.
     UPDATE public.alert_items
     SET occurrence_id = gen_random_uuid(), updated_at = now(), escalated_at = NULL,
@@ -364,21 +364,21 @@ END;
 $function$;
 
 COMMENT ON FUNCTION public.escalate_aged_alert_items() IS
-  'Reforço por tempo (604, ADR 0131): escala a Crítico o alerta Normal aberto há mais horas que o tipo permite, e avisa de novo.';
+  'Reforço por tempo (613, ADR 0133): escala a Crítico o alerta Normal aberto há mais horas que o tipo permite, e avisa de novo.';
 REVOKE ALL ON FUNCTION public.escalate_aged_alert_items() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.escalate_aged_alert_items() TO service_role;
 
-DO $schedule_604$
+DO $schedule_613$
 BEGIN
   IF to_regnamespace('cron') IS NULL THEN
-    RAISE WARNING '604: pg_cron ausente; agende alerts-escalation no ambiente de produção.';
+    RAISE WARNING '613: pg_cron ausente; agende alerts-escalation no ambiente de produção.';
     RETURN;
   END IF;
   PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'alerts-escalation';
   PERFORM cron.schedule('alerts-escalation', '*/5 * * * *',
-    $cmd_604$SELECT public.escalate_aged_alert_items();$cmd_604$);
+    $cmd_613$SELECT public.escalate_aged_alert_items();$cmd_613$);
 END;
-$schedule_604$;
+$schedule_613$;
 
 -- 3. Configuração pela tela --------------------------------------------------
 
@@ -428,11 +428,11 @@ END;
 $function$;
 
 COMMENT ON FUNCTION public.set_alert_type_escalation(text, integer, text) IS
-  'Liga, muda ou tira (NULL) o reforço por tempo de um tipo de alerta; só o Administrativo, com motivo (604, ADR 0131).';
+  'Liga, muda ou tira (NULL) o reforço por tempo de um tipo de alerta; só o Administrativo, com motivo (613, ADR 0133).';
 REVOKE ALL ON FUNCTION public.set_alert_type_escalation(text, integer, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.set_alert_type_escalation(text, integer, text) TO authenticated, service_role;
 
--- 4. Troca de gravidade (603) sem rebaixar o item escalado ------------------
+-- 4. Troca de gravidade (612) sem rebaixar o item escalado ------------------
 
 CREATE OR REPLACE FUNCTION public.set_alert_type_severity(p_type text, p_severity text, p_reason text)
  RETURNS jsonb
@@ -450,7 +450,7 @@ BEGIN
   IF auth.uid() IS NULL OR NOT public.is_active_user() THEN
     RAISE EXCEPTION 'Sem permissão.' USING ERRCODE = '42501';
   END IF;
-  -- ADR 0130: só o Administrativo (e a conta Dev, que é do Administrativo).
+  -- ADR 0132: só o Administrativo (e a conta Dev, que é do Administrativo).
   IF NOT public.is_admin() THEN
     RAISE EXCEPTION 'Somente o Administrativo troca a gravidade de um alerta.' USING ERRCODE = '42501';
   END IF;
@@ -478,7 +478,7 @@ BEGIN
   SET severity = v_severity
   WHERE type = v_type;
 
-  -- 604: o item escalado por tempo ou crítico pelo marco continua Crítico.
+  -- 613: o item escalado por tempo ou crítico pelo marco continua Crítico.
   UPDATE public.alert_items
   SET severity = v_severity,
       updated_at = now()
@@ -564,6 +564,6 @@ END;
 $function$;
 
 COMMENT ON FUNCTION public.list_alert_type_settings() IS
-  'Gravidade vigente, reforço por tempo, alertas abertos e as últimas trocas de cada tipo ativo de alerta (603, 604; ADRs 0130 e 0131).';
+  'Gravidade vigente, reforço por tempo, alertas abertos e as últimas trocas de cada tipo ativo de alerta (612, 613; ADRs 0132 e 0133).';
 REVOKE ALL ON FUNCTION public.list_alert_type_settings() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.list_alert_type_settings() TO authenticated, service_role;

@@ -1,6 +1,6 @@
-# 0133 — Alertas técnicos só para a conta Dev
+# 0135 — Alertas técnicos só para a conta Dev
 
-Status: aceito — 2026-11-07 (decisões do dono). Implementada nas migrations `620` e `621`.
+Status: aceito — 2026-11-07 (decisões do dono). Implementada nas migrations `629` e `630`.
 
 ## Contexto
 
@@ -18,7 +18,7 @@ todo o Administrativo (ou ao Financeiro), que não tem as ferramentas para agir.
    parada (antes do Financeiro) e Retorno do provedor de e-mail não aplicado.
 2. **A equipe e a conta Dev**: Faturamento automático falhou, Revisão de B/L —
    fatura retida não saiu, Passo da importação bloqueado e, desde a migration
-   `621`, Falha na atualização da PTAX Demurrage. A equipe tem uma ação
+   `630`, Falha na atualização da PTAX Demurrage. A equipe tem uma ação
    na tela; a conta Dev corrige a causa técnica.
 3. **Pela causa**: no Aviso do Desbloqueio de CE não enviado, na Cobrança de
    Demurrage recusada e no Comunicado recusado, recusa por contato do Cliente
@@ -28,5 +28,5 @@ todo o Administrativo (ou ao Financeiro), que não tem as ferramentas para agir.
 
 - Sem nenhuma conta Dev ativa, o alerta crítico cai no desvio de sempre, para
   todo o Administrativo.
-- Muda a [ADR 0131](./0131-decisoes-da-revisao-dos-alertas.md) (D7) e a
+- Muda a [ADR 0133](./0133-decisoes-da-revisao-dos-alertas.md) (D7) e a
   migration `587` no ponto da Consulta Itaú, que era do Financeiro.

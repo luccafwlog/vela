@@ -1,8 +1,8 @@
--- 608: alertas do Desbloqueio de CE (decisão D1 do dono de 2026-11-06; ADR
--- 0131, lote 5 do plano 2026-11-06-decisoes-da-revisao-dos-alertas).
+-- 617: alertas do Desbloqueio de CE (decisão D1 do dono de 2026-11-06; ADR
+-- 0133, lote 5 do plano 2026-11-06-decisoes-da-revisao-dos-alertas).
 --
 -- A nova solicitação já avisa a Documentação e o Administrativo no sino (595,
--- 605), mas nada cobrava a análise nem o prazo de liberação (brechas B01 e
+-- 614), mas nada cobrava a análise nem o prazo de liberação (brechas B01 e
 -- B02). Dois tipos novos, da Documentação, com o Administrativo na audiência:
 --   1. "Solicitação de desbloqueio sem análise" (Crítico, por solicitação):
 --      solicitação do Cliente enviada (`submitted` ou `in_review`) com B/L
@@ -194,14 +194,14 @@ $function$;
 REVOKE ALL ON FUNCTION public.reconcile_ce_unlock_alerts(text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.reconcile_ce_unlock_alerts(text) TO service_role;
 
-DO $schedule_608$
+DO $schedule_617$
 BEGIN
   IF to_regnamespace('cron') IS NULL THEN
-    RAISE WARNING '608: pg_cron ausente; agende ce-unlock-alerts no ambiente de produção.';
+    RAISE WARNING '617: pg_cron ausente; agende ce-unlock-alerts no ambiente de produção.';
     RETURN;
   END IF;
   PERFORM cron.unschedule(jobid) FROM cron.job WHERE jobname = 'ce-unlock-alerts';
   PERFORM cron.schedule('ce-unlock-alerts', '3-59/5 * * * *',
-    $cmd_608$SELECT public.reconcile_ce_unlock_alerts('ce-unlock-alerts');$cmd_608$);
+    $cmd_617$SELECT public.reconcile_ce_unlock_alerts('ce-unlock-alerts');$cmd_617$);
 END;
-$schedule_608$;
+$schedule_617$;

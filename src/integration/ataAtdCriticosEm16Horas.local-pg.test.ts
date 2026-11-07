@@ -1,4 +1,4 @@
-// Migration 606 (ADR 0131, D3): 16 horas depois do ETA sem ATA, ou do ETD sem
+// Migration 615 (ADR 0133, D3): 16 horas depois do ETA sem ATA, ou do ETD sem
 // ATD, o alerta de data muda de marco, vira Crítico e avisa de novo. Antes das
 // 16 horas continua Normal; gravar a data fecha.
 //
@@ -24,7 +24,7 @@ function psql(sql: string): string {
 }
 
 const AS_SERVICE = `SET request.jwt.claim.role = 'service_role';`
-const reconcile = () => psql(`${AS_SERVICE} SELECT public.reconcile_voyage_schedule_date_alerts(${VOYAGE}, '${PORT}', 'teste_606');`)
+const reconcile = () => psql(`${AS_SERVICE} SELECT public.reconcile_voyage_schedule_date_alerts(${VOYAGE}, '${PORT}', 'teste_615');`)
 
 function item(type: string, entityId: string): string {
   return psql(`SELECT concat_ws('|', i.status, i.severity, i.metadata->>'milestone') FROM public.alert_items i
@@ -65,14 +65,14 @@ function hoursAgo(hours: number): string {
   return psql(`SELECT to_char((now() - interval '${hours} hours') AT TIME ZONE 'America/Sao_Paulo', 'YYYY-MM-DD"T"HH24:MI') || '-03:00';`)
 }
 
-describeLocal('ATA e ATD críticos em 16 horas (migration 606)', () => {
+describeLocal('ATA e ATD críticos em 16 horas (migration 615)', () => {
   beforeAll(() => {
     cleanup()
     psql(`
       INSERT INTO auth.users (id, email) VALUES ('${OPE}', 'a606-ope@example.test');
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${OPE}', 'A606 Carlos', 'operacoes', true);
       SET session_replication_role = replica;
-      INSERT INTO public.depots (id, code, name, tipo) VALUES ('${TERMINAL}', 'T606', 'Terminal 606', 'terminal_portuario');
+      INSERT INTO public.depots (id, code, name, tipo) VALUES ('${TERMINAL}', 'T606', 'Terminal 615', 'terminal_portuario');
       SET session_replication_role = origin;
     `)
   })

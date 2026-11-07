@@ -3,7 +3,7 @@ import { fetchAlertQueueCountsByType } from '../services/alerts'
 import { queryKeys } from '../services/queryKeys'
 
 /**
- * Alertas ativos por tipo que a pessoa vê na fila (migration 622): o número de
+ * Alertas ativos por tipo que a pessoa vê na fila (migration 631): o número de
  * cada cartão do mapa das Regras de alertas. Fica sob o prefixo `alerts`, que
  * toda ação na fila já relê.
  */

@@ -20,7 +20,7 @@ describe('ceMercanteImport', () => {
     mockRpc.mockReset()
   })
 
-  // 618 (ADR 0132, decisão 11): a recusa por falta de resposta de veículos avisa Equipamentos.
+  // 627 (ADR 0134, decisão 11): a recusa por falta de resposta de veículos avisa Equipamentos.
   it('prévia recusada por falta de resposta de veículos pede a resposta a Equipamentos para cada Viagem', async () => {
     mockRpc.mockImplementation((fn: string) => Promise.resolve(fn === 'preview_ce_mercante_rows'
       ? { data: { rows: [], errors: [{ message: 'CE Mercante travado' }], warnings: [], changes: 0, moves: 0, needs_confirmation: false, manifesto: { numero: null, exists: false }, vehicle_answer_voyages: [77] }, error: null }

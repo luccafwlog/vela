@@ -92,7 +92,7 @@ function highlights(focus: AlertMapFocus | null): Map<AlertMapNodeId, Highlight>
 type Path = { key: string; d: string; kind: AlertLinkKind }
 
 /**
- * Mapa dos alertas (ADR 0134): os momentos da viagem em faixas, cada alerta
+ * Mapa dos alertas (ADR 0136): os momentos da viagem em faixas, cada alerta
  * no momento em que abre, e as ligações do alerta escolhido desenhadas por
  * cima. Os cartões fora do filtro ficam apagados, não somem, para o mapa não
  * mudar de lugar.

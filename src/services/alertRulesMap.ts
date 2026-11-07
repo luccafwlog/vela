@@ -1,7 +1,7 @@
 import type { ActiveAlertType } from './alerts'
 import type { AlertRuleDepartment } from './alertRulesCatalog'
 
-// Mapa dos alertas da tela Regras de alertas (ADR 0134, decisões do dono de
+// Mapa dos alertas da tela Regras de alertas (ADR 0136, decisões do dono de
 // 2026-11-07): em que momento da viagem cada alerta abre, como os alertas se
 // ligam, o que cada um segura do Cliente e do caixa, e os avisos que não são
 // alertas mas contam a mesma história. O texto de cada regra continua em
@@ -88,7 +88,7 @@ export const ALERT_MAP_SHORT_LABELS: Partial<Record<ActiveAlertType, string>> = 
 }
 
 /**
- * Conta Dev (migrations 605, 620 e 621, ADR 0133): `only` é
+ * Conta Dev (migrations 614, 629 e 630, ADR 0135): `only` é
  * `notify_dev_only`; `also`, `also_notify_dev`; `cause`, os tipos que
  * `_alert_item_is_technical` decide pela causa do item.
  */
@@ -217,7 +217,7 @@ export type AlertMapNotice = {
   after: string
 }
 
-// Migration 595 (sino de acontecimentos), 614 (anual VIP) e 611 (e-mail do ADR fechado).
+// Migration 595 (sino de acontecimentos), 623 (anual VIP) e 620 (e-mail do ADR fechado).
 export const ALERT_MAP_NOTICES: Record<AlertMapNoticeId, AlertMapNotice> = {
   aviso_solicitacao_desbloqueio: {
     id: 'aviso_solicitacao_desbloqueio',
@@ -413,7 +413,7 @@ export type InactionWalk = {
 }
 
 /**
- * "E se ninguém agir?" (ADR 0134, item 4): segue só o que acontece por falta
+ * "E se ninguém agir?" (ADR 0136, item 4): segue só o que acontece por falta
  * de ação (vira, segura, atrapalha), passo a passo, sem repetir alerta, e
  * termina no que fica parado.
  * ponytail: corta em 6 passos; as cadeias de hoje têm no máximo 4.
@@ -449,7 +449,7 @@ export function inactionWalk(start: AlertMapNodeId, links: AlertLink[] = ALERT_L
 }
 
 /**
- * Quem trava o quê (ADR 0134, revisão de 2026-11-07): o que cada coisa parada
+ * Quem trava o quê (ADR 0136, revisão de 2026-11-07): o que cada coisa parada
  * é e o alerta que avisa que ela está parada. O que avisa é o sintoma; os
  * outros alertas que a seguram são as causas.
  */
@@ -478,7 +478,7 @@ export type AlertMapTourStep = { node: AlertMapNodeId; text: string } | { stake:
 export type AlertMapTour = { id: string; title: string; sub: string; who: string; steps: AlertMapTourStep[] }
 
 /**
- * Roteiros (ADR 0134, pedido do dono de 2026-11-07): histórias curtas sobre o
+ * Roteiros (ADR 0136, pedido do dono de 2026-11-07): histórias curtas sobre o
  * mapa, uma frase por passo, sem falar da conta Dev.
  */
 export const ALERT_MAP_TOURS: AlertMapTour[] = [

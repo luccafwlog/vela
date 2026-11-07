@@ -1,4 +1,4 @@
-// Migration 604 (ADR 0131, D8): reforço por tempo e gravidade do item. O
+// Migration 613 (ADR 0133, D8): reforço por tempo e gravidade do item. O
 // Administrativo configura "vira Crítico depois de N horas aberto"; a rotina
 // escala o alerta Normal esquecido e avisa de novo; o detector não o rebaixa;
 // reabrir recomeça; o marco crítico do produtor vale acima do tipo; e a troca
@@ -41,7 +41,7 @@ function sqlstateAs(user: string, call: string): string {
 const AS_SERVICE = `SET request.jwt.claim.role = 'service_role';`
 
 function upsert(entityId: string, metadata = '{}'): string {
-  return `${AS_SERVICE} SELECT public.upsert_alert_item('${TYPE}', 'voyage_pod_schedule', '${entityId}', 'Teste 604', 'teste_604', 'operacoes', '${metadata}'::jsonb, NULL) IS NOT NULL;`
+  return `${AS_SERVICE} SELECT public.upsert_alert_item('${TYPE}', 'voyage_pod_schedule', '${entityId}', 'Teste 613', 'teste_613', 'operacoes', '${metadata}'::jsonb, NULL) IS NOT NULL;`
 }
 
 function item(entityId: string): string {
@@ -76,7 +76,7 @@ function cleanup() {
   `)
 }
 
-describeLocal('Reforço por tempo dos alertas (migration 604)', () => {
+describeLocal('Reforço por tempo dos alertas (migration 613)', () => {
   beforeAll(() => {
     original = psql(`SELECT concat_ws('|', severity, COALESCE(escalate_after_hours::text, '')) FROM public.alert_type_catalog WHERE type = '${TYPE}';`) || 'normal|'
     cleanup()
@@ -118,7 +118,7 @@ describeLocal('Reforço por tempo dos alertas (migration 604)', () => {
     psql(upsert('A604-VELHO'))
     expect(item('A604-VELHO')).toBe('active|critical|t')
 
-    psql(`${AS_SERVICE} SELECT public.resolve_alert_item('${TYPE}', 'voyage_pod_schedule', 'A604-VELHO', 'teste_604');`)
+    psql(`${AS_SERVICE} SELECT public.resolve_alert_item('${TYPE}', 'voyage_pod_schedule', 'A604-VELHO', 'teste_613');`)
     psql(upsert('A604-VELHO'))
     expect(item('A604-VELHO')).toBe('active|normal|f')
   })

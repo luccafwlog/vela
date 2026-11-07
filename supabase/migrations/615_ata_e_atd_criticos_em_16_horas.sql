@@ -1,12 +1,12 @@
--- 606: ATA e ATD esquecidos viram Críticos 16 horas depois do ETA e do ETD
--- (decisão D3 do dono de 2026-11-06; ADR 0131, lote 3 do plano
+-- 615: ATA e ATD esquecidos viram Críticos 16 horas depois do ETA e do ETD
+-- (decisão D3 do dono de 2026-11-06; ADR 0133, lote 3 do plano
 -- 2026-11-06-decisoes-da-revisao-dos-alertas).
 --
 -- "Data da escala pendente" (ATA) e "Data de terminal pendente" (ATD) eram
 -- Normais e avisavam uma vez. O ATD esquecido desliga o ADR de Saída e a
 -- exportação (brecha B08). Agora, 16 horas depois do ETA sem ATA, ou do ETD
 -- sem ATD, o mesmo alerta muda de marco (`ata_atrasado`, `atd_atrasado`), passa
--- a Crítico pelo marco (`metadata.severity`, migration 604) e avisa de novo no
+-- a Crítico pelo marco (`metadata.severity`, migration 613) e avisa de novo no
 -- sino; a mensagem diz "há mais de 16 horas". ETA gravado só com o dia vale
 -- 00:00 de Brasília. A conferência de 15 minutos faz a passagem; as outras
 -- etapas (ETB, ATB, ETD) não mudam.
@@ -35,7 +35,7 @@ DECLARE
   v_is_deleted BOOLEAN := false;
   v_is_omitted BOOLEAN := false;
   v_eta DATE;
-  -- 606 (ADR 0131, D3): o instante do ETA, para as 16 horas.
+  -- 615 (ADR 0133, D3): o instante do ETA, para as 16 horas.
   v_eta_raw TEXT;
   v_eta_at TIMESTAMPTZ;
   v_ata DATE;
@@ -94,7 +94,7 @@ BEGIN
       'ETA de ' || to_char(v_eta, 'DD/MM/YYYY') || ' passou'
         || CASE WHEN now() >= v_eta_at + interval '16 hours' THEN ' há mais de 16 horas' ELSE '' END
         || ' sem ATA registrada.',
-      -- 606 (ADR 0131, D3): 16 horas depois do ETA sem ATA, o alerta muda de
+      -- 615 (ADR 0133, D3): 16 horas depois do ETA sem ATA, o alerta muda de
       -- marco e vira Crítico, com novo aviso no sino.
       p_source, jsonb_build_object('voyage_id', p_voyage_id, 'port', v_port_norm, 'eta', v_eta)
         || CASE WHEN now() >= v_eta_at + interval '16 hours'
@@ -157,7 +157,7 @@ BEGIN
         'Terminal ' || public.voyage_terminal_code(v_term_rec.terminal_id) || ': ETD de ' || to_char(v_term_rec.terminal_etd, 'DD/MM/YYYY') || ' passou'
           || CASE WHEN now() >= v_term_rec.terminal_etd_at + interval '16 hours' THEN ' há mais de 16 horas' ELSE '' END
           || ' sem ATD registrada.',
-        -- 606 (ADR 0131, D3): 16 horas depois do ETD sem ATD, Crítico.
+        -- 615 (ADR 0133, D3): 16 horas depois do ETD sem ATD, Crítico.
         p_source, jsonb_build_object('voyage_id', p_voyage_id, 'port', v_port_norm, 'terminal', public.voyage_terminal_code(v_term_rec.terminal_id), 'etd', v_term_rec.terminal_etd)
           || CASE WHEN now() >= v_term_rec.terminal_etd_at + interval '16 hours'
                   THEN jsonb_build_object('milestone', 'atd_atrasado', 'severity', 'critical')

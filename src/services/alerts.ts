@@ -184,7 +184,7 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   email_provider: 'Provedor de e-mail',
   user_profile: 'Usuário interno',
   cron_http: 'Rotinas agendadas',
-  // 619: rotina do agendador, pelo nome.
+  // 628: rotina do agendador, pelo nome.
   cron_job: 'Rotina interna',
   portal_email_event: 'E-mail',
   // Aviso de acontecimento da nova solicitação de Desbloqueio de CE (595).
@@ -522,7 +522,7 @@ function alertEntityLinkRaw(alert: {
   if (effectiveType === 'review_granite_customer_unlinked') {
     return '/granito'
   }
-  // 617 (ADR 0132, decisão 9): a Liberação se renova em Clientes › Portal.
+  // 626 (ADR 0134, decisão 9): a Liberação se renova em Clientes › Portal.
   if (effectiveType === 'liberacao_vencendo' && alert.entity_type === 'customer') {
     return `/clientes/portal?cliente=${encodeURIComponent(alert.entity_id)}`
   }
@@ -585,7 +585,7 @@ function alertEntityLinkRaw(alert: {
     if (port) params.set('escala', port)
     return `/viagens/${voyageId}${params.toString() ? `?${params.toString()}` : ''}`
   }
-  // 607 (ADR 0131, D2): o container sem descarga abre Containers na escala.
+  // 616 (ADR 0133, D2): o container sem descarga abre Containers na escala.
   if (effectiveType === 'container_sem_descarga' && alert.entity_type === 'voyage_escala_terminal') {
     const [voyageId, port] = alert.entity_id.split('::')
     if (!/^\d+$/.test(voyageId)) return '/containers'
@@ -593,7 +593,7 @@ function alertEntityLinkRaw(alert: {
     if (port) params.set('pod', port)
     return `/containers?${params.toString()}`
   }
-  // 608 (ADR 0131, D1): a solicitação abre o pedido; o prazo, o Controle.
+  // 617 (ADR 0133, D1): a solicitação abre o pedido; o prazo, o Controle.
   if (effectiveType === 'desbloqueio_solicitacao_sem_analise' && alert.entity_type === 'ce_unlock_request') {
     return `/desbloqueio-ce?${new URLSearchParams({ pedido: alert.entity_id }).toString()}`
   }
@@ -1177,8 +1177,8 @@ export async function getAlertDepartmentSummary(): Promise<AlertDepartmentSummar
 }
 
 /**
- * Quantos alertas ativos de cada tipo a pessoa vê na fila (migration 622,
- * ADR 0134): o técnico conta só para a conta Dev. Tipo sem alerta aberto não
+ * Quantos alertas ativos de cada tipo a pessoa vê na fila (migration 631,
+ * ADR 0136): o técnico conta só para a conta Dev. Tipo sem alerta aberto não
  * vem na resposta.
  */
 export async function fetchAlertQueueCountsByType(): Promise<Map<string, number>> {

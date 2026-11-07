@@ -251,7 +251,7 @@ it('filtra por busca, gravidade e registro, e limpa os filtros', () => {
   expect(screen.queryByText('Portal sem email para fatura')).toBeNull()
 })
 
-it('622 (ADR 0134): o número do mapa das Regras abre a fila só naquele tipo, e dá para voltar a todos', () => {
+it('631 (ADR 0136): o número do mapa das Regras abre a fila só naquele tipo, e dá para voltar a todos', () => {
   renderAlertas(['/alertas?tipo=review_customer_unlinked'])
 
   expect(screen.getByRole('button', { name: 'Ver todos os tipos' })).toBeTruthy()

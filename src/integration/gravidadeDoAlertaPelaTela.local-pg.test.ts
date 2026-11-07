@@ -1,4 +1,4 @@
-// Migration 603 (ADR 0130): a gravidade de um tipo de alerta é trocada na tela
+// Migration 612 (ADR 0132): a gravidade de um tipo de alerta é trocada na tela
 // Regras de alertas, só pelo Administrativo e com motivo. A troca vale para o
 // catálogo e para os alertas abertos do tipo, os resolvidos guardam a que
 // tinham, o próximo alerta nasce com a nova e a troca fica no Histórico de
@@ -68,7 +68,7 @@ function cleanup() {
   `)
 }
 
-describeLocal('Gravidade do alerta trocada pela tela (migration 603)', () => {
+describeLocal('Gravidade do alerta trocada pela tela (migration 612)', () => {
   beforeAll(() => {
     originalSeverity = psql(`SELECT severity FROM public.alert_type_catalog WHERE type = '${TYPE}';`) || 'normal'
     cleanup()
@@ -83,9 +83,9 @@ describeLocal('Gravidade do alerta trocada pela tela (migration 603)', () => {
     `)
     // Um alerta aberto e um resolvido do tipo.
     psql(`${AS_SERVICE}
-      SELECT public.upsert_alert_item('${TYPE}', 'voyage_pod_schedule', 'A603-ABERTO', 'Teste 603', 'teste_603', 'operacoes', '{}'::jsonb, NULL);
-      SELECT public.upsert_alert_item('${TYPE}', 'voyage_pod_schedule', 'A603-RESOLVIDO', 'Teste 603', 'teste_603', 'operacoes', '{}'::jsonb, NULL);
-      SELECT public.resolve_alert_item('${TYPE}', 'voyage_pod_schedule', 'A603-RESOLVIDO', 'teste_603');`)
+      SELECT public.upsert_alert_item('${TYPE}', 'voyage_pod_schedule', 'A603-ABERTO', 'Teste 612', 'teste_612', 'operacoes', '{}'::jsonb, NULL);
+      SELECT public.upsert_alert_item('${TYPE}', 'voyage_pod_schedule', 'A603-RESOLVIDO', 'Teste 612', 'teste_612', 'operacoes', '{}'::jsonb, NULL);
+      SELECT public.resolve_alert_item('${TYPE}', 'voyage_pod_schedule', 'A603-RESOLVIDO', 'teste_612');`)
   })
 
   afterAll(cleanup)
@@ -141,7 +141,7 @@ describeLocal('Gravidade do alerta trocada pela tela (migration 603)', () => {
 
   it('o próximo alerta do tipo já nasce com a gravidade nova', () => {
     psql(`${AS_SERVICE}
-      SELECT public.upsert_alert_item('${TYPE}', 'voyage_pod_schedule', 'A603-NOVO', 'Teste 603', 'teste_603', 'operacoes', '{}'::jsonb, NULL);`)
+      SELECT public.upsert_alert_item('${TYPE}', 'voyage_pod_schedule', 'A603-NOVO', 'Teste 612', 'teste_612', 'operacoes', '{}'::jsonb, NULL);`)
     expect(itemSeverity('A603-NOVO')).toBe('critical')
   })
 

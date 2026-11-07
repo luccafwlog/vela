@@ -4,7 +4,7 @@ import { adrClosedTemplate, runAdrClosedEmail, type AdrClosedRow } from '../_sha
 import { sendPortalEmail } from '../_shared/portalEmail.ts'
 import { instrumentEdgeHandler } from '../_shared/telemetry.ts'
 
-// E-mail "ADR fechado" a todos os usuários internos ativos (migration 611, ADR 0131 D6).
+// E-mail "ADR fechado" a todos os usuários internos ativos (migration 620, ADR 0133 D6).
 // Bearer dedicado e server-only: ADR_CLOSED_EMAIL_SECRET. Chamada pelo gatilho da fila
 // (`ops.kick_edge_job`) e pela rotina manual de 5 minutos. E-mail da equipe: não passa pela
 // chave de envio (ADR 0104), como o resumo diário.

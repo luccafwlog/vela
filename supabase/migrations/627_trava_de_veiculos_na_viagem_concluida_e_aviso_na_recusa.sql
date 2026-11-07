@@ -1,5 +1,5 @@
--- 618: a trava de veículos vale também na Viagem concluída, e a recusa do CE
--- avisa Equipamentos na hora (decisão 11 do dono de 2026-11-07; ADR 0132,
+-- 627: a trava de veículos vale também na Viagem concluída, e a recusa do CE
+-- avisa Equipamentos na hora (decisão 11 do dono de 2026-11-07; ADR 0134,
 -- lote F do plano 2026-11-07-brechas-restantes-da-revisao-dos-alertas;
 -- estende a ADR 0128).
 --
@@ -11,7 +11,7 @@
 --     fora da lista) sem Equipamentos ter recebido aviso nenhum (brecha B18).
 -- Mudança:
 --   1. `voyage_ce_mercante_vehicle_lock`: a parte dos veículos vale na Viagem
---      ativa e na concluída; só a cancelada fica fora. A trava do Baplie (610)
+--      ativa e na concluída; só a cancelada fica fora. A trava do Baplie (619)
 --      continua só na ativa.
 --   2. A prévia do CE (`_analyze_ce_mercante_rows`) devolve
 --      `vehicle_answer_voyages`: as Viagens recusadas por falta de resposta.
@@ -33,7 +33,7 @@
 -- voyage_ce_mercante_vehicle_lock(id) FROM voyages WHERE status =
 -- 'completed' LIMIT 20`. Desfazer: o rollback abaixo.
 --
--- Rollback: reaplicar `voyage_ce_mercante_vehicle_lock` pela 610,
+-- Rollback: reaplicar `voyage_ce_mercante_vehicle_lock` pela 619,
 -- `_analyze_ce_mercante_rows` e `reconcile_voyage_vehicle_sheet_alerts` pelo
 -- corpo anterior (patches desta migration), e dropar
 -- `request_voyage_vehicle_answer`.
@@ -48,8 +48,8 @@ CREATE OR REPLACE FUNCTION public.voyage_ce_mercante_vehicle_lock(p_voyage_id bi
  SECURITY DEFINER
  SET search_path TO 'public', 'pg_temp'
 AS $function$
-  -- 597: veículos; 610: Baplie importado ou a declaração "Viagem sem Baplie".
-  -- 618: os veículos valem também na Viagem concluída; o Baplie, só na ativa.
+  -- 597: veículos; 619: Baplie importado ou a declaração "Viagem sem Baplie".
+  -- 627: os veículos valem também na Viagem concluída; o Baplie, só na ativa.
   -- ponytail: uma trava por vez (veículos primeiro); a segunda aparece depois
   -- que a primeira sai.
   SELECT CASE
@@ -86,7 +86,7 @@ BEGIN$new$),
        $new$    IF v_lock.lock IS NOT NULL THEN
       v_errors := v_errors || jsonb_build_array(jsonb_build_object('message',
         public._ce_mercante_vehicle_lock_message(v_lock.voyage_id, v_lock.lock)));
-      -- 618: a tela pede a resposta a Equipamentos (request_voyage_vehicle_answer).
+      -- 627: a tela pede a resposta a Equipamentos (request_voyage_vehicle_answer).
       IF v_lock.lock = 'sem_resposta' THEN v_vehicle_wait := v_vehicle_wait || v_lock.voyage_id; END IF;$new$),
       ($old$    'baplie_divergence', v_divergence,$old$,
        $new$    'baplie_divergence', v_divergence,
@@ -94,7 +94,7 @@ BEGIN$new$),
     ) AS p(old_text, new_text)
   LOOP
     IF (length(v_def) - length(replace(v_def, v_patch.old_text, ''))) / length(v_patch.old_text) <> 1 THEN
-      RAISE EXCEPTION '618: trecho não encontrado uma única vez em _analyze_ce_mercante_rows: %', left(v_patch.old_text, 40);
+      RAISE EXCEPTION '627: trecho não encontrado uma única vez em _analyze_ce_mercante_rows: %', left(v_patch.old_text, 40);
     END IF;
     v_def := replace(v_def, v_patch.old_text, v_patch.new_text);
   END LOOP;
@@ -149,7 +149,7 @@ DECLARE
           WHERE i.item_type = 'voyage_vehicle_declaration_pending' AND i.status = 'active'
             AND a.entity_type = 'voyage' AND a.entity_id = p_voyage_id::text
             AND i.metadata->>'reason_code' = 'ce_recusado') THEN
-    -- 618: aberta pela recusa do CE antes do D-7: fica até a resposta.
+    -- 627: aberta pela recusa do CE antes do D-7: fica até a resposta.
     NULL;
   ELSE
     PERFORM public.resolve_alert_item('voyage_vehicle_declaration_pending', 'voyage', p_voyage_id::text, p_source,
@@ -157,7 +157,7 @@ DECLARE
 BEGIN
   IF position('aberta pela recusa do CE' in v_def) > 0 THEN RETURN; END IF;  -- já aplicado
   IF (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old) <> 1 THEN
-    RAISE EXCEPTION '618: trecho não encontrado uma única vez em reconcile_voyage_vehicle_sheet_alerts';
+    RAISE EXCEPTION '627: trecho não encontrado uma única vez em reconcile_voyage_vehicle_sheet_alerts';
   END IF;
   EXECUTE replace(v_def, v_old, v_new);
 END;

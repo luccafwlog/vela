@@ -2,7 +2,7 @@ import { supabase } from './supabase'
 import type { AlertRuleSeverity } from './alertRulesCatalog'
 
 /**
- * Gravidade vigente de um tipo de alerta (migration 603, ADR 0130). A
+ * Gravidade vigente de um tipo de alerta (migration 612, ADR 0132). A
  * gravidade de fábrica está em `alertRulesCatalog.ts`; esta é a que vale no
  * banco, que o Administrativo troca na tela Regras de alertas.
  */
@@ -18,7 +18,7 @@ export type AlertTypeSetting = {
     previousSeverity: AlertRuleSeverity | null
     reason: string | null
   } | null
-  /** Reforço por tempo (migration 604): vira Crítico depois de N horas aberto; `null` sem reforço. */
+  /** Reforço por tempo (migration 613): vira Crítico depois de N horas aberto; `null` sem reforço. */
   escalateAfterHours: number | null
   lastEscalationChange: { at: string; byName: string | null; reason: string | null } | null
 }
@@ -102,7 +102,7 @@ export async function setAlertTypeSeverity(type: string, severity: AlertRuleSeve
 /**
  * Liga, muda ou tira (`null`) o reforço por tempo do tipo: o alerta Normal
  * aberto há mais de `hours` horas vira Crítico e avisa de novo. Só o
- * Administrativo; motivo de 10 caracteres ou mais (migration 604).
+ * Administrativo; motivo de 10 caracteres ou mais (migration 613).
  */
 export async function setAlertTypeEscalation(type: string, hours: number | null, reason: string): Promise<{ previousHours: number | null; hours: number | null }> {
   const { data, error } = await supabase.rpc('set_alert_type_escalation' as never, {

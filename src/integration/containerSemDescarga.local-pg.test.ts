@@ -1,4 +1,4 @@
-// Migration 607 (ADR 0131, D2): "Container sem descarga" por atracação. Abre
+// Migration 616 (ADR 0133, D2): "Container sem descarga" por atracação. Abre
 // Normal no ATB do terminal com container sem data de descarga, vira Crítico
 // 24 horas depois do ATB (com novo aviso) e fecha quando a data entra; o
 // container de B/L com exceção de terminal conta no terminal dele.
@@ -25,7 +25,7 @@ function psql(sql: string): string {
     { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 }
 
-const sweep = () => psql(`SELECT public.reconcile_container_discharge_alerts('teste_607') >= 0;`)
+const sweep = () => psql(`SELECT public.reconcile_container_discharge_alerts('teste_616') >= 0;`)
 
 function item(entityId: string): string {
   return psql(`SELECT concat_ws('|', i.status, i.severity, i.metadata->>'milestone', i.metadata->>'containers', i.department)
@@ -64,7 +64,7 @@ function cleanup() {
   `)
 }
 
-describeLocal('Container sem descarga por atracação (migration 607)', () => {
+describeLocal('Container sem descarga por atracação (migration 616)', () => {
   beforeAll(() => {
     cleanup()
     psql(`
@@ -72,7 +72,7 @@ describeLocal('Container sem descarga por atracação (migration 607)', () => {
       INSERT INTO public.user_profiles (id, full_name, role, active) VALUES ('${EQU}', 'A607 Bruno', 'equipamentos', true);
       SET session_replication_role = replica;
       INSERT INTO public.depots (id, code, name, tipo) VALUES
-        ('${T_A}', 'T607A', 'Terminal 607 A', 'terminal_portuario'), ('${T_B}', 'T607B', 'Terminal 607 B', 'terminal_portuario');
+        ('${T_A}', 'T607A', 'Terminal 616 A', 'terminal_portuario'), ('${T_B}', 'T607B', 'Terminal 616 B', 'terminal_portuario');
       INSERT INTO public.voyages (id, vessel_id, voyage_number, status) VALUES (${VOYAGE}, 1, 'A607', 'active');
       INSERT INTO public.voyage_escala_operation_fronts (voyage_id, port, port_id, sentido, modalidade, source, terminal_id)
         VALUES (${VOYAGE}, '${PORT}', 1, 'importacao', 'carga_cheia', 'operational_data', '${T_A}');

@@ -1,8 +1,8 @@
-# 0131 — Decisões do dono sobre a revisão de cobertura dos alertas
+# 0133 — Decisões do dono sobre a revisão de cobertura dos alertas
 
-> **Situação atual (2026-11-07).** A [ADR 0133](./0133-alertas-tecnicos-so-para-a-conta-dev.md) tira do Administrativo e do Financeiro os alertas puramente técnicos (só a conta Dev).
+> **Situação atual (2026-11-07).** A [ADR 0135](./0135-alertas-tecnicos-so-para-a-conta-dev.md) tira do Administrativo e do Financeiro os alertas puramente técnicos (só a conta Dev).
 
-> **Situação atual (2026-11-06).** Correção do dono à D1: o alerta do prazo do desbloqueio não fecha com a exportação para a ZPT; fecha quando a conciliação da ZPT traz o B/L como desbloqueado no CE atual (migration `612`). O resto da D1 continua valendo.
+> **Situação atual (2026-11-06).** Correção do dono à D1: o alerta do prazo do desbloqueio não fecha com a exportação para a ZPT; fecha quando a conciliação da ZPT traz o B/L como desbloqueado no CE atual (migration `621`). O resto da D1 continua valendo.
 
 Status: aceito — 2026-11-06 (decisões do dono). Implementação em lotes no
 [plano](../archive/plans/2026-11-06-decisoes-da-revisao-dos-alertas.md).
@@ -46,7 +46,7 @@ achou 26 brechas e levou oito perguntas ao dono. As respostas vieram em
 
 - A gravidade deixa de ser só do tipo: um alerta aberto pode ficar Crítico por
   tempo ou por marco (D1, D2, D3, D8). A troca de gravidade da tela
-  ([ADR 0130](./0130-gravidade-do-alerta-pela-tela.md)) muda o tipo e os
+  ([ADR 0132](./0132-gravidade-do-alerta-pela-tela.md)) muda o tipo e os
   abertos sem rebaixar os que escalaram.
 - D4 estende a trava da [ADR 0128](./0128-ce-mercante-travado-ate-resposta-de-veiculos.md)
   ao Baplie.

@@ -1,7 +1,7 @@
--- 612: o alerta "Prazo do desbloqueio vencendo" fecha pela conciliação da ZPT
--- (correção do dono de 2026-11-06 à decisão D1; ADR 0131).
+-- 621: o alerta "Prazo do desbloqueio vencendo" fecha pela conciliação da ZPT
+-- (correção do dono de 2026-11-06 à decisão D1; ADR 0133).
 --
--- Na 608 o alerta fechava com a exportação para a ZPT. A exportação só manda a
+-- Na 617 o alerta fechava com a exportação para a ZPT. A exportação só manda a
 -- planilha: o desbloqueio só está feito quando a conciliação da ZPT traz o B/L
 -- como "Desbloqueado" para o CE atual (`ce_unlock_zpt_status.status =
 -- 'unlocked'` com o CE do B/L). Agora:
@@ -30,7 +30,7 @@
 -- Rollback: `DROP TRIGGER trg_ce_unlock_deadline_alert_on_zpt ON
 -- ce_unlock_zpt_status`, dropar `_ce_unlock_deadline_alert_on_zpt` e
 -- `_ce_unlock_zpt_unlocked`, e reaplicar `reconcile_ce_unlock_deadline_alert`
--- e `reconcile_ce_unlock_alerts` pela 608.
+-- e `reconcile_ce_unlock_alerts` pela 617.
 
 -- Desbloqueio conferido: a conciliação da ZPT trouxe o B/L como desbloqueado
 -- no CE que ele tem agora (o mesmo critério do `ce_unlock_private.item`).
@@ -127,7 +127,7 @@ BEGIN
     v_count := v_count + 1;
   END LOOP;
 
-  -- 612: B/L com prazo e sem desbloqueio conferido pela ZPT, exportado ou não.
+  -- 621: B/L com prazo e sem desbloqueio conferido pela ZPT, exportado ou não.
   FOR r IN
     SELECT c.bl_id FROM (
       SELECT i.bl_id FROM public.ce_unlock_request_bls i

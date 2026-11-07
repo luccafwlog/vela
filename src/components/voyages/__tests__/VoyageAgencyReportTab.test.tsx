@@ -369,7 +369,7 @@ it('assina o departamento apenas quando habilitado e chama a RPC com o payload c
   }, expect.objectContaining({ onError: expect.any(Function) }))
 })
 
-it('611: a assinatura que completa as três fecha o ADR sozinha, com o retrato recarregado', async () => {
+it('620: a assinatura que completa as três fecha o ADR sozinha, com o retrato recarregado', async () => {
   closeMutateMock.mockClear()
   useAuthMock.mockReturnValue({ effectiveRole: 'equipamentos', isAdmin: false })
   const twoSigned = allDepartmentsSigned().filter((row) => row.department !== 'equipamentos')
@@ -391,7 +391,7 @@ it('611: a assinatura que completa as três fecha o ADR sozinha, com o retrato r
   expect(snapshot.departmentSignoffs.map((row: { department: string }) => row.department).sort()).toEqual(['documentacao', 'equipamentos', 'operacoes'])
 })
 
-it('611: assinar sem completar as três não fecha', () => {
+it('620: assinar sem completar as três não fecha', () => {
   closeMutateMock.mockClear()
   useAuthMock.mockReturnValue({ effectiveRole: 'equipamentos', isAdmin: false })
   useAgencyReportOwnMock.mockReturnValue({ data: { status: 'open', terminal: 'TVV', signoffs: allSectionsSignoffs(), departmentSignoffs: [], occurrences: [], actor_names: {} } })

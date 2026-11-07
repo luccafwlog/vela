@@ -146,7 +146,7 @@ export const queryKeys = {
   baplie: {
     /** Navio, viagem e escalas da Viagem para as regras do Baplie (ADR 0078, item 21). */
     voyageContext: (voyageId: number) => ['baplie-voyage-context', voyageId] as const,
-    /** Declaração "Viagem sem Baplie" (migration 610). */
+    /** Declaração "Viagem sem Baplie" (migration 619). */
     declaration: (voyageId: number) => ['baplie-declaration', voyageId] as const,
   },
   customers: {
@@ -227,7 +227,7 @@ export const queryKeys = {
     departmentSummary: () => ['alert-department-summary'] as const,
     // Sob o prefixo 'alerts': alerta que abre ou fecha muda os abertos de cada tipo.
     typeSettings: () => ['alerts', 'type-settings'] as const,
-    // 622: o que a pessoa vê na fila, por tipo (cartões do mapa das Regras de alertas).
+    // 631: o que a pessoa vê na fila, por tipo (cartões do mapa das Regras de alertas).
     queueCountsByType: () => ['alerts', 'queue-counts-by-type'] as const,
     financial: () => ['financial-alerts'] as const,
     operationalCount: () => ['op-count', 'open-alerts'] as const,

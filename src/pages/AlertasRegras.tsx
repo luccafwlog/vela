@@ -120,7 +120,7 @@ function liveSeverity(rule: AlertRule, settings: SettingsState): AlertRuleSeveri
 
 /**
  * Quem recebe, para o filtro de setor: o alerta técnico só da conta Dev
- * (migration 620) não conta para o Administrativo; 'dev' é todo alerta que a
+ * (migration 629) não conta para o Administrativo; 'dev' é todo alerta que a
  * conta Dev recebe à parte (só ela, junto com a equipe ou pela causa).
  */
 function receivesRule(rule: AlertRule, department: AlertRuleDepartmentFilter): boolean {
@@ -628,7 +628,7 @@ function RuleListItem({
 }
 
 /**
- * Detalhe da regra (ADR 0130): o que é e o que acontece se ninguém agir,
+ * Detalhe da regra (ADR 0132): o que é e o que acontece se ninguém agir,
  * quando abre e fecha, quem recebe, como resolver e a gravidade, que o
  * Administrativo troca aqui. Sem código interno, migration nem endereço de
  * tela; o código continua valendo na busca.
@@ -692,7 +692,7 @@ function plural(count: number, singular: string, pluralForm: string) {
 }
 
 /**
- * Gravidade vigente do tipo (migration 603): a de fábrica pode ter sido
+ * Gravidade vigente do tipo (migration 612): a de fábrica pode ter sido
  * trocada pelo Administrativo, com motivo. A troca vale para os alertas
  * abertos do tipo e para os próximos, e fica no Histórico de ações.
  */
@@ -785,7 +785,7 @@ function SeverityBlock({ rule, settings }: { rule: AlertRule; settings: Settings
 }
 
 /**
- * Reforço por tempo (migration 604, ADR 0131, D8): o alerta Normal aberto há
+ * Reforço por tempo (migration 613, ADR 0133, D8): o alerta Normal aberto há
  * mais de N horas vira Crítico e avisa de novo no sino. Só o Administrativo
  * liga, muda ou tira, com motivo.
  */

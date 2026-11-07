@@ -1,5 +1,5 @@
--- 610: CE Mercante travado sem o Baplie (decisão D4 do dono de 2026-11-06; ADR
--- 0131, lote 7 do plano 2026-11-06-decisoes-da-revisao-dos-alertas). Estende a
+-- 619: CE Mercante travado sem o Baplie (decisão D4 do dono de 2026-11-06; ADR
+-- 0133, lote 7 do plano 2026-11-06-decisoes-da-revisao-dos-alertas). Estende a
 -- trava dos veículos da 597 (ADR 0128).
 --
 -- Problema (brechas B16 e B17): sem o Baplie, o CE entra e a fatura sai sem as
@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS public.voyage_baplie_declarations (
   declared_at timestamptz NOT NULL DEFAULT now()
 );
 COMMENT ON TABLE public.voyage_baplie_declarations IS
-  'Declaração "Viagem sem Baplie" (610, ADR 0131 D4): libera o CE Mercante de container sem Baplie importado.';
+  'Declaração "Viagem sem Baplie" (619, ADR 0133 D4): libera o CE Mercante de container sem Baplie importado.';
 ALTER TABLE public.voyage_baplie_declarations ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.voyage_baplie_declarations FROM PUBLIC, anon, authenticated;
 GRANT SELECT ON public.voyage_baplie_declarations TO authenticated;
@@ -172,7 +172,7 @@ DECLARE
 BEGIN
   IF position(v_new in v_def) > 0 THEN RETURN; END IF;  -- já aplicado
   IF (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old) <> 1 THEN
-    RAISE EXCEPTION '610: trecho não encontrado uma única vez em voyage_delete_children_spec';
+    RAISE EXCEPTION '619: trecho não encontrado uma única vez em voyage_delete_children_spec';
   END IF;
   EXECUTE replace(v_def, v_old, v_new);
 END;
@@ -186,7 +186,7 @@ CREATE OR REPLACE FUNCTION public.voyage_ce_mercante_vehicle_lock(p_voyage_id bi
  SECURITY DEFINER
  SET search_path TO 'public', 'pg_temp'
 AS $function$
-  -- 597: veículos; 610: Baplie importado ou a declaração "Viagem sem Baplie".
+  -- 597: veículos; 619: Baplie importado ou a declaração "Viagem sem Baplie".
   -- ponytail: uma trava por vez (veículos primeiro); a segunda aparece depois
   -- que a primeira sai.
   SELECT CASE
@@ -230,13 +230,13 @@ DECLARE
   ) INTO v_has_baplie;$old$;
   v_new text := $new$    SELECT 1 FROM public.baplie_containers WHERE voyage_id = p_voyage_id
   ) OR EXISTS (
-    -- 610: a declaração "Viagem sem Baplie" fecha o alerta.
+    -- 619: a declaração "Viagem sem Baplie" fecha o alerta.
     SELECT 1 FROM public.voyage_baplie_declarations WHERE voyage_id = p_voyage_id
   ) INTO v_has_baplie;$new$;
 BEGIN
   IF position(v_new in v_def) > 0 THEN RETURN; END IF;  -- já aplicado
   IF (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old) <> 1 THEN
-    RAISE EXCEPTION '610: trecho não encontrado uma única vez em reconcile_voyage_baplie_missing_alerts';
+    RAISE EXCEPTION '619: trecho não encontrado uma única vez em reconcile_voyage_baplie_missing_alerts';
   END IF;
   EXECUTE replace(v_def, v_old, v_new);
 END;
@@ -258,7 +258,7 @@ BEGIN$old$,
 BEGIN$new$),
       ($old$  RETURN jsonb_build_object(
     'errors', v_errors,$old$,
-       $new$  -- 610 (ADR 0131, D4): a divergência aberta entre o Baplie e os B/Ls
+       $new$  -- 619 (ADR 0133, D4): a divergência aberta entre o Baplie e os B/Ls
   -- da viagem (alerta "Cobertura Baplie / B/L") aparece na prévia e pede
   -- confirmação com motivo antes de vincular CE novo.
   -- ponytail: lê o alerta ativo, que os gatilhos do Baplie e dos containers
@@ -286,7 +286,7 @@ BEGIN$new$),
     ) AS p(old_text, new_text)
   LOOP
     IF (length(v_def) - length(replace(v_def, v_patch.old_text, ''))) / length(v_patch.old_text) <> 1 THEN
-      RAISE EXCEPTION '610: trecho não encontrado uma única vez em _analyze_ce_mercante_rows: %', left(v_patch.old_text, 40);
+      RAISE EXCEPTION '619: trecho não encontrado uma única vez em _analyze_ce_mercante_rows: %', left(v_patch.old_text, 40);
     END IF;
     v_def := replace(v_def, v_patch.old_text, v_patch.new_text);
   END LOOP;

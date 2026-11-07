@@ -1,12 +1,12 @@
-# 0134 — Mapa dos alertas na tela Regras de alertas
+# 0136 — Mapa dos alertas na tela Regras de alertas
 
 Status: aceito — 2026-11-07 (decisões do dono). Implementada na tela
-`/alertas/regras`, em `src/services/alertRulesMap.ts` e na migration `622`.
+`/alertas/regras`, em `src/services/alertRulesMap.ts` e na migration `631`.
 
 ## Contexto
 
 A tela Regras de alertas explicava cada alerta sozinho, numa lista por assunto
-([ADR 0130](./0130-gravidade-do-alerta-pela-tela.md)). Os alertas, porém,
+([ADR 0132](./0132-gravidade-do-alerta-pela-tela.md)). Os alertas, porém,
 chegam em fila: a Declaração de veículos sem resposta vira Planilha de Veículos
 ausente, que segura o CE Mercante, que trava a Demurrage, a fatura e o
 Desbloqueio de CE. Quem lê um alerta sozinho não vê por que um Normal do D−7
@@ -26,8 +26,8 @@ antes da construção.
 2. **Cada cartão mostra quantos a pessoa vê na fila**, e o número abre a fila
    já filtrada no tipo (`/alertas?tipo=`). A contagem é a da fila de quem
    pergunta: o alerta técnico conta só para a conta Dev
-   ([ADR 0133](./0133-alertas-tecnicos-so-para-a-conta-dev.md)); migration
-   `622`, `count_alert_queue_by_type()`.
+   ([ADR 0135](./0135-alertas-tecnicos-so-para-a-conta-dev.md)); migration
+   `631`, `count_alert_queue_by_type()`.
 3. **Os avisos que não são alertas entram como marcos discretos**: Novo
    pagamento, Novo pagamento de Demurrage, Nova solicitação de desbloqueio de
    CE e Novo documento anual VIP (sino), e ADR fechado (e-mail). Têm ficha e
@@ -73,6 +73,6 @@ alerta só da conta Dev deixa de contar para o Administrativo.
   o Administrativo.
 - Alerta novo precisa de lugar no mapa e da lista do que fica parado:
   `alertRulesMap.test.ts` falha sem eles, e confere a conta Dev contra as
-  migrations `605`, `620` e `621`. Ligação nova pede a mesma revisão do dono.
+  migrations `614`, `629` e `630`. Ligação nova pede a mesma revisão do dono.
 - O filtro `?tipo=` da fila vale, como os outros filtros dela, na página
   carregada (100 alertas por página).

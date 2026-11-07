@@ -67,7 +67,7 @@ function LinkList({ id, items, labelOf, onSelect, label }: {
 }
 
 /**
- * Cadeia do alerta (ADR 0134): o que vem antes, o que ele provoca se ninguém
+ * Cadeia do alerta (ADR 0136): o que vem antes, o que ele provoca se ninguém
  * agir, o que pode abrir em seguida, quem tem a mesma causa e o que fica
  * parado. "E se ninguém agir?" mostra a cascata passo a passo no mapa.
  */

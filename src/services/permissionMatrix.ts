@@ -60,7 +60,7 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
  * de Demurrage (migration 520). O Financeiro recebe os quatro da exceção do dono e a Taxa alterada à mão mudou (migration 495).
  * O Administrativo recebe também o Retorno do provedor de e-mail não aplicado (migration 535).
  * Operações recebe também a Escala sem terminal (migration 584). Desde a migration 587,
- * Pix não conciliado e Restituição pendente são do setor (a Consulta Itaú parada, técnica, é da conta Dev desde a 620)
+ * Pix não conciliado e Restituição pendente são do setor (a Consulta Itaú parada, técnica, é da conta Dev desde a 629)
  * Financeiro e saem do Administrativo.
  * A bateria confere estes números no banco.
  */
@@ -187,7 +187,7 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
     },
     proof: ['caso: Catálogo: cada setor recebe os tipos de alerta que a tela diz', 'caso: P5: Pix não conciliado e Restituição pendente são do Financeiro; Fatura desatualizada o avisa; Consulta Itaú é da conta Dev'],
   },
-  // Migration 603 (ADR 0130): a gravidade de cada alerta, na tela Regras de alertas.
+  // Migration 612 (ADR 0132): a gravidade de cada alerta, na tela Regras de alertas.
   { id: 'alertas-gravidade', group: 'alertas', action: 'Trocar a gravidade de um alerta (Crítico ou Normal) e o reforço por tempo, com motivo', can: ADM, proof: ['exceção: Trocar a gravidade de um alerta', 'exceção: Definir o reforço por tempo de um alerta'] },
 ]
 

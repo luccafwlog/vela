@@ -1,4 +1,4 @@
-// Migration 616 (ADR 0132, decisão 7): o B/L que fica pronto depois do
+// Migration 625 (ADR 0134, decisão 7): o B/L que fica pronto depois do
 // Comunicado de CE e Taxas da Viagem abre "Reenviar Comunicado de CE e Taxas";
 // o B/L já comunicado e o B/L ainda sem CE não abrem; o Comunicado seguinte
 // com o B/L fecha (gatilho da 469). Cada cenário roda numa transação desfeita.
@@ -33,12 +33,12 @@ const FIXTURE = `
     VALUES (${ID}, ${ID}, 'ce_mercante_taxas', 'documentacao', 'enviado', ${ID}, now() - interval '2 days');
   INSERT INTO public.customer_communication_bls (communication_id, bl_id) VALUES (${ID}, 'A616-SENT');
   SET LOCAL session_replication_role = origin;
-  SELECT public.reconcile_ce_taxas_late_bl_alerts('teste_616') >= 0;
+  SELECT public.reconcile_ce_taxas_late_bl_alerts('teste_625') >= 0;
 `
 
-local('Reenvio do CE e Taxas para B/L pronto depois do Comunicado (migration 616)', () => {
+local('Reenvio do CE e Taxas para B/L pronto depois do Comunicado (migration 625)', () => {
   it('só o B/L pronto e ainda não comunicado abre o alerta; a rodada seguinte não duplica', () => {
-    expect(sql(`BEGIN; ${FIXTURE} SELECT public.reconcile_ce_taxas_late_bl_alerts('teste_616') >= 0; ${state} ROLLBACK;`))
+    expect(sql(`BEGIN; ${FIXTURE} SELECT public.reconcile_ce_taxas_late_bl_alerts('teste_625') >= 0; ${state} ROLLBACK;`))
       .toEqual(['>A616-LATE|active'])
   })
 

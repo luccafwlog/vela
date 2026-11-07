@@ -96,7 +96,7 @@ describe('Regras de Alertas', () => {
     }
   })
 
-  it('fala a língua de quem opera: sem migration, rotina técnica, tabela, função ou endereço de tela (ADR 0130)', () => {
+  it('fala a língua de quem opera: sem migration, rotina técnica, tabela, função ou endereço de tela (ADR 0132)', () => {
     const jargon = /migration|pg_cron|pg_net|\bnet\.|cron\.|\bops\.|edge function|\bRPC\b|webhook|payload|\blease\b|\bworker\b|reconcilia[çc][ãa]o confirma|\bjob\b|ALE-D\d|\bADR \d{4}\b|`|\/[a-z]+[?/]|\b[a-z]+_[a-z_]+\b/i
     for (const rule of ALERT_RULES) {
       for (const [field, text] of Object.entries({
@@ -170,11 +170,11 @@ describe('Regras de Alertas', () => {
     expect(invoice.responsibleDepartments).toEqual(['administrativo'])
     expect(invoice.notifiedDepartments).toEqual(['financeiro', 'administrativo'])
     expect(ALERT_RULES.filter((rule) => rule.responsibleDepartments.includes('financeiro')).map((rule) => rule.type).sort())
-      // 620: a Consulta Itaú parada é técnica e vai só à conta Dev.
+      // 629: a Consulta Itaú parada é técnica e vai só à conta Dev.
       .toEqual(['pix_unreconciled', 'restituicao_pendente'])
     expect(schedule.notifiedDepartments).toEqual(['operacoes'])
     expect(terminal.notifiedDepartments).toEqual(['operacoes'])
-    // 605: o Administrativo também é avisado (concede a Liberação).
+    // 614: o Administrativo também é avisado (concede a Liberação).
     expect(portal.notifiedDepartments).toEqual(['documentacao', 'administrativo'])
     expect(ALERT_RULES.filter((rule) => rule.notifiedDepartments.includes('financeiro')).map((rule) => rule.type).sort())
       .toEqual(['fatura_desatualizada', 'pix_unreconciled', 'restituicao_pendente', 'taxa_alterada_mudou'])
@@ -188,7 +188,7 @@ describe('Regras de Alertas', () => {
     expect(screen.getByText('65 regras')).toBeTruthy()
     fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'equipamentos' } })
 
-    // 605: a PTAX e a exportação pós-ATD passaram a Equipamentos; 607: Container sem descarga.
+    // 614: a PTAX e a exportação pós-ATD passaram a Equipamentos; 616: Container sem descarga.
     expect(screen.getByText('10 regras')).toBeTruthy()
     expect(list().getByRole('button', { name: /Falha na atualização da PTAX Demurrage/ })).toBeTruthy()
     expect(list().getByRole('button', { name: /Exportação pendente pós-ATD/ })).toBeTruthy()
@@ -289,7 +289,7 @@ describe('Regras de Alertas', () => {
   })
 })
 
-describe('Gravidade pela tela (migration 603, ADR 0130)', () => {
+describe('Gravidade pela tela (migration 612, ADR 0132)', () => {
   it('mostra a gravidade vigente do banco, não a de fábrica, na lista, no filtro e no detalhe', async () => {
     mocks.settings = mocks.settings.map((item) => item.type === 'voyage_export_after_atd'
       ? setting(item.type, 'critical', {
@@ -353,7 +353,7 @@ describe('Gravidade pela tela (migration 603, ADR 0130)', () => {
     expect(mocks.afterChange).not.toHaveBeenCalled()
   })
 
-  it('o Administrativo define o reforço por tempo de um alerta Normal, com motivo (migration 604)', async () => {
+  it('o Administrativo define o reforço por tempo de um alerta Normal, com motivo (migration 613)', async () => {
     mocks.canManage = true
     renderPage('/alertas/regras?regra=voyage_schedule_date_pending')
 
@@ -381,7 +381,7 @@ describe('Gravidade pela tela (migration 603, ADR 0130)', () => {
   })
 })
 
-describe('Mapa dos alertas (ADR 0134)', () => {
+describe('Mapa dos alertas (ADR 0136)', () => {
   it('abre no mapa, na ordem da viagem, ensinando a ler antes de escolher', () => {
     renderPage()
 

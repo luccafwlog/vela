@@ -1,5 +1,5 @@
--- 609: o ADR de Saída recusa "Nada a declarar" e "Fechar ADR" com a exportação
--- declarada e não lançada (decisão D5 do dono de 2026-11-06; ADR 0131, lote 6
+-- 618: o ADR de Saída recusa "Nada a declarar" e "Fechar ADR" com a exportação
+-- declarada e não lançada (decisão D5 do dono de 2026-11-06; ADR 0133, lote 6
 -- do plano 2026-11-06-decisoes-da-revisao-dos-alertas).
 --
 -- A escala declara a exportação em `voyage_export_schedules` (POL, Granito e

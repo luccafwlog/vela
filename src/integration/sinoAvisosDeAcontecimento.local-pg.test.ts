@@ -100,7 +100,7 @@ describeLocal('595 — sino avisa solicitação de Desbloqueio de CE e pagamento
     ])
   })
 
-  // 605 (ADR 0131, D1): o aviso vai também ao Administrativo.
+  // 614 (ADR 0133, D1): o aviso vai também ao Administrativo.
   it('solicitação enviada avisa a Documentação e o Administrativo (sem a conta de integração); reenvio diz "reenviada"; VIP não avisa', () => {
     const lines = scenario(`
       SET LOCAL session_replication_role = replica;
@@ -137,7 +137,7 @@ describeLocal('595 — sino avisa solicitação de Desbloqueio de CE e pagamento
     expect(lines).toEqual(['>eventos|1'])
   })
 
-  // 614 (ADR 0132, decisão 4): o anual do VIP enviado pelo Cliente avisa Documentação e Administrativo.
+  // 623 (ADR 0134, decisão 4): o anual do VIP enviado pelo Cliente avisa Documentação e Administrativo.
   it('anual VIP enviado pelo Cliente avisa Documentação e Administrativo; o enviado pela equipe não avisa', () => {
     const doc = (id: string, by: string) => `INSERT INTO public.ce_unlock_documents (id, customer_id, type, source, status, storage_path, file_name, size_bytes, uploaded_by)
       VALUES ('${id}', ${CUSTOMER}, 'termo', 'vip_annual', 'uploading', 'p/' || '${id}', 'a.pdf', 10, '${by}');

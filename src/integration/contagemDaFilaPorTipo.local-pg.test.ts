@@ -1,5 +1,5 @@
-// Migration 622 (ADR 0134): o número de cada cartão do mapa da tela Regras de
-// alertas conta o que a pessoa vê na fila. O alerta técnico (620) conta só
+// Migration 631 (ADR 0136): o número de cada cartão do mapa da tela Regras de
+// alertas conta o que a pessoa vê na fila. O alerta técnico (629) conta só
 // para a conta Dev; o da equipe conta para todos.
 // Cada cenário roda numa transação desfeita no fim e compara antes e depois,
 // para não depender de alertas que já estejam abertos no banco local.
@@ -44,7 +44,7 @@ function deltas(lines: string[]): Record<string, number> {
   return out
 }
 
-local('Contagem da fila por tipo (migration 622)', () => {
+local('Contagem da fila por tipo (migration 631)', () => {
   const cleanup = () => sql(`SET session_replication_role = replica;
     DELETE FROM public.user_profiles WHERE id IN (${USERS});
     DELETE FROM auth.users WHERE id IN (${USERS});
@@ -63,8 +63,8 @@ local('Contagem da fila por tipo (migration 622)', () => {
       ${counts(DEV, 'dev', 'antes')}
       ${counts(ADM, 'adm', 'antes')}
       SET LOCAL request.jwt.claim.role = 'service_role';
-      SELECT public.upsert_alert_item('rotina_http_falhou', 'cron_http', 'A622-HTTP', 'Teste 622', 'teste_622', 'administrativo', '{}'::jsonb, NULL) IS NOT NULL;
-      SELECT public.upsert_alert_item('billing_auto_issue_failed', 'bl', 'A622-BL', 'Teste 622', 'teste_622', 'documentacao', '{}'::jsonb, NULL) IS NOT NULL;
+      SELECT public.upsert_alert_item('rotina_http_falhou', 'cron_http', 'A622-HTTP', 'Teste 631', 'teste_631', 'administrativo', '{}'::jsonb, NULL) IS NOT NULL;
+      SELECT public.upsert_alert_item('billing_auto_issue_failed', 'bl', 'A622-BL', 'Teste 631', 'teste_631', 'documentacao', '{}'::jsonb, NULL) IS NOT NULL;
       RESET request.jwt.claim.role;
       ${counts(DEV, 'dev', 'depois')}
       ${counts(ADM, 'adm', 'depois')}

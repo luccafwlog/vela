@@ -52,11 +52,11 @@ export type Permission =
   | 'cancel_demurrage_invoices'
   /** Responder se a viagem terá veículos, trocar e desfazer: Equipamentos e Administrativo (migration 598). */
   | 'declare_voyage_vehicles'
-  /** Declarar a viagem sem Baplie e desfazer: Documentação e Administrativo (migration 610, ADR 0131 D4). */
+  /** Declarar a viagem sem Baplie e desfazer: Documentação e Administrativo (migration 619, ADR 0133 D4). */
   | 'declare_voyage_without_baplie'
   | 'customer_communications'
   | 'edit_customer_contacts'
-  /** Trocar a gravidade de um alerta na tela Regras de alertas: só o Administrativo (migration 603, ADR 0130). */
+  /** Trocar a gravidade de um alerta na tela Regras de alertas: só o Administrativo (migration 612, ADR 0132). */
   | 'manage_alert_rules'
 
 export function roleHasPermission(role: UserProfileRole | undefined, permission: Permission, isDev = false): boolean {

@@ -1,5 +1,5 @@
--- 605: quem recebe cada alerta (decisões D5 e D7, e o aviso da D1, do dono de
--- 2026-11-06; ADR 0131, lote 2 do plano 2026-11-06-decisoes-da-revisao-dos-alertas).
+-- 614: quem recebe cada alerta (decisões D5 e D7, e o aviso da D1, do dono de
+-- 2026-11-06; ADR 0133, lote 2 do plano 2026-11-06-decisoes-da-revisao-dos-alertas).
 --
 -- A revisão de 2026-11-06 achou alertas que chegam a quem não pode agir
 -- (brechas B19 a B22). Mudança:
@@ -22,11 +22,11 @@
 -- ativos de `demurrage_ptax_recalc_failed`, `calendario_feriados_pendente` e
 -- `voyage_export_after_atd` fora do setor novo. O setor anterior fica no
 -- evento `updated` de `alert_item_events` de cada item movido
--- (`metadata.department_from`, `metadata.migration = '605'`). Itens
+-- (`metadata.department_from`, `metadata.migration = '614'`). Itens
 -- resolvidos não mudam. As notificações já entregues não mudam. Conferir:
 -- `SELECT item_type, department, status, count(*) FROM alert_items WHERE
 -- item_type IN (...) GROUP BY 1, 2, 3` antes e depois. Desfazer: voltar
--- `department` pelo `metadata.department_from` dos eventos da 605 e o
+-- `department` pelo `metadata.department_from` dos eventos da 614 e o
 -- catálogo pelos valores da seção 2 anteriores (Documentação, Documentação e
 -- Operações; audiência só da Documentação nos três tipos da seção 2b).
 BEGIN;
@@ -36,7 +36,7 @@ BEGIN;
 ALTER TABLE public.alert_type_catalog
   ADD COLUMN IF NOT EXISTS notify_dev_only boolean NOT NULL DEFAULT false;
 COMMENT ON COLUMN public.alert_type_catalog.notify_dev_only IS
-  'O sino do tipo vai só às contas com a marca Dev do setor (605; calendário de feriados).';
+  'O sino do tipo vai só às contas com a marca Dev do setor (614; calendário de feriados).';
 
 -- 2 --- Catálogo ------------------------------------------------------------
 
@@ -53,7 +53,7 @@ UPDATE public.alert_type_catalog SET audience_departments = ARRAY['documentacao'
 CREATE OR REPLACE FUNCTION public._alert_item_department(p_type text, p_department text) RETURNS text
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
   -- O catálogo vence para os tipos do Financeiro (587) e para os que mudaram
-  -- de setor na 605; nos demais, o setor que o produtor informa (o ADR e a
+  -- de setor na 614; nos demais, o setor que o produtor informa (o ADR e a
   -- Demurrage travada gravam por setor).
   SELECT COALESCE(
     (SELECT c.responsible_department FROM public.alert_type_catalog c
@@ -77,7 +77,7 @@ BEGIN
        $old$      AND (CASE up.role WHEN 'operator' THEN 'documentacao' ELSE up.role END) = ANY (v_audience)
   LOOP$old$,
        $new$      AND (CASE up.role WHEN 'operator' THEN 'documentacao' ELSE up.role END) = ANY (v_audience)
-      -- 605: tipo só da conta Dev (calendário de feriados).
+      -- 614: tipo só da conta Dev (calendário de feriados).
       AND (NOT COALESCE(v_catalog.notify_dev_only, false) OR up.is_dev)
   LOOP$new$),
       ('public._notify_ce_unlock_submitted()',
@@ -87,7 +87,7 @@ BEGIN
   LOOP
     v_def := pg_get_functiondef(v_patch.fn::regprocedure);
     IF (length(v_def) - length(replace(v_def, v_patch.old_text, ''))) / length(v_patch.old_text) <> 1 THEN
-      RAISE EXCEPTION '605: trecho não encontrado uma única vez em %', v_patch.fn;
+      RAISE EXCEPTION '614: trecho não encontrado uma única vez em %', v_patch.fn;
     END IF;
     EXECUTE replace(v_def, v_patch.old_text, v_patch.new_text);
   END LOOP;
@@ -119,7 +119,7 @@ WITH target(item_type, department) AS (
 )
 INSERT INTO public.alert_item_events (alert_item_id, occurrence_id, event_type, previous_status, new_status, actor_id, metadata)
 SELECT m.id, m.occurrence_id, 'updated', 'active', 'active', NULL,
-  jsonb_build_object('migration', '605', 'department_from', m.department_from, 'department_to', m.department_to)
+  jsonb_build_object('migration', '614', 'department_from', m.department_from, 'department_to', m.department_to)
 FROM moved AS m;
 
 COMMIT;

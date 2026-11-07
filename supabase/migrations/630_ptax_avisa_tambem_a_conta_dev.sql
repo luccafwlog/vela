@@ -1,8 +1,8 @@
--- 621: "Falha na atualização da PTAX Demurrage" avisa também a conta Dev
--- (decisão do dono de 2026-11-07; ADR 0133, item 2).
+-- 630: "Falha na atualização da PTAX Demurrage" avisa também a conta Dev
+-- (decisão do dono de 2026-11-07; ADR 0135, item 2).
 --
 -- Equipamentos continua recebendo e usa Informar PTAX; a conta Dev passa a
--- receber também (`also_notify_dev`, 620), para corrigir a causa técnica.
+-- receber também (`also_notify_dev`, 629), para corrigir a causa técnica.
 --
 -- Plano de preservação: só muda `also_notify_dev` de um tipo do catálogo; não
 -- reescreve alerta nem notificação. Conferir: `SELECT also_notify_dev FROM

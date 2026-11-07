@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => ({
   resolveDivergence: vi.fn(() => Promise.resolve()),
   reconcile: vi.fn(),
   refetchContext: vi.fn(),
-  // 610: declaração "Viagem sem Baplie".
+  // 619: declaração "Viagem sem Baplie".
   canDeclare: false,
   declaration: { voyageId: 7, hasBaplie: false, declared: false, reason: null, declaredAt: null, declaredByName: null } as unknown,
   declare: vi.fn(() => Promise.resolve({})),
@@ -240,7 +240,7 @@ describe('revisão da etapa 9 na página Baplie', () => {
   })
 })
 
-describe('Viagem sem Baplie (migration 610)', () => {
+describe('Viagem sem Baplie (migration 619)', () => {
   it('Documentação declara a viagem sem Baplie com o motivo; sem a permissão, o botão não aparece', async () => {
     const client = new QueryClient({ defaultOptions: { queries: { staleTime: Infinity, retry: false } } })
     try {

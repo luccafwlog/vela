@@ -461,7 +461,7 @@ Com a chave de envio desligada, a função envia os avisos ao suporte e os regis
 
 ### Agendar o e-mail do ADR fechado
 
-**Ainda não agendado em produção** (migration `611`, ADR 0131 D6). A Edge Function
+**Ainda não agendado em produção** (migration `620`, ADR 0133 D6). A Edge Function
 `adr-closed-email` precisa ser publicada (`supabase functions deploy adr-closed-email`)
 e o segredo `ADR_CLOSED_EMAIL_SECRET` cadastrado na Edge e no cofre, com o mesmo valor
 (32 caracteres aleatórios ou mais). Opcional na Edge: `VELA_APP_URL` (padrão
@@ -484,7 +484,7 @@ fechamentos ficam `pending` em `adr_closed_email_outbox` e saem quando ela entra
 
 ### Ligar o sinal das rotinas internas
 
-A rotina `internal-jobs-health` (migration `619`) já nasce agendada pela migration e
+A rotina `internal-jobs-health` (migration `628`) já nasce agendada pela migration e
 abre o alerta **Rotina interna sem rodar** sem nada a cadastrar. Para o aviso de fora,
 quando ela mesma ou o banco param: crie no Better Stack um heartbeat de 15 minutos, com
 tolerância de 15 minutos, e grave a URL dele no cofre com o nome

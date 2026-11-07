@@ -5,7 +5,7 @@ import { queryKeys } from '../services/queryKeys'
 
 /**
  * Gravidade vigente de cada tipo de alerta, com os abertos e a última troca
- * (migration 603). Mapa por tipo para a tela Regras de alertas.
+ * (migration 612). Mapa por tipo para a tela Regras de alertas.
  */
 export function useAlertTypeSettings() {
   const query = useQuery({

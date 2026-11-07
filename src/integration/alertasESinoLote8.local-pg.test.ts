@@ -96,7 +96,7 @@ describeLocal('Alertas e sino decididos pelo dono (migration 476)', () => {
       WHERE a.entity_id = 'A476-PIX' AND i.item_type = 'pix_unreconciled'`)).toBe('financeiro')
     expect(recipients('A476-ESCALA')).toBe('operacoes')
     // Antes ia também ao Administrativo.
-    // 605 (ADR 0131, D7): o Administrativo também é avisado, porque concede a Liberação.
+    // 614 (ADR 0133, D7): o Administrativo também é avisado, porque concede a Liberação.
     expect(recipients('A476-PORTAL')).toBe('administrativo,documentacao')
   })
 
@@ -128,7 +128,7 @@ describeLocal('Alertas e sino decididos pelo dono (migration 476)', () => {
     // Dispensa gravada antes da 476, ainda no prazo: acabou na hora.
     psql(`INSERT INTO public.alert_item_dismissals (alert_item_id, occurrence_id, reason, dismissed_by, review_at)
       SELECT id, occurrence_id, 'antiga', '${ADM}', now() + interval '5 days' FROM public.alert_items WHERE id = ${item};`)
-    // 605: a exportação pós-ATD é de Equipamentos, qualquer que seja o setor informado.
+    // 614: a exportação pós-ATD é de Equipamentos, qualquer que seja o setor informado.
     expect(asUser(DOC, `SELECT count(*) FROM public.list_alert_queue_page('active', NULL, 0, 100, 'equipamentos') AS row
       WHERE (row->>'item_id')::bigint = ${item};`).stdout).toBe('1')
     expect(asUser(DOC, `SELECT public.count_alert_queue('dismissed');`).stderr).toMatch(/Filtro inválido/)

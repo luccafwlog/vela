@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { ADR_DEPARTMENT_LABELS, ADR_SECTION_LABELS, adrClosedPath, adrClosedTemplate, runAdrClosedEmail, type AdrClosedRow } from '../../../supabase/functions/_shared/adrClosedEmail'
 import { AGENCY_REPORT_DEPARTMENT_LABELS, AGENCY_REPORT_SECTION_LABELS } from '../agencyReportLabels'
 
-// Migration 611 (ADR 0131, D6): o ADR fechado vai por e-mail a todos os
+// Migration 620 (ADR 0133, D6): o ADR fechado vai por e-mail a todos os
 // usuários internos ativos, com o resumo e o link.
 const row: AdrClosedRow = {
   id: 11,
@@ -23,7 +23,7 @@ const row: AdrClosedRow = {
   sections: { datas: 'confirmed', carga_carregada: 'nothing_to_declare' },
 }
 
-describe('e-mail do ADR fechado (migration 611)', () => {
+describe('e-mail do ADR fechado (migration 620)', () => {
   it('os rótulos do e-mail são os mesmos da tela do ADR', () => {
     expect(ADR_SECTION_LABELS).toEqual(AGENCY_REPORT_SECTION_LABELS)
     expect(ADR_DEPARTMENT_LABELS).toEqual(AGENCY_REPORT_DEPARTMENT_LABELS)

@@ -35,7 +35,7 @@ const describeLocal = describeWithProbe(migrationApplied, 'migration 346 (reconc
 
 const ADMIN_ID = '34600000-0000-4000-8000-0000000000a1'
 const OPS_ID = '34600000-0000-4000-8000-0000000000b1'
-// 605: a exportação pós-ATD é de Equipamentos.
+// 614: a exportação pós-ATD é de Equipamentos.
 const EQU_ID = '34600000-0000-4000-8000-0000000000b2'
 const T1 = '34600000-0000-4000-8000-0000000000d1'
 const T2 = '34600000-0000-4000-8000-0000000000d2'
@@ -156,7 +156,7 @@ describeLocal('346 — alertas de viagem acompanham escala, B/L, manifestos e st
     expect(item('voyage_export_after_atd', 'voyage_pod_schedule', scale)).toBe('active')
     // Antes: "opened,resolved,opened,resolved" e uma Notificação Interna por rodada.
     expect(events('voyage_export_after_atd', scale)).toBe('opened')
-    // Uma Notificação Interna só (desde a 605 o alerta é de Equipamentos).
+    // Uma Notificação Interna só (desde a 614 o alerta é de Equipamentos).
     expect(psql(`SELECT count(*) FROM public.internal_notifications n JOIN public.alert_items i ON i.id = n.alert_item_id
       WHERE n.recipient_id = '${EQU_ID}' AND i.item_type = 'voyage_export_after_atd';`)).toBe('1')
     expect(psql(`SELECT i.metadata->>'terminal_code' FROM public.alert_items i JOIN public.alerts a ON a.id = i.alert_id

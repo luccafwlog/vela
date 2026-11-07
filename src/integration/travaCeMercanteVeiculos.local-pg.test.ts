@@ -160,7 +160,7 @@ describeLocal('597 — resposta de veículos em D-7 e CE Mercante travado', () =
         (${V_MAIN}, ${VESSEL_ID}, 'V595M', 'active'),
         (${V_DONE}, ${VESSEL_ID}, 'V595D', 'completed'),
         (${V_NO}, ${VESSEL_ID}, 'V595N', 'active');
-      -- 610: esta suíte mede só a trava dos veículos; o Baplie fica declarado.
+      -- 619: esta suíte mede só a trava dos veículos; o Baplie fica declarado.
       INSERT INTO public.voyage_baplie_declarations (voyage_id, reason) VALUES
         (${V_MAIN}, 'fixture de teste'), (${V_DONE}, 'fixture de teste'), (${V_NO}, 'fixture de teste');
       SET session_replication_role = origin;
@@ -299,7 +299,7 @@ describeLocal('597 — resposta de veículos em D-7 e CE Mercante travado', () =
     expect(linkCe(BL_NO, '152659500000004').stderr).toBe('')
   })
 
-  // 618 (ADR 0132, decisão 11): a Viagem concluída também trava; a recusa pede a
+  // 627 (ADR 0134, decisão 11): a Viagem concluída também trava; a recusa pede a
   // resposta a Equipamentos na hora, mesmo sem o D-7.
   it('viagem concluída também trava; a recusa abre a Declaração para Equipamentos e a conferência não a fecha', () => {
     expect(psql(`SELECT public.voyage_ce_mercante_vehicle_lock(${V_DONE});`)).toBe('sem_resposta')
@@ -313,7 +313,7 @@ describeLocal('597 — resposta de veículos em D-7 e CE Mercante travado', () =
     expect(item(DECL, V_DONE)).toBe('active|normal|equipamentos')
     expect(message(DECL, V_DONE)).toContain('A Documentação tentou vincular o CE Mercante')
     // A conferência fora do D-7 mantém o pedido aberto até a resposta.
-    as(ADMIN_ID, `SELECT public.reconcile_voyage_vehicle_sheet_alerts(${V_DONE}, 'teste_618');`)
+    as(ADMIN_ID, `SELECT public.reconcile_voyage_vehicle_sheet_alerts(${V_DONE}, 'teste_627');`)
     expect(item(DECL, V_DONE)).toBe('active|normal|equipamentos')
     expect(rpcAs(EQP_ID, `SELECT public.declare_voyage_without_vehicles(${V_DONE});`).stderr).toBe('')
     expect(item(DECL, V_DONE)).toMatch(/^resolved\|/)

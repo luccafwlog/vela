@@ -18,7 +18,7 @@ import {
   linksOf,
 } from '../alertRulesMap'
 
-// Mapa dos alertas (ADR 0134): todo alerta vivo tem lugar, toda ligação
+// Mapa dos alertas (ADR 0136): todo alerta vivo tem lugar, toda ligação
 // aponta para alguém que existe e a conta Dev espelha o catálogo SQL.
 const placed = ALERT_MAP_STATIONS.flatMap((station) => station.nodes)
 const liveTypes = ALERT_RULES.map((rule) => rule.type)
@@ -63,13 +63,13 @@ describe('Mapa dos alertas', () => {
     }
   })
 
-  it('espelha a conta Dev do catálogo SQL: só ela (605, 620), junto com a equipe (620, 621) e pela causa (620)', () => {
-    const sql = ['605', '620', '621'].map(migration).join('\n')
+  it('espelha a conta Dev do catálogo SQL: só ela (614, 629), junto com a equipe (629, 630) e pela causa (629)', () => {
+    const sql = ['614', '629', '630'].map(migration).join('\n')
     const only = [...sql.matchAll(/notify_dev_only = true WHERE type = '([a-z_]+)'/g)].map((match) => match[1]).sort()
     const also = [...sql.matchAll(/also_notify_dev = true WHERE type (?:= '([a-z_]+)'|IN \(([^)]+)\))/g)]
       .flatMap((match) => match[1] ? [match[1]] : match[2].split(',').map((item) => item.trim().replace(/'/g, '')))
       .sort()
-    const technical = migration('620').match(/FUNCTION public\._alert_item_is_technical[\s\S]*?\$function\$;/)![0]
+    const technical = migration('629').match(/FUNCTION public\._alert_item_is_technical[\s\S]*?\$function\$;/)![0]
     const cause = [...technical.matchAll(/WHEN '([a-z_]+)' THEN/g)].map((match) => match[1]).sort()
     const routed = (mode: string) => Object.entries(ALERT_DEV_ROUTING).filter(([, value]) => value === mode).map(([type]) => type).sort()
     expect(routed('only')).toEqual(only)

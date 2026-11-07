@@ -1,6 +1,6 @@
-# 0130 — Gravidade do alerta trocada na tela Regras de alertas, pelo Administrativo
+# 0132 — Gravidade do alerta trocada na tela Regras de alertas, pelo Administrativo
 
-Status: aceito — 2026-11-06 (pedido do dono). Implementada na migration `603`
+Status: aceito — 2026-11-06 (pedido do dono). Implementada na migration `612`
 e na tela **Regras de alertas** (`/alertas/regras`).
 
 ## Contexto

@@ -1,4 +1,4 @@
-// Migration 617 (ADR 0132, decisão 9): a Liberação de faturamento que vence
+// Migration 626 (ADR 0134, decisão 9): a Liberação de faturamento que vence
 // nos próximos 2 dias úteis, com o Cliente ainda sem Portal pronto, abre
 // "Liberação de faturamento vencendo" ao Administrativo; renovar ou revogar
 // fecha na hora. Cada cenário roda numa transação desfeita.
@@ -26,13 +26,13 @@ function run(reviewIn: string, after = ''): string {
     SET LOCAL request.jwt.claim.role = 'service_role';
     INSERT INTO public.customer_billing_portal_releases (customer_id, justification, granted_by, review_at)
       VALUES (${CUSTOMER}, 'Portal em ativação', '${ADM}', now() + interval '${reviewIn}');
-    SELECT public.reconcile_billing_release_expiring_alerts('teste_617') >= 0;
+    SELECT public.reconcile_billing_release_expiring_alerts('teste_626') >= 0;
     ${after}
     ${state}
     ROLLBACK;`).split('\n').at(-1) ?? ''
 }
 
-local('Liberação de faturamento vencendo (migration 617)', () => {
+local('Liberação de faturamento vencendo (migration 626)', () => {
   const cleanup = () => sql(`SET session_replication_role = replica;
     DELETE FROM public.customers WHERE id = ${CUSTOMER};
     DELETE FROM public.user_profiles WHERE id = '${ADM}';
