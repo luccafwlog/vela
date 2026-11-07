@@ -6,13 +6,24 @@ import type {
 } from "../types/database";
 import { supabase } from "./supabase";
 import { normalizePortCode, portCodeVariants } from "./portCode";
-import { armazenagemALancar, diasCobraveis, totalEmbarque, type StorageDepot } from "./vaziosCusto";
+import {
+  armazenagemALancar,
+  totaisDeArmazenagem,
+  totalEmbarque,
+  type CostServiceLine,
+  type StorageCatalogService,
+  type StorageDepot,
+} from "./vaziosCusto";
 import { deleteOneById } from "./deleteRecords";
+import { calculateTeu } from "./containerTeu";
+import { vazioManifestoNumero } from "./vaziosImportacaoImport";
 
 const OPERATION_BOOKINGS_PAGE_SIZE = 1000;
 
 export type VaziosExportServiceLineWithObservation = VaziosExportServiceLine & {
   observation: string | null;
+  /** Migration 606; `database.ts` protegido ainda não a descreve. */
+  free_time_days?: number | null;
 };
 
 export type ManualBookingInput = {
@@ -26,6 +37,8 @@ export type ManualBookingInput = {
   handInDate?: string | null;
   handOutDate?: string | null;
   movementDate?: string | null;
+  /** Porto de descarga (LOCODE), obrigatório desde a migration 606. */
+  pod: string;
 };
 
 export function manualBookingPayload(input: ManualBookingInput) {
@@ -45,6 +58,7 @@ export function manualBookingPayload(input: ManualBookingInput) {
     hand_in_date: input.handInDate ?? null,
     hand_out_date: input.handOutDate ?? null,
     movement_date: input.movementDate ?? null,
+    pod: input.pod.trim().toUpperCase(),
   };
 }
 
@@ -68,6 +82,7 @@ export async function createManualVaziosBooking(
       p_hand_in_date: payload.hand_in_date,
       p_hand_out_date: payload.hand_out_date,
       p_movement_date: payload.movement_date,
+      p_pod: payload.pod,
     } as never,
   );
   if (error) throw error;
@@ -93,6 +108,7 @@ export async function updateManualVaziosBooking(
       p_hand_in_date: input.handInDate ?? null,
       p_hand_out_date: input.handOutDate ?? null,
       p_movement_date: input.movementDate ?? null,
+      p_pod: input.pod.trim().toUpperCase(),
     } as never,
   );
   if (error) throw error;
@@ -161,35 +177,24 @@ export async function listVaziosBookingsForOperation(operationId: string) {
   return { rows, count: Number.isFinite(count) ? count : 0 };
 }
 
+/**
+ * Storage do ADR: unidades com dia cobrável e os dias cobráveis, com o free
+ * time congelado nas linhas de armazenagem (606). A unidade de Depot que ficou
+ * dentro do free time não gerou armazenagem e não conta (C2), e a quantidade
+ * informada à mão na linha vale, com o calculado pela lista ao lado (C4;
+ * revisão de 2026-11-06). Regra em `totaisDeArmazenagem`.
+ */
 export function computeStorageTotals(
   rows: Array<
     Pick<
       VaziosBooking,
       "local_id" | "condition" | "hand_in_date" | "hand_out_date"
-    >
+    > & { container_type?: string | null }
   >,
-  depots: Array<{
-    id: string;
-    tipo?: string;
-    free_time_vazio_days?: number;
-    free_time_material_days?: number;
-  }> = [],
-): { containers: number; days: number } {
-  let containers = 0;
-  let days = 0;
-  for (const row of rows) {
-    const depot = depots.find((item) => item.id === row.local_id);
-    const chargeable = diasCobraveis(row, depot);
-    if (chargeable <= 0 && (!row.hand_in_date || !row.hand_out_date)) continue;
-    if (
-      row.hand_in_date &&
-      row.hand_out_date &&
-      Date.parse(row.hand_out_date) >= Date.parse(row.hand_in_date)
-    )
-      containers += 1;
-    days += chargeable;
-  }
-  return { containers, days };
+  depots: StorageDepot[] = [],
+  lines: CostServiceLine[] = [],
+): { containers: number; days: number; calculatedDays: number } {
+  return totaisDeArmazenagem(rows, depots, lines);
 }
 
 export async function getVaziosExportOperation(
@@ -373,6 +378,8 @@ export type VaziosOperationListRow = {
   linhas?: Array<{
     local_id: string;
     condition: string | null;
+    container_type?: string | null;
+    free_time_days?: number | null;
     quantidade: number | string;
     valor_unitario: number | string;
     quantidade_manual: boolean;
@@ -385,6 +392,8 @@ export type VaziosOperationBookingRow = Pick<
   VaziosBooking,
   "operation_id" | "local_id" | "condition" | "hand_in_date" | "hand_out_date" | "created_at"
 > & {
+  /** O tamanho decide em que linha de armazenagem a unidade conta (606). */
+  container_type?: string | null;
   /** Migration 332; vazia nas unidades anteriores a ela (`database.ts` protegido ainda não a descreve). */
   updated_at?: string | null;
 };
@@ -405,7 +414,7 @@ export async function listVaziosExportOperationsWithUnits(): Promise<{
     const { data: page, error } = await supabase
       .from("vazios_export_operations")
       .select(
-        "id, voyage_id, embark_port, created_at, updated_at, voyage:voyages(voyage_number, vessel:vessels(name)), linhas:vazios_export_service_lines(local_id, condition, quantidade, valor_unitario, quantidade_manual, updated_at, service:depot_services(natureza))",
+        "id, voyage_id, embark_port, created_at, updated_at, voyage:voyages(voyage_number, vessel:vessels(name)), linhas:vazios_export_service_lines(local_id, condition, container_type, free_time_days, quantidade, valor_unitario, quantidade_manual, updated_at, service:depot_services(natureza))",
       )
       .order("created_at", { ascending: false })
       .order("id")
@@ -419,7 +428,7 @@ export async function listVaziosExportOperationsWithUnits(): Promise<{
   for (let from = 0; ; from += OPERATION_BOOKINGS_PAGE_SIZE) {
     const { data: page, error: pageError } = await supabase
       .from("vazios_bookings")
-      .select("operation_id, local_id, condition, hand_in_date, hand_out_date, created_at, updated_at")
+      .select("operation_id, container_type, local_id, condition, hand_in_date, hand_out_date, created_at, updated_at")
       .order("id")
       .range(from, from + OPERATION_BOOKINGS_PAGE_SIZE - 1);
     if (pageError) throw pageError;
@@ -447,6 +456,8 @@ export function summarizeVaziosOperations(
   operations: VaziosOperationListRow[],
   bookings: VaziosOperationBookingRow[],
   depots: StorageDepot[],
+  /** Serviços de armazenagem do catálogo: dizem se a armazenagem se divide por tamanho (606). */
+  catalogo: StorageCatalogService[] = [],
 ): VaziosOperationSummary[] {
   const byOperation = new Map<string, VaziosOperationBookingRow[]>();
   for (const booking of bookings) {
@@ -461,11 +472,13 @@ export function summarizeVaziosOperations(
         natureza: line.service?.natureza ?? "geral",
         local_id: line.local_id,
         condition: line.condition,
+        container_type: line.container_type ?? null,
+        free_time_days: line.free_time_days ?? null,
         quantidade: Number(line.quantidade),
         valor_unitario: Number(line.valor_unitario),
         quantidade_manual: line.quantidade_manual,
       }));
-      const pendentes = armazenagemALancar(unidades, depots, linhas);
+      const pendentes = armazenagemALancar(unidades, depots, linhas, catalogo);
       const dates = [
         ...(operation.linhas ?? []).map((line) => line.updated_at ?? null),
         // ponytail: unidade excluída some sem deixar data; o "Atualizado em"
@@ -484,4 +497,39 @@ export function summarizeVaziosOperations(
       };
     })
     .sort((a, b) => Date.parse(b.atualizadoEm) - Date.parse(a.atualizadoEm));
+}
+
+export type EmptyExportRoute = {
+  /** Porto de descarga; vazio na unidade gravada antes da 606 sem POD. */
+  pod: string
+  unidades: number
+  teu: number
+  /** Nº do Manifesto Mercante da rota (porto do embarque → POD), quando informado. */
+  manifesto: string | null
+}
+
+/**
+ * Rotas de exportação dos vazios (porto do embarque → POD), com as unidades,
+ * o TEU e o Nº do Manifesto Mercante da rota (606; decisão do dono de
+ * 2026-11-06: os vazios embarcam já manifestados, o Vela registra o número).
+ */
+export function summarizeEmptyExportRoutes(
+  units: ReadonlyArray<{ pod?: string | null; container_type?: string | null }>,
+  embarkPort: string,
+  voyageId: number,
+  manifestos: ReadonlyArray<{ voyage_id: number; pol: string; pod: string; numero: string }>,
+): EmptyExportRoute[] {
+  const byPod = new Map<string, Array<string | null>>()
+  for (const unit of units) {
+    const pod = unit.pod ?? ''
+    byPod.set(pod, [...(byPod.get(pod) ?? []), unit.container_type ?? null])
+  }
+  return [...byPod.entries()]
+    .map(([pod, types]) => ({
+      pod,
+      unidades: types.length,
+      teu: calculateTeu(types).teu,
+      manifesto: pod ? vazioManifestoNumero({ pol: embarkPort, pod, manifest: { voyage_id: voyageId } }, manifestos) : null,
+    }))
+    .sort((a, b) => (a.pod || '~').localeCompare(b.pod || '~'))
 }

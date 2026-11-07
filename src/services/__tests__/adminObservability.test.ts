@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vitest'
-import { fetchActionHistory, fetchSystemMetrics, routingFailureReasonLabel } from '../adminObservability'
+import { fetchActionHistory, fetchActionHistoryActions, fetchActionHistoryForExport, fetchSystemHealth, routingFailureReasonLabel } from '../adminObservability'
 
 const { fromMock, rpcMock, supabaseMock } = vi.hoisted(() => {
   const supabaseMock = { from: vi.fn(), rpc: vi.fn() }
@@ -40,16 +40,6 @@ it('motivo da falha de entrega de alerta nunca mostra o texto técnico gravado',
   }
 })
 
-it('propaga falha de qualquer leitura das metricas', async () => {
-  fromMock.mockImplementation((table: string) => {
-    if (table === 'voyages') return builder({ data: [], error: null })
-    if (table === 'invoices') return builder({ data: null, error: new Error('invoices unavailable') })
-    throw new Error(`Tabela inesperada: ${table}`)
-  })
-
-  await expect(fetchSystemMetrics()).rejects.toThrow('invoices unavailable')
-})
-
 it('mantém o cliente Supabase ligado ao builder de falhas de roteamento', async () => {
   const result = builder({
     data: [{
@@ -79,22 +69,6 @@ it('mantém o cliente Supabase ligado ao builder de falhas de roteamento', async
     count: 1,
     rows: [expect.objectContaining({ id: 7, entity_type: 'invoice', entity_id: 'INV-7' })],
   })
-})
-
-it('Última fatura emitida lê a data de emissão, não a criação (achado A4)', async () => {
-  const invoices = builder({ data: [{ issued_at: '2026-10-19T21:03:00Z' }], error: null })
-  fromMock.mockImplementation((table: string) => {
-    if (table === 'voyages') return builder({ data: [{ created_at: '2026-10-18T10:00:00Z' }], error: null })
-    if (table === 'invoices') return invoices
-    throw new Error(`Tabela inesperada: ${table}`)
-  })
-
-  await expect(fetchSystemMetrics()).resolves.toEqual({
-    lastVoyageCreatedAt: '2026-10-18T10:00:00Z',
-    lastInvoiceIssuedAt: '2026-10-19T21:03:00Z',
-  })
-  expect(invoices.select).toHaveBeenCalledWith('issued_at')
-  expect(invoices.order).toHaveBeenCalledWith('issued_at', { ascending: false })
 })
 
 it('Histórico de ações com nomes: filtros vão para a RPC e o total vem da busca (558)', async () => {
@@ -129,6 +103,8 @@ it('Histórico de ações com nomes: filtros vão para a RPC e o total vem da bu
     p_action: 'alterou',
     p_date_from: '2026-10-12',
     p_date_to: null,
+    p_search: null,
+    p_action_key: null,
     p_limit: 50,
     p_offset: 100,
   })
@@ -148,4 +124,50 @@ it('Histórico de ações com nomes: sem filtro manda nulo e propaga a recusa do
   expect(rpcMock).toHaveBeenCalledWith('admin_action_history', expect.objectContaining({
     p_entity_types: null, p_actor: null, p_action: null, p_date_from: null, p_offset: 0,
   }))
+})
+
+it('Histórico por ação (603): filtros e busca vão para a RPC, o resumo chega como lista e o total é de ações', async () => {
+  rpcMock.mockResolvedValueOnce({
+    data: [{ action_key: 'audit|2026-11-04T17:55:11.626336Z|u-1', source: 'audit', line_count: 2539, entity_count: 798, groups: [{ entity_type: 'bls', kind: 'criou', entities: 17, fields: [] }], total_count: '3' }],
+    error: null,
+  })
+  const result = await fetchActionHistoryActions({ entityTypes: [], changedBy: '', action: '', dateFrom: '2026-10-08', dateTo: '', search: ' GSPT1 ', page: 0 })
+  expect(rpcMock).toHaveBeenCalledWith('admin_action_history_actions', expect.objectContaining({ p_search: 'GSPT1', p_date_from: '2026-10-08', p_limit: 50, p_offset: 0 }))
+  expect(result.count).toBe(3)
+  expect(result.rows[0]).not.toHaveProperty('total_count')
+  expect(result.rows[0].groups).toHaveLength(1)
+})
+
+it('Histórico: as linhas de uma ação pela chave, e a planilha lê em páginas de 1.000 até a última', async () => {
+  rpcMock.mockResolvedValueOnce({ data: Array.from({ length: 1000 }, (_, id) => ({ id, total_count: 1500 })), error: null })
+  rpcMock.mockResolvedValueOnce({ data: Array.from({ length: 500 }, (_, id) => ({ id, total_count: 1500 })), error: null })
+  const { rows, capped } = await fetchActionHistoryForExport({ entityTypes: [], changedBy: '', action: '', dateFrom: '', dateTo: '' })
+  expect(rows).toHaveLength(1500)
+  expect(capped).toBe(false)
+  expect(rpcMock).toHaveBeenLastCalledWith('admin_action_history', expect.objectContaining({ p_limit: 1000, p_offset: 1000 }))
+})
+
+it('Histórico: a planilha de exatamente 10.000 linhas sai inteira, sem o aviso de limite; acima disso, avisa', async () => {
+  const fullPages = (total: number) => {
+    for (let page = 0; page < 10; page += 1) {
+      rpcMock.mockResolvedValueOnce({ data: Array.from({ length: 1000 }, (_, id) => ({ id: page * 1000 + id, total_count: total })), error: null })
+    }
+  }
+  fullPages(10000)
+  const exact = await fetchActionHistoryForExport({ entityTypes: [], changedBy: '', action: '', dateFrom: '', dateTo: '' })
+  expect(exact.rows).toHaveLength(10000)
+  expect(exact.capped).toBe(false)
+  fullPages(10001)
+  const over = await fetchActionHistoryForExport({ entityTypes: [], changedBy: '', action: '', dateFrom: '', dateTo: '' })
+  expect(over.rows).toHaveLength(10000)
+  expect(over.capped).toBe(true)
+})
+
+it('Sistema (605): a leitura da conta Dev chega com números e listas, e a recusa do banco passa adiante', async () => {
+  rpcMock.mockResolvedValueOnce({ data: { alert_failures_30d: '2', teams_without_active: ['equipamentos'], routines_failing: [], suppressed_emails: '0', communications_enabled: true }, error: null })
+  const health = await fetchSystemHealth()
+  expect(rpcMock).toHaveBeenCalledWith('admin_system_health')
+  expect(health).toMatchObject({ alert_failures_30d: 2, teams_without_active: ['equipamentos'], communications_enabled: true, holidays_next_year: 0 })
+  rpcMock.mockResolvedValueOnce({ data: null, error: new Error('Somente a conta Dev consulta o Sistema.') })
+  await expect(fetchSystemHealth()).rejects.toThrow('Somente a conta Dev')
 })

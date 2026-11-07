@@ -23,7 +23,9 @@ const env: Record<string, string> = {
   ITAU_PIX_BASE_URL: "https://pix.itau.example.test/v2",
   ITAU_TOKEN_URL: "https://sts.itau.example.test/token",
 };
-const unset = ["ITAU_PIX_ADMIN_SECRET", "ITAU_PIX_DIAGNOSTIC_SECRET", "SENTRY_DSN"];
+const unset = ["ITAU_PIX_ADMIN_SECRET", "ITAU_PIX_DIAGNOSTIC_SECRET", "SENTRY_DSN", "BETTERSTACK_HEARTBEAT_ITAU_PIX_URL"];
+const HEARTBEAT_URL = "https://uptime.example.test/api/v1/heartbeat/itau-pix";
+const DIAGNOSTIC_SECRET = "test-diagnostic-secret";
 
 const json = (value: unknown, status = 200) =>
   new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
@@ -34,7 +36,13 @@ const queued = (id: number) => ({
   status: "pending_create", uncertain: false, attempts: 1, change_version: 1,
 });
 
-async function routineRun(options: { failRpc?: string; busy?: boolean; claimed?: unknown[]; pix?: unknown[] } = {}) {
+type RunOptions = {
+  failRpc?: string; busy?: boolean; claimed?: unknown[]; pix?: unknown[];
+  // Heartbeat do Better Stack configurado; corpo e segredo da chamada (padrão: o do cron).
+  heartbeat?: boolean; body?: string; secret?: "routine" | "diagnostic" | "wrong";
+};
+
+async function routineRun(options: RunOptions = {}) {
   const originalFetch = globalThis.fetch;
   const originalHttpClient = Deno.createHttpClient;
   const originalConsoleError = console.error;
@@ -44,6 +52,9 @@ async function routineRun(options: { failRpc?: string; busy?: boolean; claimed?:
   for (const [name, value] of Object.entries(env)) Deno.env.set(name, value);
   // O evento só sai com DSN; o falso aponta para o fetch abaixo.
   Deno.env.set("SENTRY_DSN", `https://public@${SENTRY_HOST}/1`);
+  Deno.env.set("ITAU_PIX_DIAGNOSTIC_SECRET", DIAGNOSTIC_SECRET);
+  if (options.heartbeat) Deno.env.set("BETTERSTACK_HEARTBEAT_ITAU_PIX_URL", HEARTBEAT_URL);
+  const heartbeats: string[] = [];
   const rpcs: string[] = [];
   const received: Record<string, unknown>[] = [];
   const sentry: string[] = [];
@@ -57,6 +68,10 @@ async function routineRun(options: { failRpc?: string; busy?: boolean; claimed?:
     if (url.hostname === SENTRY_HOST) {
       sentry.push(body);
       return json({});
+    }
+    if (url.href.startsWith(HEARTBEAT_URL)) {
+      heartbeats.push(url.href);
+      return new Response(null, { status: 200 });
     }
     if (url.href === env.ITAU_TOKEN_URL) return json({ access_token: "test-token", token_type: "Bearer", expires_in: 300 });
     if (url.href.startsWith(`${env.ITAU_PIX_BASE_URL}/pix?`)) {
@@ -85,10 +100,12 @@ async function routineRun(options: { failRpc?: string; busy?: boolean; claimed?:
   };
   try {
     // Como o job: POST com {} e o segredo da rotina.
+    const secret = { routine: env.ITAU_PIX_CRON_SECRET, diagnostic: DIAGNOSTIC_SECRET, wrong: "segredo-errado" }[options.secret ?? "routine"];
     const response = await handler(new Request("https://function.example.test/itau-pix", {
-      method: "POST", headers: { Authorization: `Bearer ${env.ITAU_PIX_CRON_SECRET}` }, body: "{}",
+      method: "POST", headers: { Authorization: `Bearer ${secret}` }, body: options.body ?? "{}",
     }));
-    return { status: response.status, body: await response.json(), rpcs, received, sentry, logs };
+    const text = await response.text();
+    return { status: response.status, body: text.startsWith("{") ? JSON.parse(text) : text, rpcs, received, sentry, logs, heartbeats };
   } finally {
     globalThis.fetch = originalFetch;
     Deno.createHttpClient = originalHttpClient;
@@ -188,6 +205,25 @@ Deno.test("429 no meio do bloco: a liberação das não chamadas que falha vai a
   assertSentryEvent(run.sentry, "charges_release");
 });
 
+Deno.test("sinal de fuso trocado em dois bancos pagadores não para: baixa, responde 200 e avisa log e Sentry", async () => {
+  // Recuperação de atraso logo depois de o Itaú passar a UTC verdadeiro: o horário de
+  // 3 h atrás, lido como Brasília, não cai no futuro e fica 3 h adiante do endToEndId.
+  const paid = new Date(Date.now() - 3 * 60 * 60_000 - 2 * 60_000);
+  const stamp = paid.toISOString().slice(0, 16).replace(/[-T:]/g, "");
+  const horario = paid.toISOString().slice(0, 19) + "Z";
+  const pix = [
+    { endToEndId: `E18236120${stamp}s0000000001`, txid: `VELA${"1".repeat(28)}`, valor: "10.00", horario },
+    { endToEndId: `E00000000${stamp}s0000000002`, txid: `VELA${"2".repeat(28)}`, valor: "20.00", horario },
+  ];
+  const run = await routineRun({ pix });
+  assert(run.status === 200, `Rodada com sinal de fuso respondeu ${run.status}: ${JSON.stringify(run.body)}`);
+  assert(run.received.length === 2, `Chamadas de itau_pix_receive: ${run.received.length}`);
+  assert(run.rpcs.filter((rpc) => rpc === "itau_pix_checkpoint").length === 2, "O checkpoint não avançou");
+  assert(run.body.receipts.zoneShiftSuspect?.length === 2, `Resumo: ${JSON.stringify(run.body.receipts)}`);
+  assert(loggedSteps(run.logs).join() === "receipts_zone", `Etapas no log: ${loggedSteps(run.logs)}`);
+  assertSentryEvent(run.sentry, "receipts_zone");
+});
+
 Deno.test("Pix sem TXID e de outro sistema vão para itau_pix_receive com o retorno inteiro do Itaú (ADR 0100)", async () => {
   // Minuto UTC do endToEndId = horário de Brasília do banco + 3 h.
   const minute = new Date(Date.now() - 2 * 60_000);
@@ -205,4 +241,35 @@ Deno.test("Pix sem TXID e de outro sistema vão para itau_pix_receive com o reto
   assert(first.p_paid_at === `${minute.toISOString().slice(0, 19)}.000Z`, `Horário em UTC: ${first.p_paid_at}`);
   assert(JSON.stringify(first.p_raw) === JSON.stringify(semTxid), `Retorno guardado: ${JSON.stringify(first.p_raw)}`);
   assert(second.p_txid === outro.txid && JSON.stringify(second.p_raw) === JSON.stringify(outro), `Outro sistema: ${JSON.stringify(second)}`);
+});
+
+Deno.test("heartbeat do Better Stack: a rodada boa do cron avisa sucesso", async () => {
+  const run = await routineRun({ heartbeat: true });
+  assert(run.status === 200, `Rodada respondeu ${run.status}`);
+  assert(run.heartbeats.join() === HEARTBEAT_URL, `Heartbeats: ${run.heartbeats}`);
+});
+
+Deno.test("heartbeat do Better Stack: a rodada com falha manda /fail", async () => {
+  // Como em 06/11/2026: a consulta de recebimentos falha a cada minuto.
+  const run = await routineRun({ heartbeat: true, failRpc: "itau_pix_checkpoint" });
+  assert(run.status === 500, `Rodada respondeu ${run.status}`);
+  assert(run.heartbeats.join() === `${HEARTBEAT_URL}/fail`, `Heartbeats: ${run.heartbeats}`);
+});
+
+Deno.test("heartbeat do Better Stack: o disparo da fila só reporta a falha", async () => {
+  const body = JSON.stringify({ action: "process_charges" });
+  const ok = await routineRun({ heartbeat: true, body });
+  assert(ok.status === 200 && ok.heartbeats.length === 0, `Disparo bom: ${ok.status} ${ok.heartbeats}`);
+  const failed = await routineRun({ heartbeat: true, body, failRpc: "itau_pix_claim" });
+  assert(failed.status === 500, `Disparo com falha respondeu ${failed.status}`);
+  assert(failed.heartbeats.join() === `${HEARTBEAT_URL}/fail`, `Heartbeats: ${failed.heartbeats}`);
+});
+
+Deno.test("heartbeat do Better Stack: diagnóstico e chamada recusada não reportam", async () => {
+  const diagnostic = await routineRun({ heartbeat: true, secret: "diagnostic", body: JSON.stringify({ action: "token" }) });
+  assert(diagnostic.status === 200, `Diagnóstico respondeu ${diagnostic.status}: ${JSON.stringify(diagnostic.body)}`);
+  const refused = await routineRun({ heartbeat: true, secret: "wrong" });
+  assert(refused.status === 403, `Chamada recusada respondeu ${refused.status}`);
+  assert(diagnostic.heartbeats.length === 0 && refused.heartbeats.length === 0,
+    `Heartbeats: ${diagnostic.heartbeats} / ${refused.heartbeats}`);
 });

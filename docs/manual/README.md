@@ -214,6 +214,13 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   primeiro veículo; só Equipamentos e o Administrativo respondem (migration `598`; ACE-134, EQU-128, EQU-129, EQU-134, CEB-102; capítulos 6, 10, 18, 19
   e 20, seções 6.5, 10.1 e 20.5; guia rápido, etapas 7, 11, 18 e 19; contagens de
   ACE-119).
+- **Cliente cadastrado depois do B/L** (pedido do dono de 2026-11-06,
+  migration `610`): o **Novo cliente** vincula os B/Ls que já esperavam pelo
+  CNPJ dele (CLI-111); a Revisão reconhece o CNPJ já cadastrado e vincula em
+  vez de cadastrar de novo, e espera a resposta da Receita antes de cadastrar
+  (BLR-087, BLR-120); **Completar pela Receita** preenche os campos vazios dos
+  Clientes antigos (CLI-112). Texto: capítulo 8, seção 8.2, e capítulo 13,
+  seções 13.3 e 13.5.
 - **Solicitar acesso no login do Portal** (decisão do dono de 2026-11-05): o
   botão abre o formulário da página do Portal no fwlog.com.br, em outra aba
   (POR-001; capítulo 15, seção 15.2).
@@ -691,3 +698,11 @@ o sistema. Cada mudança cita a data e a migration na própria linha.
   contatos, e "E-mail duplicado no envio" passa a **Fora** (CLI-040, POR-090 e
   as duas mensagens no Ap. B da matriz 06). O texto do manual não cita essas
   mensagens.
+- **Embarque de vazios** (decisões do dono de 2026-11-06, migration `606`,
+  [ADR 0130](../adr/0130-embarque-de-vazios-pod-tamanho-e-free-time-congelado.md)):
+  POD obrigatório na unidade e terminal só do porto do embarque, Nº do
+  Manifesto Mercante por rota de exportação, serviço com tamanho e armazenagem
+  por depot, condição e tamanho, edição e quantidade sugerida da linha, free
+  time congelado na linha de armazenagem, rótulos e anexo do ADR (10.5, 10.6,
+  10.7, 11; EQU-081, EQU-083, EQU-087 a EQU-093, EQU-095, EQU-106, EQU-135 a
+  EQU-140, VIA-081).

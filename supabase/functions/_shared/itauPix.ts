@@ -94,21 +94,22 @@ const FUTURE_TOLERANCE_MS = 5 * 60 * 1000
 
 // Contrato produtivo observado em 07/10/2026: Itaú devolve hora de Brasília
 // com Z indevido. Offset explícito é preservado; o restante do Vela usa UTC.
-// ponytail: -03:00 fixo (Brasília sem horário de verão) e reinterpretação de todo Z.
-// Se o Itaú passar a mandar UTC verdadeiro, a leitura soma 3 h. Duas travas param
-// sem gravar horário errado: a recusa de horário no futuro (criação de COB e
-// recebimento recente) e, na baixa, a conferência com o horário UTC do endToEndId,
-// que independe do relógio e cobre a recuperação de atraso. Limite conhecido: o
-// vencimento de uma COB antiga consultada sem nova criação ou baixa no meio só é
-// pego pela primeira trava seguinte. Upgrade: ao disparar, remover a troca de Z.
+// Se o Itaú passar a mandar UTC verdadeiro, ler o Z como Brasília põe o horário
+// recente 3 h no futuro, o que não existe: então o Z é UTC de verdade e vale como
+// veio. O horário nunca para a consulta nem a cobrança (decisão do dono de
+// 2026-11-06; antes, o horário no futuro parava as duas).
+// ponytail: -03:00 fixo (Brasília sem horário de verão), e só o horário recente
+// revela a mudança. Limite: numa recuperação de atraso de mais de 3 h logo depois
+// de o Itaú mudar, o horário antigo é lido 3 h adiante (o dia só muda no Pix pago
+// entre 21h e 0h de Brasília); a consulta avisa o Sentry quando Pix de dois bancos
+// pagadores ou mais mostram esse desvio. Upgrade: guardar a mudança detectada e
+// deixar de trocar o Z daí em diante.
 function itauTimeToUtc(value: string): string {
   if (typeof value !== 'string' || !/(Z|[+-]\d{2}:\d{2})$/.test(value))
     throw new ItauPixError('Horário do Itaú em formato inesperado.', 502)
-  const time = Date.parse(value.replace(/Z$/, '-03:00'))
-  if (!Number.isFinite(time)) throw new ItauPixError('Horário do Itaú em formato inesperado.', 502)
-  if (time > Date.now() + FUTURE_TOLERANCE_MS) {
-    throw new ItauPixError('Horário do Itaú no futuro; conferir se o banco mudou o fuso.', 502, { horario: value })
-  }
+  const asBrasilia = Date.parse(value.replace(/Z$/, '-03:00'))
+  if (!Number.isFinite(asBrasilia)) throw new ItauPixError('Horário do Itaú em formato inesperado.', 502)
+  const time = value.endsWith('Z') && asBrasilia > Date.now() + FUTURE_TOLERANCE_MS ? Date.parse(value) : asBrasilia
   return new Date(time).toISOString()
 }
 
@@ -255,15 +256,14 @@ export function createItauPixClient(config: ItauPixConfig, fetchMtls: typeof fet
         // Produção (07/10/2026): janela vazia retorna 100 páginas, mas total zero.
         if (body?.pix?.length === 0 && body.parametros?.paginacao?.quantidadeTotalDeItens === 0) return all
         // Só o Pix do Vela tem o horário convertido: horário inesperado de terceiro não
-        // derruba a consulta, e o do Vela segue cru para a validação, que o manda à análise.
+        // derruba a consulta, e o do Vela ilegível segue vazio para a validação, que o
+        // manda à análise.
         all.push(...(body?.pix ?? []).map(p => {
           const raw = p as unknown as Record<string, unknown>
           if (!isVelaTxid(p.txid)) return { ...p, raw }
           try {
             return { ...p, horario: itauTimeToUtc(p.horario), raw }
-          } catch (error) {
-            // Horário no futuro é o banco que mudou o fuso: vale para todos, então para.
-            if (error instanceof ItauPixError && error.message.includes('no futuro')) throw error
+          } catch {
             return { ...p, horario: '', raw }
           }
         }))
@@ -496,21 +496,34 @@ function receiptFormatOk(p: ItauPix): boolean {
   return endToEndTime(p.endToEndId ?? '') !== null && MONEY.test(p.valor ?? '') && Number.isFinite(Date.parse(p.horario))
 }
 
-function receiptDeviates(p: ItauPix): boolean {
-  return Math.abs(Date.parse(p.horario) - endToEndTime(p.endToEndId)!) > END_TO_END_TOLERANCE_MS
+// A única leitura errada que o Vela pode fazer é trocar o Z de um horário já em UTC
+// por -03:00 (offset explícito é preservado): o horário lido fica 3 h depois do
+// crédito, e o crédito segue a iniciação gravada no endToEndId. Pix agendado ou
+// pago em lote pelo pagador tem endToEndId horas antes do crédito, com qualquer
+// desvio (5 h num Pix real de 06/11/2026), e não é fuso.
+const ZONE_SHIFT_MS = 3 * 60 * 60 * 1000
+const CLOCK_SKEW_MS = 5 * 60 * 1000
+
+function looksLikeZoneShift(p: ItauPix): boolean {
+  const gap = Date.parse(p.horario) - endToEndTime(p.endToEndId)!
+  return gap >= ZONE_SHIFT_MS - CLOCK_SKEW_MS && gap <= ZONE_SHIFT_MS + END_TO_END_TOLERANCE_MS
 }
 
-// Horário do Pix que não é do Vela: o do Itaú convertido de Brasília, ou o
-// minuto UTC do endToEndId quando o do banco não se lê ou se afasta dele (fuso
-// trocado). Não para a consulta: as travas de fuso ficam com os Pix do Vela.
+// Instituição do pagador (ISPB): o endToEndId nasce no relógio dela. O lote de um
+// mesmo pagador é uma evidência só, por mais Pix que tenha.
+function payerInstitution(p: ItauPix): string {
+  return p.endToEndId.slice(1, 9)
+}
+
+// Horário do Pix que não é do Vela: o do Itaú convertido, que é o do crédito,
+// mesmo longe do endToEndId (Pix agendado ou em lote); o minuto UTC do endToEndId
+// só quando o do banco não se lê.
 function receivedTime(horario: string, e2eTime: number): string {
   try {
-    const value = itauTimeToUtc(horario)
-    if (Math.abs(Date.parse(value) - e2eTime) <= END_TO_END_TOLERANCE_MS) return value
+    return itauTimeToUtc(horario)
   } catch {
-    // cai no endToEndId
+    return new Date(e2eTime).toISOString()
   }
-  return new Date(e2eTime).toISOString()
 }
 
 const OVERLAP_MS = 10 * 60 * 1000 // Pix disponibilizado com atraso entra na janela seguinte.
@@ -533,18 +546,25 @@ export async function pollItauPixReceipts(client: ItauPixClient, sink: ReceiptSi
       end = start + Math.max(MIN_WINDOW_MS, Math.floor((end - start) / 2))
     }
   }
-  // Desvio de fuso atinge todos os recebimentos: se a maioria dos Pix do Vela
-  // diverge do endToEndId, para sem avançar e o Alerta de consulta parada
-  // (migration 358) avisa. Um comprovante isolado que destoa vai para análise e
-  // não segura a baixa dos demais (auditoria run-3, pendência P4).
-  // ponytail: maioria simples da janela; com um único Pix, ele decide sozinho.
+  // O horário nunca para a consulta (decisão do dono de 2026-11-06). Antes, Pix do
+  // Vela a mais de 1 h do endToEndId paravam tudo quando eram a maioria da janela:
+  // em 06/11/2026, 18 Pix de um cliente pagos em lote pararam a consulta por horas
+  // sem mudança de fuso. O desvio de 3 h que a troca do Z produziria, em Pix de dois
+  // bancos pagadores ou mais e maioria dos da janela, só avisa o Sentry (o lote de
+  // um mesmo pagador conta uma vez): é o sinal da recuperação de atraso logo depois
+  // de o Itaú mudar o fuso, quando o horário antigo não cai no futuro.
+  // ponytail: aviso por maioria simples das instituições, sem corrigir o horário.
+  // Upgrade: votar também com os Pix de fora do Vela da mesma janela.
   const checked = pix.filter((p) => isVelaTxid(p.txid) && !isVelaTestTxid(p.txid) && receiptFormatOk(p))
-  const deviating = checked.filter(receiptDeviates)
-  if (deviating.length > 0 && deviating.length * 2 > checked.length) {
-    throw new ItauPixError('Horário do Itaú diverge do endToEndId; conferir se o banco mudou o fuso.', 502,
-      { txids: deviating.map((p) => p.txid) })
-  }
-  const summary = { seen: pix.length, vela: 0, test: 0, settled: 0, review: 0, received: 0, skipped: 0, until: new Date(end).toISOString() }
+  const shifted = checked.filter(looksLikeZoneShift)
+  const institutions = (list: ItauPix[]) => new Set(list.map(payerInstitution)).size
+  const shiftedInstitutions = institutions(shifted)
+  const zoneShiftSuspect = shiftedInstitutions >= 2 && shiftedInstitutions * 2 > institutions(checked)
+    // Horário como o Itaú mandou: é o que mostra se o banco mudou o fuso.
+    ? shifted.map((p) => ({ txid: p.txid, endToEndId: p.endToEndId, horario: p.raw?.horario ?? p.horario }))
+    : null
+  const summary = { seen: pix.length, vela: 0, test: 0, settled: 0, review: 0, received: 0, skipped: 0,
+    until: new Date(end).toISOString(), zoneShiftSuspect }
   for (const p of pix) {
     const raw = p.raw ?? (p as unknown as Record<string, unknown>)
     if (!isVelaTxid(p.txid) || isVelaTestTxid(p.txid)) {
@@ -581,12 +601,9 @@ export async function pollItauPixReceipts(client: ItauPixClient, sink: ReceiptSi
       summary.review++
       continue
     }
-    if (receiptDeviates(p)) {
-      // Minoria da janela: não é fuso, é este comprovante.
-      await sink.failed({ endToEndId: p.endToEndId, txid: p.txid, raw }, 'Horário do Itaú diverge do endToEndId deste recebimento.', true)
-      summary.review++
-      continue
-    }
+    // Sem sinal de fuso, vale o horário do Itaú mesmo longe do endToEndId: é o do
+    // crédito, e o endToEndId é o da iniciação (Pix agendado ou em lote). Decisão
+    // do dono de 2026-11-06; antes (auditoria run-3, P4), esse Pix ia para análise.
     let outcome: Awaited<ReturnType<ReceiptSink['receive']>>
     try {
       outcome = await sink.receive({ endToEndId: p.endToEndId, txid: p.txid, valor: p.valor, horario: p.horario, raw })

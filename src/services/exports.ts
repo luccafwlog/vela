@@ -275,6 +275,22 @@ function filtersSheet(filters: ReportFilterLine[]): SheetSpec {
 
 const filterLines = (filters: ReportFilterLine[]) => filters.map((line) => `${line.Filtro} = ${line.Valor}`)
 
+/** Histórico de ações (Administração): uma linha por campo, montada na tela com os nomes. */
+export async function exportActionHistoryWorkbook(rows: Record<string, unknown>[], filters: ReportFilterLine[] = []) {
+  await writeWorkbook(vela('Histórico de ações', 'historico-de-acoes', [
+    sheet('Histórico', rows, { unit: 'linhas', types: { 'O que mudou': 'long', Motivo: 'long', De: 'long', Para: 'long' } }),
+    filtersSheet(filters),
+  ], filterLines(filters)))
+}
+
+/** Relatórios › Prazo do ADR: uma linha por ADR fechado, por equipe, nunca por pessoa. */
+export async function exportAdrDeadlineWorkbook(rows: Record<string, unknown>[], filters: ReportFilterLine[] = []) {
+  await writeWorkbook(vela('Prazo do ADR', 'prazo-do-adr', [
+    sheet('Prazo do ADR', rows, { unit: 'ADRs' }),
+    filtersSheet(filters),
+  ], filterLines(filters)))
+}
+
 /** Colunas da planilha do relatório com os mesmos rótulos da tela, sem código cru. */
 export async function exportOperationalReportWorkbook(rows: OperationalReportRow[], filters: ReportFilterLine[] = []) {
   const exportRows = rows.map((row) => ({

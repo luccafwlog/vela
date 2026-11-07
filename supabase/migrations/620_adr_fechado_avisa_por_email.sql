@@ -25,7 +25,7 @@
 --
 -- Plano de preservação: a migration não reescreve nem apaga linha existente:
 -- cria a fila vazia, troca a restrição `portal_email_attempts_kind_check` por
--- uma que aceita os mesmos tipos e mais `adr_fechado` (as linhas existentes
+-- uma que aceita os mesmos tipos (com o `teste_envio` da migration `605`) e mais `adr_fechado` (as linhas existentes
 -- continuam válidas e são revalidadas pela restrição nova) e acrescenta
 -- funções e gatilhos. ADRs fechados antes dela não entram na fila. Conferir:
 -- `SELECT count(*) FROM adr_closed_email_outbox` = 0 logo depois. Desfazer: o
@@ -44,7 +44,7 @@ BEGIN;
 ALTER TABLE public.portal_email_attempts DROP CONSTRAINT IF EXISTS portal_email_attempts_kind_check;
 ALTER TABLE public.portal_email_attempts ADD CONSTRAINT portal_email_attempts_kind_check
   CHECK (kind = ANY (ARRAY['convite', 'reenvio', 'recuperacao', 'alteracao_email', 'alerta_critico', 'resumo_diario',
-    'contato_bounced_notificacao', 'ce_unlock_notificacao', 'senha_alterada', 'adr_fechado']));
+    'contato_bounced_notificacao', 'ce_unlock_notificacao', 'senha_alterada', 'teste_envio', 'adr_fechado']));
 
 -- 1 --- Fila ----------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.adr_closed_email_outbox (

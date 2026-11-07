@@ -49,7 +49,7 @@ import { DEMURRAGE_DIVISIONS, DEMURRAGE_DIVISION_LABELS } from '../services/demu
 import { SegmentedControl } from '../components/ui/SegmentedControl'
 import { boxShareLabel } from '../services/demurrage/demurragePresentation'
 import {
-  REPORT_VIEWS,
+  calendarDateParam,
   customerFiltersFromSearch,
   customerNameFromSearch,
   demurrageFiltersFromSearch,
@@ -57,12 +57,15 @@ import {
   hasDateParam,
   operationalFiltersFromSearch,
   reportViewFromSearch,
+  visibleReportViews,
   withReportParam,
   withReportView,
   type ReportParam,
   type ReportView,
 } from './relatoriosListState'
 import { demurrageInvoiceHref } from './demurrageListState'
+import { AdrDeadlineReportView } from '../components/reports/AdrDeadlineReportView'
+import { useAuth } from '../hooks/useAuth'
 
 // A planilha lê o recorte inteiro, sem o teto da tela (achado R2).
 const EXPORT_ALL = { ceiling: Number.POSITIVE_INFINITY }
@@ -103,7 +106,8 @@ type ViewProps = {
 
 export function Relatorios() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const view = reportViewFromSearch(searchParams)
+  const { isAdmin } = useAuth()
+  const view = reportViewFromSearch(searchParams, isAdmin)
   const setParams = (next: URLSearchParams) => setSearchParams(next, { replace: true })
   const props: ViewProps = {
     params: searchParams,
@@ -116,7 +120,7 @@ export function Relatorios() {
       <PageHeader title="Relatórios" />
 
       <TabList label="Visões do relatório" className="mb-4">
-        {REPORT_VIEWS.map((option) => (
+        {visibleReportViews(isAdmin).map((option) => (
           <TabButton
             key={option.value}
             id={`report-tab-${option.value}`}
@@ -133,6 +137,14 @@ export function Relatorios() {
         {view === 'financeiro' ? <FinancialReportView {...props} /> : null}
         {view === 'por-cliente' ? <CustomerReportView {...props} /> : null}
         {view === 'demurrage' ? <DemurrageReportView {...props} /> : null}
+        {view === 'prazo-do-adr' ? (
+          <AdrDeadlineReportView
+            dateFrom={calendarDateParam(searchParams.get('de'))}
+            dateTo={calendarDateParam(searchParams.get('ate'))}
+            onDate={(key, value) => props.setParam(key, value)}
+            onClear={() => setSearchParams(withReportView(new URLSearchParams(), 'prazo-do-adr'), { replace: true })}
+          />
+        ) : null}
       </div>
     </>
   )

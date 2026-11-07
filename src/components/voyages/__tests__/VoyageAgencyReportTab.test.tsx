@@ -122,7 +122,7 @@ it('abre a escala indicada no deep-link e permite trocar a escala do ADR', () =>
   expect(screen.getByRole('button', { name: 'BRVIX' }).getAttribute('aria-pressed')).toBe('true')
 })
 
-it('exibe unidades sem armazenagem na subseção Operação de pátio', () => {
+it('exibe o Embarque direto na subseção Operação de pátio (C3 da revisão de 2026-11-06)', () => {
   useAgencyReportDerivedMock.mockReturnValue({
     data: {
       containers: [], vehicles: [], vaziosImp: [], granite: [],
@@ -138,7 +138,9 @@ it('exibe unidades sem armazenagem na subseção Operação de pátio', () => {
   })
   render(<VoyageAgencyReportTab voyageId={7} voyageLabel="NAVIO TESTE / 01E" carrierName="Armador teste" pods={[{ pod: 'BRVIX', omitted: false }]} />)
   const patioSection = screen.getByRole('heading', { name: /Opera.*o de p.*tio/, level: 4 }).closest('section')!
-  expect(within(patioSection).getByText('Unidades sem armazenagem')).toBeTruthy()
+  expect(within(patioSection).getByText('Embarque direto')).toBeTruthy()
+  expect(within(patioSection).getByText('Unidades com armazenagem')).toBeTruthy()
+  expect(within(patioSection).queryByText('Unidades sem armazenagem')).toBeNull()
 })
 
 it('exibe a linha de serviço pelo nome, nao pelo id', () => {

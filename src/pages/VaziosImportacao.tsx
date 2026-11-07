@@ -274,7 +274,8 @@ export function VaziosImportacao() {
         <Field label="Manifesto Mercante" hint={hasVoyage ? undefined : 'Escolha a Viagem para ver os manifestos dela.'}>
           <Select value={filters.mercanteId} disabled={!hasVoyage} onChange={(event) => chooseManifesto(event.target.value)}>
             <option value="">{hasVoyage ? 'Todos da viagem' : 'Todos'}</option>
-            {(voyageManifestos.data ?? []).map((manifesto) => (
+            {/* 606: o manifesto de vazios de exportação para porto estrangeiro (Embarque de vazios) não é rota de importação. */}
+            {(voyageManifestos.data ?? []).filter((manifesto) => manifesto.pod.toUpperCase().startsWith('BR')).map((manifesto) => (
               <option key={manifesto.id} value={manifesto.id}>
                 {manifesto.numero} · {manifesto.pol} → {manifesto.pod}
               </option>

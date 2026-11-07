@@ -93,6 +93,72 @@
   [revisão de cobertura dos alertas no fluxo de trabalho](archive/audits/2026-11-06-cobertura-dos-alertas-no-fluxo-de-trabalho.md).
   Prova: `gravidadeDoAlertaPelaTela.local-pg.test.ts`, `permissoesPorPerfil.local-pg.test.ts` (P14) e
   `AlertasRegrasCatalog.test.tsx`.
+- **Pix Itaú: a consulta parada ou falhando passa a avisar por e-mail (decisão do dono de
+  2026-11-06):** no incidente do mesmo dia, nenhum aviso chegou por e-mail. Os alertas do Vela
+  ficam no sino (e **Consulta de Pix do Itaú parada** só no do Financeiro); o Better Stack não
+  vigiava a `itau-pix`; e o Sentry juntou os erros ao VELA-26, aberto desde outubro, sem ser erro
+  novo nem regressão. Agora a `itau-pix` reporta ao heartbeat `BETTERSTACK_HEARTBEAT_ITAU_PIX_URL`
+  a cada rodada do cron (`/fail` na rodada com falha; o disparo da fila só manda o `/fail`; o
+  diagnóstico não reporta), e o VELA-26 foi marcado como resolvido no Sentry, para a próxima falha
+  voltar a mandar e-mail. Falta o passo do dono: criar o heartbeat no Better Stack (1 min,
+  tolerância 5 min) e cadastrar a URL como secret das Edge Functions. Prova:
+  `itau-pix/index.test.ts` (sucesso, `/fail`, disparo da fila e diagnóstico) e
+  `betterStackHeartbeat.test.ts`.
+- **Pix Itaú: o horário do Pix nunca mais para a consulta de recebimentos (incidente e decisão do
+  dono de 2026-11-06):** a partir das 17:33 de Brasília, a `itau-pix` respondeu 500 a cada minuto
+  ("Horário do Itaú diverge do endToEndId") e abriu **Consulta de Pix do Itaú parada** e **Rotina
+  agendada com resposta de erro**. Causa: 18 faturas de um mesmo cliente pagas juntas, com o
+  `endToEndId` da iniciação do lote mais de 1 h antes do crédito, eram a maioria dos Pix do Vela da
+  janela, e a trava de fuso parava tudo quando a maioria divergia. O Itaú não mudou o fuso. Agora
+  vale sempre o horário do crédito no Itaú: o Pix com horário longe do `endToEndId` é baixado (antes
+  ia para análise, auditoria run-3 P4); o horário que cairia no futuro é lido como UTC, corrigindo
+  sozinho uma mudança de fuso no Itaú, em vez de parar a consulta e a cobrança; e o desvio de 3 h em
+  Pix de dois bancos pagadores ou mais só avisa o log e o Sentry (`receipts_zone`), com a rodada
+  em 200. Pix de outros sistemas também gravam o horário do Itaú. Quando a correção chega à
+  produção, a consulta retoma do ponto parado e dá baixa automática nos Pix represados, inclusive os
+  18. Migration `611`: o Pix gravado pela fila de falhas (formato inesperado, três falhas de gravação)
+  lê o horário do Itaú como a consulta; antes, o `Z` era lido como UTC e esse Pix ficava 3 h antes do
+  real (nenhum em produção até então). Prova: `itauPix.test.ts` (o lote de 18 do incidente, o lote
+  baixado dias depois, Pix agendados de 5 h, fuso trocado recente e antigo), `itau-pix/index.test.ts`
+  (aviso de fuso responde 200) e `itauPixCharges.local-pg.test.ts` (os quatro formatos de horário na
+  fila de falhas).
+- **Embarque de vazios: porto de descarga, Nº do manifesto da rota, preço por tamanho e free time congelado
+  (decisões do dono de 2026-11-06, migration `606`, ADR 0130):** a revisão do Embarque de vazios
+  ([relatório](archive/audits/2026-11-06-revisao-embarque-de-vazios.md)) levou a estas mudanças:
+  - **POD obrigatório.** Toda unidade tem porto de descarga (POD), na planilha (oitava coluna) e na janela.
+  - **Embarque direto.** Só sai de um terminal do porto do embarque.
+  - **Nº do Manifesto Mercante.** O bloco **Manifesto Mercante por porto de descarga** registra o número de cada
+    rota no cadastro único de Manifestos.
+  - **Preço por tamanho.** O serviço de Locais ganha **Tamanho** (20'/40'), e a armazenagem se divide por tamanho;
+    no ZIRAN, o **Lançar armazenagem** usava um preço só para 20' e 40'.
+  - **Free time congelado.** A linha de armazenagem guarda o free time do lançamento.
+  - **Histórico de ações.** O tamanho do serviço aparece como **Tamanho** (20', 40' ou "Qualquer tamanho"), não
+    como "Tipo de container", e o free time gravado como **Free time do lançamento**.
+  - **Linha de serviço.** Agora se edita, e a quantidade de handling e transporte é sugerida pelas unidades do
+    local (**Usar N**).
+  - **ADR de Saída.** Mostra POD, TEU e manifesto por rota e rótulos que dizem o que contam. O anexo impresso
+    lista só as unidades que geraram armazenagem, com os dias. Os dias cobráveis de storage são os das linhas
+    de armazenagem, com a quantidade informada à mão valendo; quando ela difere, o calculado pela lista aparece
+    ao lado (C4).
+
+  Prova: `embarqueVaziosPodTamanho.local-pg.test.ts`, `vaziosCusto.test.ts`, `vaziosImportAdrColumns.test.ts`,
+  `EmbarqueVazios.flow.test.tsx` e `AgencyReportDocument.test.tsx`.
+- **Administração revisada (decisões do dono de 2026-11-06, [plano arquivado](archive/plans/2026-11-06-administracao-revisada.md), migrations `603` a `605`):**
+  a Administração fica com **Usuários**, **Histórico de ações** e **Sistema**, esta só da conta Dev. O **Histórico de
+  ações** passa a mostrar uma linha por ação (uma importação de 2.539 linhas vira "781 Containers criados, 17 B/Ls
+  criados"), com os segundos, **Busca**, **Período** (abre em 30 dias), **Assunto** por área, **Ver campo a campo** e
+  **Exportar planilha**; o motivo técnico gravado pelo banco aparece em português como **Origem** e o texto padrão
+  salvo sem motivo some (também no Histórico do B/L); a linha repetida pelo gatilho sai da leitura, e o Vela deixa de
+  gravar as colunas técnicas (menos em Viagens, cujas linhas reconciliam os alertas). **Sistema** mostra os pontos de
+  atenção (equipe sem ninguém ativo, alerta sem destinatário, rotina com falha, Pix parado, e-mail bloqueado,
+  feriados faltando), as rotinas automáticas, as configurações — com a chave do **Envio real**, que sai de Clientes ›
+  Comunicação, e **Enviar teste para mim** (Edge Function nova `admin-test-email`, publicada no merge em `main`) — e as
+  falhas de entrega de alertas; as leituras exigem `is_dev_user()` no banco. O **Prazo do ADR** vira visão de
+  **Relatórios**, só do Administrativo, com **Exportar planilha**. Desativar a última pessoa ativa de uma equipe
+  avisa na confirmação. Os endereços antigos redirecionam. Diagnóstico com os números de produção em
+  [archive/audits/administracao-2026-11-06.md](archive/audits/administracao-2026-11-06.md). Prova:
+  `historicoPorAcao.local-pg.test.ts`, `permissoesPorPerfil.local-pg.test.ts`, `Admin.behavior.test.tsx`,
+  `Relatorios.behavior.test.tsx` e Deno `adminTestEmail.test.ts`.
 - **Revisão final da release de 2026-11-06 (PR #1241, decisão do dono):** na reimportação do arquivo de B/L, o
   B/L com o CNPJ/CPF corrigido na ficha deixa de pedir **Troca de Consignatário** (e "CNPJ faturado") quando o
   arquivo traz de novo o CNPJ errado, sem Cliente cadastrado: o Cliente e a correção ficam. Antes, a confirmação única

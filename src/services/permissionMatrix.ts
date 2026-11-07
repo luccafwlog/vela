@@ -1,6 +1,6 @@
 // "O que cada setor pode" (lote 5b, tela Administração, decisão de
 // 2026-10-19: opção A com C). Fonte única da matriz da aba Usuários e da
-// lista "Com este setor, ... pode" das janelas de usuário. As 49 linhas
+// lista "Com este setor, ... pode" das janelas de usuário. As 50 linhas
 // resumem as ações de docs/operations/seguranca.md § "Modelo de permissões
 // por perfil", que diz onde o banco aplica cada uma.
 //
@@ -102,6 +102,8 @@ export const PERMISSION_MATRIX: readonly PermissionRow[] = [
   { id: 'gerir-usuarios', group: 'usuarios', action: 'Criar usuário, mudar setor, ativar e desativar, trocar e-mail e senha', can: ADM, proof: ['caso: Catálogo: só o Administrativo muda o setor e a situação de um usuário'] },
   // Marca Dev (ADR 0104): só a conta do Administrativo com a marca, dada por migration.
   { id: 'envio-real-emails', group: 'usuarios', action: 'Ligar e desligar o envio real de e-mails', can: { ...only(), administrativo: DEV_ONLY }, proof: ['caso: Dev: só a conta Dev liga e desliga o envio real de e-mails'] },
+  // Decisão do dono de 2026-11-06 (migration 605): a aba Sistema é da conta Dev.
+  { id: 'aba-sistema', group: 'usuarios', action: 'Ver a aba Sistema da Administração (pontos de atenção, rotinas automáticas e configurações)', can: { ...only(), administrativo: DEV_ONLY }, proof: ['caso: Dev: só a conta Dev lê a aba Sistema da Administração'] },
   { id: 'ultimo-administrativo', group: 'usuarios', action: 'Desativar ou rebaixar o último Administrativo ativo', can: only(), proof: ['caso: Catálogo: ninguém desativa nem rebaixa o último Administrativo ativo'] },
 
   // Viagens, B/L e ADR de Saída

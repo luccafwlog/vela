@@ -5,7 +5,19 @@ import { describe, expect, it } from 'vitest'
 const read = (file: string) => readFileSync(resolve(process.cwd(), 'supabase/functions', file), 'utf8')
 
 describe('Edge Function send-customer-communication', () => {
-  const source = read('send-customer-communication/index.ts')
+  // A Edge autentica; o envio fica no módulo que a régua automática também chama.
+  const entry = read('send-customer-communication/index.ts')
+  const dispatch = read('_shared/customerCommunicationDispatch.ts')
+  const source = `${entry}\n${dispatch}`
+
+  it('a Edge só autentica e entrega o envio ao módulo compartilhado com a régua', () => {
+    expect(entry).toContain("from '../_shared/customerCommunicationDispatch.ts'")
+    expect(entry).toContain('return respond(await dispatchCustomerCommunication(admin, rawBody, {')
+    expect(entry).toContain('userId: callerUser.user?.id ?? null,')
+    // Nada do envio ficou na Edge: um só dono das regras.
+    expect(entry).not.toContain("admin.rpc('create_customer_communication_atomic'")
+    expect(entry).not.toContain('sendEmail(')
+  })
 
   it('mantém autenticação interna, guarda de natureza e redirecionamento ao suporte com a chave desligada', () => {
     expect(source).toContain("caller.rpc('portal_current_role')")
@@ -25,7 +37,7 @@ describe('Edge Function send-customer-communication', () => {
 
   it('livre com B/Ls exige a viagem (D15) e anexo que falha desfaz o registro gravado na chamada', () => {
     expect(source).toContain("if (kind === 'livre' && body.anchor_voyage_id == null) {")
-    expect(source).toContain("return permanentRejection('Comunicado livre com B/Ls exige a viagem.', origin)")
+    expect(source).toContain("return permanentRejection('Comunicado livre com B/Ls exige a viagem.')")
     expect(source).toContain(".eq('communication_id', communicationId).in('storage_path', insertedNow)")
   })
 
@@ -38,7 +50,7 @@ describe('Edge Function send-customer-communication', () => {
     expect(source).toContain("from('customer_communication_suppressions')")
     expect(source).toContain("reason', 'bounce_permanente'")
     // B/L cancelado é recusa definitiva em todo modelo, inclusive o livre (revisão do PR #973).
-    expect(source).toContain("permanentRejection('B/L cancelado não recebe Comunicado.', origin)")
+    expect(source).toContain("permanentRejection('B/L cancelado não recebe Comunicado.')")
     // O modo do destinatário vai na resposta: o status é o agregado do Comunicado.
     expect(source).toContain("dispatchMode: enabled ? 'real' : 'simulado'")
     expect(source).toContain("admin.rpc('create_customer_communication_atomic'")
@@ -67,7 +79,7 @@ describe('Edge Function send-customer-communication', () => {
     expect(source).toContain('existing.length + newAttachments.length > 3')
     expect(source).toContain('existingBytes + newBytes > 10 * 1024 * 1024')
     expect(source).toContain('uploadedBy: string | null')
-    expect(source).toContain('callerUser.user?.id ?? null')
+    expect(source).toContain('callerUserId)')
     // Nome do anexo vai a cabeçalho no provedor: sem CR/LF (auditoria run-3).
     expect(source).toContain("const filename = singleLine(String(attachment.filename ?? '')).trim()")
   })
@@ -75,12 +87,12 @@ describe('Edge Function send-customer-communication', () => {
   it('identidade reaproveitada só repete o mesmo envio: outra pessoa ou outro conteúdo é recusa definitiva (run-3, C5)', () => {
     const guard = source.slice(source.indexOf('if (!isAutomation) {\n    const { data: stored'), source.indexOf('// Cópia do que saiu'))
     expect(guard).toContain("select('created_by, rendered_subject, rendered_text, rendered_html_sha256')")
-    expect(guard).toContain('if (stored.created_by !== callerUser.user?.id)')
+    expect(guard).toContain('if (stored.created_by !== callerUserId)')
     expect(guard).toContain('stored.rendered_html_sha256 !== renderedHtmlSha256')
     expect(guard.match(/permanentRejection\(/g)).toHaveLength(2)
     // A conferência vem antes de gravar a cópia, dos anexos e do envio ao provedor.
-    expect(source.indexOf('if (stored.created_by !== callerUser.user?.id)')).toBeLessThan(source.indexOf('rendered_subject: effectiveSubject,'))
-    expect(source.indexOf('if (stored.created_by !== callerUser.user?.id)')).toBeLessThan(source.indexOf('persistCommunicationAttachments(admin'))
+    expect(source.indexOf('if (stored.created_by !== callerUserId)')).toBeLessThan(source.indexOf('rendered_subject: effectiveSubject,'))
+    expect(source.indexOf('if (stored.created_by !== callerUserId)')).toBeLessThan(source.indexOf('persistCommunicationAttachments(admin'))
   })
 
   it('envio simultâneo do mesmo registro: quem não gravou a cópia confere com a gravada antes de enviar', () => {

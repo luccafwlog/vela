@@ -6,6 +6,7 @@ import type { ReviewCustomer } from '../../hooks/useReview'
 import { CNPJ_INPUT_MAX_LENGTH, canonicalizeValidCnpj, formatCnpj, normalizeCnpj } from '../../lib/cnpj'
 import { ReceitaNameNote } from './ReceitaNameNote'
 import { useCnpjLookup } from '../../hooks/useCnpjLookup'
+import { useExistingCustomerByCnpj } from '../../hooks/useCustomers'
 import { reviewProfileFromLookup, type ReviewCustomerProfile } from '../../services/cnpjLookup'
 import type { ReviewGroup } from '../../pages/revisaoHelpers'
 
@@ -86,12 +87,31 @@ export function ReviewCustomerOnboarding({
   const validEmail = !canEditContacts || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
   const expectedCnpjs = group.candidateCnpjs.length ? group.candidateCnpjs : group.cnpj ? [group.cnpj] : []
   const selectedCustomerCnpjMismatch = Boolean(validCnpj && expectedCnpjs.length > 0 && !expectedCnpjs.includes(validCnpj))
+  // Um Cliente por CNPJ (pedido do dono de 2026-11-06): o CNPJ já cadastrado
+  // vira o Cliente escolhido, uma vez por CNPJ, com o e-mail digitado mantido;
+  // o desativado trava com o motivo. A Receita só é consultada sem cadastro.
+  const checkedCnpj = selectedId || selectedCustomerCnpjMismatch ? null : validCnpj
+  const existingQuery = useExistingCustomerByCnpj(checkedCnpj)
+  const existing = checkedCnpj && existingQuery.data ? existingQuery.data : null
+  const [existingAppliedFor, setExistingAppliedFor] = useState<string | null>(null)
+  if (existing && !existing.deactivated_at && existingAppliedFor !== existing.cnpj_cpf) {
+    setExistingAppliedFor(existing.cnpj_cpf)
+    setSelectedId(existing.id)
+    setSelectedCustomer({ id: existing.id, name: existing.name, cnpj_cpf: existing.cnpj_cpf })
+    setName(existing.name)
+  }
+  const checkingExisting = Boolean(checkedCnpj) && existingQuery.isPending && existingQuery.fetchStatus === 'fetching'
   // Só Cliente novo consulta a Receita; o perfil vai junto no cadastro (migration 596).
-  const receitaCnpj = selectedId || selectedCustomerCnpjMismatch ? null : validCnpj
+  const receitaCnpj = checkedCnpj && (existingQuery.isError || (existingQuery.isSuccess && !existingQuery.data)) ? checkedCnpj : null
   const receita = useCnpjLookup(receitaCnpj)
+  // Cadastrar antes da resposta gravava o Cliente sem os dados da Receita; a
+  // Edge Function desiste em 6 s, então a espera é curta.
+  const waitingReceita = Boolean(receitaCnpj) && !receita.data && receita.isFetching
   const count = group.items.filter((item) => item.source === 'bl').length
   const hasBl = count > 0
-  const canSubmit = Boolean(validCnpj && name.trim() && validEmail && !selectedCustomerCnpjMismatch && !saving && hasBl)
+  const canSubmit = Boolean(validCnpj && name.trim() && validEmail && !selectedCustomerCnpjMismatch && !saving && hasBl && !existing && !checkingExisting && !waitingReceita)
+  // Cliente achado pelo CNPJ chega sem a lista de contatos: o texto não afirma se ele já tem e-mail.
+  const contactsKnown = Array.isArray(selectedCustomer?.customer_contacts)
   const customerAlreadyHasEmail = Boolean(selectedCustomer?.customer_contacts?.some((contact) => contact.email?.trim()))
   const cnpjHint = selectedCustomerCnpjMismatch
     ? undefined
@@ -112,11 +132,19 @@ export function ReviewCustomerOnboarding({
         ? 'Informe um CNPJ válido.'
         : selectedCustomerCnpjMismatch
           ? 'O CNPJ precisa ser um dos lidos no B/L.'
-          : !name.trim()
-            ? 'Informe a razão social.'
-            : !validEmail
-              ? 'Informe um e-mail válido.'
-              : null
+          : existing
+            ? existing.deactivated_at
+              ? `Cliente desativado com este CNPJ (${existing.name}): o Administrativo o reativa na ficha.`
+              : `Este CNPJ já é do Cliente ${existing.name}: escolha-o em vez de criar outro.`
+            : checkingExisting
+              ? 'Conferindo se o CNPJ já está cadastrado…'
+              : waitingReceita
+                ? 'Aguarde os dados da Receita: eles vão para o Cliente novo.'
+                : !name.trim()
+                  ? 'Informe a razão social.'
+                  : !validEmail
+                    ? 'Informe um e-mail válido.'
+                    : null
 
   function clearSelectedCustomer() {
     setSelectedId(null)
@@ -155,7 +183,10 @@ export function ReviewCustomerOnboarding({
       {selectedId && selectedCustomer ? (
         <p className="review-onboarding__selected" role="status">
           Cliente cadastrado escolhido: <strong>{selectedCustomer.name}</strong>.
-          {customerAlreadyHasEmail ? ' O e-mail abaixo já é contato dele; um endereço novo entra como contato adicional.' : ' Ele ainda não tem e-mail de contato; o informado abaixo será o principal.'}
+          {selectedCustomer.cnpj_cpf === existingAppliedFor ? ' O CNPJ do B/L já está cadastrado: o B/L é vinculado a ele, sem cadastro novo.' : null}
+          {!contactsKnown
+            ? ' O e-mail abaixo entra como contato dele; endereço já cadastrado não é duplicado.'
+            : customerAlreadyHasEmail ? ' O e-mail abaixo já é contato dele; um endereço novo entra como contato adicional.' : ' Ele ainda não tem e-mail de contato; o informado abaixo será o principal.'}
           {' '}
           <button type="button" className="review-link-button" onClick={clearSelectedCustomer}>Criar cliente novo em vez disso</button>
         </p>

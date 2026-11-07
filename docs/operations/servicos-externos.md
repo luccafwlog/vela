@@ -45,7 +45,7 @@ flowchart LR
 | Upstash | database `vela-rate-limit` (`sa-east-1`) | — |
 | Sentry | organização com projetos `vela` e `portal` | — |
 | PostHog | região **EU** (`eu.posthog.com`) | — |
-| Better Stack | Uptime: 2 monitores e 7 heartbeats (um deles do backup); falta cadastrar o heartbeat das rotinas internas (migration `628`, URL no cofre como `BETTERSTACK_HEARTBEAT_INTERNAL_JOBS_URL`); os de `ce-unlock-notify-email` (5 min, tolerância 5 min) e `portal-email-events-runner` (1 min, tolerância 5 min) foram cadastrados em 2026-10-19 e estão Up | Free (avisa a equipe inteira) |
+| Better Stack | Uptime: 2 monitores e 7 heartbeats (um deles do backup); os de `ce-unlock-notify-email` (5 min, tolerância 5 min) e `portal-email-events-runner` (1 min, tolerância 5 min) foram cadastrados em 2026-10-19 e estão Up; o 8º, da `itau-pix` (1 min, tolerância 5 min), tem o código desde 2026-11-06 e falta ser criado pelo dono; falta cadastrar também o heartbeat das rotinas internas (migration `628`, URL no cofre como `BETTERSTACK_HEARTBEAT_INTERNAL_JOBS_URL`) | Free (avisa a equipe inteira) |
 | Computador do backup | usuário Windows `Lucca`, pasta `C:\Users\Lucca\Downloads\Vela` | — |
 
 Ao transferir a responsabilidade, siga o [checklist de passagem](#passagem-de-responsabilidade).
@@ -238,6 +238,18 @@ Em 2026-11-04 o dono apagou todos os snippets do SQL Editor do projeto (Shared,
 Favorites e Private vazios, conferido por ele)
 ([relatório](../archive/reports/2026-11-04-tentativas-de-truncate-em-producao.md)).
 
+**Limite de chamadas entre Edge Functions:** a Supabase limita as chamadas de
+uma Edge Function a outra do mesmo projeto, por execução, e recusa o excesso
+com `RateLimitError: Rate limit exceeded for trace … Retry after …ms`. A
+documentação ([Recursive / Nested Function Calls](https://supabase.com/docs/guides/functions/recursive-functions))
+promete ao menos 5.000 por minuto, igual em todos os planos, e manda pedir mais
+ao suporte. Em 2026-11-07 o corte veio na 31ª chamada da régua de Comunicados,
+nas rodadas de 12:01 e 12:17 de Brasília (NOA de 35 Clientes de uma vez). Por
+isso nenhuma Edge Function do Vela chama outra: o código comum fica em
+`supabase/functions/_shared/` ([ADR 0131](../adr/0131-edge-function-nao-chama-outra-e-rodada-de-comunicados-com-teto.md)).
+Os demais limites que pesam numa rodada: 2 s de CPU por execução, 150 s de
+espera pela resposta e os 30 s do `pg_net` nos jobs (migration `165`).
+
 Para uma Preview pontual sem ligar Automatic branching: em Supabase → projeto
 Vela → Branching → Create branch, informe o nome da branch de Preview e a mesma
 branch GitHub da PR em "Sync with Git branch". A integração publica commits
@@ -356,7 +368,11 @@ no repositório `cnpj-lookup` (consulta de CNPJ na BrasilAPI,
 [ADR 0127](../adr/0127-consulta-de-cnpj-na-brasilapi.md), 2026-11-05): não
 pede secret além dos padrões do Supabase e sai no próximo merge em `main`;
 antes disso, o Novo cliente mostra "Consulta à Receita indisponível agora" e o
-cadastro segue à mão. A Edge Function
+cadastro segue à mão. Também está só no repositório `admin-test-email`
+(Administração › Sistema › **Enviar teste para mim**, decisão do dono de
+2026-11-06, migration `605`): usa os secrets de e-mail que o Portal já usa
+(`RESEND_API_KEY`, `PORTAL_FROM_EMAIL`, `PORTAL_REPLY_TO`) e sai no próximo
+merge em `main`; antes disso, o botão diz que não foi possível enviar. A Edge Function
 antiga de aviso de fatura emitida, que a
 [ADR 0058](../adr/0058-canal-de-comunicado-ao-cliente.md) mandou apagar (o nome
 está na ADR), foi apagada pelo dono no painel em 2026-10-14
@@ -483,7 +499,7 @@ rodada ([Itaú](#itaú--api-pix-recebimentos), "Rodadas com 500 desde a v29").
 | Trava de tentativas | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`, `PORTAL_RATE_LIMIT_HMAC_SECRET` (e opcionais `PORTAL_RATE_LIMIT_*`) | Upstash |
 | Jobs | `ALERTS_DETECTOR_SECRET`, `CUSTOMER_COMMUNICATION_AUTOMATION_SECRET`, `DEMURRAGE_DUNNING_SECRET`, `PORTAL_DIGEST_SECRET`, `PORTAL_EMAIL_EVENTS_CRON_SECRET`, `IMPORT_EFFECTS_CRON_SECRET`, `RECALC_CRON_SECRET`, `CE_UNLOCK_CLEANUP_SECRET`, `CE_UNLOCK_NOTIFY_SECRET`, `ADR_CLOSED_EMAIL_SECRET` (a cadastrar, migration `620`; com o opcional `VELA_APP_URL`), `ITAU_PIX_CRON_SECRET`, `ITAU_PIX_DIAGNOSTIC_SECRET` e, na transição, `ITAU_PIX_ADMIN_SECRET`; `CE_UNLOCK_NOTIFY_SHARED_RETIRED=true` (não é segredo) encerra a transição dos avisos de CE (par com o Vault quando o job está habilitado; lista do cofre e ordem da troca em [segredos-cron.md](segredos-cron.md#um-segredo-por-rotina-auditoria-run-3)) | — |
 | Itaú | `ITAU_CLIENT_ID`, `ITAU_CLIENT_SECRET`, `ITAU_CERT_B64`, `ITAU_KEY_B64`, `ITAU_PIX_KEY` (e opcionais `ITAU_PIX_BASE_URL`, `ITAU_TOKEN_URL`, `ITAU_AUTH_HEADER`) | Itaú (seção [Itaú](#itaú--api-pix-recebimentos)) |
-| Monitoramento | `BETTERSTACK_HEARTBEAT_*_URL` (6, todos gravados; os dois últimos, `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` e `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`, em 2026-10-19), `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Better Stack, Sentry |
+| Monitoramento | `BETTERSTACK_HEARTBEAT_*_URL` (7; seis gravados, os dois últimos deles, `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL` e `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`, em 2026-10-19; `BETTERSTACK_HEARTBEAT_ITAU_PIX_URL` a cadastrar, decisão do dono de 2026-11-06), `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Better Stack, Sentry |
 | CORS de previews | `CLOUDFLARE_PAGES_PREVIEW_ORIGINS` (opcional) | Cloudflare Pages |
 | Widgets públicos do fwlog.com.br ([ADR 0114](../adr/0114-chegadas-e-consulta-de-container-publicas-no-fwlog.md)) | `TURNSTILE_PUBLIC_SECRET_KEY`, `TURNSTILE_PUBLIC_ALLOWED_HOSTNAMES` (widget próprio, separado do login), `PUBLIC_FWLOG_ALLOWED_ORIGINS` (origens HTTPS exatas do iframe; em produção `https://portalfwlog.com.br`); reaproveitam `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` e `PORTAL_RATE_LIMIT_HMAC_SECRET`. Sem qualquer um, recusa. Cadastrados em produção (conferido em 2026-11-06: a consulta responde e só `https://portalfwlog.com.br` passa no CORS) | Cloudflare Turnstile, Upstash |
 
@@ -530,12 +546,12 @@ Horários em UTC; Brasília é UTC−3. "Chave global" é
 | Job | Frequência (UTC) | O que faz | Heartbeat no Better Stack |
 |---|---|---|---|
 | `portal-email-events-runner` | a cada minuto; desde a migration `458` também chamado assim que o webhook grava o evento ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | processa eventos do provedor de e-mail (entrega, bounce, reclamação), suprime endereços e abre Alertas; aviso de entrega de e-mail que não é do Vela fecha sem alerta na 6ª tentativa (migration `535`); os demais que esgotam as 6 tentativas ou são ambíguos vão para investigação e abrem `email_retorno_nao_aplicado`, do Administrativo (migrations `309` e `535`; até a `535`, `portal_reprocessamento_falhou` da Documentação) | `portal-email-events-runner` (secret `BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL`; cadastrado em 2026-10-19) |
-| `itau-pix-queue` | a cada minuto (criado à mão em 07/10, jobid 25; recriado pela migration `358`, `ops.dispatch_edge_job('itau-pix', 'ITAU_PIX_ADMIN_SECRET')`); desde a migration `219` a fila de COB também é disparada pela transação que deixa cobrança pendente (`{"action":"process_charges"}`) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática; o comportamento da fila está em [Reconciliação PIX](../modules/reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151) | — |
+| `itau-pix-queue` | a cada minuto (criado à mão em 07/10, jobid 25; recriado pela migration `358`, `ops.dispatch_edge_job('itau-pix', 'ITAU_PIX_ADMIN_SECRET')`); desde a migration `219` a fila de COB também é disparada pela transação que deixa cobrança pendente (`{"action":"process_charges"}`) | prazos das cobranças PIX, fila de COB na API Itaú e baixa automática; o comportamento da fila está em [Reconciliação PIX](../modules/reconciliacao-pix.md#cobrança-dinâmica-itaú--migration-151) | `itau-pix` desde 2026-11-06 (decisão do dono; código pronto, heartbeat **a criar** pelo dono: 1 min, tolerância 5 min) |
 | `ce-unlock-notify-email` | a cada 5 min (manual, 07/10; jobid 35 desde a recriação da migration `438`); desde a migration `458` também chamado assim que o aviso é gravado na fila ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | avisos do Desbloqueio de CE ao Cliente (a rodada do cron também valida o B/L VIP sem solicitação que ficou apto, migration `581`); com a chave global desligada, registra o aviso como `simulated` e não o envia depois (migration `307`); abre o Alerta `desbloqueio_ce_aviso_nao_enviado` quando o aviso fica sem destinatário ou falha ([Desbloqueio de CE](../modules/desbloqueio-ce.md#avisos-ao-cliente)) | `ce-unlock-notify-email` (secret `BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL`; cadastrado em 2026-10-19) |
 | `adr-closed-email` | a cadastrar: a cada 5 min, pela migration `620` também chamado assim que um ADR fecha ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | e-mail **ADR fechado** a todos os usuários internos ativos, sem a conta de integração, com o resumo e o link do ADR ([ADR 0133](../adr/0133-decisoes-da-revisao-dos-alertas.md), D6); fila `adr_closed_email_outbox`, até 5 tentativas; procedimento em [segredos-cron.md](segredos-cron.md#agendar-o-e-mail-do-adr-fechado) | — (sem heartbeat) |
 | `import-effects-runner` | a cada minuto (`* * * * *`, migration `218`; antes `3-59/5`, migration `165`) e também disparado pela própria importação, uma vez por transação que grava efeito | fila de efeitos de importação; ligado desde 2026-10-12. Um runner por vez (`ops.import_effects_runner_lease`, renovada a cada bloco; a chamada sem a vez responde `skipped: busy`); cada chamada trabalha em blocos de 10 por até ~25 s. A parada é avisada pelo Alerta `import_effects_queue_stalled` | — |
 | `alerts-foundation-detectors` | a cada 15 min, em :02/:17/:32/:47 (`2-59/15 * * * *`, migration `165`) | abre/fecha Alertas do sino; remove até 100 anexos órfãos de Disputa | `alerts-detector` |
-| `customer-communication-auto-runner` | a cada 2 min, nos minutos ímpares (`1-59/2 * * * *`, migration `458`; antes `4-59/15`, migration `165`); também chamado pelo que deixa um alvo pronto, no máximo a cada 90 s ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | Comunicados automáticos NOA/NOR/NOB e CE Mercante/Taxas (respeita a chave global). A Cobertura de `/clientes/comunicacao` mostra "Na fila · próxima rodada às HH:MM" com estes minutos, espelhados em `src/lib/communicationAutoRunner.ts`: mudar o agendamento exige mudar o espelho no mesmo PR | `customer-communication-auto-runner` |
+| `customer-communication-auto-runner` | a cada 2 min, nos minutos ímpares (`1-59/2 * * * *`, migration `458`; antes `4-59/15`, migration `165`); também chamado pelo que deixa um alvo pronto, no máximo a cada 90 s ([disparo pelo evento](segredos-cron.md#disparo-pelo-evento)) | Comunicados automáticos NOA/NOR/NOB e CE Mercante/Taxas (respeita a chave global). Envia no mesmo processo, sem chamar a `send-customer-communication`, até 50 destinatários ou 15 s por rodada; o resto volta na rodada seguinte sem contar falha nem acender o heartbeat ([ADR 0131](../adr/0131-edge-function-nao-chama-outra-e-rodada-de-comunicados-com-teto.md)). A Cobertura de `/clientes/comunicacao` mostra "Na fila · próxima rodada às HH:MM" com estes minutos, espelhados em `src/lib/communicationAutoRunner.ts`: mudar o agendamento exige mudar o espelho no mesmo PR | `customer-communication-auto-runner` |
 | `portal-mark-expired-invites` | a cada 15 min | expira convites do Portal vencidos; a conta passa a Convite expirado e o Alerta de reenvio abre pelo gatilho da conta, só para Cliente com processo ativo (migration `350`) | — |
 | `demurrage-dunning` | a cada 5 min (`3-59/5 * * * *`, migration `458`; antes de hora em hora, `7 * * * *`); sem chamada pela emissão da Invoice (criada na `458`, tirada na `459`) | Régua de Cobrança de Demurrage (respeita a chave global, a janela de dia útil a partir das 9h e o intervalo entre cobranças) | `demurrage-dunning` |
 | `cleanup-provision-rate-limit` | 03:30 | apaga registros de limite de provisionamento com mais de 2 dias | — |
@@ -993,6 +1009,14 @@ Variáveis: `VITE_POSTHOG_KEY`, `VITE_POSTHOG_HOST` = `https://eu.i.posthog.com`
   tolerância de 6 horas, aviso por e-mail; a URL fica na variável do usuário
   `BETTERSTACK_HEARTBEAT_BACKUP_URL` do computador do [backup](#backup)
   ([roteiro](backup-r2.md#heartbeat-do-backup)).
+- **Heartbeat da consulta do Pix Itaú** (decisão do dono de 2026-11-06, depois
+  de a consulta ficar parada por horas sem nenhum e-mail): a `itau-pix` reporta
+  ao `BETTERSTACK_HEARTBEAT_ITAU_PIX_URL` a cada rodada do cron (`/fail` quando a
+  rodada falha; o disparo da fila manda só o `/fail`; o diagnóstico não reporta).
+  **Pendente (passo do dono):** criar no Better Stack o heartbeat `itau-pix`,
+  período de 1 min e tolerância de 5 min, e cadastrar a URL dele em Supabase →
+  Edge Functions → Secrets com esse nome. Sem o secret a função não reporta e
+  nada muda; com ele, a consulta parada ou falhando avisa a equipe por e-mail.
 - Sem escalation policy: no plano grátis o aviso vai à equipe inteira (e-mail do
   responsável).
 
@@ -1410,13 +1434,23 @@ confirmado no banco e gravado na fatura. Diagnóstico de 07/10 confirmou desvio 
 `-03:00` encontrou. O banco também devolve criação/recebimento em Brasília
 com sufixo `Z` indevido. Correção local envia consultas com `-03:00` e
 normaliza as datas recebidas para UTC, preservando offsets explícitos;
-publicada na v7 com autorização. Se o Itaú passar a mandar UTC verdadeiro, a
-leitura soma 3 h: o cliente recusa horário mais de 5 min à frente do relógio
-(erro "Horário do Itaú no futuro") e, na baixa, horário a mais de 1 h do minuto
-UTC gravado no `endToEndId` na maioria dos Pix da janela (erro "Horário do Itaú diverge do endToEndId",
-com os TXIDs no log; desde 2026-10-22 um caso isolado vai para análise),
-sem baixa nem avanço do checkpoint, inclusive na recuperação de atraso; nesse
-caso, remover a troca de `Z` em `_shared/itauPix.ts`.
+publicada na v7 com autorização. Desde 2026-11-06 (decisão do dono) o horário
+nunca para a consulta nem a cobrança: se o Itaú passar a mandar UTC verdadeiro,
+o horário recente que, lido como Brasília, cairia mais de 5 min no futuro é
+lido como UTC e segue certo. Numa recuperação de atraso de mais de 3 h logo
+depois da mudança, o Pix antigo é baixado 3 h adiante; o sinal disso (desvio de
+3 h sobre o minuto UTC do `endToEndId` em Pix de duas instituições pagadoras ou
+mais, maioria das da janela) vai ao log e ao Sentry da `itau-pix` como etapa
+`receipts_zone`, com TXID, `endToEndId` e horário como o Itaú mandou, e a
+rodada responde 200. Ao ver esse aviso, confirme no log que o horário cru veio
+em UTC verdadeiro e remova a troca de `Z` em `_shared/itauPix.ts`. Até
+2026-11-06 o horário no futuro e esse desvio na maioria dos Pix da janela
+paravam a consulta ("Horário do Itaú no futuro" e "Horário do Itaú diverge do
+endToEndId"). Em 2026-11-06 o segundo parou a consulta a partir de 20:33 UTC
+sem mudança de fuso: 18 faturas de um cliente pagas juntas, com o `endToEndId`
+da iniciação do lote mais de 1 h antes do crédito; o Itaú seguia mandando
+Brasília com `Z` (Pix de terceiros da mesma tarde e a trava do horário no
+futuro, que não disparou, confirmam).
 GET autenticado confirmou o horário UTC
 correto; recuperação por `itau_pix_settle` deixou INV-2026-0004 paga, saldo
 zero, com um único pagamento da conta API ITAÚ. Cron seguinte respondeu

@@ -120,6 +120,20 @@ CREATE TABLE IF NOT EXISTS cron.job (
 );
 -- Banco criado antes deste shim nao tem a coluna: completar sem recriar.
 ALTER TABLE cron.job ADD COLUMN IF NOT EXISTS active BOOLEAN NOT NULL DEFAULT true;
+-- Execuções das rotinas, como no pg_cron: a aba Sistema da Administração lê a
+-- última execução e as falhas (migration 605).
+CREATE TABLE IF NOT EXISTS cron.job_run_details (
+  runid BIGSERIAL PRIMARY KEY,
+  jobid BIGINT,
+  job_pid INTEGER,
+  database TEXT,
+  username TEXT,
+  command TEXT,
+  status TEXT,
+  return_message TEXT,
+  start_time TIMESTAMPTZ,
+  end_time TIMESTAMPTZ
+);
 -- Shim funcional (a 007 verifica linhas em cron.job): schedule insere ou
 -- atualiza por jobname e reativa; unschedule remove. O stub anterior era
 -- no-op e deixava cron.job sempre vazio.

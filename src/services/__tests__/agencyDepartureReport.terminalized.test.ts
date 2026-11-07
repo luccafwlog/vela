@@ -20,7 +20,10 @@ vi.mock('../voyageRouteSchedules', () => ({
   listVoyageEscalaSchedulesByVoyageIds: vi.fn().mockResolvedValue(new Map()),
   getVoyageUnifiedAtd: vi.fn().mockResolvedValue({ atd: null, atdSource: null, atdRegisteredAt: null }),
 }))
-vi.mock('../vaziosExportOperations', () => ({ computeStorageTotals: vi.fn(() => ({ containers: 0, days: 0 })) }))
+vi.mock('../vaziosExportOperations', async (importOriginal) => ({
+  computeStorageTotals: vi.fn(() => ({ containers: 0, days: 0 })),
+  summarizeEmptyExportRoutes: (await importOriginal<typeof import('../vaziosExportOperations')>()).summarizeEmptyExportRoutes,
+}))
 
 function builder(data: unknown) {
   const query = {

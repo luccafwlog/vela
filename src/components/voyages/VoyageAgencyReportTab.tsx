@@ -45,6 +45,8 @@ import { calculateAgencyReportDeadlineAt, formatAgencyReportInstant, toDateOnly 
 import type { AgencyReportDepartmentKey, Json } from '../../types/database'
 import type { AdrEscalaPod } from '../../services/voyageSummaries'
 import { formatBRL, formatDate, formatDateTimeBR } from '../../lib/utils'
+import { calculateTeu } from '../../services/containerTeu'
+import { tamanhoLabel } from '../../lib/vaziosLabels'
 import { normalizePortCode } from '../../services/portCode'
 import { frontServesSection } from '../../services/escalaTerminalAllocation'
 import { useAuth } from '../../hooks/useAuth'
@@ -543,7 +545,11 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
     type: booking.container_type ?? '—',
     condition: booking.condition,
     localLabel: booking.local?.name ?? booking.local?.code ?? null,
+    // 606: porto de descarga de cada unidade.
+    pod: booking.pod ?? null,
   })))
+  const emptyEmbarkRoutes = sectionIsVisible('vazios_embarcados') ? (data?.vaziosRotas ?? []) : []
+  const emptyEmbarkTeu = calculateTeu(vaziosExp.map((booking) => booking.container_type)).teu
   // Duas leituras lado a lado do mesmo embarque de vazios: total por tipo (sem
   // quebra por local) e o mesmo total por tipo dentro de cada depot/terminal —
   // emptyEmbarkRows já soma por (tipo, condição, local); aqui só reagrupamos
@@ -739,7 +745,9 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
       directEmbarkCount,
       granito: granite,
       storage: sectionIsVisible('vazios_embarcados') ? data?.storage ?? null : null,
-      operation: sectionIsVisible('vazios_embarcados') ? data?.operation ?? null : null,
+      // 606: as rotas (POD, unidades, TEU e Nº do Manifesto Mercante) viajam
+      // dentro de `operation`, chave que o fechamento antigo já aceita.
+      operation: sectionIsVisible('vazios_embarcados') && data?.operation ? { ...data.operation, rotas: emptyEmbarkRoutes } : null,
       costs: sectionIsVisible('vazios_embarcados') ? data?.costs ?? null : null,
     },
     occurrences: ownData?.occurrences ?? [],
@@ -1020,27 +1028,36 @@ export function VoyageAgencyReportTab({ voyageId, voyageLabel, carrierName, pods
               <ReportSection title="Embarque de vazios" {...sectionProps('vazios_embarcados')}>
                 <Subsection title="Containers embarcados">
                   {bookings.length ? <>
-                    <LeadValue>{bookings.length} vazios embarcados</LeadValue>
+                    <LeadValue>{bookings.length} vazios embarcados · {emptyEmbarkTeu.toLocaleString('pt-BR')} TEU</LeadValue>
                     <div className="app-table-scroll">
                       <table className="app-table app-table--compact app-table--nested" aria-label="Total por tipo">
                         <thead><tr><th scope="col">Tipo</th>{emptyEmbarkLocals.map((local) => <th key={local} scope="col">{local}</th>)}<th scope="col">Total</th></tr></thead>
                         <tbody>{emptyEmbarkTypeTotals.map(([type, quantity]) => <tr key={type}><td>{type}</td>{emptyEmbarkLocalTotals.map(({ localLabel, types }) => <td key={localLabel}>{types.find(([candidate]) => candidate === type)?.[1] ?? 0}</td>)}<td>{quantity}</td></tr>)}</tbody>
                       </table>
                     </div>
+                    {emptyEmbarkRoutes.length ? <div className="app-table-scroll">
+                      <table className="app-table app-table--compact app-table--nested" aria-label="Por porto de descarga">
+                        <thead><tr><th scope="col">Porto de descarga</th><th scope="col">Unidades</th><th scope="col">TEU</th><th scope="col">Nº do Manifesto Mercante</th></tr></thead>
+                        <tbody>{emptyEmbarkRoutes.map((route) => <tr key={route.pod || 'sem-pod'}><td>{route.pod || <StatusText tone="warning">Sem POD</StatusText>}</td><td>{route.unidades}</td><td>{route.teu.toLocaleString('pt-BR')}</td><td>{route.manifesto ?? (route.pod ? <StatusText tone="warning">Sem número</StatusText> : <NoValue />)}</td></tr>)}</tbody>
+                      </table>
+                    </div> : null}
                   </> : data?.orphanData?.vaziosEmbarcados.length ? null : <NadaOperado>Nenhum vazio embarcado nesta escala.</NadaOperado>}
                   <OrphanDataWarning entries={data?.orphanData?.vaziosEmbarcados ?? []} label="unidade(s) de vazios embarcados" />
                 </Subsection>
 
                 <Subsection title="Operação de pátio">
                   {hasPatioOperation ? <>
-                    <LeadValue>{data?.storage.days ?? 0} dias de storage</LeadValue>
+                    <LeadValue>{data?.storage.days ?? 0} dias cobráveis de storage</LeadValue>
+                    {/* C4: com quantidade informada à mão, o calculado pela lista fica ao lado. */}
+                    {data?.storage && data.storage.calculatedDays !== data.storage.days ? <p className="text-sm text-[var(--app-muted)]">Pela lista de unidades: {data.storage.calculatedDays} dias; a diferença vem da quantidade informada à mão na linha de armazenagem.</p> : null}
                     <FactList columns={4}>
-                      <Fact label="Containers em storage">{data?.storage.containers ?? 0}</Fact>
-                      <Fact label="Unidades sem armazenagem">{directEmbarkCount}</Fact>
-                      <Fact label="Depots / terminais">{depots.join(', ') || <NoValue />}</Fact>
+                      {/* C2/C3/C4 da revisão de 2026-11-06: cada rótulo diz o que conta. */}
+                      <Fact label="Unidades com armazenagem">{data?.storage.containers ?? 0}</Fact>
+                      <Fact label="Embarque direto">{directEmbarkCount}</Fact>
+                      <Fact label="Depots">{depots.join(', ') || <NoValue />}</Fact>
                       <Fact label="Total da operação">{formatBRL(data?.costs?.total ?? 0)}</Fact>
                     </FactList>
-                    {data?.costs?.serviceLines?.length ? <div className="app-table-scroll"><table className="app-table app-table--compact app-table--nested min-w-[1050px]" aria-label="Linhas de serviço"><thead><tr><th className="app-table__text-head">Serviço</th><th>Local</th><th>Rota</th><th>Tipo</th><th>Quantidade</th><th>Unitário</th><th>Total</th><th className="app-table__text-head">Observação</th></tr></thead><tbody>{data.costs.serviceLines.map((service) => <tr key={service.id}><td className="app-table__text">{service.service?.name ?? <NoValue label="Sem serviço" />}</td><td>{service.local?.name ?? service.local?.code ?? service.local_id}</td><td>{service.destino?.name ?? service.destino?.code ?? <NoValue label="Sem rota" />}</td><td>{service.container_type ?? <NoValue label="Sem tipo" />}</td><td>{String(service.quantidade)}</td><td>{formatBRL(Number(service.valor_unitario))}</td><td>{formatBRL(Number(service.total))}</td><td className="app-table__text app-table__text--wrap">{service.observation ?? <NoValue label="Sem observação" />}</td></tr>)}</tbody></table></div> : null}
+                    {data?.costs?.serviceLines?.length ? <div className="app-table-scroll"><table className="app-table app-table--compact app-table--nested min-w-[1050px]" aria-label="Linhas de serviço"><thead><tr><th className="app-table__text-head">Serviço</th><th>Local</th><th>Rota</th><th>Tamanho</th><th>Quantidade</th><th>Unitário</th><th>Total</th><th className="app-table__text-head">Observação</th></tr></thead><tbody>{data.costs.serviceLines.map((service) => <tr key={service.id}><td className="app-table__text">{service.service?.name ?? <NoValue label="Sem serviço" />}</td><td>{service.local?.name ?? service.local?.code ?? service.local_id}</td><td>{service.destino ? `${service.local?.name ?? service.local?.code ?? service.local_id} → ${service.destino.name ?? service.destino.code}` : <NoValue label="Sem rota" />}</td><td>{tamanhoLabel(service.container_type)}</td><td>{String(service.quantidade)}</td><td>{formatBRL(Number(service.valor_unitario))}</td><td>{formatBRL(Number(service.total))}</td><td className="app-table__text app-table__text--wrap">{service.observation ?? <NoValue label="Sem observação" />}</td></tr>)}</tbody></table></div> : null}
                   </> : <NadaOperado>Nenhum serviço de pátio nesta escala.</NadaOperado>}
                 </Subsection>
               </ReportSection>

@@ -14,9 +14,11 @@ import { supabase } from './supabase'
 import { calculateTeu } from './containerTeu'
 import { extractErrorText } from '../lib/errors'
 import { breakbulkWeightTon } from '../lib/breakbulkWeight'
-import { computeStorageTotals, type VaziosExportServiceLineWithObservation } from './vaziosExportOperations'
+import { computeStorageTotals, summarizeEmptyExportRoutes, type VaziosExportServiceLineWithObservation } from './vaziosExportOperations'
+export type { EmptyExportRoute } from './vaziosExportOperations'
 import { listDepots } from './depots'
-import { quantidadeEfetiva, totalEmbarque, totalLinha } from './vaziosCusto'
+import { armazenagemPorUnidade, quantidadeEfetiva, totalEmbarque, totalLinha } from './vaziosCusto'
+import { listVaziosMercanteManifestos } from './vaziosImportacaoImport'
 import { buildVoyagePodEntityId, listVoyageEscalaSchedulesByVoyageIds, listVoyagePodSchedules } from './voyageRouteSchedules'
 import { listVoyageRoutePorts } from './operationalLists'
 import { listTransshipmentBlIds } from './transshipments'
@@ -721,15 +723,18 @@ export type EmptyEmbarkRow = {
   type: string
   condition: string
   localLabel: string
+  /** Porto de descarga (606); ausente nos retratos fechados antes dele. */
+  pod?: string
   quantity: number
 }
+
 
 // Substitui a antiga matriz (type × 'carga_geral' fixo) por uma listagem em
 // (tipo, condição, local de origem) — Task 4 do ADR 2026-07-31, bullet 4: a
 // condição e o depot/terminal de origem eram descartados antes. Uma linha por
 // combinação existente, ordenada como groupVehiclesByBrand (alfabética).
 export function groupEmptyEmbarkBookings(
-  items: Array<{ type: string; condition: string | null; localLabel: string | null }>,
+  items: Array<{ type: string; condition: string | null; localLabel: string | null; pod?: string | null }>,
 ): EmptyEmbarkRow[] {
   const rows = new Map<string, EmptyEmbarkRow>()
 
@@ -737,14 +742,17 @@ export function groupEmptyEmbarkBookings(
     const type = item.type || '—'
     const condition = (item.condition && VAZIOS_CONDITION_LABELS[item.condition]) || item.condition || '—'
     const localLabel = item.localLabel || '—'
-    const key = `${type}::${condition}::${localLabel}`
+    // 606: o POD entra na listagem; "—" na unidade anterior sem POD.
+    const pod = item.pod === undefined ? undefined : item.pod || '—'
+    const key = `${type}::${condition}::${localLabel}::${pod ?? ''}`
     const existing = rows.get(key)
     if (existing) existing.quantity += 1
-    else rows.set(key, { type, condition, localLabel, quantity: 1 })
+    else rows.set(key, { type, condition, localLabel, ...(pod === undefined ? {} : { pod }), quantity: 1 })
   }
 
   return [...rows.values()].sort((a, b) =>
-    a.type.localeCompare(b.type) || a.condition.localeCompare(b.condition) || a.localLabel.localeCompare(b.localLabel),
+    a.type.localeCompare(b.type) || a.condition.localeCompare(b.condition) || a.localLabel.localeCompare(b.localLabel)
+      || (a.pod ?? '').localeCompare(b.pod ?? ''),
   )
 }
 
@@ -1047,6 +1055,8 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
   for (const result of [vaziosExpRes, serviceLinesRes]) {
     if (result.error) throw result.error
   }
+  // 606: Nº do Manifesto Mercante de cada rota de exportação dos vazios.
+  const vaziosManifestos = operation ? await listVaziosMercanteManifestos([voyageId]) : []
 
   // Task 10 (ADR 2026-07-31): Embarque de Vazios lançado num porto que não é
   // escala nenhuma da viagem — mesma lógica do granito, mas a "quantidade" é o
@@ -1235,9 +1245,32 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
     // linha, para a aba e o impresso pararem de reimplementar a fórmula com
     // divergência em linhas legadas de armazenagem com percentual não nulo
     // (Task 8 do ADR 2026-07-31).
-    return { ...line, quantidade: quantidadeEfetiva(line, units, allDepots), total: totalLinha(line, units, allDepots) }
+    return line
+  }).map((line, _index, lines) => ({
+    ...line,
+    // 606: a armazenagem se divide por tamanho conforme as linhas lançadas, e o
+    // free time é o congelado na linha; por isso o contexto são todas as linhas.
+    quantidade: quantidadeEfetiva(line, units, allDepots, lines),
+    total: totalLinha(line, units, allDepots, lines),
+  }))
+  const storageLines = rawServiceLines.map((row) => ({
+    ...row,
+    natureza: servicesById.get(row.service_id)?.natureza ?? 'geral',
+    quantidade: Number(row.quantidade),
+    valor_unitario: Number(row.valor_unitario),
+  }))
+  const costs = { total: totalEmbarque({ unidades: units, linhas: storageLines, depots: allDepots }), serviceLines }
+  // Dias de cada unidade de depot para o anexo do impresso: dias no depot,
+  // free time aplicado e dias cobráveis (C2 da revisão de 2026-11-06).
+  const storageByUnit = new Map(armazenagemPorUnidade(units, allDepots, storageLines).map((row) => [row.unit, row]))
+  const vaziosExpWithStorage = vaziosExp.map((booking, index) => {
+    const row = storageByUnit.get(units[index])
+    return row
+      ? { ...booking, storage: { totalDays: row.totalDays, freeTime: row.freeTime, chargeableDays: row.chargeableDays } }
+      : { ...booking, storage: null }
   })
-  const costs = { total: totalEmbarque({ unidades: units, linhas: serviceLines, depots: allDepots }), serviceLines }
+  const embarkPortCode = normalizePortCode(operation?.embark_port) ?? portCode
+  const vaziosRotas = summarizeEmptyExportRoutes(vaziosExp, embarkPortCode, voyageId, vaziosManifestos)
 
   const escala = (escalaSchedules.get(voyageId) ?? []).find((entry) => normalizePortCode(entry.port) === portCode) ?? null
 
@@ -1246,7 +1279,8 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
     escala,
     terminalSchedules: escala?.atracacoes ?? [],
     vehicles,
-    vaziosExp,
+    vaziosExp: vaziosExpWithStorage,
+    vaziosRotas,
     vaziosImp,
     granite,
     containers,
@@ -1264,7 +1298,7 @@ export async function getAgencyReportDerivedData(voyageId: number, port: string)
     } satisfies AgencyReportOrphanData,
     operation,
     costs,
-    storage: computeStorageTotals(vaziosExp, allDepots),
+    storage: computeStorageTotals(vaziosExp, allDepots, storageLines),
     cargaSolta: {
       ...summarizeBreakbulk(breakbulk),
       // Contagem em transbordo separada da de destino final (Task 1); exibida

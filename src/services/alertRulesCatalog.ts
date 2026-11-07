@@ -1354,15 +1354,15 @@ export function departmentNames(departments: AlertRuleDepartment[]): string {
  * Regra transversal do roteamento (`fanout_alert_item_for_department`,
  * migrations 338 e 476): quando ninguém ativo do setor recebe, o crítico vai
  * ao Administrativo; o normal não vai a ninguém e fica registrado em
- * Admin › Falhas de entrega de alertas.
+ * Admin › Sistema, em Falhas de entrega de alertas.
  */
 export function alertFallbackSentence(rule: Pick<AlertRule, 'notifiedDepartments'>, severity: AlertRuleSeverity): string {
   const teams = departmentNames(rule.notifiedDepartments)
   const onlyAdministrativo = rule.notifiedDepartments.length === 1 && rule.notifiedDepartments[0] === 'administrativo'
   if (severity === 'critical') {
     return onlyAdministrativo
-      ? 'Se ninguém do Administrativo estiver ativo, a falha de entrega fica em Admin › Falhas de entrega de alertas.'
+      ? 'Se ninguém do Administrativo estiver ativo, a falha de entrega fica em Admin › Sistema, em Falhas de entrega de alertas.'
       : `Se ninguém de ${teams} estiver ativo, o aviso vai ao Administrativo.`
   }
-  return `Se ninguém de ${teams} estiver ativo, ninguém é avisado no sino, e a falha fica em Admin › Falhas de entrega de alertas.`
+  return `Se ninguém de ${teams} estiver ativo, ninguém é avisado no sino, e a falha fica em Admin › Sistema, em Falhas de entrega de alertas.`
 }

@@ -33,3 +33,11 @@ export function diasLabel(days: number): string {
 export function tipoLocalLabel(tipo: string | null | undefined): string {
   return tipo === 'terminal_portuario' ? 'Terminal portuário' : 'Depot'
 }
+
+/**
+ * Tamanho do serviço ou da linha (migration 606): "20'", "40'" ou "Qualquer
+ * tamanho" quando o serviço cobra igual.
+ */
+export function tamanhoLabel(size: string | null | undefined): string {
+  return size === '20' || size === '40' ? `${size}'` : 'Qualquer tamanho'
+}

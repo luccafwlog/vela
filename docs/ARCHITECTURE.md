@@ -751,8 +751,9 @@ padrões.
   `ops.dispatch_edge_job`, que lê a base da API e o segredo no Vault
   ([ADR 0063](adr/0063-configuracao-de-jobs-cron-no-vault.md)): os runners de
   efeitos de importação e de eventos de e-mail, o detector de alertas, a régua
-  automática de Comunicados (NOA, NOR, NOB e CE e Taxas, que envia pela
-  `send-customer-communication` com o segredo de automação), a Régua de
+  automática de Comunicados (NOA, NOR, NOB e CE e Taxas, que envia pelo mesmo
+  módulo da `send-customer-communication`, no próprio processo: nenhuma Edge
+  Function chama outra, [ADR 0131](adr/0131-edge-function-nao-chama-outra-e-rodada-de-comunicados-com-teto.md)), a Régua de
   Cobrança (`demurrage-dunning`), o resumo diário interno, o recálculo PTAX, o
   expurgo e os avisos do Desbloqueio de CE e a fila do Itaú (`itau-pix`, também
   disparada pela transação que deixa cobrança pendente, migration `219`). Os

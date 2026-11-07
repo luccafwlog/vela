@@ -5,6 +5,7 @@ export type BetterStackHeartbeatJob =
   | 'portalDailyDigest'
   | 'ceUnlockNotifyEmail'
   | 'portalEmailEvents'
+  | 'itauPix'
 
 export type BetterStackHeartbeatStatus = 'success' | 'failure'
 
@@ -15,6 +16,7 @@ const HEARTBEAT_ENV: Record<BetterStackHeartbeatJob, string> = {
   portalDailyDigest: 'BETTERSTACK_HEARTBEAT_PORTAL_DAILY_DIGEST_URL',
   ceUnlockNotifyEmail: 'BETTERSTACK_HEARTBEAT_CE_UNLOCK_NOTIFY_URL',
   portalEmailEvents: 'BETTERSTACK_HEARTBEAT_PORTAL_EMAIL_EVENTS_URL',
+  itauPix: 'BETTERSTACK_HEARTBEAT_ITAU_PIX_URL',
 }
 
 const DEFAULT_TIMEOUT_MS = 1_500

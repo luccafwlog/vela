@@ -2,8 +2,11 @@ import { readFileSync } from 'node:fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { runWithBetterStackHeartbeat } from '../../../supabase/functions/_shared/betterStackHeartbeat.ts'
 import {
+  isPlatformRateLimit,
   runAutomaticCommunications,
   type AutoRunnerCandidate,
+  type AutoRunnerDeps,
+  type AutoRunnerDispatchResult,
 } from '../../../supabase/functions/_shared/customerCommunicationAutoRunner.ts'
 
 const entry = readFileSync(new URL('../../../supabase/functions/customer-communication-auto-runner/index.ts', import.meta.url), 'utf8')
@@ -14,10 +17,19 @@ describe('contrato do runner automático de Comunicados', () => {
     expect(source).toContain("kind: 'aviso_chegada_noa' | 'aviso_prontidao_nor' | 'aviso_atracacao_nob' | 'ce_mercante_taxas'")
     expect(source).toContain("customer_local_charges_communication_payload")
     expect(source).toContain("result?.status === 'enviado' || result?.status === 'simulado' || result?.status === 'parcial'")
-    expect(source).toContain("response.status === 422 && Boolean(result?.suppressed)")
+    expect(source).toContain("status === 422 && Boolean(result?.suppressed)")
     expect(source).toContain("release: 'release_customer_communication_automation_claim'")
     expect(entry).toContain("timingSafeEqual(providedSecret, secret)")
     expect(entry).toContain("if (req.method !== 'POST') return json(405")
+  })
+
+  // Incidente de 07/11/2026: a rodada fazia um POST à send-customer-communication
+  // por destinatário e a Supabase recusou da 31ª chamada em diante.
+  it('envia no mesmo processo, sem chamar outra Edge Function por HTTP', () => {
+    expect(entry).toContain("dispatchCustomerCommunication(admin, payload, { isAutomation: true, userId: null })")
+    expect(entry).not.toContain('/functions/v1/')
+    expect(source).not.toContain('/functions/v1/')
+    expect(source).not.toContain('fetch')
   })
 
   it('repassa a identidade da Atracação exigida pelo NOB', () => {
@@ -57,15 +69,13 @@ describe('rodada do runner com envio falso', () => {
       return Promise.resolve({ data: fn === 'evaluate_and_dispatch_automatic_communications' ? [candidate] : true, error: null })
     })
     const queue = [...responses]
-    const fetcher = vi.fn(() => {
+    const dispatch = vi.fn<AutoRunnerDeps['dispatch']>(() => {
       const next = queue.shift() ?? { status: 500, body: { error: 'sem resposta' } }
-      return Promise.resolve(new Response(JSON.stringify(next.body), { status: next.status }))
-    }) as unknown as typeof fetch
-    const run = () => runAutomaticCommunications({
-      rpc, fetcher, supabaseUrl: 'https://supabase.example.test', anonKey: 'anon', secret: 'secret',
+      return Promise.resolve({ status: next.status, body: next.body as Record<string, unknown> })
     })
+    const run = () => runAutomaticCommunications({ rpc, dispatch })
     const claimCalls = () => rpcCalls.filter(({ fn }) => fn !== 'evaluate_and_dispatch_automatic_communications')
-    return { run, claimCalls, fetcher }
+    return { run, claimCalls, dispatch }
   }
 
   beforeEach(() => {
@@ -76,9 +86,7 @@ describe('rodada do runner com envio falso', () => {
 
   it('falha da produtora devolve 500 marcado com o SQLSTATE e a RPC para o Sentry', async () => {
     const rpc = vi.fn(() => Promise.resolve({ data: null, error: { code: '22023', message: 'Viagem e cliente são obrigatórios.' } }))
-    const result = await runAutomaticCommunications({
-      rpc, fetcher: vi.fn() as unknown as typeof fetch, supabaseUrl: 'https://supabase.example.test', anonKey: 'anon', secret: 'secret',
-    })
+    const result = await runAutomaticCommunications({ rpc, dispatch: vi.fn() })
     expect(result.status).toBe(500)
     expect(result.headers).toEqual({
       'x-telemetry-error-code': '22023',
@@ -86,15 +94,15 @@ describe('rodada do runner com envio falso', () => {
     })
   })
 
-  it('chama a send-customer-communication com a chave pública e o segredo da automação, nunca a de serviço', async () => {
-    const { run, fetcher } = setup([{ status: 200, body: { status: 'enviado' } }, { status: 200, body: { status: 'enviado' } }])
+  it('envia um destinatário por vez, com a origem automática e a âncora da escala', async () => {
+    const { run, dispatch } = setup([{ status: 200, body: { status: 'enviado' } }, { status: 200, body: { status: 'enviado' } }])
     await run()
-    const calls = (fetcher as unknown as { mock: { calls: Array<[string, RequestInit]> } }).mock.calls
-    expect(calls).toHaveLength(2)
-    for (const [, init] of calls) {
-      const headers = init.headers as Record<string, string>
-      expect(headers.Authorization).toBe('Bearer anon')
-      expect(headers['X-Communication-Automation-Secret']).toBe('secret')
+    expect(dispatch.mock.calls.map(([payload]) => payload.recipient)).toEqual(['a@example.test', 'b@example.test'])
+    for (const [payload] of dispatch.mock.calls) {
+      expect(payload).toMatchObject({
+        customer_id: 1, kind: 'aviso_chegada_noa', nature: 'avisos_operacionais', origin: 'automatico',
+        anchor_voyage_id: 1, anchor_port: 'BRSSZ', attempt_discriminator: 0, bl_ids: ['BL-1'],
+      })
     }
   })
 
@@ -167,7 +175,7 @@ describe('rodada do runner com envio falso', () => {
     const rpc = vi.fn((fn: string) => Promise.resolve(fn === 'evaluate_and_dispatch_automatic_communications'
       ? { data: [broken], error: null }
       : fn === 'customer_local_charges_communication_payload' ? { data: null, error: new Error('payload indisponível') } : { data: true, error: null }))
-    await runAutomaticCommunications({ rpc, fetcher: vi.fn() as unknown as typeof fetch, supabaseUrl: 'https://x.test', anonKey: 'a', secret: 's' })
+    await runAutomaticCommunications({ rpc, dispatch: vi.fn() })
     expect(rpc).toHaveBeenCalledWith('defer_customer_communication_automation_claim', {
       p_claim_key: candidate.claim_key, p_reason: 'payload indisponível', p_provider_failure: true,
     })
@@ -223,8 +231,8 @@ describe('rodada do runner com envio falso', () => {
     let maxInFlight = 0
     const inFlightByCustomer = new Map<number, number>()
     let sameCustomerOverlap = false
-    const fetcher = vi.fn(async (_url: string, init: RequestInit) => {
-      const { customer_id: customerId } = JSON.parse(String(init.body)) as { customer_id: number }
+    const dispatch = vi.fn(async (payload: Record<string, unknown>): Promise<AutoRunnerDispatchResult> => {
+      const customerId = Number(payload.customer_id)
       inFlight += 1
       maxInFlight = Math.max(maxInFlight, inFlight)
       inFlightByCustomer.set(customerId, (inFlightByCustomer.get(customerId) ?? 0) + 1)
@@ -232,14 +240,12 @@ describe('rodada do runner com envio falso', () => {
       await new Promise((resolve) => setTimeout(resolve, 5))
       inFlight -= 1
       inFlightByCustomer.set(customerId, inFlightByCustomer.get(customerId)! - 1)
-      return new Response(JSON.stringify({ status: 'enviado' }), { status: 200 })
-    }) as unknown as typeof fetch
-
-    const result = await runAutomaticCommunications({
-      rpc, fetcher, supabaseUrl: 'https://supabase.example.test', anonKey: 'anon', secret: 'secret',
+      return { status: 200, body: { status: 'enviado' } }
     })
 
-    expect(fetcher).toHaveBeenCalledTimes(8)
+    const result = await runAutomaticCommunications({ rpc, dispatch })
+
+    expect(dispatch).toHaveBeenCalledTimes(8)
     expect(maxInFlight).toBe(4)
     expect(sameCustomerOverlap).toBe(false)
     // O resumo segue a ordem dos candidatos, não a ordem de término.
@@ -251,8 +257,147 @@ describe('rodada do runner com envio falso', () => {
   })
 })
 
-describe('recusas da Edge send-customer-communication', () => {
-  const edge = readFileSync(new URL('../../../supabase/functions/send-customer-communication/index.ts', import.meta.url), 'utf8')
+// Proteção do incidente de 07/11/2026: o que a rodada não chega a enviar volta
+// na rodada seguinte (2 min), sem intervalo de nova tentativa, sem contar falha
+// e sem deixar o heartbeat vermelho.
+describe('teto da rodada e limite da plataforma', () => {
+  const base: AutoRunnerCandidate = {
+    claim_key: 'aviso_chegada_noa:1:1:BRSSZ',
+    kind: 'aviso_chegada_noa',
+    nature: 'avisos_operacionais',
+    customer_id: 1,
+    customer_name: 'CLIENTE TESTE',
+    customer_cnpj: '00000000000191',
+    voyage_id: 1,
+    vessel_name: 'NAVIO TESTE',
+    voyage_number: '001',
+    port: 'BRSSZ',
+    milestone_at: '2026-10-20T12:00:00Z',
+    bl_ids: ['BL-1'],
+    emails: ['a@example.test', 'b@example.test', 'c@example.test'],
+  }
+  // Mesmo Cliente nos dois alvos: seguem em série, então a ordem é fixa.
+  const second: AutoRunnerCandidate = { ...base, claim_key: 'aviso_prontidao_nor:1:1:BRSSZ', kind: 'aviso_prontidao_nor', emails: ['d@example.test'] }
+
+  function rpcWith(candidates: AutoRunnerCandidate[]) {
+    const calls: Array<{ fn: string; args: Record<string, unknown> }> = []
+    const rpc = vi.fn((fn: string, args: Record<string, unknown>) => {
+      if (fn !== 'evaluate_and_dispatch_automatic_communications') calls.push({ fn, args })
+      return Promise.resolve({ data: fn === 'evaluate_and_dispatch_automatic_communications' ? candidates : true, error: null })
+    })
+    return { rpc, calls }
+  }
+
+  const delivered = (): Promise<AutoRunnerDispatchResult> => Promise.resolve({ status: 200, body: { status: 'enviado' } })
+
+  async function heartbeatOf(result: { status: number; body: unknown }): Promise<string[]> {
+    const heartbeats: string[] = []
+    await runWithBetterStackHeartbeat('customerCommunicationAutoRunner', () => new Response(JSON.stringify(result.body), { status: result.status }), {
+      getEnv: () => 'https://uptime.betterstack.com/api/v1/heartbeat/token',
+      fetcher: (input) => {
+        heartbeats.push(String(input))
+        return Promise.resolve(new Response(null, { status: 200 }))
+      },
+    })
+    return heartbeats
+  }
+
+  beforeEach(() => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  })
+  afterEach(() => vi.restoreAllMocks())
+
+  it('o padrão é 50 destinatários ou 15 s por rodada', async () => {
+    const { DEFAULT_AUTO_RUNNER_BUDGET } = await import('../../../supabase/functions/_shared/customerCommunicationAutoRunner.ts')
+    expect(DEFAULT_AUTO_RUNNER_BUDGET).toEqual({ maxRecipients: 50, maxMillis: 15_000 })
+  })
+
+  it('passado o teto de destinatários, o resto volta na rodada seguinte sem falha e com o heartbeat verde', async () => {
+    const { rpc, calls } = rpcWith([base, second])
+    const dispatch = vi.fn<AutoRunnerDeps['dispatch']>(delivered)
+    const result = await runAutomaticCommunications({ rpc, dispatch, budget: { maxRecipients: 2, maxMillis: 60_000 } })
+
+    expect(dispatch.mock.calls.map(([payload]) => payload.recipient)).toEqual(['a@example.test', 'b@example.test'])
+    expect(calls).toEqual([
+      { fn: 'release_customer_communication_automation_claim', args: { p_claim_key: base.claim_key } },
+      { fn: 'release_customer_communication_automation_claim', args: { p_claim_key: second.claim_key } },
+    ])
+    expect(result).toMatchObject({ status: 200, body: { failed: 0, releaseFailures: 0, nextRound: 2, paused: 'teto_da_rodada' } })
+    expect(result.body.sent).toEqual([
+      { kind: 'aviso_chegada_noa', customerId: 1, emails: 2 },
+      { kind: 'aviso_prontidao_nor', customerId: 1, emails: 0 },
+    ])
+    expect(await heartbeatOf(result)).toEqual(['https://uptime.betterstack.com/api/v1/heartbeat/token'])
+  })
+
+  it('passado o tempo da rodada, não começa outro envio', async () => {
+    const { rpc, calls } = rpcWith([base])
+    let clock = 0
+    const dispatch = vi.fn(() => {
+      clock += 16_000
+      return delivered()
+    })
+    const result = await runAutomaticCommunications({ rpc, dispatch, now: () => clock })
+
+    expect(dispatch).toHaveBeenCalledTimes(1)
+    expect(calls).toEqual([{ fn: 'release_customer_communication_automation_claim', args: { p_claim_key: base.claim_key } }])
+    expect(result.body).toMatchObject({ failed: 0, nextRound: 2, paused: 'teto_da_rodada' })
+  })
+
+  it('recusa da Supabase (RateLimitError) para a rodada: o destinatário recusado e os seguintes voltam na próxima', async () => {
+    const { rpc, calls } = rpcWith([base, second])
+    const limit = Object.assign(new Error('Rate limit exceeded for trace x. Retry after 50000ms.'), { name: 'RateLimitError' })
+    const dispatch = vi.fn()
+      .mockImplementationOnce(delivered)
+      .mockImplementationOnce(() => Promise.reject(limit))
+      .mockImplementation(delivered)
+    const result = await runAutomaticCommunications({ rpc, dispatch })
+
+    expect(dispatch).toHaveBeenCalledTimes(2)
+    expect(calls.map(({ fn }) => fn)).toEqual([
+      'release_customer_communication_automation_claim',
+      'release_customer_communication_automation_claim',
+    ])
+    expect(calls.some(({ fn }) => fn === 'defer_customer_communication_automation_claim')).toBe(false)
+    expect(result.body).toMatchObject({ failed: 0, nextRound: 3, paused: 'limite_da_plataforma' })
+    expect(await heartbeatOf(result)).toEqual(['https://uptime.betterstack.com/api/v1/heartbeat/token'])
+  })
+
+  it('falha de verdade antes do teto mantém o intervalo de nova tentativa e o heartbeat vermelho', async () => {
+    const { rpc, calls } = rpcWith([base])
+    const dispatch = vi.fn()
+      .mockImplementationOnce(() => Promise.resolve({ status: 502, body: { status: 'falha', reason: 'Tempo esgotado na chamada ao provedor' } }))
+      .mockImplementation(delivered)
+    const result = await runAutomaticCommunications({ rpc, dispatch, budget: { maxRecipients: 2, maxMillis: 60_000 } })
+
+    expect(calls).toEqual([{
+      fn: 'defer_customer_communication_automation_claim',
+      args: { p_claim_key: base.claim_key, p_reason: 'Tempo esgotado na chamada ao provedor', p_provider_failure: true },
+    }])
+    expect(result.body).toMatchObject({ failed: 1, nextRound: 1 })
+    expect(await heartbeatOf(result)).toEqual(['https://uptime.betterstack.com/api/v1/heartbeat/token/fail'])
+  })
+
+  it('recusa definitiva com envio por fazer volta na rodada seguinte; a rejeição espera o resto', async () => {
+    const { rpc, calls } = rpcWith([base])
+    const dispatch = vi.fn()
+      .mockImplementationOnce(() => Promise.resolve({ status: 422, body: { error: 'Destinatário inválido.', permanent: true } }))
+      .mockImplementation(delivered)
+    await runAutomaticCommunications({ rpc, dispatch, budget: { maxRecipients: 2, maxMillis: 60_000 } })
+
+    expect(calls).toEqual([{ fn: 'release_customer_communication_automation_claim', args: { p_claim_key: base.claim_key } }])
+  })
+
+  it('só o RateLimitError conta como limite da plataforma', () => {
+    expect(isPlatformRateLimit(Object.assign(new Error('x'), { name: 'RateLimitError' }))).toBe(true)
+    expect(isPlatformRateLimit(new TypeError('fetch failed'))).toBe(false)
+    expect(isPlatformRateLimit({ name: 'RateLimitError' })).toBe(false)
+  })
+})
+
+describe('recusas do envio de Comunicado (send-customer-communication e régua)', () => {
+  const edge = readFileSync(new URL('../../../supabase/functions/_shared/customerCommunicationDispatch.ts', import.meta.url), 'utf8')
   const linesWith = (text: string) => edge.split('\n').filter((line) => line.includes(text))
 
   it('marca permanent só nas recusas que não mudam sem outro código ou payload', () => {
@@ -273,7 +418,7 @@ describe('recusas da Edge send-customer-communication', () => {
   it('valida a âncora pela RPC única, sem ler o snapshot da viagem, e a recusa não é permanente', () => {
     expect(edge).not.toContain('pod_schedule_snapshot')
     expect(edge).toContain("admin.rpc('customer_communication_anchor_validation'")
-    expect(linesWith('if (!anchor?.ok) return json(422')).toHaveLength(1)
+    expect(linesWith('if (!anchor?.ok) return reply(422')).toHaveLength(1)
   })
 
   it('marca permanent quando o provedor recusou em definitivo', () => {

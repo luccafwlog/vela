@@ -28,7 +28,8 @@ it('exposes the audit author filter as a list of people and clears it with the o
   expect(source).not.toContain('Autor (ID)')
   expect(source).toContain('<Field label="Por">')
   expect(source).toContain('value={filters.changedBy}')
-  expect(source).toContain('filters.subject || filters.changedBy || filters.action || filters.dateFrom || filters.dateTo')
+  // Desde 2026-11-06 a busca e o período (que abre em 30 dias) também contam como filtro.
+  expect(source).toContain('filters.search || filters.subject || filters.changedBy || filters.action || filters.period !== EMPTY_FILTERS.period')
   expect(source).toContain('setFilters(EMPTY_FILTERS)')
 })
 

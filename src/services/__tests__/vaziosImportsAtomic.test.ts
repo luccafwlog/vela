@@ -36,6 +36,7 @@ describe('imports de vazios transacionais', () => {
           container_number: 'ABCD1234567',
           container_type: '40HC',
           movement_date: '2026-06-23',
+          pod: 'CNSHA',
           origin_terminal: 'SHA',
           destination: 'SSZ',
           notes: null,

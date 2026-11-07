@@ -16,14 +16,24 @@ import {
 } from '../services/reports'
 import { DEMURRAGE_DIVISIONS } from '../services/demurrage/demurrageDivisions'
 
-export type ReportView = 'operacional' | 'financeiro' | 'por-cliente' | 'demurrage'
+export type ReportView = 'operacional' | 'financeiro' | 'por-cliente' | 'demurrage' | 'prazo-do-adr'
 
-export const REPORT_VIEWS: Array<{ value: ReportView; label: string }> = [
+/**
+ * `adminOnly`: o Prazo do ADR (cumprimento por equipe) é só do Administrativo,
+ * como era na Administração (decisão do dono de 2026-11-06).
+ */
+export const REPORT_VIEWS: Array<{ value: ReportView; label: string; adminOnly?: boolean }> = [
   { value: 'operacional', label: 'Operacional' },
   { value: 'financeiro', label: 'Financeiro' },
   { value: 'por-cliente', label: 'Por Cliente' },
   { value: 'demurrage', label: 'Demurrage' },
+  { value: 'prazo-do-adr', label: 'Prazo do ADR', adminOnly: true },
 ]
+
+/** As visões que a pessoa vê: o Prazo do ADR só para o Administrativo. */
+export function visibleReportViews(isAdmin: boolean) {
+  return REPORT_VIEWS.filter((view) => isAdmin || !view.adminOnly)
+}
 
 /** Chaves comuns às quatro visões; as demais saem na troca de aba. */
 const SCOPE_KEYS = ['de', 'ate', 'viagem', 'cliente', 'clienteNome'] as const
@@ -33,9 +43,10 @@ export type ReportParam =
   | 'pol' | 'pod' | 'modalidade' | 'revisao' | 'taxas'
   | 'situacao' | 'consolidada' | 'saldo' | 'disputa' | 'recorte' | 'divisao'
 
-export function reportViewFromSearch(params: URLSearchParams): ReportView {
+/** A visão do endereço; a do Administrativo, aberta por outro setor, cai na Operacional. */
+export function reportViewFromSearch(params: URLSearchParams, isAdmin = true): ReportView {
   const value = params.get('visao')
-  return REPORT_VIEWS.some((view) => view.value === value) ? (value as ReportView) : 'operacional'
+  return visibleReportViews(isAdmin).some((view) => view.value === value) ? (value as ReportView) : 'operacional'
 }
 
 export function withReportView(params: URLSearchParams, view: ReportView): URLSearchParams {
