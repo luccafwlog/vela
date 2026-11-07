@@ -12,7 +12,7 @@ leva migration, testes e documentação viva na mesma mudança. Ao terminar o
 | A | 1, 3 | Prazo do desbloqueio sem limite de idade; alerta Crítico **B/L divergente na ZPT** | feito: migration `613`, `alertasDoDesbloqueioDeCe.local-pg.test.ts` |
 | B | 4 | Sino do documento anual do VIP enviado | feito: migration `614`, `sinoAvisosDeAcontecimento.local-pg.test.ts` |
 | C | 6 | Alertas da fatura e da Invoice de Demurrage canceladas sem nova emissão | feito: migration `615`, `faturaCanceladaSemReemissao.local-pg.test.ts` |
-| D | 7 | Reenviar Comunicado de CE e Taxas quando um B/L fica pronto depois do envio | a fazer |
+| D | 7 | Reenviar Comunicado de CE e Taxas quando um B/L fica pronto depois do envio | feito: migration `616`, `reenvioCeTaxasBlTardio.local-pg.test.ts` |
 | E | 9 | Liberação de faturamento vencendo | a fazer |
 | F | 11 | Trava de veículos na Viagem concluída; recusa abre a Declaração de veículos pendente | a fazer |
 | G | 8 | Rotina interna sem rodar e sinal externo | a fazer |

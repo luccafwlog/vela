@@ -76,7 +76,7 @@ No bloco do porto, cada aviso de cada Cliente diz em que pé está:
 
 ::: atencao
 - No NOA, NOR e NOB, **Não devido** aparece também quando a janela do aviso passou sem envio. Para saber se um aviso saiu, confira o **Histórico** ([16.4](#164-conferir-se-um-e-mail-saiu-e-chegou)).
-- "Reenvio pendente", no CE e Taxas, é o Cliente que já recebeu e ganhou na Viagem um B/L que ainda não está pronto. Quando o B/L fica pronto, a Cobertura volta a mostrar **Enviado em …**, o Vela não manda outro CE e Taxas e nenhum alerta abre: reenvie nesse momento ([16.7](#167-reenviar-o-comunicado-de-ce-e-taxas)).
+- "Reenvio pendente", no CE e Taxas, é o Cliente que já recebeu e ganhou na Viagem um B/L que ainda não está pronto. Quando o B/L fica pronto, a Cobertura volta a mostrar **Enviado em …** e o Vela não manda outro CE e Taxas sozinho: abre o alerta **Reenviar Comunicado de CE e Taxas** para a {{Documentação}}, que reenvia ([16.7](#167-reenviar-o-comunicado-de-ce-e-taxas)).
 :::
 
 ## 16.4 Conferir se um e-mail saiu e chegou

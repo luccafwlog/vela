@@ -251,3 +251,4 @@ src/integration/adrRecusaSemExportacao.local-pg.test.ts
 src/integration/travaCeMercanteSemBaplie.local-pg.test.ts
 src/integration/adrFechadoAvisaPorEmail.local-pg.test.ts
 src/integration/faturaCanceladaSemReemissao.local-pg.test.ts
+src/integration/reenvioCeTaxasBlTardio.local-pg.test.ts

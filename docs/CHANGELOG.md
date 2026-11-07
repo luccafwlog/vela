@@ -6,6 +6,9 @@
 
 ## 2026-11
 
+- **Reenvio do CE e Taxas para B/L tardio (decisão 7 do dono de 2026-11-07, migration `616`, ADR 0132):** o B/L que
+  fica pronto depois do Comunicado de CE e Taxas da Viagem abre **Reenviar Comunicado de CE e Taxas** para a
+  Documentação. Prova: `reenvioCeTaxasBlTardio.local-pg.test.ts`.
 - **Fatura cancelada sem nova emissão (decisão 6 do dono de 2026-11-07, migration `615`, ADR 0132):** 1 dia útil
   depois do cancelamento à mão sem fatura nova, abre **B/L sem fatura depois do cancelamento** (Documentação) ou
   **Invoice de Demurrage cancelada sem nova emissão** (Equipamentos); fecham na nova emissão. Prova:
