@@ -39,10 +39,9 @@ async function reportAbsorbedFailure(step: string, error: unknown, detail?: unkn
 function authorizedUses(req: Request) {
   const authorization = req.headers.get("Authorization");
   const legacy = validBearer(authorization, Deno.env.get("ITAU_PIX_ADMIN_SECRET"));
-  return {
-    routine: legacy || validBearer(authorization, Deno.env.get("ITAU_PIX_CRON_SECRET")),
-    diagnostic: legacy || validBearer(authorization, Deno.env.get("ITAU_PIX_DIAGNOSTIC_SECRET")),
-  };
+  const routine = legacy || validBearer(authorization, Deno.env.get("ITAU_PIX_CRON_SECRET"));
+  const diagnostic = legacy || validBearer(authorization, Deno.env.get("ITAU_PIX_DIAGNOSTIC_SECRET"));
+  return { routine, diagnostic };
 }
 
 // Heartbeat do Better Stack (BETTERSTACK_HEARTBEAT_ITAU_PIX_URL; sem ele, nada
