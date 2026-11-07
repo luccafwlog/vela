@@ -1,6 +1,6 @@
 # Manifestos & EDI
 
-> **Status:** ativo · **Atualizado:** 2026-11-06 · **Rotas:** `/bls`, `/bls/:blId`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios`, `/embarquevazios/depots`
+> **Status:** ativo · **Atualizado:** 2026-11-07 · **Rotas:** `/bls`, `/bls/:blId`, `/containers`, `/veiculos`, `/baplie`, `/vazios-importacao`, `/embarquevazios`, `/embarquevazios/depots`
 
 ## Propósito e escopo
 
@@ -1275,7 +1275,12 @@ cancelada fica desabilitado. A janela mostra a prévia, os **Impedimentos** e os
 **Avisos**. **Baixar arquivo** primeiro registra o arquivo no Histórico da
 Viagem e só então baixa o `.TXT` (migration `600`,
 [ADR 0129](../adr/0129-edi-mercante-registrado-correcao-na-ficha-e-estrangeiro.md)); o envio
-ao Mercante continua fora do Vela. **Código:**
+ao Mercante continua fora do Vela: o passo a passo do upload web (ZIP com o
+TXT, **Assinar arquivo** na página, protocolo e conferência) está no
+[runbook de envio pelo Mercante](../operations/envio-manifesto-mercante.md), e
+os códigos do arquivo de retorno e as posições do M5 na
+[referência do retorno do EDI Mercante](../operations/mercante-retorno-edi.md).
+**Código:**
 `src/components/voyages/MercanteEdiModal.tsx`,
 `src/services/mercanteEdiData.ts` (leitura e registro), `src/services/mercanteEdi.ts`
 (montagem), `src/services/mercanteEdiTables.ts` (códigos);
@@ -1294,13 +1299,19 @@ ao Mercante continua fora do Vela. **Código:**
   (v3.2/v3.6) não pede BOM: o arquivo começa direto pelo tipo do primeiro
   registro (`M5`). Com os bytes `EF BB BF` antes do `M5`, o tipo de registro
   pode não ser reconhecido (código `EE0` no retorno). O envio pela VAN Zaptrade
-  com BOM já tinha sido aceito (GG6, manifesto 1226502020077), e em 2026-11-05
-  o arquivo sem BOM foi aceito em produção pelo Upload web do Mercante (GS8,
-  manifesto 1226502047331, protocolo 1105112539061, 12 B/Ls conferidos): TXT
-  sem BOM → ZIP com o TXT na raiz → **Assinar arquivo** na página do Mercante →
-  **Enviar**. O BOM não é necessário, e sem ele o arquivo serve aos dois
-  canais. Vale para os três arquivos (carga, vazios e o parcial de carga
-  solta); o download continua como `text/plain;charset=utf-8`.
+  com BOM já tinha sido aceito (GG6, manifesto 1226502020077; a composição
+  exata do pacote que a Zaptrade transmitiu não foi verificada), e em
+  2026-11-05 o arquivo sem BOM foi aceito em produção pelo Upload web do
+  Mercante (GS8, manifesto 1226502047331, protocolo 1105112539061, 12 B/Ls
+  conferidos pela consulta ao manifesto; o arquivo de retorno do GS8 não foi
+  conferido): TXT sem BOM → ZIP com o TXT na raiz → **Assinar arquivo** na
+  página do Mercante → **Enviar**. O BOM não é necessário; o teste não isolou
+  se ele impede o upload web, e o envio sem BOM pela Zaptrade não foi
+  registrado. Vale para os três arquivos (carga, vazios e o parcial de carga
+  solta); o download continua como `text/plain;charset=utf-8`. A mudança é da
+  PR #1232 (`staging` em 2026-11-05, 20:27 de Brasília; na `main` pela
+  promoção #1233, 23:51); merge na `main` não prova o deploy, e o TXT exportado
+  antes dela pode ter BOM ([nota de compatibilidade](../operations/envio-manifesto-mercante.md#situação-do-exportador-txt-sem-bom)).
 - **Cabeçalho (M5).** Armador pelo SCAC do cadastro, IMO e número da Viagem,
   POL e POD da rota, **encerramento** = ATD do POL da rota e **operação** = ETA
   do POD, terminal = o da frente de operação de importação do POD na escala
