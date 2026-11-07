@@ -95,6 +95,15 @@ Fonte: leiaute do retorno (rótulo v 2.9, rodapé Versão 3.5).
 | Conhecimento (C1, C3, C4, C5, C6, C7, C8, C9, CB, CC, CE, CG, CH, CP) | `C5` no LCI | 03–05 código geral · 06–18 número do manifesto · 19–20 espaços · 21–35 NR-CE-MERCANTE | 36–1181 (1ª: 36–38 e 39–41; 191ª: 1176–1181) | 1182–1199: número do conhecimento de embarque (18) |
 | Item de carga (I…) | `I5` no LCI | 03–06 número sequencial do item · 07–09 código geral · 10–22 número do manifesto · 23–24 espaços · 25–39 NR-CE-MERCANTE ([inconsistência](#fontes-e-versões)) | 40–1185 (1ª: 40–42 e 43–45; 191ª: 1180–1185) | 1186–1207: número do conhecimento e número sequencial do item |
 
+**O que o Vela lê do retorno.** A importação de **CE Mercante** aceita o
+retorno de um manifesto de carga
+([runbook](envio-manifesto-mercante.md#importar-o-retorno-no-vela)). No `M5`,
+ela lê o número do manifesto (06–18) e o POL e o POD do Mercante (1167–1171 e
+1172–1176, o começo da chave). Em cada `C5`, lê o número do manifesto (06–18),
+o CE (21–35) e o B/L (a partir da 1182). Não lê os códigos de erro nem o `I5`,
+e recusa o retorno só de `V5`. As linhas dos retornos conferidos tinham 1226
+posições (**Código:** `src/services/retornoMercante.ts`).
+
 **Como ler uma linha de retorno do `M5`:**
 
 1. As posições 01–02 dizem o registro (`M5`).

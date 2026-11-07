@@ -1276,7 +1276,9 @@ cancelada fica desabilitado. A janela mostra a prévia, os **Impedimentos** e os
 Viagem e só então baixa o `.TXT` (migration `600`,
 [ADR 0129](../adr/0129-edi-mercante-registrado-correcao-na-ficha-e-estrangeiro.md)); o envio
 ao Mercante continua fora do Vela: o passo a passo do upload web (ZIP com o
-TXT, **Assinar arquivo** na página, protocolo e conferência) está no
+TXT, **Assinar arquivo** na página, protocolo, conferência e importação do
+Retorno, que grava o Nº do Manifesto e os CEs; ver
+[Manifesto Mercante](#manifesto-mercante)) está no
 [runbook de envio pelo Mercante](../operations/envio-manifesto-mercante.md), e
 os códigos do arquivo de retorno e as posições do M5 na
 [referência do retorno do EDI Mercante](../operations/mercante-retorno-edi.md).

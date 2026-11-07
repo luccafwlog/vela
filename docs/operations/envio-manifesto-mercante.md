@@ -6,20 +6,66 @@
 > **Códigos de retorno:** [Retorno do EDI Mercante](mercante-retorno-edi.md)
 
 Roteiro para transmitir ao Siscomex Mercante, pelo navegador, o TXT que o Vela
-gera em **Gerar EDI Mercante**. O Vela só gera e baixa o arquivo: assinar,
-enviar e conferir o processamento acontecem fora dele, no Mercante, com o
-Assinador Serpro. Como o arquivo é montado, o que impede o download e cada
+gera em **Gerar EDI Mercante**. Assinar, enviar e conferir o processamento
+acontecem no Mercante, com o Assinador Serpro. O Vela gera e baixa o arquivo
+e, na volta, importa o arquivo de retorno, que grava o número do manifesto e
+os CEs. Como o arquivo é montado, o que impede o download e cada
 aviso estão no [módulo](../modules/manifesto-edi.md#edi-mercante); este
 documento diz como agir.
 
-**Ordem validada no canal web** (GS8, produção, 05/11/2026):
+## Resumo do passo a passo
 
-1. Exportar o TXT no Vela.
-2. Compactar o TXT em ZIP, com o TXT na raiz.
-3. No Mercante, em **Assinar arquivo**, selecionar e assinar o **ZIP**.
-4. Clicar em **Enviar** uma vez.
-5. Guardar o protocolo.
-6. Conferir o processamento pelo retorno ou pela consulta ao manifesto.
+Os passos 1 a 10 seguem o envio validado no canal web (GS8, produção,
+05/11/2026). O passo 11 usa a importação do Retorno no Vela.
+
+**No Vela (precisa da conta Dev)**
+
+1. Abra **Viagens**, depois a Viagem, e vá à aba **Rotas e Manifestos**.
+2. Escolha a linha certa:
+   - **CNTR**: carga em contêiner.
+   - **VAZIOS**: contêineres vazios.
+   - **BB**: carga solta e B/Ls mistos. Esse arquivo sai **parcial** e precisa
+     ser completado antes do envio.
+3. Clique no ícone **Gerar EDI Mercante** da linha. Se a janela listar
+   **Impedimentos**, corrija na origem (ficha do B/L, escala ou cadastro) e
+   gere de novo.
+4. Clique em **Baixar arquivo**. Anote qual linha gerou o TXT, porque o nome
+   do arquivo não diz se é de carga, vazios ou carga solta.
+
+**Preparar o arquivo**
+
+5. Confira se o TXT começa direto por `M5`. Um arquivo antigo pode trazer três
+   bytes invisíveis no início (o BOM). Nesse caso, remova só esses três bytes
+   numa cópia.
+6. Compacte o TXT em **ZIP**. O ZIP deve ter só o TXT, sem pasta interna e sem
+   senha.
+
+**No Mercante**
+
+7. Com o **Assinador Serpro aberto**, acesse **Arquivos → Manifesto pela
+   Internet → Upload de Arquivos Mercante** e confira se o Assinador aparece
+   como **ONLINE**.
+8. Clique em **Assinar arquivo** e selecione o **ZIP**. O responsável escolhe
+   o certificado e digita o PIN.
+9. Quando o botão virar **Enviar**, clique **uma vez** e **anote o
+   protocolo**.
+
+**Conferir e fechar**
+
+10. Baixe o arquivo de retorno em **Download de Arquivo Retorno** ou consulte
+    o manifesto no Mercante:
+    - **000** quer dizer aceito, e o retorno traz o número do manifesto.
+    - **XXX** ou **EE0** quer dizer que há erro. Corrija no Vela, gere de novo,
+      faça um novo ZIP e assine de novo.
+11. **Importe o retorno no Vela.** Na Viagem, aba **Importação**, clique em
+    **CE Mercante** e escolha o arquivo de retorno (`.TXT`). O Vela lê do
+    arquivo o número do manifesto e o CE de cada B/L, mostra a prévia e grava
+    os dois depois da confirmação, sem digitar nada.
+    - O retorno de **vazios** não tem CE e é recusado.
+    - O número do manifesto de vazios é informado na importação de **Vazios
+      IMP** ou em **Rotas e Manifestos**, na linha **VAZIOS**.
+
+Detalhes em [Importar o retorno no Vela](#importar-o-retorno-no-vela).
 
 > **Não se aplica ao upload web.** Não assine o TXT fora da página. Não anexe
 > nem envie `.p7s`. Não compacte um `.p7s`. Não envie TXT solto. O upload web
@@ -181,9 +227,10 @@ geração (`FWL_MERCANTE_<AAAAMMDDHHMM>_<sigla>`), como o do teste GS8.
 
 - **Só a conta Dev exporta.** Os demais usuários não veem os botões.
 - **O Vela não envia nem assina.** Não há integração com o Mercante, com o
-  Assinador nem com a Zaptrade. O Vela também não lê o arquivo de retorno nem
-  grava o número do manifesto sozinho. O número aceito se informa à parte em
-  **Informar Nº de Manifesto Mercante**, na mesma linha.
+  Assinador nem com a Zaptrade. O arquivo de retorno do manifesto de carga
+  volta ao Vela pela importação de **CE Mercante**, que grava o número do
+  manifesto e os CEs ([importar o retorno](#importar-o-retorno-no-vela)). O
+  retorno de vazios não é importado: o número dos vazios é digitado.
 - **Arquivo parcial de carga solta.** O que o Vela não tem (data de emissão,
   frete, Type of Movement, terminal…) sai em branco e aparece em **A
   completar**. O Vela não edita o TXT.
@@ -260,10 +307,60 @@ de retorno ou da consulta ao manifesto no Mercante.
 
 3. **Confira o manifesto.** Consulte o manifesto registrado e confira os
    conhecimentos vinculados. Registre o número do manifesto no controle
-   operacional e no Vela, em **Informar Nº de Manifesto Mercante** na linha da
-   rota (ou em **Editar ETD previsto + ATD POL e Nº de Manifesto Mercante**,
-   quando a rota já tem número). Se o processo exigir vinculação à escala, confira essa etapa
+   operacional. Se o processo exigir vinculação à escala, confira essa etapa
    separadamente.
+4. **Importe o retorno no Vela** ([abaixo](#importar-o-retorno-no-vela)).
+
+### Importar o retorno no Vela
+
+**Código:** `src/services/retornoMercante.ts`, `src/services/ceMercanteImport.ts`,
+`src/components/shared/CeMercanteImportModal.tsx`,
+`src/components/shared/VoyageImportActions.tsx`. A regra fica no
+[módulo](../modules/manifesto-edi.md#manifesto-mercante).
+
+O arquivo de retorno do manifesto **de carga** (contêiner ou carga solta),
+`RETFWL….TXT`, entra no Vela pela mesma importação da planilha de CE.
+
+1. Abra a importação de CE:
+   - Na Viagem, aba **Importação**, botão **CE Mercante**.
+   - Ou, na tela **B/Ls** (`/bls`), no menu **Importar**, item **CE
+     Mercante**.
+2. Na janela **Importar CE Mercante**, escolha o `.TXT` do retorno no lugar da
+   planilha.
+   - O campo **Nº de Manifesto Mercante** some.
+   - O aviso "Manifesto Mercante <número>, lido do Retorno" mostra o número e
+     a rota do Mercante.
+   - Cada conhecimento (`C5`) vira uma linha B/L + CE.
+3. Confira a **Prévia** e a conferência com o que já está gravado:
+   - Trocar um CE ou mudar um B/L de manifesto pede confirmação com motivo.
+   - A gravação é tudo ou nada.
+   - Com o CE gravado, as faturas seguem como na planilha.
+4. O número aparece na coluna **Nº de manifesto Mercante** da linha da rota,
+   em **Rotas e Manifestos**, e o CE na ficha de cada B/L.
+
+O Vela recusa:
+
+- Arquivo sem `M5`.
+- Arquivo com mais de um manifesto: importe um retorno por manifesto.
+- Arquivo com `C5` sem o número do B/L.
+- Retorno de vazios, que só tem `V5` e nenhum CE.
+
+São erros de linha, como na planilha: `C5` de outro manifesto, CE fora de 15
+dígitos e B/L ou CE repetidos.
+
+O manifesto de **vazios** recebe o número digitado:
+
+- Na importação de **Vazios IMP**, um número por rota.
+- Ou em **Rotas e Manifestos**, linha **VAZIOS**, com **Informar Nº de
+  Manifesto Mercante**.
+
+O retorno com crítica (`XXX` ou `EE0`) não tem o que importar: corrija e
+envie de novo ([erros](#6-erros-e-o-que-fazer)).
+
+Ainda não há registro de um retorno do upload web importado no Vela (o do GS8
+ficou sem conferência). A leitura foi conferida nos retornos de contêiner,
+carga solta e vazios do GREEN GUANGZHOU V.6 (comentário de
+`src/services/retornoMercante.ts`).
 
 > **Referência do teste GS8 em produção** (**Runtime**, 05/11/2026, upload
 > web, Longo Curso Importação).
