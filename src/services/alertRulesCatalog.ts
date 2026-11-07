@@ -529,7 +529,24 @@ const ALERT_RULES_BASE = [
     destinationNote: 'O alerta abre a aba Faturamento do B/L.',
     afterResolution: 'Sozinho, quando a fatura é paga (mesmo em parte), cancelada ou substituída.',
     impact: 'O Cliente não vê a fatura no Portal e pode não pagar a tempo.',
+  },  {
+    // Migration 617 (ADR 0132, decisão 9): 2 dias úteis antes do vencimento da Liberação.
+    type: 'liberacao_vencendo',
+    domain: 'Cliente e Portal',
+    responsible: 'administrativo',
+    catalogAudience: ['administrativo'],
+    entityType: 'customer',
+    severity: 'normal',
+    summary: 'A Liberação de faturamento de um Cliente sem Portal pronto vence nos próximos 2 dias úteis.',
+    trigger: 'A Liberação vigente vence dentro de 2 dias úteis e o Portal do Cliente ainda não está pronto para faturar. Um alerta por Cliente.',
+    timing: 'Na conferência de hora em hora e na hora em que a Liberação é concedida, renovada ou revogada.',
+    resolution: 'Em Clientes › Portal, renove a Liberação ou conclua o Portal do Cliente.',
+    destination: '/clientes/portal',
+    destinationLabel: 'Abrir Portal',
+    afterResolution: 'Sozinho, quando a Liberação é renovada além dos 2 dias úteis, o Portal fica pronto, a Liberação é revogada ou vence.',
+    impact: 'Depois do vencimento, os B/Ls do Cliente voltam à Revisão e as faturas dele ficam retidas.',
   },
+
   {
     // Migration 085: reprocessamento das faturas retidas depois da ativação.
     // Até a 535 o tipo também avisava o retorno de e-mail em investigação;

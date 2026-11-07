@@ -80,6 +80,7 @@ export type ActiveAlertType =
   | 'desbloqueio_divergente_zpt'
   | 'fatura_cancelada_sem_reemissao'
   | 'demurrage_cancelada_sem_reemissao'
+  | 'liberacao_vencendo'
 
 export const TYPE_LABELS: Record<string, string> = {
   fatura_desatualizada: 'Fatura desatualizada',
@@ -155,6 +156,7 @@ export const TYPE_LABELS: Record<string, string> = {
   desbloqueio_divergente_zpt: 'B/L divergente na ZPT',
   fatura_cancelada_sem_reemissao: 'B/L sem fatura depois do cancelamento',
   demurrage_cancelada_sem_reemissao: 'Invoice de Demurrage cancelada sem nova emissão',
+  liberacao_vencendo: 'Liberação de faturamento vencendo',
 }
 
 export const ENTITY_TYPE_LABELS: Record<string, string> = {
@@ -515,6 +517,10 @@ function alertEntityLinkRaw(alert: {
   }
   if (effectiveType === 'review_granite_customer_unlinked') {
     return '/granito'
+  }
+  // 617 (ADR 0132, decisão 9): a Liberação se renova em Clientes › Portal.
+  if (effectiveType === 'liberacao_vencendo' && alert.entity_type === 'customer') {
+    return `/clientes/portal?cliente=${encodeURIComponent(alert.entity_id)}`
   }
   if (CUSTOMER_CONTACT_ALERT_TYPES.has(effectiveType) && alert.entity_type === 'customer') {
     const customerCnpj = alert.metadata?.customer_cnpj

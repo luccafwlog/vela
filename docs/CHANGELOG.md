@@ -6,6 +6,9 @@
 
 ## 2026-11
 
+- **Liberação de faturamento vencendo (decisão 9 do dono de 2026-11-07, migration `617`, ADR 0132):** 2 dias úteis
+  antes do vencimento, com o Portal do Cliente não pronto, o Administrativo recebe o alerta. Prova:
+  `liberacaoVencendo.local-pg.test.ts`.
 - **Reenvio do CE e Taxas para B/L tardio (decisão 7 do dono de 2026-11-07, migration `616`, ADR 0132):** o B/L que
   fica pronto depois do Comunicado de CE e Taxas da Viagem abre **Reenviar Comunicado de CE e Taxas** para a
   Documentação. Prova: `reenvioCeTaxasBlTardio.local-pg.test.ts`.

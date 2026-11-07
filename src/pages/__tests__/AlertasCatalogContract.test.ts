@@ -16,8 +16,9 @@ describe('Contrato do catálogo de alertas e tipos de entidade', () => {
     // Desbloqueio de CE (migration 608).
     // 66 com o B/L divergente na ZPT (migration 613).
     // 68 com as canceladas sem nova emissão (migration 615).
-    expect(catalog).toHaveLength(68)
-    expect(catalog.filter((entry) => entry.active)).toHaveLength(63)
+    // 69 com a Liberação vencendo (migration 617).
+    expect(catalog).toHaveLength(69)
+    expect(catalog.filter((entry) => entry.active)).toHaveLength(64)
 
     for (const entry of catalog) {
       expect(TYPE_LABELS[entry.type], `Tipo catalogado ${entry.type} não possui rótulo em TYPE_LABELS`).toBeDefined()
