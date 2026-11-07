@@ -26,7 +26,25 @@ A fila de Alertas, com os críticos no alto.
 
 Os críticos vêm primeiro e, dentro de cada gravidade, os mais recentes.
 
-**Regras de alertas**, no botão do alto da fila de **Alertas**, abre a lista de todos os alertas do Vela, agrupada pelos mesmos assuntos deste capítulo. Cada regra diz o que o alerta quer dizer, o que acontece **Se ninguém agir**, quando abre e quando fecha, quem recebe e como se resolve, e mostra a gravidade que vale hoje.
+**Regras de alertas**, no botão do alto da fila de **Alertas**, explica todos os alertas do Vela. Cada regra diz o que o alerta quer dizer, o que acontece **Se ninguém agir**, quando abre e quando fecha, quem recebe e como se resolve, e mostra a gravidade que vale hoje.
+
+### O mapa dos alertas
+
+A tela abre no **Mapa**: os alertas aparecem no momento em que abrem, na ordem da viagem (D−7, D−5, ETA e ATA, ATB, ATD e ATD + 72 h), depois o que vem após a viagem (Pagamento, Retirada e Demurrage) e o que pode abrir a qualquer momento (Portal do Cliente, Comunicados e contatos e os **Bastidores**, que só a conta Dev recebe). Cada cartão mostra a gravidade, quem recebe e quantos alertas daquele tipo estão na sua fila agora; clicar no número abre a fila só com eles. Os avisos do sino que não são alertas (Novo pagamento, Nova solicitação de desbloqueio de CE, Novo documento anual VIP) e o e-mail do ADR fechado aparecem como marcos, com borda tracejada. A aba **Lista** mostra a lista por assunto deste capítulo.
+
+Clique num alerta para abrir a ficha. O bloco **Cadeia deste alerta** diz o que vem antes, o que ele provoca **Se ninguém agir**, o que pode abrir **Em seguida** e quem tem a **Mesma causa**; no mapa, as mesmas ligações aparecem como setas:
+
+- **vira** (vermelha): se ninguém agir, abre o outro alerta. A Declaração de veículos sem resposta vira Planilha de Veículos ausente.
+- **segura** (âmbar, tracejada): enquanto está aberto, trava o que o outro cobra. Sem a planilha, o CE Mercante não vincula.
+- **atrapalha** (cinza, pontilhada): uma falha que impede outro alerta de abrir, sem aparecer. Com a rotina interna parada, o alerta do D−5 não abre.
+- **depois** (azul): o caminho normal. Com o CE, a fatura sai; se a emissão falhar, abre a falha de emissão.
+- **mesma causa** (azul-marinho): dois alertas que nascem do mesmo problema.
+
+**Fica parado** diz o que o alerta segura do Cliente e do caixa. No alto do mapa, **O que fica parado** reúne as nove coisas (CE Mercante, Fatura de Taxas Locais, Avisos e e-mails ao Cliente, Portal do Cliente, Pix e baixa, Desbloqueio de CE, ADR de Saída, Cobrança de Demurrage e Os próprios alertas); escolher uma lista os alertas que podem segurá-la.
+
+**E se ninguém agir?**, no bloco da cadeia, mostra a cascata passo a passo: os cartões se acendem numerados no mapa e a barra embaixo explica cada passo, até o que fica parado. **Próximo passo** avança, **Voltar** recua e **Encerrar** fecha.
+
+No filtro **Setor avisado**, **Conta Dev** mostra o que a conta Dev recebe à parte: só ela, junto com a equipe ou conforme a causa.
 
 ### Trocar a gravidade de um alerta
 
@@ -35,7 +53,7 @@ Os críticos vêm primeiro e, dentro de cada gravidade, os mais recentes.
 A gravidade de cada alerta nasce com o Vela (a **Gravidade de fábrica**, a que este capítulo marca com "· crítico"), mas o {{Administrativo}} pode trocá-la quando a operação pede outra prioridade.
 
 ::: passos
-1. Em **Alertas**, clique em **Regras de alertas** e escolha o alerta na lista.
+1. Em **Alertas**, clique em **Regras de alertas** e escolha o alerta no mapa ou na **Lista**.
 2. No bloco **Gravidade**, clique em **Trocar para Normal** (ou **Trocar para Crítico**).
 3. Leia a consequência: quantos alertas abertos mudam junto e o que muda na fila e no aviso.
 4. Escreva o **Motivo da troca** (10 caracteres ou mais) e confirme.
@@ -130,7 +148,7 @@ Sete dias antes do primeiro ETA no Brasil (D−7), o Vela começa a cobrar a doc
 | Alerta | Quando abre | Quem recebe | O que fazer |
 |---|---|---|---|
 | **B/L esperado pendente** · crítico | No D−7, se falta B/L para algum porto de descarga da Viagem ou para um porto de embarque com saída programada. | {{Documentação}} | Importe os B/Ls que faltam ([6.2](06-importacao.md#62-importar-os-bls-de-container)). |
-| **Baplie ausente** · crítico | No D−7, sem Baplie importado. | {{Documentação}} | Importe o Baplie ([6.7](06-importacao.md#67-importar-o-baplie)). |
+| **Baplie ausente** · crítico | No D−7, sem Baplie importado nem a declaração **Viagem sem Baplie**. | {{Documentação}} | Importe o Baplie ou, se a Viagem não terá Baplie, declare **Viagem sem Baplie** com o motivo ([6.7](06-importacao.md#67-importar-o-baplie)). Sem um nem outro, o CE dos B/Ls de container fica travado. |
 | **Cobertura Baplie / B/L** · crítico | Quando há container cheio no Baplie sem B/L, ou container de B/L que não está entre os cheios do Baplie. Antes do D−7, só conta nas rotas que já têm B/L. A mensagem diz quantos. | {{Documentação}} | Corrija o B/L ou o Baplie ([6.8](06-importacao.md#68-resolver-as-divergências-entre-baplie-e-bl)). |
 | **CE Mercante pendente** · crítico | No D−5, se há B/L ativo sem CE ou rota de vazios sem **Nº de Manifesto Mercante**. | {{Documentação}} | Importe a planilha de CE ([6.5](06-importacao.md#65-importar-o-ce-mercante-e-emitir-as-faturas)) e informe o número do manifesto das rotas de vazios em **Rotas e Manifestos** ([4.6](04-viagens-escalas.md#46-rotas-e-manifestos)). |
 | **Declaração de veículos pendente** | No D−7, se a Viagem tem B/L de container, nenhum veículo importado e ninguém respondeu se ela terá veículos. Também na hora em que a {{Documentação}} tenta vincular o CE e é recusada por falta dessa resposta, mesmo antes do D−7 e na Viagem concluída. No D−5 sem resposta, dá lugar à **Planilha de Veículos ausente**. | {{Equipamentos}} | Em **Veículos**, clique em **Esta viagem terá veículos** ou **Esta viagem não terá veículos**, ou importe a planilha ([10.1](10-veiculos-vazios-granito.md#101-importar-os-veículos)). |

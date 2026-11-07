@@ -34,6 +34,7 @@ import {
   invalidateAllAlertQueries,
   listAlerts,
   resolveAlertItemWithJustification,
+  TYPE_LABELS,
   type AlertDepartmentSummary,
   type AlertEntityLabels,
   type AlertQueueRow,
@@ -97,6 +98,10 @@ export function Alertas() {
   const [searchParams, setSearchParams] = useSearchParams()
   const rawDept = searchParams.get('departamento') || searchParams.get('department') || 'all'
   const departmentFilter = DEPARTMENT_VALUES.includes(rawDept) ? rawDept : 'all'
+  // 622 (ADR 0134): o número de um cartão do mapa das Regras de alertas abre
+  // a fila só naquele tipo. Tipo desconhecido no link é ignorado.
+  const rawType = searchParams.get('tipo')
+  const typeFilter = rawType && Object.prototype.hasOwnProperty.call(TYPE_LABELS, rawType) ? rawType : null
 
   const [lens, setLens] = useState<AlertLens>('ativos')
   const statusFilter = 'active'
@@ -169,6 +174,12 @@ export function Alertas() {
       list = list.filter((alert) => alert.severity === 'critical')
     }
 
+    // ponytail: como os outros filtros, vale na página carregada (100 por
+    // página); o caminho é a fila aceitar o tipo como parâmetro.
+    if (typeFilter) {
+      list = list.filter((alert) => getEffectiveAlertType(alert) === typeFilter)
+    }
+
     if (severityFilter !== 'all') {
       list = list.filter((alert) => alert.severity === severityFilter)
     }
@@ -193,7 +204,7 @@ export function Alertas() {
     }
 
     return list
-  }, [data, lens, severityFilter, entityFilter, searchQuery, entityLabels])
+  }, [data, lens, typeFilter, severityFilter, entityFilter, searchQuery, entityLabels])
 
   // Conferência sem fato de origem (ADR 0083, item 23): resolve de vez, com
   // motivo no histórico do alerta; os demais fecham sozinhos pela origem.
@@ -278,13 +289,23 @@ export function Alertas() {
     setPage(0)
   }
 
-  const hasActiveFilters = searchQuery.trim().length > 0 || severityFilter !== 'all' || entityFilter !== 'all' || departmentFilter !== 'all'
+  const hasActiveFilters = searchQuery.trim().length > 0 || severityFilter !== 'all' || entityFilter !== 'all' || departmentFilter !== 'all' || typeFilter !== null
+
+  function clearTypeFilter() {
+    setPage(0)
+    const next = new URLSearchParams(searchParams)
+    next.delete('tipo')
+    setSearchParams(next)
+  }
 
   function clearFilters() {
     setSearchQuery('')
     setSeverityFilter('all')
     setEntityFilter('all')
-    handleDepartmentChange('all')
+    setPage(0)
+    const next = new URLSearchParams(searchParams)
+    for (const key of ['departamento', 'department', 'tipo']) next.delete(key)
+    setSearchParams(next)
   }
 
   const isMutating = resolveMutation.isPending || reprocessMutation.isPending
@@ -359,6 +380,13 @@ export function Alertas() {
           <div><Button variant="ghost" onClick={clearFilters}>Limpar filtros</Button></div>
         ) : null}
       </div>
+
+      {typeFilter ? (
+        <p className="mb-4 flex flex-wrap items-center gap-2">
+          <span>Só o tipo <b>{getAlertTypeLabel(typeFilter)}</b>.</span>
+          <Button variant="secondary" className="app-btn--sm" onClick={clearTypeFilter}>Ver todos os tipos</Button>
+        </p>
+      ) : null}
 
       {isError ? <InlineError message={error instanceof Error ? error.message : 'Erro ao carregar a fila de alertas.'} /> : null}
 

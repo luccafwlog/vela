@@ -227,6 +227,8 @@ export const queryKeys = {
     departmentSummary: () => ['alert-department-summary'] as const,
     // Sob o prefixo 'alerts': alerta que abre ou fecha muda os abertos de cada tipo.
     typeSettings: () => ['alerts', 'type-settings'] as const,
+    // 622: o que a pessoa vê na fila, por tipo (cartões do mapa das Regras de alertas).
+    queueCountsByType: () => ['alerts', 'queue-counts-by-type'] as const,
     financial: () => ['financial-alerts'] as const,
     operationalCount: () => ['op-count', 'open-alerts'] as const,
     internalNotifications: (cursor?: unknown) =>

@@ -90,7 +90,7 @@ Cinco rotinas cuidam da Demurrage:
 
 ::: atencao
 - Se a PTAX não chega, o último câmbio continua valendo, abre um alerta (capítulo 20) e alguém do {{Financeiro}}, do {{Administrativo}} ou de {{Equipamentos}} usa **Informar PTAX**, em **Demurrage**.
-- Com a cobrança pelo Itaú ligada, a partir de 1º de novembro abre **Calendário de feriados pendente** se os feriados do ano seguinte não estão cadastrados. Sem eles, feriado conta como dia útil na Régua, nos prazos do Pix da Demurrage e no prazo de resposta da Disputa. Peça o cadastro ao suporte técnico.
+- Com a cobrança pelo Itaú ligada, a partir de 1º de novembro abre **Calendário de feriados pendente** se os feriados do ano seguinte não estão cadastrados. Sem eles, feriado conta como dia útil na Régua, nos prazos do Pix da Demurrage, no prazo de resposta da Disputa e nos prazos do Desbloqueio de CE. Peça o cadastro ao suporte técnico.
 :::
 
 ## 19.6 O Pix do Itaú

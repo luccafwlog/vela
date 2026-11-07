@@ -6,6 +6,14 @@
 
 ## 2026-11
 
+- **Mapa dos alertas (decisões do dono de 2026-11-07, migration `622`, ADR 0134):** a tela Regras de alertas abre num
+  mapa por momento da viagem, com a cadeia de cada alerta (vira, segura, atrapalha, depois, mesma causa), o que fica
+  parado, "E se ninguém agir?" passo a passo, os avisos do sino como marcos e quantos a pessoa tem na fila, com link
+  para a fila filtrada no tipo (`/alertas?tipo=`); a lista por assunto vira a aba **Lista**, e o filtro de setor ganha
+  **Conta Dev**. Corrige também os textos de **Baplie ausente** (fecha com a declaração Viagem sem Baplie, migration
+  `610`) e **Calendário de feriados pendente** (vale para os prazos do Desbloqueio de CE, migration `608`). Prova:
+  `AlertasRegrasCatalog.test.tsx`, `alertRulesMap.test.ts`, `Alertas.behavior.test.tsx`,
+  `contagemDaFilaPorTipo.local-pg.test.ts`.
 - **PTAX avisa a conta Dev (migration `621`, ADR 0133):** a Falha na atualização da PTAX Demurrage avisa Equipamentos e
   também a conta Dev. Prova: `alertasTecnicosSoDev.local-pg.test.ts`.
 - **Alertas técnicos só para a conta Dev (decisões do dono de 2026-11-07, migration `620`, ADR 0133):** rotinas

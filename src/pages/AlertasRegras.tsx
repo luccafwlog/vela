@@ -1,5 +1,5 @@
 import { ChevronRight, FilterX } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { EmptyState, PageHeader } from '../components/ui/Card'
@@ -8,10 +8,16 @@ import { Button } from '../components/ui/Button'
 import { useConfirmWithReason } from '../components/ui/ConfirmDialog'
 import { Field, Input, Select, Textarea } from '../components/ui/Input'
 import { Modal } from '../components/ui/Modal'
+import { Drawer } from '../components/ui/Drawer'
+import { SegmentedControl, type SegmentedOption } from '../components/ui/SegmentedControl'
+import { useNarrowViewport } from '../components/bl/useNarrowViewport'
+import { AlertLinkSample, AlertRulesMap, type AlertMapCard, type AlertMapFocus } from '../components/alerts/AlertRulesMap'
+import { AlertChainBlock, AlertMapLegend, InactionWalkBar, NoticeDetail, StakeDetail } from '../components/alerts/AlertRuleChain'
 import { NoValue } from '../components/ui/NoValue'
 import { StatusText } from '../components/ui/StatusText'
 import { useToast } from '../components/ui/Toast'
 import { useAlertTypeSettings } from '../hooks/useAlertTypeSettings'
+import { useAlertQueueCountsByType } from '../hooks/useAlertQueueCountsByType'
 import { useAuth } from '../hooks/useAuth'
 import { formatBrasiliaDateTime } from '../lib/dates'
 import { userFacingErrorMessage } from '../lib/errors'
@@ -30,10 +36,29 @@ import {
   type AlertRuleSeverity,
 } from '../services/alertRulesCatalog'
 import { setAlertTypeEscalation, setAlertTypeSeverity, type AlertTypeSetting } from '../services/alertTypeSettings'
+import {
+  ALERT_BUILTIN_ESCALATION,
+  ALERT_DEV_ROUTING,
+  ALERT_LINK_KINDS,
+  ALERT_MAP_NOTICES,
+  ALERT_MAP_SHORT_LABELS,
+  ALERT_MAP_STATIONS,
+  ALERT_STAKES,
+  inactionWalk,
+  isAlertMapNotice,
+  stakeLabel,
+  stakesOf,
+  type AlertLinkKind,
+  type AlertMapNodeId,
+  type AlertMapNoticeId,
+  type AlertStakeId,
+  type InactionWalk,
+} from '../services/alertRulesMap'
 import { ENTITY_TYPE_LABELS } from '../services/alerts'
 import { afterGravidadeDoAlertaAlterada } from '../services/cacheEffects'
 
-export type AlertRuleDepartmentFilter = 'all' | 'todos' | AlertRuleDepartment
+export type AlertRuleDepartmentFilter = 'all' | 'todos' | 'dev' | AlertRuleDepartment
+type AlertRulesView = 'mapa' | 'lista'
 
 const DEPARTMENTS: Array<{ value: AlertRuleDepartmentFilter; label: string }> = [
   { value: 'all', label: 'Qualquer setor' },
@@ -43,6 +68,7 @@ const DEPARTMENTS: Array<{ value: AlertRuleDepartmentFilter; label: string }> = 
   { value: 'operacoes', label: 'Operações' },
   { value: 'financeiro', label: 'Financeiro' },
   { value: 'administrativo', label: 'Administrativo' },
+  { value: 'dev', label: 'Conta Dev' },
 ]
 
 const SEVERITIES: Array<{ value: 'all' | AlertRuleSeverity; label: string }> = [
@@ -51,7 +77,26 @@ const SEVERITIES: Array<{ value: 'all' | AlertRuleSeverity; label: string }> = [
   { value: 'normal', label: 'Normal' },
 ]
 
+const VIEWS: Array<SegmentedOption<AlertRulesView>> = [
+  { value: 'mapa', label: 'Mapa' },
+  { value: 'lista', label: 'Lista' },
+]
+
 const ALL_FILTER_VALUE = 'all'
+// Abaixo disso a ficha do mapa abre em painel lateral sobre a tela.
+const MAP_SIDE_PANEL_QUERY = '(max-width: 1279px)'
+
+const TEAM_ORDER: AlertRuleDepartment[] = ['operacoes', 'documentacao', 'equipamentos', 'financeiro', 'administrativo']
+const TEAM_ABBR: Record<AlertRuleDepartment, string> = {
+  operacoes: 'Oper',
+  documentacao: 'Doc',
+  equipamentos: 'Equip',
+  financeiro: 'Fin',
+  administrativo: 'Adm',
+}
+const RULES_BY_TYPE = new Map<string, AlertRule>(ALERT_RULES.map((rule) => [rule.type, rule]))
+const MAP_NODES = new Set<string>(ALERT_MAP_STATIONS.flatMap((station) => station.nodes))
+const NOTICE_COUNT = Object.keys(ALERT_MAP_NOTICES).length
 
 type SettingsState = {
   byType: ReadonlyMap<string, AlertTypeSetting>
@@ -59,68 +104,144 @@ type SettingsState = {
   failed: boolean
 }
 
+type RuleFilters = {
+  query: string
+  department: AlertRuleDepartmentFilter
+  domain: typeof ALL_FILTER_VALUE | AlertRuleDomain
+  severity: typeof ALL_FILTER_VALUE | AlertRuleSeverity
+}
+
 /** Gravidade que vale agora: a do banco (trocada na tela) ou, sem ela, a de fábrica. */
 function liveSeverity(rule: AlertRule, settings: SettingsState): AlertRuleSeverity {
   return settings.byType.get(rule.type)?.severity ?? rule.severity
 }
 
+/**
+ * Quem recebe, para o filtro de setor: o alerta técnico só da conta Dev
+ * (migration 620) não conta para o Administrativo; 'dev' é todo alerta que a
+ * conta Dev recebe à parte (só ela, junto com a equipe ou pela causa).
+ */
+function receivesRule(rule: AlertRule, department: AlertRuleDepartmentFilter): boolean {
+  const dev = ALERT_DEV_ROUTING[rule.type]
+  if (department === ALL_FILTER_VALUE) return true
+  if (department === 'dev') return Boolean(dev)
+  if (dev === 'only') return false
+  // O valor especial 'todos' filtra somente regras aplicáveis a todos os setores operacionais.
+  if (department === 'todos') return ALERT_RULE_DEPARTMENTS.every((dep) => rule.notifiedDepartments.includes(dep))
+  return rule.notifiedDepartments.includes(department)
+}
+
+function ruleMatches(rule: AlertRule, filters: RuleFilters, severity: AlertRuleSeverity): boolean {
+  // O setor filtra por quem é notificado, não só por quem responde: um
+  // mesmo alerta pode chegar a mais de um setor.
+  if (!receivesRule(rule, filters.department)) return false
+  if (filters.domain !== ALL_FILTER_VALUE && rule.domain !== filters.domain) return false
+  if (filters.severity !== ALL_FILTER_VALUE && severity !== filters.severity) return false
+  const query = filters.query.trim().toLocaleLowerCase('pt-BR')
+  if (!query) return true
+  // O código interno do tipo não aparece na tela, mas continua valendo na busca.
+  const searchable = [
+    rule.type,
+    rule.label,
+    rule.summary,
+    rule.trigger,
+    rule.timing,
+    rule.resolution,
+    rule.impact,
+    rule.afterResolution,
+    rule.destinationLabel,
+    rule.routingNote ?? '',
+    ENTITY_TYPE_LABELS[rule.entityType],
+    ...rule.notifiedDepartments.map((item) => ALERT_RULE_DEPARTMENT_LABELS[item]),
+    rule.domain,
+  ].join(' ').toLocaleLowerCase('pt-BR')
+  return searchable.includes(query)
+}
+
+/** Marco do mapa no filtro: sem gravidade nem assunto, só entra sem esses filtros. */
+function noticeMatches(id: AlertMapNoticeId, filters: RuleFilters): boolean {
+  const notice = ALERT_MAP_NOTICES[id]
+  if (filters.severity !== ALL_FILTER_VALUE || filters.domain !== ALL_FILTER_VALUE || filters.department === 'dev') return false
+  if (filters.department !== ALL_FILTER_VALUE && notice.teams !== 'todos' && (filters.department === 'todos' || !notice.teams.includes(filters.department))) return false
+  const query = filters.query.trim().toLocaleLowerCase('pt-BR')
+  return !query || `${notice.label} ${notice.summary} ${notice.when}`.toLocaleLowerCase('pt-BR').includes(query)
+}
+
+function nodeLabel(id: AlertMapNodeId): string {
+  return isAlertMapNotice(id) ? ALERT_MAP_NOTICES[id].label : RULES_BY_TYPE.get(id)?.label ?? id
+}
+
+function buildCards(settings: SettingsState): Map<AlertMapNodeId, AlertMapCard> {
+  const cards = new Map<AlertMapNodeId, AlertMapCard>()
+  for (const id of MAP_NODES as Set<AlertMapNodeId>) {
+    if (isAlertMapNotice(id)) {
+      const notice = ALERT_MAP_NOTICES[id]
+      cards.set(id, {
+        id,
+        label: notice.label,
+        fullLabel: notice.label,
+        notice: notice.channel,
+        severity: null,
+        escalation: null,
+        teams: notice.teams === 'todos' ? ['Todos'] : TEAM_ORDER.filter((team) => (notice.teams as AlertRuleDepartment[]).includes(team)).map((team) => TEAM_ABBR[team]),
+        dev: null,
+      })
+      continue
+    }
+    const rule = RULES_BY_TYPE.get(id)
+    if (!rule) continue
+    const dev = ALERT_DEV_ROUTING[rule.type] ?? null
+    const hours = settings.byType.get(rule.type)?.escalateAfterHours ?? null
+    cards.set(id, {
+      id,
+      label: ALERT_MAP_SHORT_LABELS[rule.type] ?? rule.label,
+      fullLabel: rule.label,
+      notice: null,
+      severity: liveSeverity(rule, settings),
+      escalation: ALERT_BUILTIN_ESCALATION[rule.type] ?? (hours ? `Crítico após ${hours} h` : null),
+      teams: dev === 'only' ? [] : TEAM_ORDER.filter((team) => rule.notifiedDepartments.includes(team)).map((team) => TEAM_ABBR[team]),
+      dev,
+    })
+  }
+  return cards
+}
+
 export function AlertasRegras() {
   const [searchParams, setSearchParams] = useSearchParams()
   const settingsQuery = useAlertTypeSettings()
+  const countsQuery = useAlertQueueCountsByType()
   const settings: SettingsState = {
     byType: settingsQuery.byType,
     loading: settingsQuery.isPending,
     failed: settingsQuery.isError,
   }
+  const sidePanelAsDrawer = useNarrowViewport(MAP_SIDE_PANEL_QUERY)
+  const [walkState, setWalkState] = useState<{ walk: InactionWalk; step: number } | null>(null)
+
+  const view: AlertRulesView = searchParams.get('visao') === 'lista' ? 'lista' : 'mapa'
   const query = searchParams.get('q') ?? ''
-  const department = isDepartmentFilter(searchParams.get('setor')) ? searchParams.get('setor') as 'todos' | AlertRuleDepartment : ALL_FILTER_VALUE
+  const department = isDepartmentFilter(searchParams.get('setor')) ? searchParams.get('setor') as AlertRuleDepartmentFilter : ALL_FILTER_VALUE
   const domain = isDomain(searchParams.get('dominio')) ? searchParams.get('dominio') as AlertRuleDomain : ALL_FILTER_VALUE
   const severity = isSeverity(searchParams.get('gravidade')) ? searchParams.get('gravidade') as AlertRuleSeverity : ALL_FILTER_VALUE
   const selectedParam = searchParams.get('regra')
+  const stakeParam = isStake(searchParams.get('parado')) ? searchParams.get('parado') as AlertStakeId : null
+  const filters = useMemo<RuleFilters>(() => ({ query, department, domain, severity }), [query, department, domain, severity])
 
-  const filteredRules = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase('pt-BR')
-    return ALERT_RULES.filter((rule) => {
-      // O setor filtra por quem é notificado, não só por quem responde: um
-      // mesmo alerta pode chegar a mais de um setor. O valor especial 'todos'
-      // filtra somente regras aplicáveis a todos os setores operacionais.
-      if (department === 'todos') {
-        const appliesToAll = ALERT_RULE_DEPARTMENTS.every((dep) => rule.notifiedDepartments.includes(dep))
-        if (!appliesToAll) return false
-      } else if (department !== ALL_FILTER_VALUE && !rule.notifiedDepartments.includes(department)) {
-        return false
-      }
-      if (domain !== ALL_FILTER_VALUE && rule.domain !== domain) return false
-      if (severity !== ALL_FILTER_VALUE && (settingsQuery.byType.get(rule.type)?.severity ?? rule.severity) !== severity) return false
-      if (!normalizedQuery) return true
+  const filteredRules = useMemo(
+    () => ALERT_RULES.filter((rule) => ruleMatches(rule, filters, settingsQuery.byType.get(rule.type)?.severity ?? rule.severity)),
+    [filters, settingsQuery.byType],
+  )
 
-      // O código interno do tipo não aparece na tela, mas continua valendo na busca.
-      const searchable = [
-        rule.type,
-        rule.label,
-        rule.summary,
-        rule.trigger,
-        rule.timing,
-        rule.resolution,
-        rule.impact,
-        rule.afterResolution,
-        rule.destinationLabel,
-        rule.routingNote ?? '',
-        ENTITY_TYPE_LABELS[rule.entityType],
-        ...rule.notifiedDepartments.map((item) => ALERT_RULE_DEPARTMENT_LABELS[item]),
-        rule.domain,
-      ].join(' ').toLocaleLowerCase('pt-BR')
-      return searchable.includes(normalizedQuery)
-    })
-  }, [department, domain, query, severity, settingsQuery.byType])
-
+  // Na lista, como antes: sem regra escolhida, vale a primeira do filtro.
   const selectedRule = filteredRules.find((rule) => rule.type === selectedParam) ?? filteredRules[0] ?? null
+  // No mapa, só o que foi escolhido: sem escolha, a ficha ensina a ler o mapa.
+  const mapSelected = selectedParam && MAP_NODES.has(selectedParam) ? selectedParam as AlertMapNodeId : null
 
   const settingsPending = settingsQuery.isPending
   useEffect(() => {
     // Com a gravidade vigente ainda carregando, o filtro de gravidade usa a de
     // fábrica: reescrever a regra do link agora perderia a escolhida.
-    if (settingsPending) return
+    if (view !== 'lista' || settingsPending) return
     const current = searchParams.get('regra')
     const nextRule = selectedRule?.type ?? null
     if (current === nextRule || (!current && !nextRule)) return
@@ -129,19 +250,98 @@ export function AlertasRegras() {
     if (nextRule) next.set('regra', nextRule)
     else next.delete('regra')
     setSearchParams(next, { replace: true })
-  }, [searchParams, selectedRule?.type, setSearchParams, settingsPending])
+  }, [searchParams, selectedRule?.type, setSearchParams, settingsPending, view])
+
+  const cards = useMemo(
+    () => buildCards({ byType: settingsQuery.byType, loading: false, failed: false }),
+    [settingsQuery.byType],
+  )
+
+  function changeParams(change: (next: URLSearchParams) => void) {
+    const next = new URLSearchParams(searchParams)
+    change(next)
+    setSearchParams(next, { replace: true })
+  }
 
   function updateFilter(key: string, value: string) {
-    const next = new URLSearchParams(searchParams)
-    if (!value || value === ALL_FILTER_VALUE) next.delete(key)
-    else next.set(key, value)
-    setSearchParams(next, { replace: true })
+    changeParams((next) => {
+      if (!value || value === ALL_FILTER_VALUE) next.delete(key)
+      else next.set(key, value)
+    })
   }
 
   function clearFilters() {
     const next = new URLSearchParams()
-    if (selectedRule) next.set('regra', selectedRule.type)
+    if (view === 'lista' && selectedRule) next.set('regra', selectedRule.type)
+    if (view === 'mapa' && selectedParam) next.set('regra', selectedParam)
+    if (view === 'lista') next.set('visao', 'lista')
+    if (stakeParam) next.set('parado', stakeParam)
     setSearchParams(next, { replace: true })
+  }
+
+  function setView(next: AlertRulesView) {
+    setWalkState(null)
+    changeParams((params) => {
+      if (next === 'lista') params.set('visao', 'lista')
+      else params.delete('visao')
+      params.delete('parado')
+    })
+  }
+
+  function revealCard(id: AlertMapNodeId) {
+    const element = document.querySelector(`[data-node="${id}"]`)
+    if (element && typeof element.scrollIntoView === 'function') element.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }
+
+  /** Escolher pela ficha: vai ao alerta e o mostra no mapa. */
+  function selectNode(id: AlertMapNodeId) {
+    setWalkState(null)
+    changeParams((next) => {
+      next.set('regra', id)
+      next.delete('parado')
+    })
+    if (view === 'mapa') revealCard(id)
+  }
+
+  /** Clicar no cartão: escolhe, ou solta se já estava escolhido. */
+  function toggleCard(id: AlertMapNodeId) {
+    if (mapSelected === id && !walkState) clearSelection()
+    else selectNode(id)
+  }
+
+  function selectStake(stake: AlertStakeId | null) {
+    setWalkState(null)
+    changeParams((next) => {
+      next.delete('regra')
+      if (stake) next.set('parado', stake)
+      else next.delete('parado')
+    })
+  }
+
+  function clearSelection() {
+    setWalkState(null)
+    changeParams((next) => {
+      next.delete('regra')
+      next.delete('parado')
+    })
+  }
+
+  function startWalk(id: AlertMapNodeId) {
+    setWalkState({ walk: inactionWalk(id), step: 0 })
+    changeParams((next) => {
+      next.delete('visao')
+      next.delete('parado')
+      next.set('regra', id)
+    })
+    revealCard(id)
+  }
+
+  function walkTo(step: number) {
+    if (!walkState) return
+    const bounded = Math.max(0, Math.min(step, walkState.walk.steps.length))
+    setWalkState({ walk: walkState.walk, step: bounded })
+    const reached = walkState.walk.steps[bounded]
+    if (reached?.length && bounded > 0) revealCard(reached[0])
   }
 
   const hasFilters = Boolean(
@@ -150,6 +350,39 @@ export function AlertasRegras() {
     || domain !== ALL_FILTER_VALUE
     || severity !== ALL_FILTER_VALUE,
   )
+
+  const mapMatches = (id: AlertMapNodeId) => {
+    if (isAlertMapNotice(id)) return noticeMatches(id, filters)
+    const rule = RULES_BY_TYPE.get(id)
+    return rule ? ruleMatches(rule, filters, liveSeverity(rule, settings)) : false
+  }
+  const mapMatchCount = [...MAP_NODES].filter((id) => mapMatches(id as AlertMapNodeId)).length
+
+  const focus: AlertMapFocus | null = walkState
+    ? { kind: 'walk', walk: walkState.walk, step: walkState.step }
+    : mapSelected
+      ? { kind: 'node', id: mapSelected }
+      : stakeParam
+        ? { kind: 'stake', id: stakeParam }
+        : null
+  const walkStakes = walkState && walkState.step >= walkState.walk.steps.length ? walkState.walk.stakes : []
+
+  const chainFor = (id: AlertMapNodeId) => (
+    <AlertChainBlock id={id} labelOf={nodeLabel} onSelect={selectNode} onStake={selectStake} onWalk={startWalk} />
+  )
+  const isCritical = (id: AlertMapNodeId) => {
+    const rule = isAlertMapNotice(id) ? null : RULES_BY_TYPE.get(id)
+    return rule ? liveSeverity(rule, settings) === 'critical' : false
+  }
+
+  const mapDetail = mapSelected
+    ? isAlertMapNotice(mapSelected)
+      ? <NoticeDetail id={mapSelected}>{chainFor(mapSelected)}</NoticeDetail>
+      : <RuleDetail rule={RULES_BY_TYPE.get(mapSelected)!} settings={settings} chain={chainFor(mapSelected)} />
+    : stakeParam
+      ? <StakeDetail stake={stakeParam} labelOf={nodeLabel} isCritical={isCritical} onSelect={selectNode} />
+      : null
+  const drawerTitle = mapSelected ? nodeLabel(mapSelected) : stakeParam ? stakeLabel(stakeParam) : 'Regras de alertas'
 
   return (
     <>
@@ -161,6 +394,8 @@ export function AlertasRegras() {
           </Link>
         )}
       />
+
+      <SegmentedControl label="Visão" options={VIEWS} value={view} onChange={setView} className="mb-4" />
 
       <div className="app-filter-grid mb-4">
         <Field label="Busca">
@@ -191,47 +426,112 @@ export function AlertasRegras() {
         <div><Button variant="ghost" onClick={clearFilters} disabled={!hasFilters}>Limpar filtros</Button></div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(250px,0.7fr)_minmax(0,1.5fr)] lg:items-start">
-        <Block
-          title="Regras"
-          aside={`${filteredRules.length} ${filteredRules.length === 1 ? 'regra' : 'regras'}`}
-          flush
-        >
-          {filteredRules.length ? (
-            <div className="max-h-[min(66vh,720px)] overflow-y-auto" role="list" aria-label="Regras de alertas">
-              {/* Os assuntos do capítulo 20 do manual, na ordem dele. */}
-              {ALERT_RULE_DOMAINS.map((topic) => {
-                const rules = filteredRules.filter((rule) => rule.domain === topic)
-                if (!rules.length) return null
+      {view === 'mapa' ? (
+        <>
+          <Block title="O que fica parado" aside="Os alertas que podem segurar cada coisa">
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="O que fica parado">
+              {ALERT_STAKES.map((stake) => {
+                const total = [...MAP_NODES].filter((id) => stakesOf(id as AlertMapNodeId).includes(stake.id)).length
+                const pressed = stakeParam === stake.id
                 return (
-                  <div key={topic} role="group" aria-label={topic}>
-                    <p className="border-b border-[var(--app-border-soft)] bg-[var(--app-bg)] px-4 py-1.5 text-xs font-semibold text-[var(--app-muted)]">
-                      {topic}
-                    </p>
-                    {rules.map((rule) => (
-                      <RuleListItem
-                        key={rule.type}
-                        rule={rule}
-                        severity={liveSeverity(rule, settings)}
-                        selected={selectedRule?.type === rule.type}
-                        onSelect={() => updateFilter('regra', rule.type)}
-                      />
-                    ))}
-                  </div>
+                  <Button
+                    key={stake.id}
+                    variant={pressed ? 'primary' : walkStakes.includes(stake.id) ? 'danger' : 'secondary'}
+                    className="app-btn--sm"
+                    aria-pressed={pressed}
+                    onClick={() => selectStake(pressed ? null : stake.id)}
+                  >
+                    {stake.label} <span className="text-xs">{total}</span>
+                  </Button>
                 )
               })}
             </div>
-          ) : (
-            <EmptyState
-              icon={FilterX}
-              title="Nenhuma regra encontrada"
-              description="Tente remover um filtro ou buscar por outro termo."
-            />
-          )}
-        </Block>
+          </Block>
 
-        {selectedRule ? <RuleDetail rule={selectedRule} settings={settings} /> : null}
-      </div>
+          <div className="mb-2 mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-[var(--app-muted)]">
+            <span>
+              {MAP_NODES.size - NOTICE_COUNT} alertas e {NOTICE_COUNT} avisos em {ALERT_MAP_STATIONS.length} momentos.
+              {hasFilters ? ` ${mapMatchCount} ${mapMatchCount === 1 ? 'atende' : 'atendem'} aos filtros.` : ''}
+            </span>
+            {(Object.keys(ALERT_LINK_KINDS) as AlertLinkKind[]).map((kind) => (
+              <span key={kind} className="inline-flex items-center gap-1.5"><AlertLinkSample kind={kind} />{ALERT_LINK_KINDS[kind].label}</span>
+            ))}
+          </div>
+
+          <div className={sidePanelAsDrawer ? 'grid gap-4' : 'grid grid-cols-[minmax(0,1fr)_400px] items-start gap-4'}>
+            <AlertRulesMap
+              cards={cards}
+              matches={mapMatches}
+              focus={focus}
+              counts={countsQuery.data}
+              onSelect={toggleCard}
+            />
+            {sidePanelAsDrawer ? null : (
+              <aside aria-label="Ficha" className="sticky top-3 grid max-h-[calc(100vh-24px)] gap-4 overflow-y-auto">
+                {mapDetail ?? <AlertMapLegend />}
+              </aside>
+            )}
+          </div>
+
+          {sidePanelAsDrawer ? (
+            <Drawer open={Boolean(mapDetail) && !walkState} title={drawerTitle} onClose={clearSelection}>
+              {mapDetail}
+            </Drawer>
+          ) : null}
+
+          {walkState ? (
+            <InactionWalkBar walk={walkState.walk} step={walkState.step} labelOf={nodeLabel} onStep={walkTo} onClose={() => setWalkState(null)} />
+          ) : null}
+        </>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-[minmax(250px,0.7fr)_minmax(0,1.5fr)] lg:items-start">
+          <Block
+            title="Regras"
+            aside={`${filteredRules.length} ${filteredRules.length === 1 ? 'regra' : 'regras'}`}
+            flush
+          >
+            {filteredRules.length ? (
+              <div className="max-h-[min(66vh,720px)] overflow-y-auto" role="list" aria-label="Regras de alertas">
+                {/* Os assuntos do capítulo 20 do manual, na ordem dele. */}
+                {ALERT_RULE_DOMAINS.map((topic) => {
+                  const rules = filteredRules.filter((rule) => rule.domain === topic)
+                  if (!rules.length) return null
+                  return (
+                    <div key={topic} role="group" aria-label={topic}>
+                      <p className="border-b border-[var(--app-border-soft)] bg-[var(--app-bg)] px-4 py-1.5 text-xs font-semibold text-[var(--app-muted)]">
+                        {topic}
+                      </p>
+                      {rules.map((rule) => (
+                        <RuleListItem
+                          key={rule.type}
+                          rule={rule}
+                          severity={liveSeverity(rule, settings)}
+                          selected={selectedRule?.type === rule.type}
+                          onSelect={() => updateFilter('regra', rule.type)}
+                        />
+                      ))}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <EmptyState
+                icon={FilterX}
+                title="Nenhuma regra encontrada"
+                description="Tente remover um filtro ou buscar por outro termo."
+              />
+            )}
+          </Block>
+
+          {selectedRule ? (
+            <RuleDetail
+              rule={selectedRule}
+              settings={settings}
+              chain={MAP_NODES.has(selectedRule.type) ? chainFor(selectedRule.type as AlertMapNodeId) : null}
+            />
+          ) : null}
+        </div>
+      )}
     </>
   )
 }
@@ -280,7 +580,7 @@ function RuleListItem({
  * Administrativo troca aqui. Sem código interno, migration nem endereço de
  * tela; o código continua valendo na busca.
  */
-function RuleDetail({ rule, settings }: { rule: AlertRule; settings: SettingsState }) {
+function RuleDetail({ rule, settings, chain }: { rule: AlertRule; settings: SettingsState; chain?: ReactNode }) {
   const severity = liveSeverity(rule, settings)
   const alsoNotified = rule.notifiedDepartments.filter((department) => !rule.responsibleDepartments.includes(department))
 
@@ -290,6 +590,8 @@ function RuleDetail({ rule, settings }: { rule: AlertRule; settings: SettingsSta
         <h2 className="text-xl font-bold text-[var(--app-text-strong)]">{rule.label}</h2>
         <p className="mt-1 text-[var(--app-muted)]"><SeverityText severity={severity} /> · {rule.domain}</p>
       </div>
+
+      {chain}
 
       <Block title="O que é" headingLevel={3}>
         <LeadValue>{rule.summary}</LeadValue>
@@ -522,8 +824,12 @@ function EscalationBlock({ rule, settings }: { rule: AlertRule; settings: Settin
   )
 }
 
-function isDepartmentFilter(value: string | null): value is 'todos' | AlertRuleDepartment {
-  return value === 'todos' || Boolean(value && value in ALERT_RULE_DEPARTMENT_LABELS)
+function isDepartmentFilter(value: string | null): value is 'todos' | 'dev' | AlertRuleDepartment {
+  return value === 'todos' || value === 'dev' || Boolean(value && value in ALERT_RULE_DEPARTMENT_LABELS)
+}
+
+function isStake(value: string | null): value is AlertStakeId {
+  return ALERT_STAKES.some((stake) => stake.id === value)
 }
 
 function isDomain(value: string | null): value is AlertRuleDomain {

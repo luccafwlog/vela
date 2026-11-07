@@ -1176,6 +1176,27 @@ export async function getAlertDepartmentSummary(): Promise<AlertDepartmentSummar
   return (Array.isArray(data) ? data : []) as AlertDepartmentSummary[]
 }
 
+/**
+ * Quantos alertas ativos de cada tipo a pessoa vê na fila (migration 622,
+ * ADR 0134): o técnico conta só para a conta Dev. Tipo sem alerta aberto não
+ * vem na resposta.
+ */
+export async function fetchAlertQueueCountsByType(): Promise<Map<string, number>> {
+  const { data, error } = await alertsRpc.rpc('count_alert_queue_by_type' as never)
+  if (error) throw error
+  return parseAlertQueueCountsByType(data)
+}
+
+export function parseAlertQueueCountsByType(data: unknown): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const row of Array.isArray(data) ? data : []) {
+    const item = row && typeof row === 'object' ? row as Record<string, unknown> : null
+    const count = Number(item?.active_count)
+    if (typeof item?.type === 'string' && Number.isInteger(count) && count > 0) counts.set(item.type, count)
+  }
+  return counts
+}
+
 export type InternalNotification = {
   id: number
   alert_id?: number | null

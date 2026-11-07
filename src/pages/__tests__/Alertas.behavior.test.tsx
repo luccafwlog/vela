@@ -250,3 +250,22 @@ it('filtra por busca, gravidade e registro, e limpa os filtros', () => {
   expect(screen.getByText('CE trocado depois do Desbloqueio')).toBeTruthy()
   expect(screen.queryByText('Portal sem email para fatura')).toBeNull()
 })
+
+it('622 (ADR 0134): o número do mapa das Regras abre a fila só naquele tipo, e dá para voltar a todos', () => {
+  renderAlertas(['/alertas?tipo=review_customer_unlinked'])
+
+  expect(screen.getByRole('button', { name: 'Ver todos os tipos' })).toBeTruthy()
+  expect(screen.queryByText('Container vencendo')).toBeNull()
+  expect(screen.getByText(/Cliente VALE: 5 B\/Ls pendentes/)).toBeTruthy()
+
+  fireEvent.click(screen.getByRole('button', { name: 'Ver todos os tipos' }))
+  expect(screen.getByText('Container vencendo')).toBeTruthy()
+  expect(screen.queryByRole('button', { name: 'Ver todos os tipos' })).toBeNull()
+})
+
+it('tipo desconhecido no link não filtra a fila', () => {
+  renderAlertas(['/alertas?tipo=nao_existe'])
+
+  expect(screen.queryByRole('button', { name: 'Ver todos os tipos' })).toBeNull()
+  expect(screen.getByText('Container vencendo')).toBeTruthy()
+})

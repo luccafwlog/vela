@@ -218,7 +218,9 @@ const ALERT_RULES_BASE = [
     impact: 'Sem o B/L, a carga fica sem Cliente para os avisos de chegada, o CE Mercante e a fatura. Um B/L que divide container e chega depois do CE refaz a divisão do container e a fatura de quem já foi faturado.',
   },
   {
-    // Migrations 324 e 341: fecha na importação do Baplie.
+    // Migrations 324 e 341: fecha na importação do Baplie; 610 (ADR 0131,
+    // D4): fecha também com a declaração "Viagem sem Baplie", e sem um nem
+    // outro o CE de B/L de container é recusado.
     type: 'voyage_baplie_missing',
     domain: 'Documentação e importação',
     responsible: 'documentacao',
@@ -228,11 +230,11 @@ const ALERT_RULES_BASE = [
     summary: 'Faltam 7 dias para o navio chegar ao Brasil e o Baplie ainda não foi importado.',
     trigger: 'No D−7 do primeiro ETA no Brasil, sem nenhum Baplie importado para a Viagem.',
     timing: `${detectorRound} do D−7.`,
-    resolution: 'Importe o Baplie em Baplie EDI.',
+    resolution: 'Importe o Baplie em Baplie EDI. Se a Viagem não terá Baplie, use Viagem sem Baplie na mesma tela, com o motivo.',
     destination: '/baplie',
     destinationLabel: 'Abrir Baplie EDI',
-    afterResolution: 'Sozinho, na importação do Baplie.',
-    impact: 'Sem o Baplie, os B/Ls não recebem as marcas IMO e OOG, que mudam as Taxas Locais, e a conferência dos containers com os B/Ls não acontece.',
+    afterResolution: 'Sozinho, na importação do Baplie ou na declaração Viagem sem Baplie. Desfazer a declaração, com motivo, reabre o alerta se o D−7 já chegou.',
+    impact: 'Sem o Baplie nem a declaração, o CE Mercante dos B/Ls de container fica travado. Sem o Baplie, os B/Ls não recebem as marcas IMO e OOG, que mudam as Taxas Locais, e a conferência dos containers com os B/Ls não acontece.',
   },
   {
     // Migration 324: cobertura documental Baplie × B/L.
@@ -1016,7 +1018,7 @@ const ALERT_RULES_BASE = [
     destination: '/demurrage',
     destinationLabel: 'Abrir Demurrage',
     afterResolution: 'Sozinho, quando os feriados do ano seguinte são cadastrados.',
-    impact: 'No ano novo, feriado passa a contar como dia útil na Régua de Cobrança, nos prazos do Pix da Demurrage e no prazo de resposta da Disputa.',
+    impact: 'No ano novo, feriado passa a contar como dia útil na Régua de Cobrança, nos prazos do Pix da Demurrage, no prazo de resposta da Disputa e nos prazos do Desbloqueio de CE (as 2 horas úteis da análise e o vencimento da liberação).',
   },
 
   // 20.10 Pix e pagamento ------------------------------------------------------

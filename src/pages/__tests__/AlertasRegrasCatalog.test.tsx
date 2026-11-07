@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   confirmWithReason: vi.fn(async () => 'Exportação parada atrasa o ADR do armador' as string | null),
   showToast: vi.fn(),
   afterChange: vi.fn(async () => undefined),
+  counts: new Map<string, number>(),
 }))
 
 vi.mock('../../services/alertTypeSettings', async (importOriginal) => ({
@@ -26,6 +27,10 @@ vi.mock('../../services/alertTypeSettings', async (importOriginal) => ({
   fetchAlertTypeSettings: async () => mocks.settings,
   setAlertTypeSeverity: mocks.setSeverity,
   setAlertTypeEscalation: mocks.setEscalation,
+}))
+vi.mock('../../services/alerts', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/alerts')>()),
+  fetchAlertQueueCountsByType: async () => mocks.counts,
 }))
 vi.mock('../../hooks/useAuth', () => ({
   useAuth: () => ({ can: (permission: string) => permission === 'manage_alert_rules' && mocks.canManage }),
@@ -59,6 +64,7 @@ function renderPage(url = '/alertas/regras') {
 beforeEach(() => {
   mocks.settings = ALERT_RULES.map((rule) => setting(rule.type, rule.severity))
   mocks.canManage = false
+  mocks.counts = new Map()
   mocks.setSeverity.mockImplementation(async (type: string, severity: 'critical' | 'normal') => ({
     type, previousSeverity: severity === 'critical' ? 'normal' : 'critical', severity, activeItems: 2,
   }))
@@ -175,34 +181,36 @@ describe('Regras de Alertas', () => {
   })
 
   it('filtra o catálogo por setor notificado, não apenas pelo responsável', () => {
-    renderPage()
+    renderPage('/alertas/regras?visao=lista')
+    // A ficha da regra escolhida também cita outros alertas na cadeia: conta só a lista.
+    const list = () => within(screen.getByRole('list', { name: 'Regras de alertas' }))
 
     expect(screen.getByText('65 regras')).toBeTruthy()
     fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'equipamentos' } })
 
     // 605: a PTAX e a exportação pós-ATD passaram a Equipamentos; 607: Container sem descarga.
     expect(screen.getByText('10 regras')).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Falha na atualização da PTAX Demurrage/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Exportação pendente pós-ATD/ })).toBeTruthy()
+    expect(list().getByRole('button', { name: /Falha na atualização da PTAX Demurrage/ })).toBeTruthy()
+    expect(list().getByRole('button', { name: /Exportação pendente pós-ATD/ })).toBeTruthy()
     // Planilha de Veículos ausente (migration 468), o prazo da Disputa de
     // Demurrage (migration 520) e a Declaração de veículos pendente (597) são
     // de Equipamentos.
-    expect(screen.getByRole('button', { name: /Disputa de Demurrage sem resposta no prazo/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Planilha de Veículos ausente/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /Declaração de veículos pendente/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /ADR — departamento pendente/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /ADR — prazo vencido/ })).toBeTruthy()
+    expect(list().getByRole('button', { name: /Disputa de Demurrage sem resposta no prazo/ })).toBeTruthy()
+    expect(list().getByRole('button', { name: /Planilha de Veículos ausente/ })).toBeTruthy()
+    expect(list().getByRole('button', { name: /Declaração de veículos pendente/ })).toBeTruthy()
+    expect(list().getByRole('button', { name: /ADR — departamento pendente/ })).toBeTruthy()
+    expect(list().getByRole('button', { name: /ADR — prazo vencido/ })).toBeTruthy()
     // Desde a migration 476 o Pix não avisa mais Equipamentos.
-    expect(screen.queryByRole('button', { name: /PIX sem conciliação segura/ })).toBeNull()
-    expect(screen.getByRole('button', { name: /Disputa de invoice Demurrage/ })).toBeTruthy()
+    expect(list().queryByRole('button', { name: /PIX sem conciliação segura/ })).toBeNull()
+    expect(list().getByRole('button', { name: /Disputa de invoice Demurrage/ })).toBeTruthy()
 
     // Filtro específico para regras aplicáveis a todos os setores simultaneamente
     fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'todos' } })
     expect(screen.getByText('2 regras')).toBeTruthy()
-    expect(screen.getByRole('button', { name: /ADR — departamento pendente/ })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /ADR — prazo vencido/ })).toBeTruthy()
-    expect(screen.queryByRole('button', { name: /PIX sem conciliação segura/ })).toBeNull()
-    expect(screen.queryByRole('button', { name: /Disputa de invoice Demurrage/ })).toBeNull()
+    expect(list().getByRole('button', { name: /ADR — departamento pendente/ })).toBeTruthy()
+    expect(list().getByRole('button', { name: /ADR — prazo vencido/ })).toBeTruthy()
+    expect(list().queryByRole('button', { name: /PIX sem conciliação segura/ })).toBeNull()
+    expect(list().queryByRole('button', { name: /Disputa de invoice Demurrage/ })).toBeNull()
 
     // Retorna para qualquer setor (sem filtro de setor)
     fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'all' } })
@@ -210,7 +218,7 @@ describe('Regras de Alertas', () => {
   })
 
   it('ignora um deep-link para um tipo aposentado e cai na primeira regra viva', () => {
-    renderPage('/alertas/regras?regra=invoice_cancel_blocked')
+    renderPage('/alertas/regras?visao=lista&regra=invoice_cancel_blocked')
 
     expect(screen.queryByRole('heading', { name: 'Cancelamento bloqueado' })).toBeNull()
     expect(screen.queryByRole('button', { name: /Cancelamento bloqueado/ })).toBeNull()
@@ -218,7 +226,7 @@ describe('Regras de Alertas', () => {
   })
 
   it('agrupa pelos assuntos do capítulo 20 do manual e limpa a combinação de filtros sem perder a regra selecionada', () => {
-    renderPage()
+    renderPage('/alertas/regras?visao=lista')
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Assunto' }), { target: { value: 'Cliente e Portal' } })
     fireEvent.change(screen.getByRole('combobox', { name: 'Gravidade' }), { target: { value: 'critical' } })
@@ -239,7 +247,7 @@ describe('Regras de Alertas', () => {
   })
 
   it('abre uma regra por deep-link com o que é, o que acontece se ninguém agir e onde se resolve', () => {
-    renderPage('/alertas/regras?regra=voyage_baplie_missing')
+    renderPage('/alertas/regras?visao=lista&regra=voyage_baplie_missing')
 
     expect(screen.getByRole('heading', { name: 'Baplie ausente' })).toBeTruthy()
     expect(screen.getByRole('list', { name: 'Regras de alertas' })).toBeTruthy()
@@ -251,7 +259,7 @@ describe('Regras de Alertas', () => {
     for (const heading of ['O que é', 'Quando abre e quando fecha', 'Quem recebe', 'Como resolver', 'Gravidade', 'Reforço por tempo']) {
       expect(screen.getByRole('heading', { name: heading })).toBeTruthy()
     }
-    expect(screen.getByText('Se ninguém agir')).toBeTruthy()
+    expect(within(screen.getByRole('heading', { name: 'O que é' }).closest('section')!).getByText('Se ninguém agir')).toBeTruthy()
     expect(screen.getByText(/os B\/Ls não recebem as marcas IMO e OOG/)).toBeTruthy()
   })
 
@@ -370,5 +378,92 @@ describe('Gravidade pela tela (migration 603, ADR 0130)', () => {
     expect(await screen.findByText('Vira Crítico depois de 16 horas aberto')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /reforço/ })).toBeNull()
     expect(screen.getByText('Só o Administrativo define o reforço, com motivo.')).toBeTruthy()
+  })
+})
+
+describe('Mapa dos alertas (ADR 0134)', () => {
+  it('abre no mapa, na ordem da viagem, ensinando a ler antes de escolher', () => {
+    renderPage()
+
+    expect(screen.getByRole('radio', { name: 'Mapa' }).getAttribute('aria-checked')).toBe('true')
+    expect(screen.getByRole('region', { name: 'D−7: Baplie, B/Ls e Revisão' })).toBeTruthy()
+    expect(screen.getByRole('region', { name: 'Bastidores: Rotinas, só a conta Dev' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Como ler o mapa' })).toBeTruthy()
+    expect(screen.getByText(/64 alertas e 5 avisos em 12 momentos/)).toBeTruthy()
+    // Veículos alterados na reimportação não abre mais: fica só na lista.
+    expect(screen.queryByRole('button', { name: /Veículos alterados na reimportação/ })).toBeNull()
+  })
+
+  it('o cartão abre a ficha com a cadeia, e a cadeia leva ao alerta seguinte', () => {
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: /^CE Mercante pendente/ }))
+    expect(screen.getByRole('heading', { name: 'CE Mercante pendente', level: 2 })).toBeTruthy()
+    const before = screen.getByRole('list', { name: 'Vem antes' })
+    expect(within(before).getByRole('button', { name: 'Declaração de veículos pendente' })).toBeTruthy()
+    expect(within(before).getByRole('button', { name: 'Rotina interna sem rodar' })).toBeTruthy()
+    expect(within(screen.getByRole('list', { name: 'Se ninguém agir' })).getByRole('button', { name: 'Demurrage travada' })).toBeTruthy()
+    expect(within(screen.getByRole('list', { name: 'Em seguida, pode abrir' })).getByRole('button', { name: 'Falha de emissão automática' })).toBeTruthy()
+
+    fireEvent.click(within(before).getByRole('button', { name: 'Declaração de veículos pendente' }))
+    expect(screen.getByRole('heading', { name: 'Declaração de veículos pendente', level: 2 })).toBeTruthy()
+    // O que fica parado leva à lista de quem segura.
+    fireEvent.click(screen.getByRole('button', { name: 'CE Mercante' }))
+    expect(screen.getByRole('heading', { name: 'CE Mercante', level: 2 })).toBeTruthy()
+  })
+
+  it('o que fica parado lista quem pode segurar, de todas as equipes', () => {
+    renderPage()
+
+    fireEvent.click(within(screen.getByRole('group', { name: 'O que fica parado' })).getByRole('button', { name: /Desbloqueio de CE/ }))
+    expect(screen.getByRole('heading', { name: 'Desbloqueio de CE', level: 2 })).toBeTruthy()
+    expect(screen.getByText(/14 alertas podem segurar/)).toBeTruthy()
+    const aside = screen.getByRole('complementary', { name: 'Ficha' })
+    expect(within(aside).getByRole('button', { name: 'PIX sem conciliação segura' })).toBeTruthy()
+    expect(within(aside).getByRole('button', { name: 'Calendário de feriados pendente' })).toBeTruthy()
+  })
+
+  it('"E se ninguém agir?" mostra a cascata passo a passo até o que fica parado', () => {
+    renderPage('/alertas/regras?regra=voyage_vehicle_declaration_pending')
+
+    fireEvent.click(screen.getByRole('button', { name: 'E se ninguém agir?' }))
+    const bar = screen.getByRole('region', { name: 'E se ninguém agir?' })
+    expect(within(bar).getByText('Passo 1 de 4')).toBeTruthy()
+    fireEvent.click(within(bar).getByRole('button', { name: 'Próximo passo' }))
+    expect(within(bar).getByText(/Sem resposta até o D−5/)).toBeTruthy()
+    fireEvent.click(within(bar).getByRole('button', { name: 'Próximo passo' }))
+    expect(within(bar).getByText('B/L sem CE Mercante trava a Demurrage do grupo.', { exact: false })).toBeTruthy()
+    fireEvent.click(within(bar).getByRole('button', { name: 'Próximo passo' }))
+    expect(within(bar).getByText(/CE Mercante, Fatura de Taxas Locais, Avisos e e-mails ao Cliente, Portal do Cliente, Desbloqueio de CE, Cobrança de Demurrage/)).toBeTruthy()
+    fireEvent.click(within(bar).getByRole('button', { name: 'Encerrar' }))
+    expect(screen.queryByRole('region', { name: 'E se ninguém agir?' })).toBeNull()
+  })
+
+  it('mostra quantos a pessoa tem na fila e leva à fila filtrada no tipo', async () => {
+    mocks.counts = new Map([['voyage_ce_mercante_missing', 3]])
+    renderPage()
+
+    const link = await screen.findByRole('link', { name: '3 na fila' })
+    expect(link.getAttribute('href')).toBe('/alertas?tipo=voyage_ce_mercante_missing')
+  })
+
+  it('os avisos do sino entram como marcos, sem gravidade, com a cadeia', () => {
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Nova solicitação de desbloqueio de CE/ }))
+    expect(screen.getByRole('heading', { name: 'Nova solicitação de desbloqueio de CE', level: 2 })).toBeTruthy()
+    expect(screen.getByText('Documentação e Administrativo')).toBeTruthy()
+    expect(within(screen.getByRole('list', { name: 'Se ninguém agir' })).getByRole('button', { name: 'Solicitação de desbloqueio sem análise' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Gravidade' })).toBeNull()
+  })
+
+  it('a conta Dev é um setor do filtro, e o técnico só dela não conta para o Administrativo', () => {
+    renderPage('/alertas/regras?visao=lista&setor=dev')
+
+    expect(screen.getByText('14 regras')).toBeTruthy()
+    fireEvent.change(screen.getByRole('combobox', { name: 'Setor avisado' }), { target: { value: 'administrativo' } })
+    const list = within(screen.getByRole('list', { name: 'Regras de alertas' }))
+    expect(list.queryByRole('button', { name: /Rotina interna sem rodar/ })).toBeNull()
+    expect(list.getByRole('button', { name: /Liberação de faturamento vencendo/ })).toBeTruthy()
   })
 })
