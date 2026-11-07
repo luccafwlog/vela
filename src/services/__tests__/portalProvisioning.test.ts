@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { assistedPortalEmailChange, comparePriority, effectiveSituation, listPortalProvisioningQueue, sendPortalInvite, suspendPortalAccount, type QueueRow } from '../portalProvisioning'
+import { isExpectedUserFacingDbError, userFacingErrorMessage } from '../../lib/errors'
 
 const rpc = vi.hoisted(() => vi.fn())
 const invoke = vi.hoisted(() => vi.fn())
@@ -99,6 +100,18 @@ describe('sendPortalInvite', () => {
     await expect(sendPortalInvite(7, 'compras@example.com')).rejects.toThrow('Conta ativa usa recuperação de senha.')
     invoke.mockResolvedValueOnce(refusal(403, { error: 'permission denied' }))
     await expect(sendPortalInvite(7, 'compras@example.com')).rejects.toThrow('O convite do Portal é enviado pela Documentação ou pelo Administrativo.')
+  })
+
+  it('VELA-2D: recusa 409/422 fica fora do Sentry; 500 continua reportado', async () => {
+    const refusal = (status: number, body: unknown) => ({ data: null, error: Object.assign(new Error('Edge Function returned a non-2xx status code'), { context: new Response(JSON.stringify(body), { status }) }) })
+    invoke.mockResolvedValueOnce(refusal(409, { error: 'Conta ativa usa recuperação de senha.' }))
+    const conflict = await sendPortalInvite(7, 'compras@example.com').catch((e: unknown) => e)
+    expect(isExpectedUserFacingDbError(conflict)).toBe(true)
+    expect(userFacingErrorMessage(conflict)).toBe('Conta ativa usa recuperação de senha.')
+    invoke.mockResolvedValueOnce(refusal(422, { error: 'Email inválido.' }))
+    expect(isExpectedUserFacingDbError(await sendPortalInvite(7, 'x').catch((e: unknown) => e))).toBe(true)
+    invoke.mockResolvedValueOnce(refusal(500, { error: 'boom' }))
+    expect(isExpectedUserFacingDbError(await sendPortalInvite(7, 'compras@example.com').catch((e: unknown) => e))).toBe(false)
   })
 
   it('surfaces a provider failure returned as HTTP 200 instead of reporting success', async () => {

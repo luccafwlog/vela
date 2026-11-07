@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { supabase } from './supabase'
+import { edgeFunctionRefusal } from '../lib/errors'
 
 export type ProvisioningDecision = 'aguardando_analise' | 'aprovado_para_provisionar'
 export type AccountSituation = 'sem_conta' | 'convite_pendente' | 'convite_expirado' | 'falha_no_envio' | 'ativo' | 'suspenso'
@@ -50,7 +51,7 @@ export async function sendPortalInvite(customerId: number, recoveryEmail: string
     const context = (error as { context?: Response }).context
     if (context?.status === 403) throw new Error('O convite do Portal é enviado pela Documentação ou pelo Administrativo.')
     const parsed = context ? await context.json().catch(() => null) as { error?: string } | null : null
-    throw new Error(parsed?.error ?? 'Não foi possível enviar o convite do Portal.')
+    throw edgeFunctionRefusal(context?.status, parsed?.error, 'Não foi possível enviar o convite do Portal.')
   }
   if (data?.situation === 'falha_no_envio') throw new Error('O envio do email falhou. Verifique o status do convite antes de tentar novamente.')
   if (data?.situation !== 'convite_pendente') throw new Error('Não foi possível confirmar o resultado do envio do convite.')
@@ -62,7 +63,7 @@ export async function suspendPortalAccount(customerId: number, action: 'suspend'
   if (error) {
     const context = (error as { context?: Response }).context
     const parsed = context ? await context.json().catch(() => null) as { error?: string } | null : null
-    throw new Error(parsed?.error ?? 'Não foi possível alterar a conta do Portal.')
+    throw edgeFunctionRefusal(context?.status, parsed?.error, 'Não foi possível alterar a conta do Portal.')
   }
 }
 
@@ -78,7 +79,7 @@ export async function assistedPortalEmailChange(customerId: number, newEmail: st
     // "Justificativa é obrigatória." e "Endereço suprimido...".
     const context = (error as { context?: Response }).context
     const parsed = context ? await context.json().catch(() => null) as { error?: string } | null : null
-    throw new Error(parsed?.error ?? 'Não foi possível alterar o email.')
+    throw edgeFunctionRefusal(context?.status, parsed?.error, 'Não foi possível alterar o email.')
   }
   return (data as { previous_notified?: AssistedEmailChangeNotice } | null)?.previous_notified ?? 'falhou'
 }

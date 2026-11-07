@@ -45,6 +45,22 @@ export class DatabaseError extends Error {
   }
 }
 
+const EDGE_REFUSAL_STATUSES: ReadonlySet<number> = new Set([409, 422, 423])
+
+/**
+ * Erro de uma resposta não-2xx de Edge Function. 409/422/423 com motivo no
+ * corpo são recusas de regra (ex.: "Conta ativa usa recuperação de senha."):
+ * viram `DatabaseError` com código `HTTP4xx`, classificado como
+ * conflito/validação, que a tela mostra e o TanStack Query não manda ao Sentry
+ * (VELA-2D). Qualquer outro status continua um `Error` comum, reportado.
+ */
+export function edgeFunctionRefusal(status: number | undefined, message: string | undefined, fallback: string): Error {
+  if (status !== undefined && EDGE_REFUSAL_STATUSES.has(status) && message) {
+    return new DatabaseError(message, { code: `HTTP${status}` })
+  }
+  return new Error(message ?? fallback)
+}
+
 export function toError(error: unknown): Error {
   if (error instanceof Error) return error
   if (typeof error === 'string') return new Error(error)
@@ -139,6 +155,11 @@ const ERROR_TABLE: Readonly<Record<string, ErrorTableEntry>> = {
   // Texto das telas de consulta. Importação usa `importErrorMessage`, que
   // troca a orientação (dividir o arquivo, não reduzir período).
   '57014': { kind: 'limite', message: 'A consulta demorou demais. Reduza o período e tente novamente.' },
+  // Recusas de regra das Edge Functions (`edgeFunctionRefusal`): o corpo traz
+  // o motivo pronto para a tela.
+  HTTP409: { kind: 'conflito', message: 'A operação não é possível na situação atual.', preserveMessage: true },
+  HTTP422: { kind: 'validacao', message: 'Dados inválidos para esta operação.', preserveMessage: true },
+  HTTP423: { kind: 'conflito', message: 'Há outra operação em andamento. Tente novamente depois.', preserveMessage: true },
 }
 
 /**
