@@ -90,7 +90,9 @@ CREATE OR REPLACE FUNCTION public._assert_baplie_declarer()
  SET search_path TO 'public', 'pg_temp'
 AS $function$
 BEGIN
-  IF auth.uid() IS NULL OR NOT EXISTS (
+  -- Predicado padrão de usuário ativo primeiro: a checagem estática de guardas
+  -- (scripts/security/verificar_guardas.py) reconhece a guarda antes da trava.
+  IF NOT public.is_active_user() OR NOT EXISTS (
     SELECT 1 FROM public.user_profiles up
     WHERE up.id = auth.uid() AND up.active AND up.role IN ('documentacao', 'operator', 'administrativo')
   ) THEN

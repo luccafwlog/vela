@@ -87,8 +87,8 @@ AS $function$
     OR auth.role() IS NOT DISTINCT FROM 'service_role'
     OR EXISTS (SELECT 1 FROM public.user_profiles up WHERE up.id = auth.uid() AND up.active AND up.is_dev);
 $function$;
-REVOKE ALL ON FUNCTION public._alert_item_visible_to_caller(text, jsonb) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public._alert_item_visible_to_caller(text, jsonb) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public._alert_item_visible_to_caller(text, jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public._alert_item_visible_to_caller(text, jsonb) TO service_role;
 
 -- 3 --- Correções nas funções vigentes ----------------------------------------
 DO $patch$

@@ -69,8 +69,8 @@ BEGIN
   RETURN v_pending;
 END;
 $function$;
-REVOKE ALL ON FUNCTION public._adr_export_pending(bigint, text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public._adr_export_pending(bigint, text) TO authenticated, service_role;
+REVOKE ALL ON FUNCTION public._adr_export_pending(bigint, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public._adr_export_pending(bigint, text) TO service_role;
 
 -- 1 --- "Nada a declarar" ---------------------------------------------------
 CREATE OR REPLACE FUNCTION public._adr_export_guard_signoff()
