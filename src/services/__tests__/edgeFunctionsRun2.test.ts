@@ -66,9 +66,11 @@ describe('admin-users: revogação de sessões (auditoria run-2 #9)', () => {
 })
 
 const fn = (name: string) => readFileSync(`supabase/functions/${name}/index.ts`, 'utf8')
+// A Edge autentica e o envio fica no módulo compartilhado com a régua automática.
+const sendCommunication = () => `${fn('send-customer-communication')}\n${readFileSync('supabase/functions/_shared/customerCommunicationDispatch.ts', 'utf8')}`
 
 describe('send-customer-communication: conteúdo renderizado no servidor (auditoria run-2 #10)', () => {
-  const source = fn('send-customer-communication')
+  const source = sendCommunication()
 
   it('renderiza livre/institucional a partir de message_body e ignora o HTML do navegador', () => {
     expect(source).toContain("const userWrittenKind = kind === 'livre' || kind === 'institucional'")
@@ -152,7 +154,7 @@ describe('reforços adicionais das Edge Functions (D4 = b)', () => {
   })
 
   it('anexos de Comunicado e de Dispute conferem conteúdo e extensão', () => {
-    expect(fn('send-customer-communication')).toContain('matchesMagicBytes(base64Head(contentBase64), contentType)')
+    expect(sendCommunication()).toContain('matchesMagicBytes(base64Head(contentBase64), contentType)')
     expect(fn('portal-dispute-attachment')).toContain('matchesExtension(file.name, file.type)')
   })
 
@@ -165,7 +167,7 @@ describe('reforços adicionais das Edge Functions (D4 = b)', () => {
   })
 
   it('histórico do Comunicado grava navio e viagem derivados dos B/Ls', () => {
-    const source = fn('send-customer-communication')
+    const source = sendCommunication()
     expect(source).toContain('p_vessel_name: derivedVesselName')
     expect(source).not.toContain('body.vessel_name')
   })
@@ -173,7 +175,7 @@ describe('reforços adicionais das Edge Functions (D4 = b)', () => {
   it('Cliente desativado fica fora de recuperação, convite, Comunicados e resumo', () => {
     expect(fn('portal-password-recovery')).toContain('deactivated_at) return')
     expect(fn('portal-invite-send')).toContain('Cliente desativado não recebe convite.')
-    expect(fn('send-customer-communication')).toContain('Cliente desativado não recebe Comunicados.')
+    expect(sendCommunication()).toContain('Cliente desativado não recebe Comunicados.')
     expect(fn('portal-daily-digest')).toContain(".is('customers.deactivated_at', null)")
     // Convite pendente de Cliente desativado não ativa a conta (plano dos e-mails, 4.7).
     expect(fn('portal-invite-activate')).toContain('customerForActivation.deactivated_at) return cors(410, { error: GENERIC_INVALID })')

@@ -23,6 +23,7 @@ roteadores. Diretrizes canônicas em [AGENTS.md](../AGENTS.md). Cada fato tem um
 | Saber quais serviços externos o sistema usa, onde estão as contas e os segredos | [operations/servicos-externos.md](operations/servicos-externos.md) |
 | Pôr Chegadas e saídas e a Consulta de container no site fwlog.com.br | [operations/fwlog-site-embed.md](operations/fwlog-site-embed.md) |
 | Validar um fluxo manualmente | [operations/validacao.md](operations/validacao.md) |
+| Enviar ao Mercante o EDI que o Vela gera (upload web) ou ler o arquivo de retorno | [operations/envio-manifesto-mercante.md](operations/envio-manifesto-mercante.md) e [operations/mercante-retorno-edi.md](operations/mercante-retorno-edi.md) |
 | Resolver faturamento, baixa, restituição, cancelamento ou correção de B/L | Manual do Operador: [fatura](manual/texto/22-a-fatura.md), [pagamento e restituição](manual/texto/24-pagamento-e-restituicao.md) e [Demurrage no Financeiro](manual/texto/23-demurrage-no-financeiro.md) |
 | Saber por que algo foi decidido | [adr/](adr/README.md) |
 | Saber onde registrar uma informação | [CONVENCOES.md](CONVENCOES.md#responsabilidade-de-cada-documento) |
@@ -74,6 +75,7 @@ as rotas de cadastro, de Comunicados, do console e da Inspeção do Portal, é o
 - [operations/](operations/regras-de-negocio.md) — [manual dos serviços externos](operations/servicos-externos.md),
   [regras de negócio transversais](operations/regras-de-negocio.md), [segurança](operations/seguranca.md),
   [validação manual](operations/validacao.md),
+  [envio do manifesto EDI pelo Mercante](operations/envio-manifesto-mercante.md), [retorno do EDI Mercante (códigos e posições)](operations/mercante-retorno-edi.md),
   [limpeza dos dados de teste](operations/reset-ambiente.md), [backup lógico cifrado em R2](operations/backup-r2.md),
   [rate limit do Portal](operations/portal-rate-limit.md), [iframes do fwlog.com.br](operations/fwlog-site-embed.md), [segredos dos jobs `pg_cron`](operations/segredos-cron.md),
   [observabilidade (Better Stack e Sentry)](operations/observabilidade.md), [configuração do Sentry](operations/sentry-configuracao.md)

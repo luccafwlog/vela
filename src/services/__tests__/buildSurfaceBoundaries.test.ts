@@ -52,7 +52,7 @@ describe('fronteiras dos builds Vela e Fwlog', () => {
     expect(read('src/services/emailLayout.ts')).toContain('return portalOrigin(url)')
     expect(read('supabase/functions/_shared/portalUrls.ts')).toContain("from '../../../src/config/portalUrl.ts'")
     expect(read('supabase/functions/demurrage-dunning/index.ts')).toContain("canonicalPortalUrl('billing')")
-    expect(read('supabase/functions/send-customer-communication/index.ts')).toContain("canonicalPortalUrl('billing')")
+    expect(read('supabase/functions/_shared/customerCommunicationDispatch.ts')).toContain("canonicalPortalUrl('billing')")
     expect(read('supabase/functions/customer-communication-auto-runner/index.ts')).toContain("canonicalPortalUrl('billing')")
     expect(read('supabase/functions/_shared/portalEmailEventProcessor.ts')).toContain('canonicalPortalOrigin')
     expect(read('supabase/functions/portal-invite-send/index.ts')).toContain('canonicalPortalUrl')

@@ -1,6 +1,6 @@
 // Rodada do customer-communication-auto-runner sem dependência remota, para o
-// teste com fetch falso rodar no Vitest. O index.ts só autentica e injeta o
-// cliente Supabase.
+// teste com envio falso rodar no Vitest. O index.ts autentica e injeta o
+// cliente Supabase e o envio (_shared/customerCommunicationDispatch.ts).
 import { telemetryFailureHeaders } from '../../../src/lib/telemetryContract.ts'
 import { renderCustomerCommunicationTemplate } from './customerCommunicationTemplates.ts'
 
@@ -27,21 +27,40 @@ export type AutoRunnerCandidate = {
 
 export type AutoRunnerRpc = (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown }>
 
+/** Corpo devolvido pelo envio de um destinatário (_shared/customerCommunicationDispatch.ts). */
+export type AutoRunnerDispatchResult = { status: number; body: Record<string, unknown> | null }
+
 export type AutoRunnerDeps = {
   rpc: AutoRunnerRpc
-  fetcher: typeof fetch
-  supabaseUrl: string
   /**
-   * Chave pública (anon) que vai no Authorization da chamada à
-   * send-customer-communication. O ramo da automação autentica só pelo
-   * X-Communication-Automation-Secret e não usa o portador; a chave de serviço
-   * não precisa sair da Edge (auditoria run-3).
+   * Envio de um destinatário no mesmo processo. Até 07/11/2026 a rodada fazia
+   * um POST à Edge send-customer-communication por destinatário, e a Supabase
+   * recusou da 31ª chamada em diante (limite de chamadas entre Edge Functions).
    */
-  anonKey: string
-  secret: string
+  dispatch: (payload: Record<string, unknown>) => Promise<AutoRunnerDispatchResult>
   portalUrl?: string
   asOf?: Date
+  /** Teto da rodada; o que passar dele fica para a rodada seguinte. */
+  budget?: AutoRunnerBudget
+  /** Relógio em ms, para o teste do teto de tempo. */
+  now?: () => number
 }
+
+export type AutoRunnerBudget = {
+  /** Destinatários que a rodada começa a enviar. */
+  maxRecipients: number
+  /** Depois deste tempo desde o início, a rodada não começa outro envio. */
+  maxMillis: number
+}
+
+// ponytail: teto fixo por rodada, sem medir a CPU. A Edge tem 2 s de CPU por
+// execução e o pg_net desiste da chamada em 30 s (migration 165); cada envio no
+// mesmo processo gasta CPU desta execução (consultas, modelo, hash). 50
+// destinatários ou 15 s por rodada deixam folga nos dois; o resto sai na rodada
+// seguinte, 2 min depois, então 50 por rodada são até 1.500 por hora. Caminho
+// de melhoria: medir a CPU da rodada e subir o teto, ou levar o envio para uma
+// fila (Supabase Queues).
+export const DEFAULT_AUTO_RUNNER_BUDGET: AutoRunnerBudget = { maxRecipients: 50, maxMillis: 15_000 }
 
 export type AutoRunnerResult = {
   status: number
@@ -52,6 +71,14 @@ export type AutoRunnerResult = {
     /** Destinatários recusados ou com falha na rodada; o heartbeat fica vermelho com > 0. */
     failed?: number
     releaseFailures?: number
+    /**
+     * Destinatários que a rodada não chegou a enviar (teto da rodada ou limite
+     * da plataforma) e voltam na rodada seguinte. Não é falha: o heartbeat não
+     * fica vermelho por eles.
+     */
+    nextRound?: number
+    /** Por que a rodada parou antes do fim. */
+    paused?: RoundPause
   }
   /** Marcação de telemetria do 500 (telemetryFailureHeaders): código e RPC, sem a mensagem. */
   headers?: Record<string, string>
@@ -59,6 +86,17 @@ export type AutoRunnerResult = {
 
 // `reason`: motivo técnico da tentativa no 502 do provedor ("HTTP 422 validation_error", "Tempo esgotado…").
 type DispatchResponse = { status?: string; suppressed?: boolean; permanent?: boolean; error?: string; reason?: string }
+
+type RoundPause = 'teto_da_rodada' | 'limite_da_plataforma'
+
+/**
+ * Recusa da própria Supabase, não do envio (Deno.errors.RateLimitError, que
+ * hoje só vem de chamada entre Edge Functions). A rodada para e o resto volta
+ * na seguinte, sem contar falha.
+ */
+export function isPlatformRateLimit(error: unknown): boolean {
+  return error instanceof Error && error.name === 'RateLimitError'
+}
 
 /**
  * Desfecho da claim depois da rodada (plano dos e-mails, 1D; D18):
@@ -68,7 +106,10 @@ type DispatchResponse = { status?: string; suppressed?: boolean; permanent?: boo
  *   falha_permanente); a produtora não retoma por 24 h;
  * - defer: recusa que pode mudar. Volta em 15 min, 1 h e depois a cada 6 h; o
  *   alerta abre na 1ª recusa por dado ou na 3ª falha seguida do provedor;
- * - release: sem destinatário (a produtora já não manda este caso).
+ * - release: sem destinatário (a produtora já não manda este caso), ou envio
+ *   que a rodada não chegou a fazer (teto da rodada ou limite da plataforma):
+ *   a produtora devolve a claim na rodada seguinte, sem intervalo e sem contar
+ *   tentativa.
  */
 type ClaimSettlement =
   | { action: 'complete' }
@@ -104,10 +145,9 @@ async function settleClaim(rpc: AutoRunnerRpc, claimKey: string | undefined, set
 // Clientes simultâneos: cada candidato tem claim e Comunicado próprios, e os
 // de Clientes diferentes não dividem linha. Os alvos de um mesmo Cliente e os
 // destinatários de um mesmo alvo seguem em série: dividem o alerta do Cliente
-// e o Comunicado, cujo status a send-customer-communication grava em dois
-// passos (recálculo e gravação). Quatro POSTs por vez ficam bem abaixo do
-// limite de 10 req/s do provedor; o 429 com retry-after já é tratado no envio
-// (_shared/email.ts).
+// e o Comunicado, cujo status o envio grava em dois passos (recálculo e
+// gravação). Quatro envios por vez ficam bem abaixo do limite de 10 req/s do
+// provedor; o 429 com retry-after já é tratado no envio (_shared/email.ts).
 const CANDIDATE_CONCURRENCY = 4
 
 async function forEachWithConcurrency<T>(items: T[], limit: number, task: (item: T) => Promise<void>): Promise<void> {
@@ -118,17 +158,17 @@ async function forEachWithConcurrency<T>(items: T[], limit: number, task: (item:
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
 }
 
-// ponytail: até quatro Clientes por vez, um POST à Edge por destinatário, dentro
-// do tempo de uma invocação da Edge (~150 s). Com o provedor a ~1-2 s por
-// chamada, o teto prático fica em torno de 250-400 destinatários por rodada. Se
-// a invocação cair no meio de um Cliente, a claim fica presa até envelhecer
+// Se a execução cair no meio de um Cliente, a claim fica presa até envelhecer
 // (30 min) e a produtora a devolve na primeira rodada depois disso: o alvo só
 // sai da lista quando todo destinatário automático tem tentativa entregue
 // (migration 315), e `emails` traz só os que faltam (migration 318) — quem já
 // recebeu, inclusive em simulação, não recebe de novo, nem com a chave ligada
-// depois. Caminho de melhoria: limitar o lote na produtora (LIMIT por rodada).
+// depois. O teto da rodada (DEFAULT_AUTO_RUNNER_BUDGET) existe para a execução
+// não cair.
 export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<AutoRunnerResult> {
-  const { rpc, fetcher, supabaseUrl, anonKey, secret } = deps
+  const { rpc, dispatch } = deps
+  const budget = deps.budget ?? DEFAULT_AUTO_RUNNER_BUDGET
+  const now = deps.now ?? Date.now
   const { data, error } = await rpc('evaluate_and_dispatch_automatic_communications', { p_as_of: (deps.asOf ?? new Date()).toISOString() })
   if (error) {
     return {
@@ -141,8 +181,29 @@ export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<
   const sent: Array<{ kind: string; customerId: number; emails: number }> = new Array(candidates.length)
   let releaseFailures = 0
   let failed = 0
+  let nextRound = 0
+  // Teto da rodada, dividido entre os Clientes simultâneos: cada envio reserva
+  // a vez antes de começar.
+  const startedAt = now()
+  const round: { started: number; paused: RoundPause | null } = { started: 0, paused: null }
+  const takeTurn = (): boolean => {
+    if (round.paused) return false
+    if (round.started >= budget.maxRecipients || now() - startedAt >= budget.maxMillis) {
+      round.paused = 'teto_da_rodada'
+      return false
+    }
+    round.started += 1
+    return true
+  }
   const processCandidate = async (candidate: AutoRunnerCandidate, index: number) => {
     let count = 0
+    if (round.paused) {
+      // A rodada já parou: o candidato volta inteiro na seguinte.
+      nextRound += candidate.emails?.length ?? 0
+      if (!await settleClaim(rpc, candidate.claim_key, { action: 'release' })) releaseFailures += 1
+      sent[index] = { kind: candidate.kind, customerId: candidate.customer_id, emails: 0 }
+      return
+    }
     try {
       const payload = candidate.kind === 'ce_mercante_taxas'
         ? await rpc('customer_local_charges_communication_payload', {
@@ -194,39 +255,34 @@ export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<
         if (!await settleClaim(rpc, candidate.claim_key, { action: 'release' })) releaseFailures += 1
       } else {
         let resolvedRecipients = 0
+        let attemptedRecipients = 0
         let permanentRejections = 0
         let dataRefusals = 0
         let rejectionReason: string | undefined
         let deferReason: string | undefined
         for (const recipient of recipients) {
+          if (!takeTurn()) break
           try {
-            const response = await fetcher(`${supabaseUrl}/functions/v1/send-customer-communication`, {
-              method: 'POST',
-              headers: { Authorization: `Bearer ${anonKey}`, 'Content-Type': 'application/json', 'X-Communication-Automation-Secret': secret },
-              body: JSON.stringify({
-                customer_id: candidate.customer_id, kind: candidate.kind, nature: candidate.nature ?? 'avisos_operacionais', recipient,
-                subject: rendered.subject, html: rendered.html, text: rendered.text, bl_ids: candidate.bl_ids,
-                anchor_voyage_id: candidate.voyage_id, anchor_port: candidate.port, attempt_discriminator: 0,
-                anchor_atracacao_id: candidate.anchor_atracacao_id ?? null,
-                terminal_name: candidate.terminal_name ?? null,
-                vessel_name: candidate.vessel_name, voyage_number: candidate.voyage_number, origin: 'automatico',
-              }),
+            const { status, body } = await dispatch({
+              customer_id: candidate.customer_id, kind: candidate.kind, nature: candidate.nature ?? 'avisos_operacionais', recipient,
+              subject: rendered.subject, html: rendered.html, text: rendered.text, bl_ids: candidate.bl_ids,
+              anchor_voyage_id: candidate.voyage_id, anchor_port: candidate.port, attempt_discriminator: 0,
+              anchor_atracacao_id: candidate.anchor_atracacao_id ?? null,
+              terminal_name: candidate.terminal_name ?? null,
+              vessel_name: candidate.vessel_name, voyage_number: candidate.voyage_number, origin: 'automatico',
             })
-            let result: DispatchResponse | null = null
-            try {
-              result = await response.json() as DispatchResponse
-            } catch {
-              // A successful HTTP response without the contract status is not a sent e-mail.
-            }
-            const isDeliveredOrSimulated = response.ok && (result?.status === 'enviado' || result?.status === 'simulado' || result?.status === 'parcial')
-            const isPermanentSuppression = response.status === 422 && Boolean(result?.suppressed)
+            attemptedRecipients += 1
+            const result = body as DispatchResponse | null
+            const ok = status >= 200 && status < 300
+            const isDeliveredOrSimulated = ok && (result?.status === 'enviado' || result?.status === 'simulado' || result?.status === 'parcial')
+            const isPermanentSuppression = status === 422 && Boolean(result?.suppressed)
             if (isDeliveredOrSimulated) count += 1
             if (isDeliveredOrSimulated || isPermanentSuppression) {
               resolvedRecipients += 1
             } else {
               failed += 1
               console.warn('[customer-communication-auto-runner] envio recusado', {
-                status: response.status,
+                status,
                 error: result?.error,
                 kind: candidate.kind,
                 customerId: candidate.customer_id,
@@ -235,19 +291,26 @@ export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<
               if (result?.permanent === true) {
                 // 422 de código/payload ou 502 com falha_permanente do provedor.
                 permanentRejections += 1
-                rejectionReason ??= result.error ?? result.reason ?? `HTTP ${response.status}`
-              } else if (response.status === 422) {
+                rejectionReason ??= result.error ?? result.reason ?? `HTTP ${status}`
+              } else if (status === 422) {
                 // Recusa por dado: prontidão, contato, Cliente, escala, Atracação.
                 dataRefusals += 1
                 deferReason ??= result?.error ?? 'Recusa sem motivo informado.'
               } else {
-                deferReason ??= result?.error ?? result?.reason ?? `HTTP ${response.status}`
+                deferReason ??= result?.error ?? result?.reason ?? `HTTP ${status}`
               }
             }
           } catch (dispatchError) {
+            if (isPlatformRateLimit(dispatchError)) {
+              // A Supabase recusou antes do envio: este destinatário e o resto
+              // da rodada voltam na seguinte.
+              round.paused = 'limite_da_plataforma'
+              break
+            }
+            attemptedRecipients += 1
             failed += 1
-            deferReason ??= 'Falha de requisição ao envio do Comunicado.'
-            console.error('[customer-communication-auto-runner] falha de requisição', candidate.kind, candidate.customer_id, candidate.claim_key, dispatchError)
+            deferReason ??= 'Erro inesperado no envio do Comunicado.'
+            console.error('[customer-communication-auto-runner] erro no envio', candidate.kind, candidate.customer_id, candidate.claim_key, dispatchError)
           }
         }
         // A claim covers the whole customer/port target, but delivery is per
@@ -255,13 +318,21 @@ export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<
         // only changes with new code or payload, reject the claim so the next
         // runs stop retrying it; any transient failure still releases it.
         const pendingRecipients = recipients.length - resolvedRecipients
+        const notAttempted = recipients.length - attemptedRecipients
+        const refusedRecipients = pendingRecipients - notAttempted
+        if (notAttempted > 0) nextRound += notAttempted
         const settlement: ClaimSettlement = pendingRecipients === 0
           ? { action: 'complete' }
-          : permanentRejections === pendingRecipients
-            ? { action: 'reject', reason: rejectionReason }
-            // Uma recusa por dado já pede uma pessoa; sem ela, é falha do
-            // provedor ou da infraestrutura.
-            : { action: 'defer', reason: deferReason ?? rejectionReason, providerFailure: dataRefusals === 0 }
+          // Sobrou envio que a rodada não fez, sem falha que peça intervalo: a
+          // claim volta na rodada seguinte; uma recusa definitiva junto decide
+          // quando não sobrar mais nada.
+          : notAttempted > 0 && refusedRecipients === permanentRejections
+            ? { action: 'release' }
+            : permanentRejections === pendingRecipients
+              ? { action: 'reject', reason: rejectionReason }
+              // Uma recusa por dado já pede uma pessoa; sem ela, é falha do
+              // provedor ou da infraestrutura.
+              : { action: 'defer', reason: deferReason ?? rejectionReason, providerFailure: dataRefusals === 0 }
         if (!await settleClaim(rpc, candidate.claim_key, settlement)) releaseFailures += 1
       }
     } catch (candidateError) {
@@ -278,5 +349,14 @@ export async function runAutomaticCommunications(deps: AutoRunnerDeps): Promise<
   await forEachWithConcurrency([...byCustomer.values()], CANDIDATE_CONCURRENCY, async (indexes) => {
     for (const index of indexes) await processCandidate(candidates[index]!, index)
   })
-  return { status: releaseFailures ? 500 : 200, body: { candidates: candidates.length, sent, failed, releaseFailures } }
+  const { paused } = round
+  if (paused) {
+    console.warn('[customer-communication-auto-runner] rodada parou antes do fim', {
+      motivo: paused, enviosIniciados: round.started, ms: now() - startedAt, proximaRodada: nextRound,
+    })
+  }
+  return {
+    status: releaseFailures ? 500 : 200,
+    body: { candidates: candidates.length, sent, failed, releaseFailures, nextRound, ...(paused ? { paused } : {}) },
+  }
 }

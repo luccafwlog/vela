@@ -309,6 +309,26 @@ describe('buildVoyageCommunicationCoverage — drill-down e fila', () => {
     expect(cell('Fortlev', 'aviso_atracacao_nob')).toMatchObject({ state: 'enviado', communicationId: 18 })
   })
 
+  // NOA da GREEN GUANGZHOU / 6 (2026-11-07): Comunicado Enviado com destinatário
+  // ainda sem envio contava como enviado ("32 de 35" com 5 pendentes).
+  it('Cliente com Comunicado Enviado e destinatário ainda na fila não conta como enviado', () => {
+    const [counted] = buildVoyageCommunicationCoverage({
+      voyages: [voyage],
+      bls: [bl('A', 4), bl('B', 5)],
+      communications: [
+        sent(21, 4, 'aviso_chegada_noa', '2026-11-07T15:01:05Z'),
+        sent(22, 5, 'aviso_chegada_noa', '2026-11-07T15:01:06Z'),
+        sent(23, 4, 'aviso_atracacao_nob', '2026-11-07T15:01:07Z', 'TVV'),
+        sent(24, 5, 'aviso_atracacao_nob', '2026-11-07T15:01:08Z', 'TVV'),
+      ],
+      terminalStates: [{ id: 'TVV', voyage_id: 62, port: 'BRVIX', terminal_atb: '2026-11-07T09:00:00Z' }],
+      readiness: new Map(),
+      queue: [queue(5, 'aviso_chegada_noa', 'nova_tentativa'), queue(4, 'aviso_atracacao_nob', 'na_fila', 'TVV')],
+    })
+    expect(counted.noa).toEqual({ sent: 1, total: 2 })
+    expect(counted.nob).toEqual({ sent: 1, total: 2 })
+  })
+
   it('na fila e em envio vêm da leitura da rodada', () => {
     expect(cell('Gold', 'ce_mercante_taxas').state).toBe('na_fila')
     expect(cell('Gold', 'aviso_chegada_noa').state).toBe('em_envio')
